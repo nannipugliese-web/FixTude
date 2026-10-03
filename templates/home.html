@@ -1,28 +1,69 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="hero">
-    <div class="badge">FIXTUDE</div>
-    <h1>Trova il tuo<br><strong>prossimo passo.</strong></h1>
-    <p class="subtitle">
-        Analizza la tua situazione, organizza i tuoi dati
-        e scopri le possibili strade da percorrere.
+
+<div class="hero">
+
+    <div class="eyebrow">FIXTUDE</div>
+
+    <h1>
+        IL TUO<br>
+        PRIMO PASSO
+    </h1>
+
+    <p class="hero-subtitle">
+        Analisi della situazione debitoria ·
+        Organizzazione dei dati ·
+        Possibili soluzioni
     </p>
 
-    <div class="choice-grid">
-        <a class="choice-card debtor" href="{{ url_for('login', role='debitore') }}">
-            <div class="icon">01</div>
-            <h2>Sono un privato</h2>
-            <p>Voglio analizzare la mia situazione e capire quali possibilità ho.</p>
-            <span class="arrow">Accedi →</span>
+    <p class="hero-text">
+        Quando la situazione sembra difficile da gestire,
+        iniziare a fare chiarezza può cambiare il modo di affrontarla.
+        FixTude raccoglie e organizza le informazioni sulla tua situazione
+        e ti aiuta a individuare le possibili strade da approfondire.
+    </p>
+
+</div>
+
+
+<div class="choice-grid">
+
+    <div class="choice-card">
+
+        <div class="number">01</div>
+
+        <h2>Sono un privato</h2>
+
+        <p>
+            Voglio capire meglio la mia situazione
+            e le possibilità che posso valutare.
+        </p>
+
+        <a href="{{ url_for('login', role='debtor') }}" class="text-link">
+            Entra nella tua area →
         </a>
 
-        <a class="choice-card professional" href="{{ url_for('login', role='risolutore') }}">
-            <div class="icon">02</div>
-            <h2>Sono un risolutore</h2>
-            <p>Sono un professionista e voglio gestire le situazioni dei miei clienti.</p>
-            <span class="arrow">Accedi →</span>
-        </a>
     </div>
-</section>
+
+
+    <div class="choice-card">
+
+        <div class="number">02</div>
+
+        <h2>Sono un risolutore</h2>
+
+        <p>
+            Voglio organizzare, analizzare e seguire
+            le situazioni dei miei clienti.
+        </p>
+
+        <a href="{{ url_for('login', role='resolver') }}" class="text-link">
+            Accedi all'area professionale →
+        </a>
+
+    </div>
+
+</div>
+
 {% endblock %}
