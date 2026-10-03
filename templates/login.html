@@ -1,42 +1,94 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="login-page">
-    <div class="login-card">
-        <a href="{{ url_for('home') }}" class="back">← Torna indietro</a>
 
-        {% if role == "debitore" %}
-            <div class="role-label">ACCESSO PRIVATO</div>
-            <h1>Benvenuto in FixTude.</h1>
-            <p>Accedi per iniziare ad analizzare la tua situazione.</p>
-        {% else %}
-            <div class="role-label">ACCESSO PROFESSIONALE</div>
-            <h1>Benvenuto, risolutore.</h1>
-            <p>Accedi alla tua area professionale per gestire le situazioni dei tuoi clienti.</p>
-        {% endif %}
+<div class="login-wrapper">
+
+    {% if role == "debtor" %}
+
+        <div class="eyebrow">
+            AREA PRIVATA
+        </div>
+
+        <h1>
+            Partiamo da qui.
+        </h1>
+
+        <p class="intro">
+            Accedi alla tua area FixTude.
+            Da qui potrai raccogliere le informazioni necessarie
+            e costruire, passo dopo passo, un quadro della tua situazione.
+        </p>
+
+    {% else %}
+
+        <div class="eyebrow">
+            AREA PROFESSIONALE
+        </div>
+
+        <h1>
+            La tua area professionale.
+        </h1>
+
+        <p class="intro">
+            Accedi per organizzare le pratiche,
+            analizzare le informazioni e seguire
+            le situazioni dei tuoi clienti.
+        </p>
+
+    {% endif %}
+
+    <div class="form-card">
 
         {% if error %}
-            <div class="error">{{ error }}</div>
+            <div class="error">
+                {{ error }}
+            </div>
         {% endif %}
 
         <form method="POST">
-            <label for="email">Email</label>
-            <input id="email" name="email" type="email" placeholder="La tua email" required>
 
-            <label for="password">Password</label>
-            <input id="password" name="password" type="password" placeholder="La tua password" required>
+            <label>Email</label>
 
-            <button type="submit">Accedi</button>
+            <input
+                type="email"
+                name="email"
+                placeholder="La tua email"
+                autocomplete="email"
+                required
+            >
+
+            <label>Password</label>
+
+            <input
+                type="password"
+                name="password"
+                placeholder="La tua password"
+                autocomplete="current-password"
+                required
+            >
+
+            <button type="submit">
+
+                {% if role == "debtor" %}
+                    Entra nella tua area →
+                {% else %}
+                    Accedi all'area professionale →
+                {% endif %}
+
+            </button>
+
         </form>
 
-        <div class="demo">
-            <strong>Demo</strong><br>
-            {% if role == "debitore" %}
-                demo@fixtude.it / 1234
-            {% else %}
-                pro@fixtude.it / 1234
-            {% endif %}
-        </div>
     </div>
-</section>
+
+    <a
+        href="{{ url_for('home') }}"
+        class="back-link"
+    >
+        ← Torna alla pagina iniziale
+    </a>
+
+</div>
+
 {% endblock %}
