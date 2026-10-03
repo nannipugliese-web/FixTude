@@ -1,1 +1,861 @@
+{% extends "base.html" %}
 
+{% block content %}
+
+<div class="form-page">
+
+    <div class="eyebrow">IL TUO PRIMO QUADRO</div>
+
+    <h1>Partiamo dalla tua situazione.</h1>
+
+    <p class="intro">
+        Non serve preparare tutto prima.
+        Inserisci ciò che conosci e completa il quadro
+        con calma. Potrai approfondire i dati in seguito.
+    </p>
+
+
+    <form method="POST" enctype="multipart/form-data">
+
+
+        <!-- ================================================= -->
+        <!-- 01 DATI PERSONALI -->
+        <!-- ================================================= -->
+
+        <section class="form-section">
+
+            <div class="section-number">01</div>
+
+            <h2>Chi sei</h2>
+
+            <p>
+                Queste informazioni servono a collegare
+                correttamente la situazione alla tua pratica.
+            </p>
+
+            <div class="form-grid">
+
+                <div>
+                    <label>Nome</label>
+                    <input
+                        type="text"
+                        name="first_name"
+                        value="{{ data.get('personal', {}).get('first_name', '') }}"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>Cognome</label>
+                    <input
+                        type="text"
+                        name="last_name"
+                        value="{{ data.get('personal', {}).get('last_name', '') }}"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>Codice fiscale</label>
+                    <input
+                        type="text"
+                        name="tax_code"
+                        value="{{ data.get('personal', {}).get('tax_code', '') }}"
+                    >
+                </div>
+
+                <div>
+                    <label>Data di nascita</label>
+                    <input
+                        type="date"
+                        name="birth_date"
+                    >
+                </div>
+
+                <div class="full">
+                    <label>Indirizzo</label>
+                    <input
+                        type="text"
+                        name="address"
+                        placeholder="Via, numero civico"
+                    >
+                </div>
+
+                <div>
+                    <label>Comune</label>
+                    <input
+                        type="text"
+                        name="city"
+                    >
+                </div>
+
+                <div>
+                    <label>Telefono</label>
+                    <input
+                        type="tel"
+                        name="phone"
+                    >
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- 02 FAMIGLIA -->
+        <!-- ================================================= -->
+
+        <section class="form-section">
+
+            <div class="section-number">02</div>
+
+            <h2>La tua famiglia</h2>
+
+            <p>
+                Il numero di persone e le responsabilità familiari
+                aiutano a comprendere meglio la capacità economica.
+            </p>
+
+            <div class="form-grid">
+
+                <div>
+                    <label>Persone nel nucleo familiare</label>
+
+                    <input
+                        type="number"
+                        name="family_members"
+                        min="1"
+                        value="1"
+                    >
+                </div>
+
+                <div>
+                    <label>Persone a carico</label>
+
+                    <input
+                        type="number"
+                        name="dependents"
+                        min="0"
+                        value="0"
+                    >
+                </div>
+
+                <div class="full">
+
+                    <label>Altre informazioni</label>
+
+                    <textarea
+                        name="family_notes"
+                        placeholder="Se vuoi, raccontaci brevemente la tua situazione familiare."
+                    ></textarea>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- 03 ENTRATE -->
+        <!-- ================================================= -->
+
+        <section class="form-section">
+
+            <div class="section-number">03</div>
+
+            <h2>Le tue entrate</h2>
+
+            <p>
+                Inserisci gli importi medi mensili.
+                Non preoccuparti della precisione assoluta:
+                potremo correggerli successivamente.
+            </p>
+
+            <div class="form-grid">
+
+                <div>
+                    <label>Reddito netto mensile</label>
+
+                    <div class="money-input">
+                        <span>€</span>
+                        <input
+                            type="number"
+                            step="0.01"
+                            name="net_monthly"
+                            placeholder="0"
+                        >
+                    </div>
+                </div>
+
+                <div>
+                    <label>Altre entrate mensili</label>
+
+                    <div class="money-input">
+                        <span>€</span>
+                        <input
+                            type="number"
+                            step="0.01"
+                            name="other_income"
+                            placeholder="0"
+                        >
+                    </div>
+                </div>
+
+                <div>
+                    <label>Entrate variabili medie</label>
+
+                    <div class="money-input">
+                        <span>€</span>
+                        <input
+                            type="number"
+                            step="0.01"
+                            name="variable_income"
+                            placeholder="0"
+                        >
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- 04 SPESE -->
+        <!-- ================================================= -->
+
+        <section class="form-section">
+
+            <div class="section-number">04</div>
+
+            <h2>Le tue spese</h2>
+
+            <p>
+                Consideriamo prima le spese necessarie
+                per vivere e mantenere il nucleo familiare.
+            </p>
+
+            <div class="form-grid">
+
+                <div>
+                    <label>Affitto / mutuo</label>
+                    <input
+                        type="number"
+                        step="0.01"
+                        name="housing"
+                        placeholder="€ 0"
+                    >
+                </div>
+
+                <div>
+                    <label>Utenze</label>
+                    <input
+                        type="number"
+                        step="0.01"
+                        name="utilities"
+                        placeholder="€ 0"
+                    >
+                </div>
+
+                <div>
+                    <label>Alimentari</label>
+                    <input
+                        type="number"
+                        step="0.01"
+                        name="food"
+                        placeholder="€ 0"
+                    >
+                </div>
+
+                <div>
+                    <label>Trasporti</label>
+                    <input
+                        type="number"
+                        step="0.01"
+                        name="transport"
+                        placeholder="€ 0"
+                    >
+                </div>
+
+                <div>
+                    <label>Spese familiari</label>
+                    <input
+                        type="number"
+                        step="0.01"
+                        name="family_expenses"
+                        placeholder="€ 0"
+                    >
+                </div>
+
+                <div>
+                    <label>Altre spese essenziali</label>
+                    <input
+                        type="number"
+                        step="0.01"
+                        name="other_expenses"
+                        placeholder="€ 0"
+                    >
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- 05 DEBITI -->
+        <!-- ================================================= -->
+
+        <section class="form-section">
+
+            <div class="section-number">05</div>
+
+            <h2>I tuoi debiti</h2>
+
+            <p>
+                Inserisci le posizioni che conosci.
+                Puoi aggiungerne quante vuoi.
+            </p>
+
+
+            <div id="debts-container">
+
+                <div class="debt-card">
+
+                    <div class="debt-title">
+                        <strong>Posizione 1</strong>
+                    </div>
+
+                    <label>Creditore</label>
+
+                    <input
+                        type="text"
+                        name="creditor[]"
+                        placeholder="Banca, finanziaria, Agenzia Entrate-Riscossione..."
+                    >
+
+                    <label>Tipo di debito</label>
+
+                    <select name="debt_type[]">
+
+                        <option value="">
+                            Seleziona
+                        </option>
+
+                        <option>Finanziamento</option>
+                        <option>Carta di credito</option>
+                        <option>Mutuo</option>
+                        <option>Tributi</option>
+                        <option>Utenze</option>
+                        <option>Debito commerciale</option>
+                        <option>Prestito personale</option>
+                        <option>Altro</option>
+
+                    </select>
+
+
+                    <div class="form-grid">
+
+                        <div>
+
+                            <label>Importo originario</label>
+
+                            <input
+                                type="number"
+                                step="0.01"
+                                name="original_amount[]"
+                                placeholder="€ 0"
+                            >
+
+                        </div>
+
+
+                        <div>
+
+                            <label>Importo attuale</label>
+
+                            <input
+                                type="number"
+                                step="0.01"
+                                name="current_amount[]"
+                                placeholder="€ 0"
+                            >
+
+                        </div>
+
+
+                        <div>
+
+                            <label>Rata mensile</label>
+
+                            <input
+                                type="number"
+                                step="0.01"
+                                name="monthly_payment[]"
+                                placeholder="€ 0"
+                            >
+
+                        </div>
+
+
+                        <div>
+
+                            <label>Stato della posizione</label>
+
+                            <select name="debt_status[]">
+
+                                <option value="">
+                                    Seleziona
+                                </option>
+
+                                <option>Regolare</option>
+                                <option>In ritardo</option>
+                                <option>Sollecito ricevuto</option>
+                                <option>Messa in mora</option>
+                                <option>Recupero crediti</option>
+                                <option>Decreto ingiuntivo</option>
+                                <option>Precetto</option>
+                                <option>Pignoramento</option>
+                                <option>Non lo so</option>
+
+                            </select>
+
+                        </div>
+
+                    </div>
+
+
+                    <label>Note sulla posizione</label>
+
+                    <textarea
+                        name="debt_notes[]"
+                        placeholder="Qualsiasi informazione che ritieni utile."
+                    ></textarea>
+
+                </div>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="secondary-button"
+                onclick="addDebt()"
+            >
+                + Aggiungi un altro debito
+            </button>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- 06 PATRIMONIO -->
+        <!-- ================================================= -->
+
+        <section class="form-section">
+
+            <div class="section-number">06</div>
+
+            <h2>Il tuo patrimonio</h2>
+
+            <p>
+                Queste informazioni servono a completare
+                il quadro economico complessivo.
+            </p>
+
+            <div class="form-grid">
+
+                <div>
+
+                    <label>
+                        Disponibilità su conti e depositi
+                    </label>
+
+                    <input
+                        type="number"
+                        step="0.01"
+                        name="bank_balance"
+                        placeholder="€ 0"
+                    >
+
+                </div>
+
+
+                <div>
+
+                    <label>
+                        Valore indicativo degli immobili
+                    </label>
+
+                    <input
+                        type="number"
+                        step="0.01"
+                        name="property_value"
+                        placeholder="€ 0"
+                    >
+
+                </div>
+
+
+                <div>
+
+                    <label>
+                        Valore indicativo dei veicoli
+                    </label>
+
+                    <input
+                        type="number"
+                        step="0.01"
+                        name="vehicles_value"
+                        placeholder="€ 0"
+                    >
+
+                </div>
+
+
+                <div>
+
+                    <label>
+                        Altri beni
+                    </label>
+
+                    <input
+                        type="number"
+                        step="0.01"
+                        name="other_assets"
+                        placeholder="€ 0"
+                    >
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- 07 PROCEDURE -->
+        <!-- ================================================= -->
+
+        <section class="form-section">
+
+            <div class="section-number">07</div>
+
+            <h2>Ci sono già procedure in corso?</h2>
+
+            <p>
+                Se non sai esattamente in quale fase ti trovi,
+                puoi indicarlo: non è necessario conoscere
+                il linguaggio tecnico.
+            </p>
+
+            <select name="procedures">
+
+                <option value="">
+                    Seleziona
+                </option>
+
+                <option>
+                    No
+                </option>
+
+                <option>
+                    Sì, recupero stragiudiziale
+                </option>
+
+                <option>
+                    Sì, decreto ingiuntivo
+                </option>
+
+                <option>
+                    Sì, precetto
+                </option>
+
+                <option>
+                    Sì, pignoramento
+                </option>
+
+                <option>
+                    Sì, altra procedura
+                </option>
+
+                <option>
+                    Non lo so
+                </option>
+
+            </select>
+
+
+            <label>
+                Se vuoi, raccontaci cosa è successo
+            </label>
+
+            <textarea
+                name="procedure_details"
+                placeholder="Puoi indicare date, atti ricevuti o qualsiasi elemento utile."
+            ></textarea>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- 08 DOCUMENTI -->
+        <!-- ================================================= -->
+
+        <section class="form-section">
+
+            <div class="section-number">08</div>
+
+            <h2>I tuoi documenti</h2>
+
+            <p>
+                Puoi caricare fatture, finanziamenti,
+                lettere di recupero, estratti conto,
+                decreti, precetti, cartelle o altri documenti.
+            </p>
+
+            <div class="upload-box">
+
+                <input
+                    type="file"
+                    name="documents"
+                    multiple
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                >
+
+                <strong>
+                    Seleziona i documenti
+                </strong>
+
+                <span>
+                    PDF, immagini, Word ed Excel
+                </span>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- 09 AUTORIZZAZIONE -->
+        <!-- ================================================= -->
+
+        <section class="form-section">
+
+            <div class="section-number">09</div>
+
+            <h2>Autorizzazioni</h2>
+
+            <p>
+                Qui puoi lasciare eventuali indicazioni
+                o autorizzazioni relative alla gestione
+                della pratica.
+            </p>
+
+            <textarea
+                name="authorization"
+                placeholder="Inserisci eventuali autorizzazioni o indicazioni."
+            ></textarea>
+
+
+            <label class="check-row">
+
+                <input
+                    type="checkbox"
+                    name="privacy"
+                    value="1"
+                    required
+                >
+
+                <span>
+                    Dichiaro di aver preso visione
+                    dell'informativa privacy e autorizzo
+                    il trattamento dei dati necessari
+                    alla gestione della mia pratica.
+                </span>
+
+            </label>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- INVIO -->
+        <!-- ================================================= -->
+
+        <div class="submit-area">
+
+            <p>
+                Hai inserito tutto ciò che conosci?
+                Non preoccuparti se qualcosa manca:
+                potremo completare il quadro successivamente.
+            </p>
+
+            <button
+                type="submit"
+                class="primary-button"
+            >
+                Salviamo il primo quadro →
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
+
+
+<script>
+
+function addDebt() {
+
+    const container =
+        document.getElementById(
+            "debts-container"
+        );
+
+    const count =
+        container.children.length + 1;
+
+    const card =
+        document.createElement("div");
+
+    card.className =
+        "debt-card";
+
+    card.innerHTML = `
+
+        <div class="debt-title">
+
+            <strong>
+                Posizione ${count}
+            </strong>
+
+            <button
+                type="button"
+                class="remove-debt"
+                onclick="this.closest('.debt-card').remove()"
+            >
+                Rimuovi
+            </button>
+
+        </div>
+
+
+        <label>Creditore</label>
+
+        <input
+            type="text"
+            name="creditor[]"
+            placeholder="Banca, finanziaria, Agenzia Entrate-Riscossione..."
+        >
+
+
+        <label>Tipo di debito</label>
+
+        <select name="debt_type[]">
+
+            <option value="">
+                Seleziona
+            </option>
+
+            <option>Finanziamento</option>
+            <option>Carta di credito</option>
+            <option>Mutuo</option>
+            <option>Tributi</option>
+            <option>Utenze</option>
+            <option>Debito commerciale</option>
+            <option>Prestito personale</option>
+            <option>Altro</option>
+
+        </select>
+
+
+        <div class="form-grid">
+
+            <div>
+
+                <label>Importo originario</label>
+
+                <input
+                    type="number"
+                    step="0.01"
+                    name="original_amount[]"
+                    placeholder="€ 0"
+                >
+
+            </div>
+
+
+            <div>
+
+                <label>Importo attuale</label>
+
+                <input
+                    type="number"
+                    step="0.01"
+                    name="current_amount[]"
+                    placeholder="€ 0"
+                >
+
+            </div>
+
+
+            <div>
+
+                <label>Rata mensile</label>
+
+                <input
+                    type="number"
+                    step="0.01"
+                    name="monthly_payment[]"
+                    placeholder="€ 0"
+                >
+
+            </div>
+
+
+            <div>
+
+                <label>Stato della posizione</label>
+
+                <select name="debt_status[]">
+
+                    <option value="">
+                        Seleziona
+                    </option>
+
+                    <option>Regolare</option>
+                    <option>In ritardo</option>
+                    <option>Sollecito ricevuto</option>
+                    <option>Messa in mora</option>
+                    <option>Recupero crediti</option>
+                    <option>Decreto ingiuntivo</option>
+                    <option>Precetto</option>
+                    <option>Pignoramento</option>
+                    <option>Non lo so</option>
+
+                </select>
+
+            </div>
+
+        </div>
+
+
+        <label>Note sulla posizione</label>
+
+        <textarea
+            name="debt_notes[]"
+            placeholder="Qualsiasi informazione che ritieni utile."
+        ></textarea>
+
+    `;
+
+    container.appendChild(card);
+}
+
+</script>
+
+{% endblock %}
