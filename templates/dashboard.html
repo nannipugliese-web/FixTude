@@ -18,11 +18,11 @@
 
             <p class="intro">
                 Questa è la tua area FixTude.
-                Possiamo cominciare con calma, partendo
-                dalle informazioni che hai già a disposizione.
+                Qui puoi costruire e approfondire
+                il quadro della tua situazione.
             </p>
 
-        {% elif role == "resolver" %}
+        {% else %}
 
             <div class="eyebrow">
                 AREA PROFESSIONALE
@@ -33,9 +33,9 @@
             </h1>
 
             <p class="intro">
-                Da qui puoi organizzare le tue pratiche
-                e costruire un quadro ordinato delle situazioni
-                che stai seguendo.
+                Da qui puoi organizzare le pratiche
+                e costruire un quadro ordinato
+                delle situazioni che stai seguendo.
             </p>
 
         {% endif %}
@@ -52,33 +52,68 @@
 </div>
 
 
-<div class="main-card">
+{% if role == "debtor" %}
 
-    {% if role == "debtor" %}
+    <div class="main-card">
 
         <div class="number">
             01
         </div>
 
-        <h2>
-            Facciamo un primo quadro.
-        </h2>
+        {% if completed %}
 
-        <p>
-            Non è necessario avere già tutti i documenti.
-            Partiamo dalle informazioni essenziali
-            e aggiungeremo ciò che serve lungo il percorso.
-        </p>
+            <h2>
+                La tua situazione è stata raccolta.
+            </h2>
 
-        <a
-            href="{{ url_for('debtor_situation') }}"
-            class="primary-link"
-        >
-            Iniziamo dalla tua situazione →
-        </a>
+            <p>
+                Puoi rivedere il quadro e approfondire
+                l'analisi della situazione.
+            </p>
+
+            <a
+                href="{{ url_for('case_summary') }}"
+                class="primary-link"
+            >
+                Guarda il tuo quadro →
+            </a>
+
+            <br><br>
+
+            <a
+                href="{{ url_for('case_analysis') }}"
+                class="text-link"
+            >
+                Vai all'analisi →
+            </a>
+
+        {% else %}
+
+            <h2>
+                Facciamo un primo quadro.
+            </h2>
+
+            <p>
+                Non è necessario avere già tutti i documenti.
+                Partiamo dalle informazioni essenziali
+                e aggiungeremo ciò che serve lungo il percorso.
+            </p>
+
+            <a
+                href="{{ url_for('debtor_situation') }}"
+                class="primary-link"
+            >
+                Iniziamo dalla tua situazione →
+            </a>
+
+        {% endif %}
+
+    </div>
 
 
-    {% elif role == "resolver" %}
+{% else %}
+
+    <div class="main-card">
 
         <div class="number">
             01
@@ -101,8 +136,8 @@
             Apri una nuova pratica →
         </a>
 
-    {% endif %}
+    </div>
 
-</div>
+{% endif %}
 
 {% endblock %}
