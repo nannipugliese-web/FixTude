@@ -1,0 +1,238 @@
+:root {
+    --ink: #151515;
+    --muted: #6d6d6d;
+    --line: #e6e6e6;
+    --paper: #fafaf8;
+    --card: #ffffff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+a { color: inherit; text-decoration: none; }
+
+.topbar {
+    height: 76px;
+    display: flex;
+    align-items: center;
+    padding: 0 6%;
+    border-bottom: 1px solid var(--line);
+    background: rgba(255,255,255,.92);
+}
+
+.logo {
+    font-size: 25px;
+    font-weight: 800;
+    letter-spacing: -1px;
+}
+
+.logo span { font-weight: 400; }
+
+main { min-height: calc(100vh - 126px); }
+
+.hero {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 90px 24px 70px;
+    text-align: center;
+}
+
+.badge, .role-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--muted);
+}
+
+.hero h1 {
+    margin: 18px 0;
+    font-size: clamp(44px, 7vw, 76px);
+    line-height: .98;
+    letter-spacing: -3px;
+}
+
+.hero h1 strong { font-weight: 400; }
+
+.subtitle {
+    max-width: 610px;
+    margin: 0 auto 55px;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1.6;
+}
+
+.choice-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+    max-width: 850px;
+    margin: auto;
+}
+
+.choice-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    padding: 35px;
+    text-align: left;
+    transition: .2s ease;
+}
+
+.choice-card:hover {
+    transform: translateY(-3px);
+    border-color: #aaa;
+}
+
+.icon {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 45px;
+}
+
+.choice-card h2 { margin: 0 0 12px; font-size: 25px; }
+.choice-card p { color: var(--muted); line-height: 1.55; min-height: 52px; }
+.arrow { display: block; margin-top: 30px; font-weight: 700; }
+
+.login-page {
+    min-height: calc(100vh - 126px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 470px;
+    background: white;
+    border: 1px solid var(--line);
+    padding: 42px;
+}
+
+.back {
+    display: inline-block;
+    margin-bottom: 45px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.login-card h1 {
+    font-size: 38px;
+    letter-spacing: -1.5px;
+    margin: 12px 0;
+}
+
+.login-card p { color: var(--muted); line-height: 1.5; margin-bottom: 32px; }
+
+form label {
+    display: block;
+    margin: 18px 0 8px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+input {
+    width: 100%;
+    padding: 15px;
+    border: 1px solid #d8d8d8;
+    font-size: 15px;
+    background: #fff;
+}
+
+button {
+    width: 100%;
+    margin-top: 25px;
+    padding: 16px;
+    border: 0;
+    background: var(--ink);
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+button:disabled { opacity: .45; cursor: default; }
+
+.error {
+    padding: 12px;
+    margin: 20px 0;
+    background: #f4eeee;
+    font-size: 14px;
+}
+
+.demo {
+    margin-top: 25px;
+    padding: 15px;
+    background: #f5f5f3;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.dashboard {
+    max-width: 1050px;
+    margin: auto;
+    padding: 70px 24px;
+}
+
+.dashboard-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 30px;
+}
+
+.dashboard h1 {
+    font-size: 46px;
+    letter-spacing: -2px;
+    margin: 10px 0;
+}
+
+.dashboard-head p { color: var(--muted); }
+
+.logout {
+    padding: 11px 18px;
+    border: 1px solid var(--line);
+    background: white;
+    font-size: 13px;
+}
+
+.empty-state {
+    margin-top: 45px;
+    background: white;
+    border: 1px solid var(--line);
+    padding: 50px;
+}
+
+.big-number {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 35px;
+}
+
+.empty-state h2 { font-size: 30px; margin: 0 0 12px; }
+.empty-state p { max-width: 650px; color: var(--muted); line-height: 1.6; }
+
+footer {
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #888;
+    font-size: 11px;
+    border-top: 1px solid var(--line);
+}
+
+@media (max-width: 700px) {
+    .choice-grid { grid-template-columns: 1fr; }
+    .hero { padding-top: 55px; }
+    .choice-card { padding: 28px; }
+    .login-card { padding: 30px 24px; }
+    .dashboard h1 { font-size: 38px; }
+}

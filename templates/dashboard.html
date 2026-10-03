@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="dashboard">
+    <div class="dashboard-head">
+        <div>
+            <div class="role-label">
+                {% if user.role == "debitore" %}AREA PRIVATA{% else %}AREA PROFESSIONALE{% endif %}
+            </div>
+            <h1>Ciao, {{ user.name }}.</h1>
+            <p>Questa è la tua area FixTude.</p>
+        </div>
+        <a href="{{ url_for('logout') }}" class="logout">Esci</a>
+    </div>
+
+    {% if user.role == "debitore" %}
+    <div class="empty-state">
+        <div class="big-number">01</div>
+        <h2>Inizia la tua analisi</h2>
+        <p>Nel prossimo passaggio potrai inserire reddito, spese, creditori e caricare i documenti della tua situazione.</p>
+        <button disabled>Nuova situazione · presto</button>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="big-number">01</div>
+        <h2>Gestisci le tue pratiche</h2>
+        <p>Nel prossimo passaggio potrai acquisire una nuova pratica, analizzare i documenti e costruire scenari per il cliente.</p>
+        <button disabled>Nuova pratica · presto</button>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

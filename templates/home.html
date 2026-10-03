@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+    <div class="badge">FIXTUDE</div>
+    <h1>Trova il tuo<br><strong>prossimo passo.</strong></h1>
+    <p class="subtitle">
+        Analizza la tua situazione, organizza i tuoi dati
+        e scopri le possibili strade da percorrere.
+    </p>
+
+    <div class="choice-grid">
+        <a class="choice-card debtor" href="{{ url_for('login', role='debitore') }}">
+            <div class="icon">01</div>
+            <h2>Sono un privato</h2>
+            <p>Voglio analizzare la mia situazione e capire quali possibilità ho.</p>
+            <span class="arrow">Accedi →</span>
+        </a>
+
+        <a class="choice-card professional" href="{{ url_for('login', role='risolutore') }}">
+            <div class="icon">02</div>
+            <h2>Sono un risolutore</h2>
+            <p>Sono un professionista e voglio gestire le situazioni dei miei clienti.</p>
+            <span class="arrow">Accedi →</span>
+        </a>
+    </div>
+</section>
+{% endblock %}
