@@ -26,7 +26,6 @@
 
 </div>
 
-
 <div class="choice-grid">
 
     <div class="choice-card">
@@ -40,7 +39,10 @@
             e le possibilità che posso valutare.
         </p>
 
-        <a href="{{ url_for('login', role='debtor') }}" class="text-link">
+        <a
+            href="{{ url_for('debtor_login') }}"
+            class="text-link"
+        >
             Entra nella tua area →
         </a>
 
@@ -58,7 +60,10 @@
             le situazioni dei miei clienti.
         </p>
 
-        <a href="{{ url_for('login', role='resolver') }}" class="text-link">
+        <a
+            href="{{ url_for('resolver_login') }}"
+            class="text-link"
+        >
             Accedi all'area professionale →
         </a>
 
