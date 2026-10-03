@@ -1,1 +1,138 @@
+{% extends "base.html" %}
 
+{% block content %}
+
+<div class="analysis-page">
+
+    <div class="eyebrow">
+        IL TUO QUADRO
+    </div>
+
+    <h1>
+        Abbiamo messo ordine.
+    </h1>
+
+    <p class="intro">
+        Ecco una prima fotografia delle informazioni
+        che hai inserito.
+    </p>
+
+
+    <div class="metric-grid">
+
+        <div class="metric-card">
+
+            <span>Entrate mensili</span>
+
+            <strong>
+                € {{ "%.2f"|format(total_income) }}
+            </strong>
+
+        </div>
+
+
+        <div class="metric-card">
+
+            <span>Spese mensili</span>
+
+            <strong>
+                € {{ "%.2f"|format(total_expenses) }}
+            </strong>
+
+        </div>
+
+
+        <div class="metric-card">
+
+            <span>Disponibilità teorica</span>
+
+            <strong>
+                € {{ "%.2f"|format(monthly_capacity) }}
+            </strong>
+
+        </div>
+
+
+        <div class="metric-card">
+
+            <span>Debiti indicati</span>
+
+            <strong>
+                € {{ "%.2f"|format(total_debt) }}
+            </strong>
+
+        </div>
+
+    </div>
+
+
+    <section class="summary-section">
+
+        <div class="section-number">
+            01
+        </div>
+
+        <h2>
+            Posizioni inserite
+        </h2>
+
+        {% if debts %}
+
+            {% for debt in debts %}
+
+                <div class="summary-debt">
+
+                    <strong>
+                        {{ debt["creditor"] }}
+                    </strong>
+
+                    <span>
+                        {{ debt["debt_type"] or "Tipo non indicato" }}
+                    </span>
+
+                    <strong>
+                        € {{ "%.2f"|format(debt["current_amount"] or 0) }}
+                    </strong>
+
+                </div>
+
+            {% endfor %}
+
+        {% else %}
+
+            <p>
+                Non hai ancora inserito posizioni debitorie.
+            </p>
+
+        {% endif %}
+
+    </section>
+
+
+    <section class="summary-section">
+
+        <div class="section-number">
+            02
+        </div>
+
+        <h2>
+            Prossimo passo
+        </h2>
+
+        <p>
+            Ora possiamo leggere insieme i dati inseriti
+            e costruire una prima analisi della situazione.
+        </p>
+
+        <a
+            href="{{ url_for('case_analysis') }}"
+            class="primary-button"
+        >
+            Analizziamo la situazione →
+        </a>
+
+    </section>
+
+</div>
+
+{% endblock %}
