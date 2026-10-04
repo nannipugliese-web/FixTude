@@ -1,353 +1,461 @@
-from flask import (
-    Flask, render_template, request, redirect, url_for,
-    session, send_from_directory, abort
-)
-from werkzeug.utils import secure_filename
+from flask import Flask, request, redirect, url_for, session, render_template, render_template_string, send_file, abort
 import sqlite3
 import os
-import uuid
 import json
-from datetime import datetime
-from html import escape
+from datetime import datetime, timezone
+from pathlib import Path
 
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_LEFT
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.units import mm
+try:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    REPORTLAB_AVAILABLE = True
+except Exception:
+    REPORTLAB_AVAILABLE = False
 
-
-# =========================================================
-# FIXTUDE
-# =========================================================
-#
-# Flusso:
-#
-# DEBITORE
-#     ↓
-# situazione
-#     ↓
-# riepilogo
-#     ↓
-# analisi FixTude
-#     ↓
-# possibili soluzioni
-#     ↓
-# PDF
-#     ↓
-# RISOLUTORE / SUPERVISORE
-#     ↓
-# correzione
-#     ↓
-# approvazione
-#     ↓
-# notifica al debitore
-#
-# Questa versione utilizza un motore locale/simulato.
-# Non utilizza API OpenAI.
-#
-# =========================================================
+from werkzeug.utils import secure_filename
 
 
 app = Flask(__name__)
 
-app.secret_key = "fixtude-demo-secret-key"
-
-
-DATABASE = "fixtude.db"
-
-UPLOAD_FOLDER = "uploads"
-PDF_FOLDER = "generated_pdfs"
-
-
-os.makedirs(
-    UPLOAD_FOLDER,
-    exist_ok=True
-)
-
-os.makedirs(
-    PDF_FOLDER,
-    exist_ok=True
+app.secret_key = os.environ.get(
+    "FIXTUDE_SECRET",
+    "fixtude-dev-secret-change-later"
 )
 
 
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config["PDF_FOLDER"] = PDF_FOLDER
+BASE_DIR = Path(__file__).resolve().parent
 
-app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
+DB_PATH = BASE_DIR / "fixtude.db"
+UPLOAD_DIR = BASE_DIR / "uploads"
+PDF_DIR = BASE_DIR / "generated_pdfs"
 
-
-ALLOWED_EXTENSIONS = {
-    "pdf",
-    "jpg",
-    "jpeg",
-    "png",
-    "doc",
-    "docx",
-    "xls",
-    "xlsx"
-}
+UPLOAD_DIR.mkdir(exist_ok=True)
+PDF_DIR.mkdir(exist_ok=True)
 
 
-# =========================================================
-# UTENTI DEMO
-# =========================================================
-
-USERS = {
-
+DEMO_USERS = {
     "demo@fixtude.it": {
         "password": "1234",
-        "role": "debtor",
-        "name": "Demo Debitore"
+        "role": "debtor"
     },
-
     "pro@fixtude.it": {
         "password": "1234",
-        "role": "resolver",
-        "name": "Demo Risolutore"
+        "role": "resolver"
     }
-
 }
 
 
-# =========================================================
-# DATABASE
-# =========================================================
-
-def get_db():
-
-    connection = sqlite3.connect(
-        DATABASE
-    )
-
-    connection.row_factory = sqlite3.Row
-
-    return connection
-
-
-def init_database():
-
-    db = get_db()
-
-
-    # -----------------------------------------------------
-    # CASES
-    # -----------------------------------------------------
-
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS cases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            data TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )
-    """)
-
-
-    # -----------------------------------------------------
-    # DEBTS
-    # -----------------------------------------------------
-
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS debts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            case_id INTEGER NOT NULL,
-            creditor TEXT,
-            debt_type TEXT,
-            original_amount REAL DEFAULT 0,
-            current_amount REAL DEFAULT 0,
-            monthly_payment REAL DEFAULT 0,
-            status TEXT,
-            notes TEXT,
-            FOREIGN KEY(case_id) REFERENCES cases(id)
-        )
-    """)
-
-
-    # -----------------------------------------------------
-    # DOCUMENTS
-    # -----------------------------------------------------
-
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS documents (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            case_id INTEGER NOT NULL,
-            original_name TEXT,
-            stored_name TEXT,
-            uploaded_at TEXT,
-            FOREIGN KEY(case_id) REFERENCES cases(id)
-        )
-    """)
-
-
-    # -----------------------------------------------------
-    # ANALISI AI
-    # -----------------------------------------------------
-
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS ai_analyses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            case_id INTEGER NOT NULL,
-            status TEXT NOT NULL DEFAULT 'draft',
-            analysis_json TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            FOREIGN KEY(case_id) REFERENCES cases(id)
-        )
-    """)
-
-
-    # -----------------------------------------------------
-    # DOCUMENTI / SOLUZIONI
-    # -----------------------------------------------------
-
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS solution_documents (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            case_id INTEGER NOT NULL,
-            analysis_id INTEGER,
-            solution_type TEXT NOT NULL,
-            title TEXT NOT NULL,
-            draft_text TEXT NOT NULL,
-            original_text TEXT NOT NULL,
-            pdf_filename TEXT,
-            status TEXT NOT NULL DEFAULT 'pending_review',
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            approved_at TEXT,
-            sent_at TEXT,
-            FOREIGN KEY(case_id) REFERENCES cases(id),
-            FOREIGN KEY(analysis_id) REFERENCES ai_analyses(id)
-        )
-    """)
-
-
-    # -----------------------------------------------------
-    # SUPERVISIONE / CORREZIONI
-    # -----------------------------------------------------
-
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS supervision (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            solution_id INTEGER NOT NULL,
-            original_text TEXT,
-            corrected_text TEXT,
-            correction_note TEXT,
-            supervisor_email TEXT,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(solution_id) REFERENCES solution_documents(id)
-        )
-    """)
-
-
-    # -----------------------------------------------------
-    # NOTIFICHE
-    # -----------------------------------------------------
-
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            case_id INTEGER NOT NULL,
-            email TEXT NOT NULL,
-            title TEXT NOT NULL,
-            message TEXT NOT NULL,
-            notification_type TEXT DEFAULT 'in_app',
-            read INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(case_id) REFERENCES cases(id)
-        )
-    """)
-
-
-    db.commit()
-
-    db.close()
-
-
-init_database()
-
-
-# =========================================================
-# UTILITY
-# =========================================================
+# ============================================================
+# UTILITÀ
+# ============================================================
 
 def now_iso():
-
-    return datetime.utcnow().isoformat()
-
-
-def allowed_file(filename):
-
-    return (
-        "."
-        in filename
-        and filename.rsplit(
-            ".",
-            1
-        )[1].lower()
-        in ALLOWED_EXTENSIONS
-    )
+    return datetime.now(
+        timezone.utc
+    ).isoformat(timespec="seconds")
 
 
-def number(value):
+def db_connect():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
 
+
+def table_columns(conn, table):
+    rows = conn.execute(
+        f"PRAGMA table_info({table})"
+    ).fetchall()
+
+    return {
+        row[1]
+        for row in rows
+    }
+
+
+def ensure_column(
+    conn,
+    table,
+    column,
+    definition
+):
+    if column not in table_columns(conn, table):
+        conn.execute(
+            f"""
+            ALTER TABLE {table}
+            ADD COLUMN {column} {definition}
+            """
+        )
+
+
+def money(value):
     try:
-
-        if value is None:
-            return 0.0
-
-        value = str(
-            value
-        ).replace(
-            ",",
-            "."
-        )
-
-        return float(
-            value
-        )
-
-    except (
-        ValueError,
-        TypeError
-    ):
-
+        return float(value or 0)
+    except (TypeError, ValueError):
         return 0.0
 
 
-def euro(value):
+def parse_float(value):
 
-    return f"€ {number(value):,.2f}"
+    if value is None:
+        return 0.0
+
+    text = str(value).strip()
+
+    text = (
+        text
+        .replace("€", "")
+        .replace(" ", "")
+    )
+
+    if not text:
+        return 0.0
+
+    if "," in text and "." in text:
+
+        if text.rfind(",") > text.rfind("."):
+            text = (
+                text
+                .replace(".", "")
+                .replace(",", ".")
+            )
+        else:
+            text = text.replace(",", "")
+
+    elif "," in text:
+
+        text = (
+            text
+            .replace(".", "")
+            .replace(",", ".")
+        )
+
+    try:
+        return float(text)
+
+    except ValueError:
+        return 0.0
 
 
-# =========================================================
-# CASE
-# =========================================================
+# ============================================================
+# DATABASE
+# ============================================================
 
-def get_case(email):
+def init_db():
 
-    db = get_db()
+    conn = db_connect()
 
-    row = db.execute(
+    conn.execute(
         """
-        SELECT *
-        FROM cases
-        WHERE email = ?
-        """,
-        (email,)
-    ).fetchone()
+        CREATE TABLE IF NOT EXISTS cases (
 
-    db.close()
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-    return row
+            email TEXT NOT NULL,
+
+            data TEXT NOT NULL DEFAULT '{}',
+
+            created_at TEXT NOT NULL,
+
+            updated_at TEXT NOT NULL
+
+        )
+        """
+    )
+
+    ensure_column(
+        conn,
+        "cases",
+        "email",
+        "TEXT"
+    )
+
+    ensure_column(
+        conn,
+        "cases",
+        "data",
+        "TEXT NOT NULL DEFAULT '{}'"
+    )
+
+    ensure_column(
+        conn,
+        "cases",
+        "created_at",
+        "TEXT"
+    )
+
+    ensure_column(
+        conn,
+        "cases",
+        "updated_at",
+        "TEXT"
+    )
 
 
-def get_case_by_id(case_id):
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS debts (
 
-    db = get_db()
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-    row = db.execute(
+            case_id INTEGER NOT NULL,
+
+            creditor TEXT NOT NULL,
+
+            debt_type TEXT,
+
+            current_amount REAL DEFAULT 0,
+
+            monthly_payment REAL DEFAULT 0,
+
+            notes TEXT,
+
+            created_at TEXT,
+
+            FOREIGN KEY(case_id)
+                REFERENCES cases(id)
+                ON DELETE CASCADE
+
+        )
+        """
+    )
+
+    ensure_column(
+        conn,
+        "debts",
+        "debt_type",
+        "TEXT"
+    )
+
+    ensure_column(
+        conn,
+        "debts",
+        "current_amount",
+        "REAL DEFAULT 0"
+    )
+
+    ensure_column(
+        conn,
+        "debts",
+        "monthly_payment",
+        "REAL DEFAULT 0"
+    )
+
+    ensure_column(
+        conn,
+        "debts",
+        "notes",
+        "TEXT"
+    )
+
+    ensure_column(
+        conn,
+        "debts",
+        "created_at",
+        "TEXT"
+    )
+
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS documents (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            case_id INTEGER NOT NULL,
+
+            filename TEXT NOT NULL,
+
+            stored_path TEXT NOT NULL,
+
+            created_at TEXT NOT NULL,
+
+            FOREIGN KEY(case_id)
+                REFERENCES cases(id)
+                ON DELETE CASCADE
+
+        )
+        """
+    )
+
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS ai_analyses (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            case_id INTEGER NOT NULL,
+
+            analysis_json TEXT NOT NULL,
+
+            created_at TEXT NOT NULL,
+
+            FOREIGN KEY(case_id)
+                REFERENCES cases(id)
+                ON DELETE CASCADE
+
+        )
+        """
+    )
+
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS solution_documents (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            case_id INTEGER NOT NULL,
+
+            analysis_id INTEGER,
+
+            title TEXT NOT NULL,
+
+            solution_type TEXT NOT NULL,
+
+            content TEXT NOT NULL,
+
+            pdf_path TEXT,
+
+            status TEXT NOT NULL
+                DEFAULT 'pending_review',
+
+            supervisor_note TEXT,
+
+            created_at TEXT NOT NULL,
+
+            updated_at TEXT NOT NULL,
+
+            approved_at TEXT,
+
+            sent_at TEXT,
+
+            FOREIGN KEY(case_id)
+                REFERENCES cases(id)
+                ON DELETE CASCADE,
+
+            FOREIGN KEY(analysis_id)
+                REFERENCES ai_analyses(id)
+                ON DELETE SET NULL
+
+        )
+        """
+    )
+
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS supervision (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            solution_id INTEGER NOT NULL,
+
+            original_content TEXT NOT NULL,
+
+            corrected_content TEXT NOT NULL,
+
+            correction_note TEXT,
+
+            created_at TEXT NOT NULL,
+
+            FOREIGN KEY(solution_id)
+                REFERENCES solution_documents(id)
+                ON DELETE CASCADE
+
+        )
+        """
+    )
+
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS notifications (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            case_id INTEGER NOT NULL,
+
+            email TEXT NOT NULL,
+
+            title TEXT NOT NULL,
+
+            message TEXT NOT NULL,
+
+            notification_type TEXT NOT NULL
+                DEFAULT 'in_app',
+
+            read INTEGER NOT NULL DEFAULT 0,
+
+            created_at TEXT NOT NULL,
+
+            FOREIGN KEY(case_id)
+                REFERENCES cases(id)
+                ON DELETE CASCADE
+
+        )
+        """
+    )
+
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            email TEXT NOT NULL,
+
+            endpoint TEXT NOT NULL,
+
+            subscription_json TEXT NOT NULL,
+
+            created_at TEXT NOT NULL
+
+        )
+        """
+    )
+
+
+    conn.commit()
+    conn.close()
+
+
+init_db()
+
+
+# ============================================================
+# SESSIONE
+# ============================================================
+
+def current_user():
+    return session.get("user")
+
+
+def require_login(role=None):
+
+    user = current_user()
+
+    if not user:
+        return None
+
+    if role and user.get("role") != role:
+        return None
+
+    return user
+
+
+# ============================================================
+# CASE
+# ============================================================
+
+def get_case(case_id):
+
+    conn = db_connect()
+
+    row = conn.execute(
         """
         SELECT *
         FROM cases
@@ -356,124 +464,52 @@ def get_case_by_id(case_id):
         (case_id,)
     ).fetchone()
 
-    db.close()
+    conn.close()
 
     return row
 
 
-def get_case_data(email):
+def get_case_for_email(email):
 
-    row = get_case(
-        email
-    )
+    conn = db_connect()
+
+    row = conn.execute(
+        """
+        SELECT *
+        FROM cases
+        WHERE email = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (email,)
+    ).fetchone()
+
+    conn.close()
+
+    return row
+
+
+def get_case_data(case_id):
+
+    row = get_case(case_id)
 
     if not row:
-
         return {}
-
 
     try:
-
         return json.loads(
-            row["data"]
+            row["data"] or "{}"
         )
 
-    except (
-        TypeError,
-        json.JSONDecodeError
-    ):
-
+    except Exception:
         return {}
 
-
-def save_case(email, data):
-
-    db = get_db()
-
-    timestamp = now_iso()
-
-    serialized = json.dumps(
-        data,
-        ensure_ascii=False
-    )
-
-
-    existing = db.execute(
-        """
-        SELECT id
-        FROM cases
-        WHERE email = ?
-        """,
-        (email,)
-    ).fetchone()
-
-
-    if existing:
-
-        db.execute(
-            """
-            UPDATE cases
-            SET data = ?,
-                updated_at = ?
-            WHERE email = ?
-            """,
-            (
-                serialized,
-                timestamp,
-                email
-            )
-        )
-
-    else:
-
-        db.execute(
-            """
-            INSERT INTO cases
-            (
-                email,
-                data,
-                created_at,
-                updated_at
-            )
-            VALUES (?, ?, ?, ?)
-            """,
-            (
-                email,
-                serialized,
-                timestamp,
-                timestamp
-            )
-        )
-
-
-    db.commit()
-
-
-    case = db.execute(
-        """
-        SELECT id
-        FROM cases
-        WHERE email = ?
-        """,
-        (email,)
-    ).fetchone()
-
-
-    db.close()
-
-
-    return case["id"]
-
-
-# =========================================================
-# DEBITI
-# =========================================================
 
 def get_debts(case_id):
 
-    db = get_db()
+    conn = db_connect()
 
-    rows = db.execute(
+    rows = conn.execute(
         """
         SELECT *
         FROM debts
@@ -483,317 +519,125 @@ def get_debts(case_id):
         (case_id,)
     ).fetchall()
 
-    db.close()
+    conn.close()
 
     return rows
 
 
-def save_debts(case_id, debts):
-
-    db = get_db()
-
-
-    db.execute(
-        """
-        DELETE FROM debts
-        WHERE case_id = ?
-        """,
-        (case_id,)
-    )
-
-
-    for debt in debts:
-
-        db.execute(
-            """
-            INSERT INTO debts
-            (
-                case_id,
-                creditor,
-                debt_type,
-                original_amount,
-                current_amount,
-                monthly_payment,
-                status,
-                notes
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                case_id,
-                debt.get(
-                    "creditor",
-                    ""
-                ),
-                debt.get(
-                    "debt_type",
-                    ""
-                ),
-                number(
-                    debt.get(
-                        "original_amount"
-                    )
-                ),
-                number(
-                    debt.get(
-                        "current_amount"
-                    )
-                ),
-                number(
-                    debt.get(
-                        "monthly_payment"
-                    )
-                ),
-                debt.get(
-                    "status",
-                    ""
-                ),
-                debt.get(
-                    "notes",
-                    ""
-                )
-            )
-        )
-
-
-    db.commit()
-
-    db.close()
-
-
-# =========================================================
-# DOCUMENTI
-# =========================================================
-
 def get_documents(case_id):
 
-    db = get_db()
+    conn = db_connect()
 
-    rows = db.execute(
+    rows = conn.execute(
         """
         SELECT *
         FROM documents
         WHERE case_id = ?
-        ORDER BY id
-        """,
-        (case_id,)
-    ).fetchall()
-
-    db.close()
-
-    return rows
-
-
-# =========================================================
-# ANALISI
-# =========================================================
-
-def get_latest_analysis(case_id):
-
-    db = get_db()
-
-    row = db.execute(
-        """
-        SELECT *
-        FROM ai_analyses
-        WHERE case_id = ?
-        ORDER BY id DESC
-        LIMIT 1
-        """,
-        (case_id,)
-    ).fetchone()
-
-    db.close()
-
-    return row
-
-
-# =========================================================
-# SOLUZIONI
-# =========================================================
-
-def get_solution_documents(case_id):
-
-    db = get_db()
-
-    rows = db.execute(
-        """
-        SELECT *
-        FROM solution_documents
-        WHERE case_id = ?
-        ORDER BY id
-        """,
-        (case_id,)
-    ).fetchall()
-
-    db.close()
-
-    return rows
-
-
-def get_solution_by_id(solution_id):
-
-    db = get_db()
-
-    row = db.execute(
-        """
-        SELECT *
-        FROM solution_documents
-        WHERE id = ?
-        """,
-        (solution_id,)
-    ).fetchone()
-
-    db.close()
-
-    return row
-
-
-# =========================================================
-# NOTIFICHE
-# =========================================================
-
-def get_notifications(email):
-
-    db = get_db()
-
-    rows = db.execute(
-        """
-        SELECT *
-        FROM notifications
-        WHERE email = ?
         ORDER BY id DESC
         """,
-        (email,)
+        (case_id,)
     ).fetchall()
 
-    db.close()
+    conn.close()
 
     return rows
 
 
-# =========================================================
-# MOTORE DI ANALISI FIXTUDE
-# =========================================================
+def client_name(data):
+
+    name = str(
+        data.get("name", "")
+        or ""
+    ).strip()
+
+    surname = str(
+        data.get("surname", "")
+        or ""
+    ).strip()
+
+    full = (
+        f"{name} {surname}"
+        .strip()
+    )
+
+    return full or "Cliente FixTude"
+
+
+# ============================================================
+# ANALISI ECONOMICA
+# ============================================================
 
 def calculate_case(case_id):
 
-    case = get_case_by_id(
-        case_id
+    data = get_case_data(case_id)
+
+    debts = get_debts(case_id)
+
+    incomes = (
+        data.get("incomes", [])
+        or []
     )
 
-    if not case:
-
-        return None
-
-
-    try:
-
-        data = json.loads(
-            case["data"]
-        )
-
-    except (
-        TypeError,
-        json.JSONDecodeError
-    ):
-
-        data = {}
-
-
-    income = data.get(
-        "income",
-        {}
+    expenses = (
+        data.get("expenses", [])
+        or []
     )
 
-    expenses = data.get(
-        "expenses",
-        {}
-    )
-
-    assets = data.get(
-        "assets",
-        {}
-    )
-
-    procedures = data.get(
-        "procedures",
-        {}
-    )
-
-    family = data.get(
-        "family",
-        {}
-    )
-
-
-    debts = get_debts(
-        case_id
-    )
-
-
-    # -----------------------------------------------------
-    # CALCOLI
-    # -----------------------------------------------------
 
     total_income = sum(
-        number(value)
-        for value in income.values()
+        parse_float(item.get("amount"))
+        for item in incomes
+        if isinstance(item, dict)
     )
 
 
     total_expenses = sum(
-        number(value)
-        for value in expenses.values()
+        parse_float(item.get("amount"))
+        for item in expenses
+        if isinstance(item, dict)
     )
 
 
     monthly_capacity = (
         total_income
-        -
-        total_expenses
+        - total_expenses
     )
 
 
     total_debt = sum(
-        number(
-            debt["current_amount"]
-        )
-        for debt in debts
+        money(row["current_amount"])
+        for row in debts
     )
 
 
     total_payments = sum(
-        number(
-            debt["monthly_payment"]
-        )
-        for debt in debts
+        money(row["monthly_payment"])
+        for row in debts
     )
 
 
-    payment_ratio = (
+    if monthly_capacity <= 0:
 
-        total_payments
-        /
-        total_income
-        *
-        100
+        sustainability = "critica"
 
-        if total_income > 0
-        else 0
+    elif monthly_capacity < total_payments:
 
-    )
+        sustainability = "debole"
 
+    elif total_payments <= 0:
 
-    total_assets = sum(
-        number(value)
-        for value in assets.values()
-    )
+        sustainability = "da valutare"
 
+    elif total_payments <= (
+        monthly_capacity * 0.30
+    ):
 
-    # -----------------------------------------------------
-    # AVVERTIMENTI
-    # -----------------------------------------------------
+        sustainability = "buona"
+
+    else:
+
+        sustainability = "sotto pressione"
+
 
     warnings = []
 
@@ -805,705 +649,458 @@ def calculate_case(case_id):
         )
 
 
-    if monthly_capacity < 0:
+    if monthly_capacity <= 0:
 
         warnings.append(
-            "Le spese indicate superano "
-            "le entrate dichiarate."
+            "Le spese indicate assorbono interamente o superano le entrate."
         )
 
 
     if total_debt <= 0:
 
         warnings.append(
-            "Non risultano importi debitori "
-            "sufficientemente dettagliati."
+            "Non risultano debiti valorizzati."
         )
 
 
     if (
-        total_payments > total_income
-        and total_income > 0
+        total_payments > monthly_capacity
+        and monthly_capacity > 0
     ):
 
         warnings.append(
-            "Le rate indicate superano "
-            "le entrate mensili dichiarate."
+            "Le rate indicate superano la disponibilità teorica mensile."
         )
 
 
-    if (
-        total_income > 0
-        and payment_ratio >= 40
-    ):
+    if not data.get("employment"):
 
         warnings.append(
-            "Il peso delle rate dichiarate "
-            "è elevato rispetto alle entrate."
+            "La situazione lavorativa non è stata indicata."
         )
 
 
-    if not data.get(
-        "authorization"
-    ):
+    return {
 
-        warnings.append(
-            "Il campo relativo all'autorizzazione "
-            "non risulta valorizzato."
-        )
+        "total_income":
+            round(total_income, 2),
 
+        "total_expenses":
+            round(total_expenses, 2),
 
-    # -----------------------------------------------------
-    # SOSTENIBILITÀ
-    # -----------------------------------------------------
+        "monthly_capacity":
+            round(monthly_capacity, 2),
 
-    if monthly_capacity > 0:
+        "total_debt":
+            round(total_debt, 2),
 
-        sustainability = (
-            "I dati inseriti mostrano una disponibilità "
-            "mensile positiva, da verificare rispetto "
-            "alla sostenibilità delle rate e alle "
-            "esigenze del nucleo familiare."
-        )
+        "total_payments":
+            round(total_payments, 2),
 
-    elif monthly_capacity == 0:
+        "sustainability":
+            sustainability,
 
-        sustainability = (
-            "Le entrate risultano sostanzialmente "
-            "assorbite dalle spese indicate."
-        )
+        "warnings":
+            warnings,
 
-    else:
+        "debts":
+            debts,
 
-        sustainability = (
-            "Le spese indicate risultano superiori "
-            "alle entrate dichiarate. "
-            "La situazione richiede un approfondimento."
-        )
-
-
-    # -----------------------------------------------------
-    # OGGETTO ANALISI
-    # -----------------------------------------------------
-
-    analysis = {
-
-        "case_id": case_id,
-
-        "generated_at": now_iso(),
-
-        "engine": (
-            "FixTude Local Analysis Engine v1"
-        ),
-
-        "client": data.get(
-            "personal",
-            {}
-        ),
-
-        "family": family,
-
-        "total_income": round(
-            total_income,
-            2
-        ),
-
-        "total_expenses": round(
-            total_expenses,
-            2
-        ),
-
-        "monthly_capacity": round(
-            monthly_capacity,
-            2
-        ),
-
-        "total_debt": round(
-            total_debt,
-            2
-        ),
-
-        "total_monthly_payments": round(
-            total_payments,
-            2
-        ),
-
-        "payment_ratio": round(
-            payment_ratio,
-            2
-        ),
-
-        "total_assets": round(
-            total_assets,
-            2
-        ),
-
-        "debt_count": len(
-            debts
-        ),
-
-        "warnings": warnings,
-
-        "procedures": procedures,
-
-        "documents_count": len(
-            get_documents(case_id)
-        ),
-
-        "sustainability": sustainability
+        "data":
+            data
 
     }
 
 
-    return analysis
+# ============================================================
+# SCENARI
+# ============================================================
 
+def build_scenarios(calc):
 
-# =========================================================
-# SCENARI POSSIBILI
-# =========================================================
+    capacity = calc["monthly_capacity"]
 
-def build_scenarios(
-    analysis,
-    debts
-):
+    debt = calc["total_debt"]
+
+    payments = calc["total_payments"]
 
     scenarios = []
 
 
-    capacity = number(
-        analysis[
-            "monthly_capacity"
-        ]
-    )
+    if debt <= 0:
 
-    debt = number(
-        analysis[
-            "total_debt"
-        ]
-    )
+        return [
 
-    payments = number(
-        analysis[
-            "total_monthly_payments"
-        ]
-    )
+            {
 
-    income = number(
-        analysis[
-            "total_income"
-        ]
-    )
+                "type":
+                    "raccolta_dati",
 
-    ratio = number(
-        analysis[
-            "payment_ratio"
-        ]
-    )
+                "title":
+                    "Completamento del quadro",
 
-
-    client = analysis.get(
-        "client",
-        {}
-    )
-
-
-    client_name = (
-
-        f'{client.get("first_name", "")} '
-        f'{client.get("last_name", "")}'
-
-    ).strip()
-
-
-    if not client_name:
-
-        client_name = "Cliente"
-
-
-    # -----------------------------------------------------
-    # PIANO DI RIENTRO
-    # -----------------------------------------------------
-
-    if (
-        debt > 0
-        and capacity > 0
-        and payments <= capacity
-    ):
-
-        scenarios.append({
-
-            "type": "piano_rientro",
-
-            "title":
-                "Ipotesi di piano di rientro sostenibile",
-
-            "reason":
-                (
-                    "I dati inseriti evidenziano una "
-                    "disponibilità mensile positiva che "
-                    "può essere confrontata con le rate "
-                    "e con l'esposizione complessiva."
-                )
-
-        })
-
-
-    # -----------------------------------------------------
-    # RINEGOZIAZIONE
-    # -----------------------------------------------------
-
-    if (
-        debt > 0
-        and payments > 0
-        and (
-            capacity < payments
-            or ratio >= 40
-        )
-    ):
-
-        scenarios.append({
-
-            "type": "rinegoziazione",
-
-            "title":
-                "Ipotesi di rinegoziazione degli impegni",
-
-            "reason":
-                (
-                    "Il peso delle rate indicate appare "
-                    "significativo rispetto alla capacità "
-                    "mensile dichiarata. Può essere utile "
-                    "valutare una riduzione della rata o "
-                    "una diversa distribuzione dei pagamenti."
-                )
-
-        })
-
-
-    # -----------------------------------------------------
-    # TRANSAZIONE
-    # -----------------------------------------------------
-
-    if debt > 0:
-
-        scenarios.append({
-
-            "type": "transazione",
-
-            "title":
-                "Ipotesi di proposta transattiva",
-
-            "reason":
-                (
-                    "L'esposizione complessiva può essere "
-                    "oggetto di un approfondimento finalizzato "
-                    "a valutare una possibile proposta ai creditori."
-                )
-
-        })
-
-
-    # -----------------------------------------------------
-    # APPROFONDIMENTO
-    # -----------------------------------------------------
-
-    if (
-        capacity <= 0
-        or ratio >= 50
-        or not debts
-    ):
-
-        scenarios.append({
-
-            "type": "approfondimento",
-
-            "title":
-                "Necessità di approfondimento professionale",
-
-            "reason":
-                (
-                    "I dati disponibili evidenziano elementi "
-                    "che meritano una valutazione più approfondita "
-                    "prima di individuare la soluzione concretamente "
-                    "perseguibile."
-                )
-
-        })
-
-
-    if not scenarios:
-
-        scenarios.append({
-
-            "type": "approfondimento",
-
-            "title":
-                "Raccolta di ulteriori informazioni",
-
-            "reason":
-                (
-                    "I dati disponibili non sono ancora sufficienti "
-                    "per formulare ipotesi operative."
-                )
-
-        })
-
-
-    # Massimo 4 proposte nel MVP.
-
-    scenarios = scenarios[:4]
-
-
-    # -----------------------------------------------------
-    # TESTO DOCUMENTI
-    # -----------------------------------------------------
-
-    for scenario in scenarios:
-
-        scenario[
-            "draft_text"
-        ] = build_solution_text(
-            client_name,
-            analysis,
-            debts,
-            scenario
-        )
-
-
-    return scenarios
-
-
-# =========================================================
-# TESTO DELLA SOLUZIONE
-# =========================================================
-
-def build_solution_text(
-    client_name,
-    analysis,
-    debts,
-    scenario
-):
-
-    capacity = euro(
-        analysis[
-            "monthly_capacity"
-        ]
-    )
-
-    income = euro(
-        analysis[
-            "total_income"
-        ]
-    )
-
-    expenses = euro(
-        analysis[
-            "total_expenses"
-        ]
-    )
-
-    debt = euro(
-        analysis[
-            "total_debt"
-        ]
-    )
-
-    payments = euro(
-        analysis[
-            "total_monthly_payments"
-        ]
-    )
-
-    ratio = (
-        f'{analysis["payment_ratio"]:.1f}%'
-    )
-
-
-    debt_lines = []
-
-
-    for item in debts:
-
-        creditor = (
-            item["creditor"]
-            or
-            "Creditore non indicato"
-        )
-
-        amount = euro(
-            item["current_amount"]
-        )
-
-        payment = euro(
-            item["monthly_payment"]
-        )
-
-
-        debt_lines.append(
-            f"- {creditor}: "
-            f"esposizione indicata {amount}; "
-            f"rata indicata {payment}."
-        )
-
-
-    debt_section = (
-        "\n".join(
-            debt_lines
-        )
-        or
-        "- Nessuna posizione debitoria dettagliata."
-    )
-
-
-    return f"""FIXTUDE
-
-Documento di lavoro – {scenario["title"]}
-
-Cliente: {client_name}
-
-
-1. QUADRO ECONOMICO
-
-Entrate mensili dichiarate: {income}
-
-Spese mensili dichiarate: {expenses}
-
-Disponibilità teorica mensile: {capacity}
-
-Esposizione debitoria indicata: {debt}
-
-Totale rate indicate: {payments}
-
-Rapporto rate/entrate: {ratio}
-
-
-2. POSIZIONI INDICATE
-
-{debt_section}
-
-
-3. LETTURA DELLA SITUAZIONE
-
-{analysis["sustainability"]}
-
-
-4. IPOTESI INDIVIDUATA
-
-{scenario["reason"]}
-
-
-5. PROSSIMO PASSO
-
-La proposta deve essere verificata e, se necessario,
-modificata dal supervisore prima di qualsiasi utilizzo
-o comunicazione al cliente.
-
-
-Il documento rappresenta una possibile linea di
-approfondimento costruita esclusivamente sui dati
-forniti dall'utente.
-
-
-6. AVVERTENZA
-
-Il documento non costituisce consulenza legale,
-finanziaria o certificazione della situazione di
-insolvenza e non determina automaticamente
-l'accesso a procedure previste dalla legge.
-
-
-7. VERIFICA
-
-La versione definitiva deve essere approvata dal
-supervisore FixTude prima dell'invio al cliente.
-"""
-
-
-# =========================================================
-# GENERAZIONE PDF
-# =========================================================
-
-def create_pdf(
-    solution_id,
-    title,
-    text
-):
-
-    filename = (
-        f"fixtude_solution_"
-        f"{solution_id}_"
-        f"{uuid.uuid4().hex[:10]}.pdf"
-    )
-
-
-    filepath = os.path.join(
-        app.config["PDF_FOLDER"],
-        filename
-    )
-
-
-    styles = getSampleStyleSheet()
-
-
-    body_style = ParagraphStyle(
-
-        "FixTudeBody",
-
-        parent=styles[
-            "BodyText"
-        ],
-
-        fontName="Helvetica",
-
-        fontSize=10.5,
-
-        leading=15,
-
-        spaceAfter=7,
-
-        alignment=TA_LEFT
-
-    )
-
-
-    title_style = ParagraphStyle(
-
-        "FixTudeTitle",
-
-        parent=styles[
-            "Title"
-        ],
-
-        fontName="Helvetica-Bold",
-
-        fontSize=18,
-
-        leading=22,
-
-        spaceAfter=15
-
-    )
-
-
-    story = []
-
-
-    lines = text.splitlines()
-
-
-    first_non_empty = True
-
-
-    for raw_line in lines:
-
-        line = raw_line.strip()
-
-
-        if not line:
-
-            story.append(
-                Spacer(
-                    1,
-                    4 * mm
-                )
-            )
-
-            continue
-
-
-        safe = escape(
-            line
-        )
-
-
-        if first_non_empty:
-
-            story.append(
-                Paragraph(
-                    safe,
-                    title_style
-                )
-            )
-
-            first_non_empty = False
-
-
-        elif (
-            line.isupper()
-            or
-            line.startswith(
-                (
-                    "1.",
-                    "2.",
-                    "3.",
-                    "4.",
-                    "5.",
-                    "6.",
-                    "7."
-                )
-            )
-        ):
-
-            story.append(
-                Paragraph(
-                    f"<b>{safe}</b>",
-                    body_style
-                )
-            )
-
-
-        else:
-
-            story.append(
-                Paragraph(
-                    safe.replace(
-                        "  ",
-                        "&nbsp;&nbsp;"
+                "description":
+                    (
+                        "Prima di formulare una proposta "
+                        "economica è necessario valorizzare "
+                        "almeno una posizione debitoria."
                     ),
-                    body_style
+
+                "estimated_monthly":
+                    0,
+
+                "priority":
+                    "alta"
+
+            }
+
+        ]
+
+
+    if capacity > 0:
+
+        sustainable = min(
+            capacity * 0.30,
+            payments
+            if payments > 0
+            else capacity * 0.30
+        )
+
+
+        sustainable = max(
+            50,
+            round(sustainable, 2)
+        )
+
+
+        months = max(
+            1,
+            round(debt / sustainable)
+        )
+
+
+        scenarios.append(
+
+            {
+
+                "type":
+                    "piano_rientro",
+
+                "title":
+                    "Piano di rientro sostenibile",
+
+                "description":
+                    (
+                        "Ipotesi di rata costruita "
+                        "partendo dalla disponibilità "
+                        "teorica mensile indicata. "
+                        "È una simulazione e non una "
+                        "proposta vincolante per il creditore."
+                    ),
+
+                "estimated_monthly":
+                    sustainable,
+
+                "months":
+                    months,
+
+                "priority":
+                    (
+                        "alta"
+                        if payments > capacity
+                        else "media"
+                    )
+
+            }
+
+        )
+
+
+        if debt > 5000:
+
+            target = round(
+                debt * 0.70,
+                2
+            )
+
+
+            settlement_monthly = max(
+                50,
+                round(capacity * 0.25, 2)
+            )
+
+
+            months2 = max(
+                1,
+                round(
+                    target
+                    / settlement_monthly
                 )
             )
 
 
-    document = SimpleDocTemplate(
+            scenarios.append(
 
-        filepath,
+                {
 
-        pagesize=A4,
+                    "type":
+                        "saldo_stralcio",
 
-        rightMargin=20 * mm,
+                    "title":
+                        "Ipotesi di definizione transattiva",
 
-        leftMargin=20 * mm,
+                    "description":
+                        (
+                            "Possibile scenario da approfondire "
+                            "con il creditore, subordinato alla "
+                            "disponibilità di una somma e "
+                            "all'accettazione della controparte."
+                        ),
 
-        topMargin=20 * mm,
+                    "estimated_amount":
+                        target,
 
-        bottomMargin=20 * mm,
+                    "estimated_monthly":
+                        settlement_monthly,
 
-        title=title
+                    "months":
+                        months2,
+
+                    "priority":
+                        "media"
+
+                }
+
+            )
+
+
+    scenarios.append(
+
+        {
+
+            "type":
+                "rinegoziazione",
+
+            "title":
+                "Richiesta di rinegoziazione",
+
+            "description":
+                (
+                    "Richiesta di riduzione della rata "
+                    "o di diversa articolazione dei pagamenti, "
+                    "supportata dal quadro economico raccolto."
+                ),
+
+            "estimated_monthly":
+                max(
+                    0,
+                    round(
+                        min(
+                            payments,
+                            max(
+                                capacity * 0.30,
+                                0
+                            )
+                        ),
+                        2
+                    )
+                ),
+
+            "priority":
+                "media"
+
+        }
 
     )
 
 
-    document.build(
-        story
-    )
+    if calc["sustainability"] == "critica":
+
+        scenarios.append(
+
+            {
+
+                "type":
+                    "approfondimento_professionale",
+
+                "title":
+                    "Approfondimento con professionista qualificato",
+
+                "description":
+                    (
+                        "La sostenibilità corrente risulta critica. "
+                        "Il caso merita una valutazione professionale "
+                        "prima di assumere impegni economici."
+                    ),
+
+                "estimated_monthly":
+                    0,
+
+                "priority":
+                    "alta"
+
+            }
+
+        )
 
 
-    return filename
+    return scenarios[:4]
 
 
-# =========================================================
-# RIGENERA PDF
-# =========================================================
+# ============================================================
+# TESTO ANALISI
+# ============================================================
 
-def regenerate_solution_pdf(
-    solution_id
+def build_analysis_text(
+    calc,
+    scenarios
 ):
 
-    db = get_db()
+    capacity = calc["monthly_capacity"]
+
+    debt = calc["total_debt"]
+
+    payments = calc["total_payments"]
+
+    sustainability = calc["sustainability"]
 
 
-    solution = db.execute(
+    if sustainability == "critica":
+
+        opening = (
+            "Il quadro economico presenta una forte tensione: "
+            "la disponibilità mensile indicata non appare "
+            "sufficiente a sostenere gli impegni rilevati."
+        )
+
+    elif sustainability in (
+        "debole",
+        "sotto pressione"
+    ):
+
+        opening = (
+            "Il quadro evidenzia una disponibilità mensile "
+            "limitata rispetto agli impegni debitori indicati."
+        )
+
+    else:
+
+        opening = (
+            "Il quadro evidenzia una disponibilità mensile "
+            "che consente di ipotizzare alcune modalità "
+            "di gestione degli impegni, da verificare "
+            "con i creditori."
+        )
+
+
+    lines = [
+
+        opening,
+
+        (
+            f"Entrate mensili indicate: "
+            f"€ {calc['total_income']:.2f}."
+        ),
+
+        (
+            f"Spese mensili indicate: "
+            f"€ {calc['total_expenses']:.2f}."
+        ),
+
+        (
+            f"Disponibilità teorica: "
+            f"€ {capacity:.2f}."
+        ),
+
+        (
+            f"Debito complessivo indicato: "
+            f"€ {debt:.2f}."
+        ),
+
+        (
+            f"Rate mensili indicate: "
+            f"€ {payments:.2f}."
+        ),
+
+        (
+            "Le elaborazioni di FixTude hanno valore "
+            "informativo e simulativo: non costituiscono "
+            "certificazione di insolvenza, parere legale "
+            "né garanzia di accettazione da parte dei creditori."
+        )
+
+    ]
+
+
+    if calc["warnings"]:
+
+        lines.append(
+            "Elementi da verificare: "
+            + " ".join(
+                calc["warnings"]
+            )
+        )
+
+
+    return "\n\n".join(lines)
+
+
+# ============================================================
+# PDF
+# ============================================================
+
+def safe_pdf_text(text):
+
+    text = str(
+        text or ""
+    )
+
+    replacements = {
+
+        "–": "-",
+
+        "—": "-",
+
+        "’": "'",
+
+        "‘": "'",
+
+        "“": '"',
+
+        "”": '"',
+
+        "→": "->",
+
+        "…": "..."
+
+    }
+
+
+    for old, new in replacements.items():
+
+        text = text.replace(
+            old,
+            new
+        )
+
+
+    return text
+
+
+def generate_solution_pdf(solution_id):
+
+    if not REPORTLAB_AVAILABLE:
+
+        raise RuntimeError(
+            "reportlab non installato. "
+            "Aggiungere reportlab a requirements.txt."
+        )
+
+
+    conn = db_connect()
+
+
+    solution = conn.execute(
         """
         SELECT *
         FROM solution_documents
@@ -1515,307 +1112,756 @@ def regenerate_solution_pdf(
 
     if not solution:
 
-        db.close()
+        conn.close()
 
-        return None
-
-
-    # Elimina vecchio PDF
-    if solution["pdf_filename"]:
-
-        old_path = os.path.join(
-
-            app.config[
-                "PDF_FOLDER"
-            ],
-
-            solution[
-                "pdf_filename"
-            ]
-
+        raise FileNotFoundError(
+            "Soluzione non trovata"
         )
 
-        if os.path.exists(
-            old_path
-        ):
 
-            try:
-
-                os.remove(
-                    old_path
-                )
-
-            except OSError:
-
-                pass
-
-
-    filename = create_pdf(
-
-        solution_id,
-
-        solution["title"],
-
-        solution["draft_text"]
-
-    )
-
-
-    db.execute(
+    case = conn.execute(
         """
-        UPDATE solution_documents
-        SET pdf_filename = ?,
-            updated_at = ?
+        SELECT *
+        FROM cases
         WHERE id = ?
         """,
-        (
-            filename,
-            now_iso(),
-            solution_id
+        (solution["case_id"],)
+    ).fetchone()
+
+
+    conn.close()
+
+
+    data = get_case_data(
+        solution["case_id"]
+    )
+
+
+    path = (
+        PDF_DIR
+        / f"fixtude_soluzione_{solution_id}.pdf"
+    )
+
+
+    styles = getSampleStyleSheet()
+
+
+    normal = ParagraphStyle(
+        "FixNormal",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=10.5,
+        leading=15,
+        spaceAfter=8
+    )
+
+
+    title_style = ParagraphStyle(
+        "FixTitle",
+        parent=styles["Title"],
+        fontName="Helvetica-Bold",
+        fontSize=20,
+        leading=24,
+        spaceAfter=16
+    )
+
+
+    heading = ParagraphStyle(
+        "FixHeading",
+        parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=16,
+        spaceBefore=10,
+        spaceAfter=8
+    )
+
+
+    doc = SimpleDocTemplate(
+
+        str(path),
+
+        pagesize=A4,
+
+        rightMargin=45,
+
+        leftMargin=45,
+
+        topMargin=45,
+
+        bottomMargin=45
+
+    )
+
+
+    story = []
+
+
+    story.append(
+
+        Paragraph(
+
+            safe_pdf_text(
+                solution["title"]
+            ),
+
+            title_style
+
         )
+
     )
 
 
-    db.commit()
+    story.append(
 
-    db.close()
+        Paragraph(
 
+            (
+                "Cliente: "
+                + safe_pdf_text(
+                    client_name(data)
+                )
+            ),
 
-    return filename
+            normal
 
+        )
 
-# =========================================================
-# AGENT ORCHESTRATOR
-# =========================================================
-
-def run_local_agent(
-    case_id
-):
-
-    analysis = calculate_case(
-        case_id
     )
 
 
-    if not analysis:
+    story.append(
 
-        return None
+        Paragraph(
+
+            (
+                "Data: "
+                + datetime.now().strftime(
+                    "%d/%m/%Y"
+                )
+            ),
+
+            normal
+
+        )
+
+    )
 
 
-    debts = get_debts(
+    story.append(
+        Spacer(1, 8)
+    )
+
+
+    story.append(
+
+        Paragraph(
+
+            "Documento generato da FixTude "
+            "per revisione del Risolutore AI.",
+
+            normal
+
+        )
+
+    )
+
+
+    story.append(
+        Spacer(1, 8)
+    )
+
+
+    story.append(
+
+        Paragraph(
+            "Proposta / scenario",
+            heading
+        )
+
+    )
+
+
+    for paragraph in solution["content"].split("\n"):
+
+        paragraph = paragraph.strip()
+
+        if paragraph:
+
+            story.append(
+
+                Paragraph(
+
+                    safe_pdf_text(
+                        paragraph
+                    ),
+
+                    normal
+
+                )
+
+            )
+
+
+    story.append(
+        Spacer(1, 10)
+    )
+
+
+    story.append(
+
+        Paragraph(
+            "Nota importante",
+            heading
+        )
+
+    )
+
+
+    story.append(
+
+        Paragraph(
+
+            (
+                "Questo documento contiene una simulazione "
+                "elaborata sulla base delle informazioni disponibili. "
+                "Non rappresenta una certificazione di insolvenza, "
+                "un parere legale o una proposta accettata dal creditore. "
+                "Prima di assumere impegni è necessario verificare "
+                "dati, documenti e condizioni con i soggetti competenti."
+            ),
+
+            normal
+
+        )
+
+    )
+
+
+    doc.build(story)
+
+
+    return str(path)
+
+
+# ============================================================
+# AGENTE LOCALE
+# ============================================================
+
+def run_local_agent(case_id):
+
+    calc = calculate_case(
         case_id
     )
 
 
     scenarios = build_scenarios(
-        analysis,
-        debts
+        calc
     )
 
 
-    analysis[
-        "scenario_count"
-    ] = len(
+    analysis_text = build_analysis_text(
+        calc,
         scenarios
     )
 
 
-    analysis[
-        "scenarios"
-    ] = [
-
-        {
-            "type":
-                item["type"],
-
-            "title":
-                item["title"],
-
-            "reason":
-                item["reason"]
-        }
-
-        for item in scenarios
-
-    ]
+    created = now_iso()
 
 
-    db = get_db()
+    analysis_payload = {
 
-    timestamp = now_iso()
+        "created_at":
+            created,
+
+        "summary":
+            analysis_text,
+
+        "metrics": {
+
+            "total_income":
+                calc["total_income"],
+
+            "total_expenses":
+                calc["total_expenses"],
+
+            "monthly_capacity":
+                calc["monthly_capacity"],
+
+            "total_debt":
+                calc["total_debt"],
+
+            "total_payments":
+                calc["total_payments"],
+
+            "sustainability":
+                calc["sustainability"]
+
+        },
+
+        "warnings":
+            calc["warnings"],
+
+        "scenarios":
+            scenarios
+
+    }
 
 
-    # -----------------------------------------------------
-    # SALVA ANALISI
-    # -----------------------------------------------------
+    conn = db_connect()
 
-    db.execute(
+
+    old_pending = conn.execute(
+
+        """
+        SELECT id, pdf_path
+        FROM solution_documents
+        WHERE case_id = ?
+        AND status = 'pending_review'
+        """,
+
+        (case_id,)
+
+    ).fetchall()
+
+
+    for old in old_pending:
+
+        if old["pdf_path"]:
+
+            try:
+
+                Path(
+                    old["pdf_path"]
+                ).unlink(
+                    missing_ok=True
+                )
+
+            except Exception:
+                pass
+
+
+    conn.execute(
+
+        """
+        DELETE FROM solution_documents
+        WHERE case_id = ?
+        AND status = 'pending_review'
+        """,
+
+        (case_id,)
+
+    )
+
+
+    cur = conn.execute(
+
         """
         INSERT INTO ai_analyses
         (
             case_id,
-            status,
             analysis_json,
-            created_at,
-            updated_at
+            created_at
         )
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?)
         """,
+
         (
             case_id,
-            "review",
             json.dumps(
-                analysis,
+                analysis_payload,
                 ensure_ascii=False
             ),
-            timestamp,
-            timestamp
+            created
         )
+
     )
 
 
-    analysis_id = db.execute(
-        """
-        SELECT last_insert_rowid()
-        """
-    ).fetchone()[0]
+    analysis_id = cur.lastrowid
 
 
-    # -----------------------------------------------------
-    # RIMUOVE SOLO LE BOZZE PRECEDENTI
-    # -----------------------------------------------------
-
-    old_drafts = db.execute(
-        """
-        SELECT id, pdf_filename
-        FROM solution_documents
-        WHERE case_id = ?
-        AND status IN
-        (
-            'pending_review',
-            'draft'
-        )
-        """,
-        (case_id,)
-    ).fetchall()
-
-
-    for old in old_drafts:
-
-        if old["pdf_filename"]:
-
-            old_path = os.path.join(
-
-                app.config[
-                    "PDF_FOLDER"
-                ],
-
-                old[
-                    "pdf_filename"
-                ]
-
-            )
-
-
-            if os.path.exists(
-                old_path
-            ):
-
-                try:
-
-                    os.remove(
-                        old_path
-                    )
-
-                except OSError:
-
-                    pass
-
-
-    db.execute(
-        """
-        DELETE FROM solution_documents
-        WHERE case_id = ?
-        AND status IN
-        (
-            'pending_review',
-            'draft'
-        )
-        """,
-        (case_id,)
-    )
-
-
-    db.commit()
-
-
-    # -----------------------------------------------------
-    # CREA SOLUZIONI
-    # -----------------------------------------------------
-
-    created_ids = []
+    solution_ids = []
 
 
     for scenario in scenarios:
 
-        cursor = db.execute(
+        title = scenario["title"]
+
+
+        lines = [
+
+            f"Scenario: {title}.",
+
+            scenario["description"],
+
+            (
+                "Priorità di revisione: "
+                f"{scenario.get('priority', 'media')}."
+            )
+
+        ]
+
+
+        if scenario.get(
+            "estimated_monthly"
+        ):
+
+            lines.append(
+
+                (
+                    "Rata mensile simulata: "
+                    f"€ {scenario['estimated_monthly']:.2f}."
+                )
+
+            )
+
+
+        if scenario.get(
+            "estimated_amount"
+        ):
+
+            lines.append(
+
+                (
+                    "Importo transattivo simulato: "
+                    f"€ {scenario['estimated_amount']:.2f}."
+                )
+
+            )
+
+
+        if scenario.get(
+            "months"
+        ):
+
+            lines.append(
+
+                (
+                    "Durata teorica della simulazione: "
+                    f"circa {scenario['months']} mesi."
+                )
+
+            )
+
+
+        lines.append(
+
+            "Il Risolutore AI deve verificare "
+            "il contenuto e, se necessario, "
+            "correggerlo prima dell'invio al cliente."
+
+        )
+
+
+        cur = conn.execute(
+
             """
             INSERT INTO solution_documents
+
             (
                 case_id,
                 analysis_id,
-                solution_type,
                 title,
-                draft_text,
-                original_text,
+                solution_type,
+                content,
                 status,
                 created_at,
                 updated_at
             )
+
             VALUES
-            (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
             (
-                case_id,
-                analysis_id,
-                scenario["type"],
-                scenario["title"],
-                scenario["draft_text"],
-                scenario["draft_text"],
-                "pending_review",
-                timestamp,
-                timestamp
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                'pending_review',
+                ?,
+                ?
             )
+
+            """,
+
+            (
+
+                case_id,
+
+                analysis_id,
+
+                title,
+
+                scenario["type"],
+
+                "\n".join(lines),
+
+                created,
+
+                created
+
+            )
+
         )
 
 
-        created_ids.append(
-            cursor.lastrowid
+        solution_ids.append(
+            cur.lastrowid
         )
 
 
-    db.commit()
+    conn.commit()
+    conn.close()
 
-    db.close()
+
+    for solution_id in solution_ids:
+
+        try:
+
+            pdf_path = generate_solution_pdf(
+                solution_id
+            )
 
 
-    # -----------------------------------------------------
-    # GENERA PDF
-    # -----------------------------------------------------
+            conn = db_connect()
 
-    for solution_id in created_ids:
 
-        regenerate_solution_pdf(
-            solution_id
+            conn.execute(
+
+                """
+                UPDATE solution_documents
+
+                SET
+                    pdf_path = ?,
+                    updated_at = ?
+
+                WHERE id = ?
+                """,
+
+                (
+                    pdf_path,
+                    now_iso(),
+                    solution_id
+                )
+
+            )
+
+
+            conn.commit()
+            conn.close()
+
+
+        except Exception as exc:
+
+            conn = db_connect()
+
+
+            conn.execute(
+
+                """
+                UPDATE solution_documents
+
+                SET
+                    supervisor_note = ?,
+                    updated_at = ?
+
+                WHERE id = ?
+                """,
+
+                (
+                    f"PDF non generato: {exc}",
+                    now_iso(),
+                    solution_id
+                )
+
+            )
+
+
+            conn.commit()
+            conn.close()
+
+
+    return analysis_payload
+
+
+def latest_analysis(case_id):
+
+    conn = db_connect()
+
+
+    row = conn.execute(
+
+        """
+        SELECT *
+        FROM ai_analyses
+        WHERE case_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+
+        (case_id,)
+
+    ).fetchone()
+
+
+    conn.close()
+
+
+    if not row:
+        return None
+
+
+    try:
+
+        return json.loads(
+            row["analysis_json"]
+        )
+
+    except Exception:
+
+        return None
+
+
+def get_solutions(case_id):
+
+    conn = db_connect()
+
+
+    rows = conn.execute(
+
+        """
+        SELECT *
+        FROM solution_documents
+        WHERE case_id = ?
+        ORDER BY id
+        """,
+
+        (case_id,)
+
+    ).fetchall()
+
+
+    conn.close()
+
+
+    return rows
+
+
+# ============================================================
+# NOTIFICHE
+# ============================================================
+
+def create_notification(
+    case_id,
+    email,
+    title,
+    message
+):
+
+    conn = db_connect()
+
+
+    conn.execute(
+
+        """
+        INSERT INTO notifications
+
+        (
+            case_id,
+            email,
+            title,
+            message,
+            notification_type,
+            read,
+            created_at
+        )
+
+        VALUES
+        (
+            ?,
+            ?,
+            ?,
+            ?,
+            'in_app',
+            0,
+            ?
+        )
+        """,
+
+        (
+            case_id,
+            email,
+            title,
+            message,
+            now_iso()
+        )
+
+    )
+
+
+    conn.commit()
+    conn.close()
+
+
+def get_notifications_for_email(
+    email,
+    case_id=None,
+    unread_only=False
+):
+
+    conn = db_connect()
+
+
+    sql = """
+        SELECT *
+        FROM notifications
+        WHERE email = ?
+    """
+
+
+    params = [
+        email
+    ]
+
+
+    if case_id is not None:
+
+        sql += """
+            AND case_id = ?
+        """
+
+        params.append(
+            case_id
         )
 
 
-    return analysis_id
+    if unread_only:
+
+        sql += """
+            AND read = 0
+        """
 
 
-# =========================================================
+    sql += """
+        ORDER BY id DESC
+    """
+
+
+    rows = conn.execute(
+        sql,
+        params
+    ).fetchall()
+
+
+    conn.close()
+
+
+    return rows
+
+
+# ============================================================
 # HOME
-# =========================================================
+# ============================================================
 
 @app.route("/")
 def home():
@@ -1825,9 +1871,9 @@ def home():
     )
 
 
-# =========================================================
-# LOGIN DEBITORE
-# =========================================================
+# ============================================================
+# LOGIN PRIVATO
+# ============================================================
 
 @app.route(
     "/privato/login",
@@ -1852,29 +1898,29 @@ def debtor_login():
         )
 
 
-        user = USERS.get(
+        user = DEMO_USERS.get(
             email
         )
 
 
         if (
-
             user
-            and
-            user["password"] == password
-            and
-            user["role"] == "debtor"
-
+            and user["password"] == password
+            and user["role"] == "debtor"
         ):
 
             session.clear()
 
 
-            session["email"] = email
+            session["user"] = {
 
-            session["role"] = "debtor"
+                "email":
+                    email,
 
-            session["name"] = user["name"]
+                "role":
+                    "debtor"
+
+            }
 
 
             return redirect(
@@ -1885,8 +1931,7 @@ def debtor_login():
 
 
         error = (
-            "I dati inseriti non risultano corretti. "
-            "Controllali e riprova."
+            "Email o password non corretti."
         )
 
 
@@ -1901,9 +1946,9 @@ def debtor_login():
     )
 
 
-# =========================================================
+# ============================================================
 # LOGIN RISOLUTORE
-# =========================================================
+# ============================================================
 
 @app.route(
     "/risolutore/login",
@@ -1928,29 +1973,29 @@ def resolver_login():
         )
 
 
-        user = USERS.get(
+        user = DEMO_USERS.get(
             email
         )
 
 
         if (
-
             user
-            and
-            user["password"] == password
-            and
-            user["role"] == "resolver"
-
+            and user["password"] == password
+            and user["role"] == "resolver"
         ):
 
             session.clear()
 
 
-            session["email"] = email
+            session["user"] = {
 
-            session["role"] = "resolver"
+                "email":
+                    email,
 
-            session["name"] = user["name"]
+                "role":
+                    "resolver"
+
+            }
 
 
             return redirect(
@@ -1961,8 +2006,7 @@ def resolver_login():
 
 
         error = (
-            "I dati inseriti non risultano corretti. "
-            "Controllali e riprova."
+            "Email o password non corretti."
         )
 
 
@@ -1977,18 +2021,19 @@ def resolver_login():
     )
 
 
-# =========================================================
-# DASHBOARD DEBITORE
-# =========================================================
+# ============================================================
+# DASHBOARD PRIVATO
+# ============================================================
 
-@app.route(
-    "/privato"
-)
+@app.route("/privato")
 def debtor_dashboard():
 
-    if session.get(
-        "role"
-    ) != "debtor":
+    user = require_login(
+        "debtor"
+    )
+
+
+    if not user:
 
         return redirect(
             url_for(
@@ -1997,51 +2042,37 @@ def debtor_dashboard():
         )
 
 
-    email = session.get(
-        "email"
+    case = get_case_for_email(
+        user["email"]
     )
 
 
-    data = get_case_data(
-        email
-    )
+    completed = bool(case)
 
 
-    completed = bool(
-        data
-    )
-
-
-    notification_count = 0
-
-
-    case = get_case(
-        email
-    )
+    unread = 0
 
 
     if case:
 
-        db = get_db()
+        conn = db_connect()
 
 
-        row = db.execute(
+        unread = conn.execute(
+
             """
-            SELECT COUNT(*) AS total
+            SELECT COUNT(*)
             FROM notifications
-            WHERE email = ?
+            WHERE case_id = ?
             AND read = 0
             """,
-            (email,)
-        ).fetchone()
+
+            (case["id"],)
+
+        ).fetchone()[0]
 
 
-        notification_count = row[
-            "total"
-        ]
-
-
-        db.close()
+        conn.close()
 
 
     return render_template(
@@ -2050,30 +2081,26 @@ def debtor_dashboard():
 
         role="debtor",
 
-        name=session.get(
-            "name"
-        ),
-
         completed=completed,
 
-        notification_count=
-            notification_count
+        unread=unread
 
     )
 
 
-# =========================================================
+# ============================================================
 # DASHBOARD RISOLUTORE
-# =========================================================
+# ============================================================
 
-@app.route(
-    "/risolutore"
-)
+@app.route("/risolutore")
 def resolver_dashboard():
 
-    if session.get(
-        "role"
-    ) != "resolver":
+    user = require_login(
+        "resolver"
+    )
+
+
+    if not user:
 
         return redirect(
             url_for(
@@ -2082,864 +2109,111 @@ def resolver_dashboard():
         )
 
 
-    db = get_db()
+    conn = db_connect()
 
 
-    cases = db.execute(
+    cases = conn.execute(
+
         """
-        SELECT
-
-            c.id,
-
-            c.email,
-
-            c.data,
-
-            c.updated_at,
-
-            a.status
-                AS analysis_status,
-
-            COUNT(s.id)
-                AS solution_count
-
-        FROM cases c
-
-        LEFT JOIN ai_analyses a
-
-            ON a.id = (
-
-                SELECT MAX(a2.id)
-
-                FROM ai_analyses a2
-
-                WHERE a2.case_id = c.id
-
-            )
-
-        LEFT JOIN solution_documents s
-
-            ON s.case_id = c.id
-
-        GROUP BY c.id
-
-        ORDER BY c.updated_at DESC
+        SELECT *
+        FROM cases
+        ORDER BY id DESC
         """
+
     ).fetchall()
 
 
-    db.close()
+    conn.close()
 
 
-    return render_template(
-
-        "resolver_dashboard.html",
-
-        cases=cases,
-
-        name=session.get(
-            "name"
-        )
-
-    )
+    case_cards = []
 
 
-# =========================================================
-# ROUTE COMPATIBILE CON dashboard.html ESISTENTE
-# =========================================================
-
-@app.route(
-    "/risolutore/pratica"
-)
-def resolver_practice():
-
-    if session.get(
-        "role"
-    ) != "resolver":
-
-        return redirect(
-            url_for(
-                "resolver_login"
-            )
-        )
-
-
-    return redirect(
-        url_for(
-            "resolver_dashboard"
-        )
-    )
-
-
-# =========================================================
-# NUOVA SITUAZIONE DEBITORE
-# =========================================================
-
-@app.route(
-    "/privato/situazione",
-    methods=["GET", "POST"]
-)
-def debtor_situation():
-
-    if session.get(
-        "role"
-    ) != "debtor":
-
-        return redirect(
-            url_for(
-                "debtor_login"
-            )
-        )
-
-
-    email = session.get(
-        "email"
-    )
-
-
-    # -----------------------------------------------------
-    # GET
-    # -----------------------------------------------------
-
-    if request.method == "GET":
+    for case in cases:
 
         data = get_case_data(
-            email
-        )
-
-
-        return render_template(
-
-            "new_situation.html",
-
-            data=data
-
-        )
-
-
-    # -----------------------------------------------------
-    # DATI
-    # -----------------------------------------------------
-
-    data = {
-
-        "personal": {
-
-            "first_name":
-                request.form.get(
-                    "first_name",
-                    ""
-                ).strip(),
-
-            "last_name":
-                request.form.get(
-                    "last_name",
-                    ""
-                ).strip(),
-
-            "tax_code":
-                request.form.get(
-                    "tax_code",
-                    ""
-                ).strip().upper(),
-
-            "birth_date":
-                request.form.get(
-                    "birth_date",
-                    ""
-                ),
-
-            "address":
-                request.form.get(
-                    "address",
-                    ""
-                ).strip(),
-
-            "city":
-                request.form.get(
-                    "city",
-                    ""
-                ).strip(),
-
-            "phone":
-                request.form.get(
-                    "phone",
-                    ""
-                ).strip(),
-
-            "email":
-                email
-
-        },
-
-
-        "family": {
-
-            "members":
-                request.form.get(
-                    "family_members",
-                    "1"
-                ),
-
-            "dependents":
-                request.form.get(
-                    "dependents",
-                    "0"
-                ),
-
-            "notes":
-                request.form.get(
-                    "family_notes",
-                    ""
-                ).strip()
-
-        },
-
-
-        "income": {
-
-            "net_monthly":
-                number(
-                    request.form.get(
-                        "net_monthly"
-                    )
-                ),
-
-            "other_income":
-                number(
-                    request.form.get(
-                        "other_income"
-                    )
-                ),
-
-            "variable_income":
-                number(
-                    request.form.get(
-                        "variable_income"
-                    )
-                )
-
-        },
-
-
-        "expenses": {
-
-            "housing":
-                number(
-                    request.form.get(
-                        "housing"
-                    )
-                ),
-
-            "utilities":
-                number(
-                    request.form.get(
-                        "utilities"
-                    )
-                ),
-
-            "food":
-                number(
-                    request.form.get(
-                        "food"
-                    )
-                ),
-
-            "transport":
-                number(
-                    request.form.get(
-                        "transport"
-                    )
-                ),
-
-            "family":
-                number(
-                    request.form.get(
-                        "family_expenses"
-                    )
-                ),
-
-            "other":
-                number(
-                    request.form.get(
-                        "other_expenses"
-                    )
-                )
-
-        },
-
-
-        "assets": {
-
-            "bank":
-                number(
-                    request.form.get(
-                        "bank_balance"
-                    )
-                ),
-
-            "property":
-                number(
-                    request.form.get(
-                        "property_value"
-                    )
-                ),
-
-            "vehicles":
-                number(
-                    request.form.get(
-                        "vehicles_value"
-                    )
-                ),
-
-            "other":
-                number(
-                    request.form.get(
-                        "other_assets"
-                    )
-                )
-
-        },
-
-
-        "procedures": {
-
-            "status":
-                request.form.get(
-                    "procedures",
-                    ""
-                ),
-
-            "details":
-                request.form.get(
-                    "procedure_details",
-                    ""
-                ).strip()
-
-        },
-
-
-        "authorization":
-            request.form.get(
-                "authorization",
-                ""
-            ).strip(),
-
-
-        "privacy":
-            bool(
-                request.form.get(
-                    "privacy"
-                )
-            )
-
-    }
-
-
-    # -----------------------------------------------------
-    # DEBITI
-    # -----------------------------------------------------
-
-    creditors = request.form.getlist(
-        "creditor[]"
-    )
-
-    debt_types = request.form.getlist(
-        "debt_type[]"
-    )
-
-    original_amounts = request.form.getlist(
-        "original_amount[]"
-    )
-
-    current_amounts = request.form.getlist(
-        "current_amount[]"
-    )
-
-    monthly_payments = request.form.getlist(
-        "monthly_payment[]"
-    )
-
-    statuses = request.form.getlist(
-        "debt_status[]"
-    )
-
-    notes = request.form.getlist(
-        "debt_notes[]"
-    )
-
-
-    debts = []
-
-
-    for i in range(
-        len(
-            creditors
-        )
-    ):
-
-        creditor = creditors[
-            i
-        ].strip()
-
-
-        if not creditor:
-
-            continue
-
-
-        debts.append({
-
-            "creditor":
-                creditor,
-
-            "debt_type":
-                (
-                    debt_types[i]
-                    if i < len(
-                        debt_types
-                    )
-                    else ""
-                ),
-
-            "original_amount":
-                (
-                    original_amounts[i]
-                    if i < len(
-                        original_amounts
-                    )
-                    else 0
-                ),
-
-            "current_amount":
-                (
-                    current_amounts[i]
-                    if i < len(
-                        current_amounts
-                    )
-                    else 0
-                ),
-
-            "monthly_payment":
-                (
-                    monthly_payments[i]
-                    if i < len(
-                        monthly_payments
-                    )
-                    else 0
-                ),
-
-            "status":
-                (
-                    statuses[i]
-                    if i < len(
-                        statuses
-                    )
-                    else ""
-                ),
-
-            "notes":
-                (
-                    notes[i]
-                    if i < len(
-                        notes
-                    )
-                    else ""
-                )
-
-        })
-
-
-    # -----------------------------------------------------
-    # SALVATAGGIO
-    # -----------------------------------------------------
-
-    case_id = save_case(
-        email,
-        data
-    )
-
-
-    save_debts(
-        case_id,
-        debts
-    )
-
-
-    # -----------------------------------------------------
-    # DOCUMENTI
-    # -----------------------------------------------------
-
-    files = request.files.getlist(
-        "documents"
-    )
-
-
-    db = get_db()
-
-
-    for file in files:
-
-        if (
-            not file
-            or
-            not file.filename
-        ):
-
-            continue
-
-
-        if not allowed_file(
-            file.filename
-        ):
-
-            continue
-
-
-        extension = file.filename.rsplit(
-            ".",
-            1
-        )[1].lower()
-
-
-        stored_name = secure_filename(
-
-            f"{uuid.uuid4().hex}"
-            f".{extension}"
-
-        )
-
-
-        filepath = os.path.join(
-
-            app.config[
-                "UPLOAD_FOLDER"
-            ],
-
-            stored_name
-
-        )
-
-
-        file.save(
-            filepath
-        )
-
-
-        db.execute(
-            """
-            INSERT INTO documents
-            (
-                case_id,
-                original_name,
-                stored_name,
-                uploaded_at
-            )
-            VALUES (?, ?, ?, ?)
-            """,
-            (
-                case_id,
-                file.filename,
-                stored_name,
-                now_iso()
-            )
-        )
-
-
-    db.commit()
-
-    db.close()
-
-
-    return redirect(
-        url_for(
-            "case_summary"
-        )
-    )
-
-
-# =========================================================
-# RIEPILOGO
-# =========================================================
-
-@app.route(
-    "/privato/riepilogo"
-)
-def case_summary():
-
-    if session.get(
-        "role"
-    ) != "debtor":
-
-        return redirect(
-            url_for(
-                "debtor_login"
-            )
-        )
-
-
-    email = session.get(
-        "email"
-    )
-
-
-    case = get_case(
-        email
-    )
-
-
-    if not case:
-
-        return redirect(
-            url_for(
-                "debtor_situation"
-            )
-        )
-
-
-    data = get_case_data(
-        email
-    )
-
-
-    debts = get_debts(
-        case["id"]
-    )
-
-
-    income = data.get(
-        "income",
-        {}
-    )
-
-
-    expenses = data.get(
-        "expenses",
-        {}
-    )
-
-
-    total_income = sum(
-        number(v)
-        for v in income.values()
-    )
-
-
-    total_expenses = sum(
-        number(v)
-        for v in expenses.values()
-    )
-
-
-    monthly_capacity = (
-        total_income
-        -
-        total_expenses
-    )
-
-
-    total_debt = sum(
-
-        number(
-            debt["current_amount"]
-        )
-
-        for debt in debts
-
-    )
-
-
-    total_monthly_payments = sum(
-
-        number(
-            debt["monthly_payment"]
-        )
-
-        for debt in debts
-
-    )
-
-
-    return render_template(
-
-        "summary.html",
-
-        data=data,
-
-        debts=debts,
-
-        total_income=
-            total_income,
-
-        total_expenses=
-            total_expenses,
-
-        monthly_capacity=
-            monthly_capacity,
-
-        total_debt=
-            total_debt,
-
-        total_monthly_payments=
-            total_monthly_payments
-
-    )
-
-
-# =========================================================
-# ANALISI DEBITORE
-# =========================================================
-
-@app.route(
-    "/privato/analisi"
-)
-def case_analysis():
-
-    if session.get(
-        "role"
-    ) != "debtor":
-
-        return redirect(
-            url_for(
-                "debtor_login"
-            )
-        )
-
-
-    email = session.get(
-        "email"
-    )
-
-
-    case = get_case(
-        email
-    )
-
-
-    if not case:
-
-        return redirect(
-            url_for(
-                "debtor_situation"
-            )
-        )
-
-
-    # -----------------------------------------------------
-    # QUI PARTE L'AGENTE
-    # -----------------------------------------------------
-
-    analysis_id = run_local_agent(
-        case["id"]
-    )
-
-
-    if not analysis_id:
-
-        return (
-            "Impossibile elaborare la pratica.",
-            500
-        )
-
-
-    analysis_row = get_latest_analysis(
-        case["id"]
-    )
-
-
-    try:
-
-        analysis = json.loads(
-            analysis_row[
-                "analysis_json"
-            ]
-        )
-
-    except (
-        TypeError,
-        json.JSONDecodeError
-    ):
-
-        analysis = calculate_case(
             case["id"]
         )
 
 
-    debts = get_debts(
-        case["id"]
+        solutions = get_solutions(
+            case["id"]
+        )
+
+
+        pending = sum(
+
+            1
+
+            for s in solutions
+
+            if s["status"]
+            == "pending_review"
+
+        )
+
+
+        sent = sum(
+
+            1
+
+            for s in solutions
+
+            if s["status"]
+            == "sent"
+
+        )
+
+
+        case_cards.append(
+
+            {
+
+                "id":
+                    case["id"],
+
+                "name":
+                    client_name(data),
+
+                "email":
+                    case["email"],
+
+                "updated_at":
+                    case["updated_at"],
+
+                "pending":
+                    pending,
+
+                "sent":
+                    sent
+
+            }
+
+        )
+
+
+    return render_template_string(
+
+        RESOLVER_DASHBOARD_HTML,
+
+        cases=case_cards
+
     )
 
 
-    return render_template(
+# ============================================================
+# NUOVA PRATICA RISOLUTORE
+# ============================================================
 
-        "analysis.html",
+@app.route("/risolutore/pratica")
+def resolver_practice():
 
-        data=get_case_data(
-            email
-        ),
-
-        debts=debts,
-
-        total_income=
-            analysis[
-                "total_income"
-            ],
-
-        total_expenses=
-            analysis[
-                "total_expenses"
-            ],
-
-        monthly_capacity=
-            analysis[
-                "monthly_capacity"
-            ],
-
-        total_debt=
-            analysis[
-                "total_debt"
-            ],
-
-        total_payments=
-            analysis[
-                "total_monthly_payments"
-            ],
-
-        sustainability=
-            analysis[
-                "sustainability"
-            ],
-
-        warnings=
-            analysis[
-                "warnings"
-            ],
-
-        scenarios=
-            analysis[
-                "scenarios"
-            ],
-
-        analysis=
-            analysis
-
+    user = require_login(
+        "resolver"
     )
 
 
-# =========================================================
-# DETTAGLIO PRATICA RISOLUTORE
-# =========================================================
-
-@app.route(
-    "/risolutore/pratica/<int:case_id>"
-)
-def resolver_case(
-    case_id
-):
-
-    if session.get(
-        "role"
-    ) != "resolver":
+    if not user:
 
         return redirect(
             url_for(
@@ -2948,7 +2222,72 @@ def resolver_case(
         )
 
 
-    case = get_case_by_id(
+    conn = db_connect()
+
+
+    case = conn.execute(
+
+        """
+        SELECT *
+        FROM cases
+        ORDER BY id DESC
+        LIMIT 1
+        """
+
+    ).fetchone()
+
+
+    conn.close()
+
+
+    if case:
+
+        return redirect(
+
+            url_for(
+
+                "resolver_case",
+
+                case_id=case["id"]
+
+            )
+
+        )
+
+
+    return redirect(
+
+        url_for(
+            "resolver_dashboard"
+        )
+
+    )
+
+
+# ============================================================
+# DETTAGLIO PRATICA RISOLUTORE
+# ============================================================
+
+@app.route(
+    "/risolutore/pratica/<int:case_id>"
+)
+def resolver_case(case_id):
+
+    user = require_login(
+        "resolver"
+    )
+
+
+    if not user:
+
+        return redirect(
+            url_for(
+                "resolver_login"
+            )
+        )
+
+
+    case = get_case(
         case_id
     )
 
@@ -2958,12 +2297,22 @@ def resolver_case(
         abort(404)
 
 
-    data = json.loads(
-        case["data"]
+    data = get_case_data(
+        case_id
     )
 
 
-    debts = get_debts(
+    calc = calculate_case(
+        case_id
+    )
+
+
+    analysis = latest_analysis(
+        case_id
+    )
+
+
+    solutions = get_solutions(
         case_id
     )
 
@@ -2973,73 +2322,45 @@ def resolver_case(
     )
 
 
-    analysis_row = get_latest_analysis(
-        case_id
-    )
+    return render_template_string(
 
-
-    solutions = get_solution_documents(
-        case_id
-    )
-
-
-    analysis = None
-
-
-    if analysis_row:
-
-        try:
-
-            analysis = json.loads(
-                analysis_row[
-                    "analysis_json"
-                ]
-            )
-
-        except (
-            TypeError,
-            json.JSONDecodeError
-        ):
-
-            analysis = None
-
-
-    return render_template(
-
-        "resolver_case.html",
+        RESOLVER_CASE_HTML,
 
         case=case,
 
         data=data,
 
-        debts=debts,
-
-        documents=documents,
+        calc=calc,
 
         analysis=analysis,
 
-        analysis_row=analysis_row,
+        solutions=solutions,
 
-        solutions=solutions
+        documents=documents,
+
+        client_name=client_name(
+            data
+        )
 
     )
 
 
-# =========================================================
-# RISOLUTORE - RIESGUI ANALISI
-# =========================================================
+# ============================================================
+# AVVIO ANALISI RISOLUTORE
+# ============================================================
 
 @app.route(
     "/risolutore/pratica/<int:case_id>/analizza",
     methods=["POST"]
 )
-def resolver_run_analysis(
-    case_id
-):
+def resolver_run_analysis(case_id):
 
-    if session.get(
-        "role"
-    ) != "resolver":
+    user = require_login(
+        "resolver"
+    )
+
+
+    if not user:
 
         return redirect(
             url_for(
@@ -3048,12 +2369,7 @@ def resolver_run_analysis(
         )
 
 
-    case = get_case_by_id(
-        case_id
-    )
-
-
-    if not case:
+    if not get_case(case_id):
 
         abort(404)
 
@@ -3064,28 +2380,668 @@ def resolver_run_analysis(
 
 
     return redirect(
+
         url_for(
+
             "resolver_case",
+
             case_id=case_id
+
+        )
+
+    )
+
+
+# ============================================================
+# SITUAZIONE PRIVATO
+# ============================================================
+
+@app.route(
+    "/privato/situazione",
+    methods=["GET", "POST"]
+)
+def debtor_situation():
+
+    user = require_login(
+        "debtor"
+    )
+
+
+    if not user:
+
+        return redirect(
+            url_for(
+                "debtor_login"
+            )
+        )
+
+
+    case = get_case_for_email(
+        user["email"]
+    )
+
+
+    existing = (
+
+        get_case_data(
+            case["id"]
+        )
+
+        if case
+
+        else {}
+
+    )
+
+
+    existing_debts = (
+
+        get_debts(
+            case["id"]
+        )
+
+        if case
+
+        else []
+
+    )
+
+
+    if request.method == "POST":
+
+        data = {
+
+            "name":
+                request.form.get(
+                    "name",
+                    ""
+                ).strip(),
+
+            "surname":
+                request.form.get(
+                    "surname",
+                    ""
+                ).strip(),
+
+            "employment":
+                request.form.get(
+                    "employment",
+                    ""
+                ).strip(),
+
+            "phone":
+                request.form.get(
+                    "phone",
+                    ""
+                ).strip(),
+
+            "address":
+                request.form.get(
+                    "address",
+                    ""
+                ).strip(),
+
+            "incomes":
+                [],
+
+            "expenses":
+                []
+
+        }
+
+
+        income_labels = request.form.getlist(
+            "income_label"
+        )
+
+
+        income_amounts = request.form.getlist(
+            "income_amount"
+        )
+
+
+        for label, amount in zip(
+
+            income_labels,
+
+            income_amounts
+
+        ):
+
+            if (
+                label.strip()
+                or amount.strip()
+            ):
+
+                data["incomes"].append(
+
+                    {
+
+                        "label":
+                            label.strip()
+                            or "Entrata",
+
+                        "amount":
+                            parse_float(
+                                amount
+                            )
+
+                    }
+
+                )
+
+
+        expense_labels = request.form.getlist(
+            "expense_label"
+        )
+
+
+        expense_amounts = request.form.getlist(
+            "expense_amount"
+        )
+
+
+        for label, amount in zip(
+
+            expense_labels,
+
+            expense_amounts
+
+        ):
+
+            if (
+                label.strip()
+                or amount.strip()
+            ):
+
+                data["expenses"].append(
+
+                    {
+
+                        "label":
+                            label.strip()
+                            or "Spesa",
+
+                        "amount":
+                            parse_float(
+                                amount
+                            )
+
+                    }
+
+                )
+
+
+        creditors = request.form.getlist(
+            "creditor"
+        )
+
+
+        debt_types = request.form.getlist(
+            "debt_type"
+        )
+
+
+        debt_amounts = request.form.getlist(
+            "debt_amount"
+        )
+
+
+        debt_payments = request.form.getlist(
+            "debt_payment"
+        )
+
+
+        timestamp = now_iso()
+
+
+        conn = db_connect()
+
+
+        if case:
+
+            case_id = case["id"]
+
+
+            conn.execute(
+
+                """
+                UPDATE cases
+
+                SET
+                    data = ?,
+                    updated_at = ?
+
+                WHERE id = ?
+                """,
+
+                (
+
+                    json.dumps(
+                        data,
+                        ensure_ascii=False
+                    ),
+
+                    timestamp,
+
+                    case_id
+
+                )
+
+            )
+
+
+            conn.execute(
+
+                """
+                DELETE FROM debts
+                WHERE case_id = ?
+                """,
+
+                (case_id,)
+
+            )
+
+
+        else:
+
+            cur = conn.execute(
+
+                """
+                INSERT INTO cases
+
+                (
+                    email,
+                    data,
+                    created_at,
+                    updated_at
+                )
+
+                VALUES (?, ?, ?, ?)
+                """,
+
+                (
+
+                    user["email"],
+
+                    json.dumps(
+                        data,
+                        ensure_ascii=False
+                    ),
+
+                    timestamp,
+
+                    timestamp
+
+                )
+
+            )
+
+
+            case_id = cur.lastrowid
+
+
+        for (
+
+            creditor,
+
+            debt_type,
+
+            amount,
+
+            payment
+
+        ) in zip(
+
+            creditors,
+
+            debt_types,
+
+            debt_amounts,
+
+            debt_payments
+
+        ):
+
+            if (
+
+                creditor.strip()
+
+                or amount.strip()
+
+            ):
+
+                conn.execute(
+
+                    """
+                    INSERT INTO debts
+
+                    (
+                        case_id,
+                        creditor,
+                        debt_type,
+                        current_amount,
+                        monthly_payment,
+                        notes,
+                        created_at
+                    )
+
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+
+                    (
+
+                        case_id,
+
+                        creditor.strip()
+                        or "Creditore non indicato",
+
+                        debt_type.strip(),
+
+                        parse_float(
+                            amount
+                        ),
+
+                        parse_float(
+                            payment
+                        ),
+
+                        "",
+
+                        timestamp
+
+                    )
+
+                )
+
+
+        conn.commit()
+        conn.close()
+
+
+        return redirect(
+            url_for(
+                "case_summary"
+            )
+        )
+
+
+    return render_template(
+
+        "new_situation.html",
+
+        case=case,
+
+        data=existing,
+
+        debts=existing_debts
+
+    )
+
+
+# ============================================================
+# RIEPILOGO
+# ============================================================
+
+@app.route("/privato/riepilogo")
+def case_summary():
+
+    user = require_login(
+        "debtor"
+    )
+
+
+    if not user:
+
+        return redirect(
+            url_for(
+                "debtor_login"
+            )
+        )
+
+
+    case = get_case_for_email(
+        user["email"]
+    )
+
+
+    if not case:
+
+        return redirect(
+            url_for(
+                "debtor_situation"
+            )
+        )
+
+
+    calc = calculate_case(
+        case["id"]
+    )
+
+
+    return render_template(
+
+        "summary.html",
+
+        data=calc["data"],
+
+        debts=calc["debts"],
+
+        total_income=
+            calc["total_income"],
+
+        total_expenses=
+            calc["total_expenses"],
+
+        monthly_capacity=
+            calc["monthly_capacity"],
+
+        total_debt=
+            calc["total_debt"],
+
+        total_payments=
+            calc["total_payments"]
+
+    )
+
+
+# ============================================================
+# ANALISI PRIVATO
+# ============================================================
+
+@app.route("/privato/analisi")
+def case_analysis():
+
+    user = require_login(
+        "debtor"
+    )
+
+
+    if not user:
+
+        return redirect(
+            url_for(
+                "debtor_login"
+            )
+        )
+
+
+    case = get_case_for_email(
+        user["email"]
+    )
+
+
+    if not case:
+
+        return redirect(
+            url_for(
+                "debtor_situation"
+            )
+        )
+
+
+    analysis = latest_analysis(
+        case["id"]
+    )
+
+
+    solutions = get_solutions(
+        case["id"]
+    )
+
+
+    if (
+        not analysis
+        or not solutions
+    ):
+
+        analysis = run_local_agent(
+            case["id"]
+        )
+
+
+        solutions = get_solutions(
+            case["id"]
+        )
+
+
+    calc = calculate_case(
+        case["id"]
+    )
+
+
+    notifications = get_notifications_for_email(
+
+        user["email"],
+
+        case["id"],
+
+        unread_only=False
+
+    )
+
+
+    return render_template_string(
+
+        DEBTOR_ANALYSIS_HTML,
+
+        calc=calc,
+
+        analysis=analysis,
+
+        solutions=solutions,
+
+        notifications=notifications
+
+    )
+
+
+# ============================================================
+# NOTIFICHE PRIVATO
+# ============================================================
+
+@app.route("/privato/notifiche")
+def debtor_notifications():
+
+    user = require_login(
+        "debtor"
+    )
+
+
+    if not user:
+
+        return redirect(
+            url_for(
+                "debtor_login"
+            )
+        )
+
+
+    notifications = get_notifications_for_email(
+
+        user["email"],
+
+        None,
+
+        unread_only=False
+
+    )
+
+
+    return render_template_string(
+
+        NOTIFICATIONS_HTML,
+
+        notifications=notifications,
+
+        debtor=True
+
+    )
+
+
+@app.route(
+    "/privato/notifiche/lette",
+    methods=["POST"]
+)
+def mark_notifications_read():
+
+    user = require_login(
+        "debtor"
+    )
+
+
+    if not user:
+
+        return redirect(
+            url_for(
+                "debtor_login"
+            )
+        )
+
+
+    conn = db_connect()
+
+
+    conn.execute(
+
+        """
+        UPDATE notifications
+        SET read = 1
+        WHERE email = ?
+        """,
+
+        (user["email"],)
+
+    )
+
+
+    conn.commit()
+    conn.close()
+
+
+    return redirect(
+        url_for(
+            "debtor_notifications"
         )
     )
 
 
-# =========================================================
-# CORREZIONE DELLA SOLUZIONE
-# =========================================================
+# ============================================================
+# CORREZIONE RISOLUTORE
+# ============================================================
 
 @app.route(
     "/risolutore/soluzione/<int:solution_id>/correggi",
     methods=["POST"]
 )
-def correct_solution(
-    solution_id
-):
+def correct_solution(solution_id):
 
-    if session.get(
-        "role"
-    ) != "resolver":
+    user = require_login(
+        "resolver"
+    )
+
+
+    if not user:
 
         return redirect(
             url_for(
@@ -3094,149 +3050,2192 @@ def correct_solution(
         )
 
 
-    db = get_db()
+    corrected = request.form.get(
+        "content",
+        ""
+    ).strip()
 
 
-    solution = db.execute(
+    note = request.form.get(
+        "note",
+        ""
+    ).strip()
+
+
+    if not corrected:
+
+        return redirect(
+            request.referrer
+            or url_for(
+                "resolver_dashboard"
+            )
+        )
+
+
+    conn = db_connect()
+
+
+    solution = conn.execute(
+
         """
         SELECT *
         FROM solution_documents
         WHERE id = ?
         """,
+
         (solution_id,)
+
     ).fetchone()
 
 
     if not solution:
 
-        db.close()
+        conn.close()
 
         abort(404)
 
 
-    corrected_text = request.form.get(
-        "draft_text",
-        ""
-    ).strip()
+    original = solution["content"]
 
 
-    correction_note = request.form.get(
-        "correction_note",
-        ""
-    ).strip()
+    conn.execute(
 
-
-    if not corrected_text:
-
-        corrected_text = solution[
-            "draft_text"
-        ]
-
-
-    # -----------------------------------------------------
-    # MEMORIZZA LA CORREZIONE
-    # -----------------------------------------------------
-
-    db.execute(
         """
         INSERT INTO supervision
+
         (
             solution_id,
-            original_text,
-            corrected_text,
+            original_content,
+            corrected_content,
             correction_note,
-            supervisor_email,
             created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?)
+
+        VALUES (?, ?, ?, ?, ?)
         """,
+
         (
+
             solution_id,
 
-            solution[
-                "draft_text"
-            ],
+            original,
 
-            corrected_text,
+            corrected,
 
-            correction_note,
-
-            session.get(
-                "email"
-            ),
+            note,
 
             now_iso()
 
         )
+
     )
 
 
-    # -----------------------------------------------------
-    # AGGIORNA DOCUMENTO
-    # -----------------------------------------------------
+    conn.execute(
 
-    db.execute(
         """
         UPDATE solution_documents
 
-        SET draft_text = ?,
+        SET
+
+            content = ?,
+
+            supervisor_note = ?,
+
             status = 'pending_review',
+
             updated_at = ?,
+
             approved_at = NULL,
+
             sent_at = NULL
 
         WHERE id = ?
+
         """,
+
         (
-            corrected_text,
+
+            corrected,
+
+            note,
 
             now_iso(),
 
             solution_id
 
         )
+
     )
 
 
-    db.commit()
-
-    db.close()
+    conn.commit()
 
 
-    # -----------------------------------------------------
-    # RIGENERA REALMENTE IL PDF
-    # -----------------------------------------------------
-
-    regenerate_solution_pdf(
-        solution_id
-    )
+    case_id = solution["case_id"]
 
 
-    solution = get_solution_by_id(
-        solution_id
-    )
+    conn.close()
+
+
+    try:
+
+        generate_solution_pdf(
+            solution_id
+        )
+
+
+        conn = db_connect()
+
+
+        conn.execute(
+
+            """
+            UPDATE solution_documents
+
+            SET
+                pdf_path = ?,
+                updated_at = ?
+
+            WHERE id = ?
+            """,
+
+            (
+
+                str(
+                    PDF_DIR
+                    / f"fixtude_soluzione_{solution_id}.pdf"
+                ),
+
+                now_iso(),
+
+                solution_id
+
+            )
+
+        )
+
+
+        conn.commit()
+        conn.close()
+
+
+    except Exception:
+
+        pass
 
 
     return redirect(
+
         url_for(
+
             "resolver_case",
-            case_id=solution[
-                "case_id"
-            ]
+
+            case_id=case_id
+
         )
+
     )
 
 
-# =========================================================
-# APPROVA E INVIA
-# =========================================================
+# ============================================================
+# APPROVAZIONE E INVIO
+# ============================================================
 
 @app.route(
     "/risolutore/soluzione/<int:solution_id>/approva",
     methods=["POST"]
 )
-def approve_solution(
-    solution_id
+def approve_solution(solution_id):
+
+    user = require_login(
+        "resolver"
+    )
+
+
+    if not user:
+
+        return redirect(
+            url_for(
+                "resolver_login"
+            )
+        )
+
+
+    conn = db_connect()
+
+
+    solution = conn.execute(
+
+        """
+        SELECT *
+        FROM solution_documents
+        WHERE id = ?
+        """,
+
+        (solution_id,)
+
+    ).fetchone()
+
+
+    if not solution:
+
+        conn.close()
+
+        abort(404)
+
+
+    case = conn.execute(
+
+        """
+        SELECT *
+        FROM cases
+        WHERE id = ?
+        """,
+
+        (solution["case_id"],)
+
+    ).fetchone()
+
+
+    conn.close()
+
+
+    if not case:
+
+        abort(404)
+
+
+    pdf_path = solution["pdf_path"]
+
+
+    if (
+        not pdf_path
+        or not Path(pdf_path).exists()
+    ):
+
+        try:
+
+            pdf_path = generate_solution_pdf(
+                solution_id
+            )
+
+        except Exception:
+
+            pdf_path = None
+
+
+    timestamp = now_iso()
+
+
+    conn = db_connect()
+
+
+    conn.execute(
+
+        """
+        UPDATE solution_documents
+
+        SET
+
+            status = 'sent',
+
+            approved_at = ?,
+
+            sent_at = ?,
+
+            updated_at = ?,
+
+            pdf_path = ?
+
+        WHERE id = ?
+
+        """,
+
+        (
+
+            timestamp,
+
+            timestamp,
+
+            timestamp,
+
+            pdf_path,
+
+            solution_id
+
+        )
+
+    )
+
+
+    conn.commit()
+    conn.close()
+
+
+    create_notification(
+
+        case["id"],
+
+        case["email"],
+
+        "Nuovo documento disponibile",
+
+        (
+            "Il Risolutore AI ha validato "
+            "e reso disponibile il documento: "
+            f"{solution['title']}."
+        )
+
+    )
+
+
+    return redirect(
+
+        url_for(
+
+            "resolver_case",
+
+            case_id=case["id"]
+
+        )
+
+    )
+
+
+# ============================================================
+# DOWNLOAD PDF
+# ============================================================
+
+@app.route(
+    "/soluzioni/<int:solution_id>/download"
+)
+def download_solution(solution_id):
+
+    user = current_user()
+
+
+    if not user:
+
+        return redirect(
+            url_for(
+                "home"
+            )
+        )
+
+
+    conn = db_connect()
+
+
+    solution = conn.execute(
+
+        """
+        SELECT *
+        FROM solution_documents
+        WHERE id = ?
+        """,
+
+        (solution_id,)
+
+    ).fetchone()
+
+
+    case = (
+
+        conn.execute(
+
+            """
+            SELECT *
+            FROM cases
+            WHERE id = ?
+            """,
+
+            (solution["case_id"],)
+
+        ).fetchone()
+
+        if solution
+
+        else None
+
+    )
+
+
+    conn.close()
+
+
+    if not solution or not case:
+
+        abort(404)
+
+
+    if (
+
+        user["role"] == "debtor"
+
+        and case["email"]
+        != user["email"]
+
+    ):
+
+        abort(403)
+
+
+    if user["role"] not in (
+        "debtor",
+        "resolver"
+    ):
+
+        abort(403)
+
+
+    if (
+
+        solution["status"] != "sent"
+
+        and user["role"] == "debtor"
+
+    ):
+
+        abort(403)
+
+
+    path = solution["pdf_path"]
+
+
+    if (
+        not path
+        or not Path(path).exists()
+    ):
+
+        try:
+
+            path = generate_solution_pdf(
+                solution_id
+            )
+
+        except Exception as exc:
+
+            return (
+                f"PDF non disponibile: {exc}",
+                500
+            )
+
+
+    return send_file(
+
+        path,
+
+        as_attachment=True,
+
+        download_name=Path(
+            path
+        ).name
+
+    )
+
+
+# ============================================================
+# DOWNLOAD DOCUMENTI CARICATI
+# ============================================================
+
+@app.route(
+    "/documenti/<int:document_id>/download"
+)
+def download_uploaded_document(
+    document_id
 ):
 
-    if session.get(
+    user = current_user()
+
+
+    if not user:
+
+        return redirect(
+            url_for(
+                "home"
+            )
+        )
+
+
+    conn = db_connect()
+
+
+    document = conn.execute(
+
+        """
+        SELECT *
+        FROM documents
+        WHERE id = ?
+        """,
+
+        (document_id,)
+
+    ).fetchone()
+
+
+    case = (
+
+        conn.execute(
+
+            """
+            SELECT *
+            FROM cases
+            WHERE id = ?
+            """,
+
+            (document["case_id"],)
+
+        ).fetchone()
+
+        if document
+
+        else None
+
+    )
+
+
+    conn.close()
+
+
+    if not document or not case:
+
+        abort(404)
+
+
+    if (
+
+        user["role"] == "debtor"
+
+        and case["email"]
+        != user["email"]
+
+    ):
+
+        abort(403)
+
+
+    path = Path(
+        document["stored_path"]
+    )
+
+
+    if not path.exists():
+
+        abort(404)
+
+
+    return send_file(
+
+        path,
+
+        as_attachment=True,
+
+        download_name=document["filename"]
+
+    )
+
+
+# ============================================================
+# LOGOUT
+# ============================================================
+
+@app.route("/logout")
+def logout():
+
+    session.clear()
+
+    return redirect(
+        url_for(
+            "home"
+        )
+    )
+
+
+# ============================================================
+# RISOLUTORE DASHBOARD HTML
+# ============================================================
+
+RESOLVER_DASHBOARD_HTML = """
+
+<!DOCTYPE html>
+
+<html lang="it">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width,initial-scale=1.0"
+>
+
+<title>
+    FixTude - Risolutore AI
+</title>
+
+<style>
+
+body {
+
+    font-family:
+        Arial,
+        sans-serif;
+
+    background:
+        #f7f8fa;
+
+    color:
+        #1f2933;
+
+    margin:
+        0;
+
+}
+
+.wrap {
+
+    max-width:
+        900px;
+
+    margin:
+        0 auto;
+
+    padding:
+        35px 20px;
+
+}
+
+.top {
+
+    display:
+        flex;
+
+    justify-content:
+        space-between;
+
+    align-items:
+        center;
+
+    margin-bottom:
+        35px;
+
+}
+
+.eyebrow {
+
+    font-size:
+        12px;
+
+    letter-spacing:
+        2px;
+
+    color:
+        #697586;
+
+}
+
+.card {
+
+    background:
+        white;
+
+    border:
+        1px solid #e4e7eb;
+
+    border-radius:
+        14px;
+
+    padding:
+        24px;
+
+    margin:
+        15px 0;
+
+}
+
+.button {
+
+    display:
+        inline-block;
+
+    padding:
+        12px 16px;
+
+    background:
+        #1f2933;
+
+    color:
+        white;
+
+    text-decoration:
+        none;
+
+    border-radius:
+        8px;
+
+}
+
+.muted {
+
+    color:
+        #697586;
+
+}
+
+.badge {
+
+    display:
+        inline-block;
+
+    padding:
+        5px 8px;
+
+    border-radius:
+        20px;
+
+    background:
+        #eef2f5;
+
+    margin-right:
+        5px;
+
+    font-size:
+        12px;
+
+}
+
+.logout {
+
+    color:
+        #697586;
+
+    text-decoration:
+        none;
+
+}
+
+.new {
+
+    margin-bottom:
+        25px;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="wrap">
+
+<div class="top">
+
+<div>
+
+<div class="eyebrow">
+FIXTUDE · RISOLUTORE AI
+</div>
+
+<h1>
+Pratiche
+</h1>
+
+<p class="muted">
+
+Qui supervisioni le analisi e le
+proposte generate dall'agente.
+
+</p>
+
+</div>
+
+<a
+    class="logout"
+    href="{{ url_for('logout') }}"
+>
+Esci
+</a>
+
+</div>
+
+
+<div class="new">
+
+<a
+    class="button"
+    href="{{ url_for('resolver_practice') }}"
+>
+Apri ultima pratica →
+</a>
+
+</div>
+
+
+{% if cases %}
+
+{% for c in cases %}
+
+<div class="card">
+
+<h2>
+{{ c.name }}
+</h2>
+
+<p class="muted">
+{{ c.email }}
+</p>
+
+<p>
+
+<span class="badge">
+In revisione: {{ c.pending }}
+</span>
+
+<span class="badge">
+Inviate: {{ c.sent }}
+</span>
+
+</p>
+
+<a
+    class="button"
+    href="{{ url_for('resolver_case', case_id=c.id) }}"
+>
+Apri pratica →
+</a>
+
+</div>
+
+{% endfor %}
+
+{% else %}
+
+<div class="card">
+
+<h2>
+Nessuna pratica ancora
+</h2>
+
+<p class="muted">
+
+Accedi come privato e inserisci
+una prima situazione di prova.
+
+</p>
+
+</div>
+
+{% endif %}
+
+</div>
+
+</body>
+
+</html>
+
+"""
+
+
+# ============================================================
+# RISOLUTORE PRATICA HTML
+# ============================================================
+
+RESOLVER_CASE_HTML = """
+
+<!DOCTYPE html>
+
+<html lang="it">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width,initial-scale=1.0"
+>
+
+<title>
+FixTude - Pratica
+</title>
+
+<style>
+
+body {
+
+    font-family:
+        Arial,
+        sans-serif;
+
+    background:
+        #f7f8fa;
+
+    color:
+        #1f2933;
+
+    margin:
+        0;
+
+}
+
+.wrap {
+
+    max-width:
+        950px;
+
+    margin:
+        0 auto;
+
+    padding:
+        30px 20px;
+
+}
+
+.top {
+
+    display:
+        flex;
+
+    justify-content:
+        space-between;
+
+    align-items:
+        center;
+
+}
+
+.card {
+
+    background:
+        white;
+
+    border:
+        1px solid #e4e7eb;
+
+    border-radius:
+        14px;
+
+    padding:
+        22px;
+
+    margin:
+        16px 0;
+
+}
+
+.metric {
+
+    display:
+        inline-block;
+
+    vertical-align:
+        top;
+
+    width:
+        21%;
+
+    min-width:
+        150px;
+
+    margin:
+        1%;
+
+    background:
+        #f7f8fa;
+
+    padding:
+        15px;
+
+    border-radius:
+        10px;
+
+}
+
+.metric strong {
+
+    display:
+        block;
+
+    font-size:
+        20px;
+
+    margin-top:
+        7px;
+
+}
+
+.button,
+button {
+
+    display:
+        inline-block;
+
+    padding:
+        11px 15px;
+
+    background:
+        #1f2933;
+
+    color:
+        white;
+
+    text-decoration:
+        none;
+
+    border:
+        0;
+
+    border-radius:
+        8px;
+
+    cursor:
+        pointer;
+
+}
+
+.secondary {
+
+    background:
+        #eef2f5;
+
+    color:
+        #1f2933;
+
+}
+
+.solution {
+
+    border-top:
+        1px solid #e4e7eb;
+
+    padding-top:
+        20px;
+
+    margin-top:
+        20px;
+
+}
+
+.status {
+
+    font-size:
+        12px;
+
+    padding:
+        5px 8px;
+
+    border-radius:
+        20px;
+
+    background:
+        #eef2f5;
+
+}
+
+.content {
+
+    width:
+        100%;
+
+    min-height:
+        170px;
+
+    box-sizing:
+        border-box;
+
+    padding:
+        12px;
+
+    border:
+        1px solid #ccd3da;
+
+    border-radius:
+        8px;
+
+    font-family:
+        Arial,
+        sans-serif;
+
+}
+
+.note {
+
+    width:
+        100%;
+
+    box-sizing:
+        border-box;
+
+    padding:
+        10px;
+
+    margin:
+        8px 0;
+
+    border:
+        1px solid #ccd3da;
+
+    border-radius:
+        8px;
+
+}
+
+.warning {
+
+    background:
+        #fff7e6;
+
+    padding:
+        12px;
+
+    border-radius:
+        8px;
+
+    margin:
+        8px 0;
+
+}
+
+.ok {
+
+    background:
+        #edf8f0;
+
+    padding:
+        12px;
+
+    border-radius:
+        8px;
+
+    margin:
+        8px 0;
+
+}
+
+.back {
+
+    color:
+        #697586;
+
+    text-decoration:
+        none;
+
+}
+
+.actions {
+
+    display:
+        flex;
+
+    gap:
+        8px;
+
+    flex-wrap:
+        wrap;
+
+    margin-top:
+        10px;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="wrap">
+
+
+<div class="top">
+
+<div>
+
+<div class="eyebrow">
+FIXTUDE · RISOLUTORE AI
+</div>
+
+<h1>
+{{ client_name }}
+</h1>
+
+<p>
+{{ case.email }}
+</p>
+
+</div>
+
+<a
+    class="back"
+    href="{{ url_for('resolver_dashboard') }}"
+>
+← Pratiche
+</a>
+
+</div>
+
+
+<div class="card">
+
+<h2>
+Quadro economico
+</h2>
+
+
+<div class="metric">
+
+<span>
+Entrate
+</span>
+
+<strong>
+€ {{ '%.2f'|format(calc.total_income) }}
+</strong>
+
+</div>
+
+
+<div class="metric">
+
+<span>
+Spese
+</span>
+
+<strong>
+€ {{ '%.2f'|format(calc.total_expenses) }}
+</strong>
+
+</div>
+
+
+<div class="metric">
+
+<span>
+Disponibilità
+</span>
+
+<strong>
+€ {{ '%.2f'|format(calc.monthly_capacity) }}
+</strong>
+
+</div>
+
+
+<div class="metric">
+
+<span>
+Debiti
+</span>
+
+<strong>
+€ {{ '%.2f'|format(calc.total_debt) }}
+</strong>
+
+</div>
+
+
+<p>
+
+<b>
+Sostenibilità:
+</b>
+
+{{ calc.sustainability }}
+
+</p>
+
+
+{% for w in calc.warnings %}
+
+<div class="warning">
+
+{{ w }}
+
+</div>
+
+{% endfor %}
+
+</div>
+
+
+<div class="card">
+
+<h2>
+Agente
+</h2>
+
+<p>
+
+L'agente locale genera una prima
+analisi simulativa senza consumare API.
+
+</p>
+
+<form
+    method="post"
+    action="{{ url_for('resolver_run_analysis', case_id=case.id) }}"
+>
+
+<button type="submit">
+
+Genera / rigenera analisi e PDF →
+
+</button>
+
+</form>
+
+</div>
+
+
+{% if analysis %}
+
+<div class="card">
+
+<h2>
+Analisi generata
+</h2>
+
+<p>
+{{ analysis.summary }}
+</p>
+
+
+{% for w in analysis.warnings %}
+
+<div class="warning">
+
+{{ w }}
+
+</div>
+
+{% endfor %}
+
+</div>
+
+{% endif %}
+
+
+<div class="card">
+
+<h2>
+Soluzioni da supervisionare
+</h2>
+
+
+{% if solutions %}
+
+
+{% for s in solutions %}
+
+<div class="solution">
+
+<h3>
+
+{{ s.title }}
+
+<span class="status">
+{{ s.status }}
+</span>
+
+</h3>
+
+
+<p>
+
+<b>
+Tipo:
+</b>
+
+{{ s.solution_type }}
+
+</p>
+
+
+<form
+    method="post"
+    action="{{ url_for('correct_solution', solution_id=s.id) }}"
+>
+
+<textarea
+    class="content"
+    name="content"
+>{{ s.content }}</textarea>
+
+
+<input
+    class="note"
+    type="text"
+    name="note"
+    placeholder="Nota del supervisore (facoltativa)"
+    value="{{ s.supervisor_note or '' }}"
+>
+
+
+<div class="actions">
+
+<button
+    type="submit"
+    class="secondary"
+>
+Salva correzione
+</button>
+
+
+{% if s.pdf_path %}
+
+<a
+    class="button secondary"
+    href="{{ url_for('download_solution', solution_id=s.id) }}"
+>
+PDF
+</a>
+
+{% endif %}
+
+</div>
+
+</form>
+
+
+{% if s.status != 'sent' %}
+
+<form
+    method="post"
+    action="{{ url_for('approve_solution', solution_id=s.id) }}"
+    style="margin-top:10px"
+>
+
+<button type="submit">
+
+Valida e invia al cliente →
+
+</button>
+
+</form>
+
+
+{% else %}
+
+<div class="ok">
+
+Documento già validato
+e inviato al cliente.
+
+</div>
+
+{% endif %}
+
+
+</div>
+
+{% endfor %}
+
+
+{% else %}
+
+<p>
+
+Nessuna soluzione generata.
+Avvia l'analisi.
+
+</p>
+
+{% endif %}
+
+
+</div>
+
+
+</div>
+
+</body>
+
+</html>
+
+"""
+
+
+# ============================================================
+# ANALISI PRIVATO HTML
+# ============================================================
+
+DEBTOR_ANALYSIS_HTML = """
+
+<!DOCTYPE html>
+
+<html lang="it">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width,initial-scale=1.0"
+>
+
+<title>
+FixTude - Analisi
+</title>
+
+<style>
+
+body {
+
+    font-family:
+        Arial,
+        sans-serif;
+
+    background:
+        #f7f8fa;
+
+    color:
+        #1f2933;
+
+    margin:
+        0;
+
+}
+
+.wrap {
+
+    max-width:
+        900px;
+
+    margin:
+        0 auto;
+
+    padding:
+        35px 20px;
+
+}
+
+.eyebrow {
+
+    font-size:
+        12px;
+
+    letter-spacing:
+        2px;
+
+    color:
+        #697586;
+
+}
+
+.card {
+
+    background:
+        white;
+
+    border:
+        1px solid #e4e7eb;
+
+    border-radius:
+        14px;
+
+    padding:
+        24px;
+
+    margin:
+        16px 0;
+
+}
+
+.metrics {
+
+    display:
+        grid;
+
+    grid-template-columns:
+        repeat(
+            auto-fit,
+            minmax(
+                180px,
+                1fr
+            )
+        );
+
+    gap:
+        12px;
+
+}
+
+.metric {
+
+    background:
+        #f7f8fa;
+
+    padding:
+        16px;
+
+    border-radius:
+        10px;
+
+}
+
+.metric strong {
+
+    display:
+        block;
+
+    font-size:
+        22px;
+
+    margin-top:
+        8px;
+
+}
+
+.solution {
+
+    border-top:
+        1px solid #e4e7eb;
+
+    padding-top:
+        15px;
+
+    margin-top:
+        15px;
+
+}
+
+.button {
+
+    display:
+        inline-block;
+
+    padding:
+        12px 16px;
+
+    background:
+        #1f2933;
+
+    color:
+        white;
+
+    text-decoration:
+        none;
+
+    border-radius:
+        8px;
+
+}
+
+.warning {
+
+    background:
+        #fff7e6;
+
+    padding:
+        12px;
+
+    border-radius:
+        8px;
+
+    margin:
+        8px 0;
+
+}
+
+.notification {
+
+    background:
+        #edf8f0;
+
+    padding:
+        12px;
+
+    border-radius:
+        8px;
+
+    margin:
+        8px 0;
+
+}
+
+.back {
+
+    color:
+        #697586;
+
+    text-decoration:
+        none;
+
+}
+
+.small {
+
+    color:
+        #697586;
+
+    font-size:
+        13px;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="wrap">
+
+
+<div
+    style="
+        display:flex;
+        justify-content:space-between
+    "
+>
+
+<div>
+
+<div class="eyebrow">
+IL TUO QUADRO
+</div>
+
+<h1>
+Abbiamo messo ordine.
+</h1>
+
+<p>
+
+Questa è una prima elaborazione
+automatica dei dati inseriti.
+
+</p>
+
+</div>
+
+
+<a
+    class="back"
+    href="{{ url_for('debtor_dashboard') }}"
+>
+← Area privata
+</a>
+
+</div>
+
+
+<div class="card">
+
+<div class="metrics">
+
+
+<div class="metric">
+
+Entrate
+
+<strong>
+
+€ {{ '%.2f'|format(
+    calc.total_income
+) }}
+
+</strong>
+
+</div>
+
+
+<div class="metric">
+
+Spese
+
+<strong>
+
+€ {{ '%.2f'|format(
+    calc.total_expenses
+) }}
+
+</strong>
+
+</div>
+
+
+<div class="metric">
+
+Disponibilità
+
+<strong>
+
+€ {{ '%.2f'|format(
+    calc.monthly_capacity
+) }}
+
+</strong>
+
+</div>
+
+
+<div class="metric">
+
+Debiti
+
+<strong>
+
+€ {{ '%.2f'|format(
+    calc.total_debt
+) }}
+
+</strong>
+
+</div>
+
+
+</div>
+
+
+<p>
+
+<b>
+Valutazione preliminare:
+</b>
+
+{{ calc.sustainability }}
+
+</p>
+
+</div>
+
+
+<div class="card">
+
+<h2>
+Prima analisi
+</h2>
+
+
+<p>
+{{ analysis.summary }}
+</p>
+
+
+{% for w in analysis.warnings %}
+
+<div class="warning">
+
+{{ w }}
+
+</div>
+
+{% endfor %}
+
+</div>
+
+
+<div class="card">
+
+<h2>
+Possibili strade da approfondire
+</h2>
+
+
+{% for s in solutions %}
+
+<div class="solution">
+
+<h3>
+{{ s.title }}
+</h3>
+
+
+<p>
+{{ s.content }}
+</p>
+
+
+<p class="small">
+
+Stato:
+{{ s.status }}
+
+</p>
+
+
+{% if s.status == 'sent' %}
+
+<a
+    class="button"
+    href="{{ url_for('download_solution', solution_id=s.id) }}"
+>
+Apri il documento →
+</a>
+
+
+{% else %}
+
+<p class="small">
+
+Il documento è in revisione
+prima dell'eventuale invio.
+
+</p>
+
+{% endif %}
+
+
+</div>
+
+{% endfor %}
+
+</div>
+
+
+{% if notifications %}
+
+<div class="card">
+
+<h2>
+Notifiche
+</h2>
+
+
+{% for n in notifications %}
+
+<div class="notification">
+
+<b>
+{{ n.title }}
+</b>
+
+<br>
+
+{{ n.message }}
+
+</div>
+
+{% endfor %}
+
+
+<a
+    class="button"
+    href="{{ url_for('debtor_notifications') }}"
+>
+Apri tutte le notifiche →
+</a>
+
+</div>
+
+{% endif %}
+
+
+<div class="card">
+
+<p class="small">
+
+FixTude fornisce elaborazioni informative
+e simulazioni. Non certifica l'insolvenza,
+non sostituisce un professionista e non può
+garantire l'accettazione delle proposte
+da parte dei creditori.
+
+</p>
+
+</div>
+
+
+</div>
+
+</body>
+
+</html>
+
+"""
+
+
+# ============================================================
+# NOTIFICHE HTML
+# ============================================================
+
+NOTIFICATIONS_HTML = """
+
+<!DOCTYPE html>
+
+<html lang="it">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width,initial-scale=1.0"
+>
+
+<title>
+FixTude - Notifiche
+</title>
+
+<style>
+
+body {
+
+    font-family:
+        Arial,
+        sans-serif;
+
+    background:
+        #f7f8fa;
+
+    color:
+        #1f2933;
+
+}
+
+.wrap {
+
+    max-width:
+        800px;
+
+    margin:
+        0 auto;
+
+    padding:
+        35px 20px;
+
+}
+
+.card {
+
+    background:
+        #fff;
+
+    border:
+        1px solid #e4e7eb;
+
+    border-radius:
+        14px;
+
+    padding:
+        20px;
+
+    margin:
+        12px 0;
+
+}
+
+.button {
+
+    display:
+        inline-block;
+
+    background:
+        #1f2933;
+
+    color:
+        #fff;
+
+    padding:
+        11px 15px;
+
+    text-decoration:
+        none;
+
+    border-radius:
+        8px;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="wrap">
+
+
+<a
+    href="{{ url_for('debtor_dashboard') }}"
+>
+← Area privata
+</a>
+
+
+<h1>
+Notifiche
+</h1>
+
+
+<form
+    method="post"
+    action="{{ url_for('mark_notifications_read') }}"
+>
+
+<button
+    class="button"
+    type="submit"
+>
+Segna tutte come lette
+</button>
+
+</form>
+
+
+{% for n in notifications %}
+
+<div class="card">
+
+<b>
+{{ n.title }}
+</b>
+
+<p>
+{{ n.message }}
+</p>
+
+<small>
+{{ n.created_at }}
+</small>
+
+</div>
+
+
+{% else %}
+
+
+<div class="card">
+
+Nessuna notifica.
+
+</div>
+
+
+{% endfor %}
+
+
+</div>
+
+</body>
+
+</html>
+
+"""
+
+
+# ============================================================
+# AVVIO
+# ============================================================
+
+if __name__ == "__main__":
+
+    app.run(
+
+        host="0.0.0.0",
+
+        port=int(
+            os.environ.get(
+                "PORT",
+                5000
+            )
+        ),
+
+        debug=False
+
+    )
