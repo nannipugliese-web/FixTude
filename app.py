@@ -15,6 +15,7 @@ import json
 import uuid
 import secrets
 import smtplib
+import threading
 from email.message import EmailMessage
 from datetime import datetime, timezone
 from pathlib import Path
@@ -313,6 +314,30 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_payments_user_case_service
         ON payments(user_email, case_id, service)
     """)
+
+    # Documenti generati per i pagamenti: ricevuta e riepilogo fiscale.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS payment_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            payment_id INTEGER NOT NULL,
+            document_type TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(payment_id, document_type),
+            FOREIGN KEY(payment_id) REFERENCES payments(id) ON DELETE CASCADE
+        )
+    """)
+
+    # Campi aggiunti senza rompere i database FixTude già esistenti.
+    existing_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(payments)").fetchall()
+    }
+    for column, definition in {
+        "receipt_email_sent_at": "TEXT",
+        "fiscal_document_status": "TEXT DEFAULT 'da_emettere'"
+    }.items():
+        if column not in existing_columns:
+            conn.execute(f"ALTER TABLE payments ADD COLUMN {column} {definition}")
 
     for email, data in DEMO_USERS.items():
 
@@ -1156,6 +1181,9 @@ def mark_payment_paid(
         conn.close()
         return False
 
+    already_paid = payment["status"] == "paid"
+    paid_timestamp = payment["paid_at"] or now_iso()
+
     conn.execute(
         """
         UPDATE payments
@@ -1165,8 +1193,8 @@ def mark_payment_paid(
         WHERE id = ?
         """,
         (
-            payment_intent,
-            now_iso(),
+            payment_intent or payment["stripe_payment_intent_id"],
+            paid_timestamp,
             payment_id
         )
     )
@@ -1174,7 +1202,167 @@ def mark_payment_paid(
     conn.commit()
     conn.close()
 
+    if not already_paid:
+        prepare_payment_documents(payment_id)
+
     return True
+
+
+# ============================================================
+# PAYMENT RECEIPTS / DOCUMENTS
+# ============================================================
+
+def payment_document(payment_id, document_type):
+    conn = db_connect()
+    row = conn.execute(
+        """SELECT * FROM payment_documents
+           WHERE payment_id = ? AND document_type = ?""",
+        (payment_id, document_type)
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def _safe_pdf_text(value):
+    return str(value or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def generate_payment_pdf(payment_id, document_type="receipt"):
+    """Genera un PDF riepilogativo del pagamento e lo archivia.
+
+    'receipt' = ricevuta di pagamento.
+    'fiscal'  = documento riepilogativo con i dati fiscali disponibili.
+    Non viene presentato come fattura elettronica SdI: per quella serve
+    un'integrazione con un intermediario/servizio di fatturazione elettronica.
+    """
+    existing = payment_document(payment_id, document_type)
+    if existing and Path(existing["file_path"]).exists():
+        return existing["file_path"]
+
+    payment = get_payment(payment_id)
+    if not payment:
+        raise FileNotFoundError("Pagamento non trovato.")
+
+    case = get_case(payment["case_id"])
+    data = get_case_data(payment["case_id"])
+
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.lib.units import mm
+
+    prefix = "ricevuta" if document_type == "receipt" else "documento_fiscale"
+    path = PDF_DIR / f"fixtude_{prefix}_{payment_id}.pdf"
+    styles = getSampleStyleSheet()
+    doc = SimpleDocTemplate(str(path), pagesize=A4,
+                            rightMargin=20*mm, leftMargin=20*mm,
+                            topMargin=20*mm, bottomMargin=20*mm)
+    story = [
+        Paragraph("FixTude", styles["Title"]),
+        Spacer(1, 5*mm),
+        Paragraph("Ricevuta di pagamento" if document_type == "receipt" else "Documento riepilogativo fiscale", styles["Heading2"]),
+        Spacer(1, 5*mm),
+        Paragraph(f"Numero pagamento: {_safe_pdf_text(payment_id)}", styles["BodyText"]),
+        Paragraph(f"Data pagamento: {_safe_pdf_text(payment['paid_at'] or payment['created_at'])}", styles["BodyText"]),
+        Paragraph(f"Cliente: {_safe_pdf_text(data.get('name',''))} {_safe_pdf_text(data.get('surname',''))}", styles["BodyText"]),
+        Paragraph(f"Codice fiscale: {_safe_pdf_text(data.get('tax_code',''))}", styles["BodyText"]),
+        Paragraph(f"Email: {_safe_pdf_text(payment['user_email'])}", styles["BodyText"]),
+        Paragraph(f"Indirizzo: {_safe_pdf_text(data.get('address',''))}", styles["BodyText"]),
+        Spacer(1, 5*mm),
+        Paragraph(f"Servizio: {_safe_pdf_text(PAYMENT_SERVICES.get(payment['service'], {}).get('name', payment['service']))}", styles["BodyText"]),
+        Paragraph(f"Importo: € {payment['amount']/100:.2f}".replace('.', ','), styles["BodyText"]),
+        Paragraph(f"Valuta: {_safe_pdf_text(payment['currency'].upper())}", styles["BodyText"]),
+        Spacer(1, 8*mm),
+    ]
+    if document_type == "fiscal":
+        story.append(Paragraph(
+            "Documento riepilogativo generato da FixTude. Non sostituisce la fattura elettronica trasmessa tramite Sistema di Interscambio (SdI).",
+            styles["BodyText"]
+        ))
+    else:
+        story.append(Paragraph("Pagamento registrato tramite il sistema di pagamento utilizzato da FixTude.", styles["BodyText"]))
+    doc.build(story)
+
+    conn = db_connect()
+    conn.execute(
+        """INSERT OR REPLACE INTO payment_documents
+           (payment_id, document_type, file_path, created_at)
+           VALUES (?, ?, ?, ?)""",
+        (payment_id, document_type, str(path), now_iso())
+    )
+    if document_type == "fiscal":
+        conn.execute("UPDATE payments SET fiscal_document_status = 'riepilogo_generato' WHERE id = ?", (payment_id,))
+    conn.commit()
+    conn.close()
+    return str(path)
+
+
+def send_payment_email(payment_id):
+    """Invia una sola email post-pagamento con i documenti disponibili."""
+    payment = get_payment(payment_id)
+    if not payment or payment["status"] != "paid":
+        return False
+    if payment["receipt_email_sent_at"]:
+        return True
+
+    host = os.environ.get("SMTP_HOST", "").strip()
+    port = int(os.environ.get("SMTP_PORT", "587") or 587)
+    username = os.environ.get("SMTP_USERNAME", "").strip()
+    password = os.environ.get("SMTP_PASSWORD", "").strip()
+    sender = os.environ.get("SMTP_FROM_EMAIL", "").strip() or username
+    sender_name = os.environ.get("SMTP_FROM_NAME", "FixTude").strip()
+    if not host or not sender:
+        return False
+
+    receipt_path = generate_payment_pdf(payment_id, "receipt")
+    fiscal_path = generate_payment_pdf(payment_id, "fiscal")
+    service = PAYMENT_SERVICES.get(payment["service"], {})
+
+    msg = EmailMessage()
+    msg["Subject"] = f"FixTude - pagamento ricevuto € {payment['amount']/100:.2f}".replace('.', ',')
+    msg["From"] = f"{sender_name} <{sender}>"
+    msg["To"] = payment["user_email"]
+    msg.set_content(
+        f"Abbiamo ricevuto il pagamento di € {payment['amount']/100:.2f}.\n\n"
+        f"Servizio: {service.get('name', payment['service'])}\n\n"
+        "In allegato trovi la ricevuta di pagamento e il documento riepilogativo. "
+        "I documenti restano disponibili anche nella tua Area Privata.\n\n"
+        "Nota: il documento riepilogativo non sostituisce una fattura elettronica SdI."
+    )
+    for path, label in ((receipt_path, "ricevuta.pdf"), (fiscal_path, "documento_riepilogativo.pdf")):
+        with open(path, "rb") as f:
+            msg.add_attachment(f.read(), maintype="application", subtype="pdf", filename=label)
+
+    with smtplib.SMTP(host, port, timeout=15) as smtp:
+        smtp.starttls()
+        if username and password:
+            smtp.login(username, password)
+        smtp.send_message(msg)
+
+    conn = db_connect()
+    conn.execute("UPDATE payments SET receipt_email_sent_at = ? WHERE id = ?", (now_iso(), payment_id))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def prepare_payment_documents(payment_id):
+    """Prepara i documenti senza bloccare il webhook con l'invio SMTP."""
+    try:
+        generate_payment_pdf(payment_id, "receipt")
+        generate_payment_pdf(payment_id, "fiscal")
+        # L'email viene tentata in background; se SMTP non è configurato
+        # il pagamento resta comunque correttamente registrato e archiviato.
+        threading.Thread(target=lambda: _safe_send_payment_email(payment_id), daemon=True).start()
+    except Exception:
+        app.logger.exception("Errore nella preparazione dei documenti del pagamento %s", payment_id)
+
+
+def _safe_send_payment_email(payment_id):
+    try:
+        send_payment_email(payment_id)
+    except Exception:
+        app.logger.exception("Errore invio email pagamento %s", payment_id)
 
 
 # ============================================================
@@ -1335,7 +1523,7 @@ SERVIZIO GRATUITO
 </small>
 
 <h2 style="white-space:nowrap">
-Controlla autonomamente le tue banche dati
+Controlla autonomamente le banche dati
 </h2>
 
 <p>
@@ -2454,6 +2642,9 @@ def payments():
         )
     )
 
+    analysis_payment = get_paid_payment(user["email"], case["id"], "analysis")
+    pdf_payment = get_paid_payment(user["email"], case["id"], "pdf")
+
     solutions = get_solutions(
         case["id"]
     )
@@ -2507,7 +2698,7 @@ def payments():
         <div class="paid">
         ✓ Analisi già acquistata.
         </div>
-
+        <p><a href="{{ url_for('download_payment_document', payment_id=analysis_payment.id, document_type='receipt') }}">Scarica ricevuta</a> · <a href="{{ url_for('download_payment_document', payment_id=analysis_payment.id, document_type='fiscal') }}">Scarica documento riepilogativo</a></p>
         <br>
 
         <a href="{{ url_for('case_analysis') }}">
@@ -2550,6 +2741,7 @@ def payments():
         <div class="paid">
         ✓ Documento già acquistato.
         </div>
+        <p><a href="{{ url_for('download_payment_document', payment_id=pdf_payment.id, document_type='receipt') }}">Scarica ricevuta</a> · <a href="{{ url_for('download_payment_document', payment_id=pdf_payment.id, document_type='fiscal') }}">Scarica documento riepilogativo</a></p>
 
         {% elif not has_document %}
 
@@ -2584,7 +2776,9 @@ def payments():
         """,
         analysis_paid=analysis_paid,
         pdf_paid=pdf_paid,
-        has_document=has_document
+        has_document=has_document,
+        analysis_payment=analysis_payment,
+        pdf_payment=pdf_payment
     )
 
 
@@ -2785,6 +2979,22 @@ def create_checkout():
 
 
 # ============================================================
+# PAYMENT DOCUMENT DOWNLOAD
+# ============================================================
+
+@app.route("/pagamenti/documento/<int:payment_id>/<document_type>")
+def download_payment_document(payment_id, document_type):
+    user = require_login("debtor")
+    if not user or document_type not in ("receipt", "fiscal"):
+        abort(403)
+    payment = get_payment(payment_id)
+    if not payment or payment["user_email"] != user["email"] or payment["status"] != "paid":
+        abort(403)
+    path = generate_payment_pdf(payment_id, document_type)
+    return send_file(path, as_attachment=True, download_name=Path(path).name)
+
+
+# ============================================================
 # PAYMENT SUCCESS
 # ============================================================
 
@@ -2793,136 +3003,41 @@ def create_checkout():
 )
 def payment_success():
 
-    user = require_login(
-        "debtor"
-    )
-
+    user = require_login("debtor")
     if not user:
-        return redirect(
-            url_for("debtor_login")
-        )
+        return redirect(url_for("debtor_login"))
 
-    session_id = request.args.get(
-        "session_id"
-    )
+    session_id = request.args.get("session_id", "").strip()
+    payment = None
+    if session_id:
+        conn = db_connect()
+        payment = conn.execute(
+            "SELECT * FROM payments WHERE stripe_session_id = ? AND user_email = ?",
+            (session_id, user["email"])
+        ).fetchone()
+        conn.close()
 
-    if not session_id:
-
-        return redirect(
-            url_for("payments")
-        )
-
-    if not STRIPE_SECRET_KEY:
-
-        return (
-            "Stripe non configurato.",
-            500
-        )
-
-    try:
-
-        checkout = stripe.checkout.Session.retrieve(
-            session_id
-        )
-
-    except Exception as exc:
-
-        return (
-            "Impossibile verificare il pagamento: "
-            + str(exc),
-            500
-        )
-
-    metadata = (
-        checkout.metadata or {}
-    )
-
-    payment_id = metadata.get(
-        "payment_id"
-    )
-
-    if not payment_id:
-
-        return (
-            "Pagamento non riconosciuto.",
-            400
-        )
-
-    payment = get_payment(
-        int(payment_id)
-    )
-
-    if not payment:
-
-        return (
-            "Pagamento non trovato.",
-            404
-        )
-
-    if payment["user_email"] != user["email"]:
-
-        abort(403)
-
-    if checkout.payment_status == "paid":
-
-        mark_payment_paid(
-            int(payment_id),
-            checkout.payment_intent
-        )
-
-        status = "paid"
-
-    else:
-
-        status = checkout.payment_status
+    status = payment["status"] if payment else "pending"
+    if payment and status == "paid":
+        # I documenti vengono preparati dal webhook. Qui non si richiama Stripe
+        # e non si avvia una seconda elaborazione del pagamento.
+        pass
 
     return render_template_string(
         """
-        <!doctype html>
-        <html lang="it">
-        <head>
-        <meta charset="utf-8">
-        <meta name="viewport"
-        content="width=device-width,initial-scale=1">
+        <!doctype html><html lang="it"><head>
+        <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
         <title>Pagamento FixTude</title>
-        <style>
-        body{font-family:Arial;background:#f6f8fb}
-        .box{max-width:600px;margin:80px auto;background:white;padding:35px;border-radius:18px;text-align:center}
-        .ok{background:#e8f7ed;padding:15px;border-radius:10px}
-        a{display:inline-block;margin-top:20px}
-        </style>
-        </head>
-        <body>
-        <div class="box">
-
+        <style>body{font-family:Arial;background:#f6f8fb}.box{max-width:650px;margin:80px auto;background:white;padding:35px;border-radius:18px;text-align:center}.ok{background:#e8f7ed;padding:15px;border-radius:10px}.wait{background:#fff7df;padding:15px;border-radius:10px}a{display:inline-block;margin-top:20px}</style>
+        </head><body><div class="box">
         {% if status == "paid" %}
-
-        <h1>Pagamento completato</h1>
-
-        <div class="ok">
-        Il pagamento è stato registrato correttamente.
-        </div>
-
+        <h1>Pagamento completato</h1><div class="ok">Il pagamento è stato registrato. Ricevuta e documento riepilogativo sono disponibili nell'Area Privata.</div>
         {% else %}
-
-        <h1>Pagamento in verifica</h1>
-
-        <p>
-        Stripe ha ricevuto la richiesta.
-        Il pagamento verrà confermato automaticamente.
-        </p>
-
+        <h1>Pagamento in verifica</h1><div class="wait">Il pagamento è stato ricevuto da Stripe e verrà confermato automaticamente. Non effettuare un secondo pagamento.</div>
         {% endif %}
-
-        <a href="{{ url_for('payments') }}">
-        Torna ai pagamenti
-        </a>
-
-        </div>
-        </body>
-        </html>
-        """,
-        status=status
+        <a href="{{ url_for('payments') }}">Torna ai pagamenti</a>
+        </div></body></html>
+        """, status=status
     )
 
 
