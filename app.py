@@ -2464,157 +2464,136 @@ def payments():
 )
 def create_checkout():
 
-    user = require_login(
-        "debtor"
-    )
+    user = require_login("debtor")
 
     if not user:
-        return redirect(
-            url_for("debtor_login")
-        )
+        return redirect(url_for("debtor_login"))
+
+    service_key = request.form.get("service", "").strip()
+
+    if service_key not in PAYMENT_SERVICES:
+        return "Servizio non valido.", 400
+
+    service = PAYMENT_SERVICES[service_key]
 
     if not STRIPE_SECRET_KEY:
-
+        app.logger.error(
+            "STRIPE_SECRET_KEY assente nelle variabili d'ambiente."
+        )
         return (
-            "Stripe non è configurato su Render. "
-            "Controllare STRIPE_SECRET_KEY.",
+            "Errore di configurazione Stripe. "
+            "STRIPE_SECRET_KEY non è configurata su Render.",
             500
         )
 
-    service_key = request.form.get(
-        "service",
-        ""
-    )
-
-    if service_key not in PAYMENT_SERVICES:
-
-        return "Servizio non valido.", 400
-
-    service = PAYMENT_SERVICES[
-        service_key
-    ]
-
-    case = get_case_for_email(
-        user["email"]
-    )
+    try:
+        case = get_case_for_email(user["email"])
+    except Exception:
+        app.logger.exception(
+            "Errore nel recupero della pratica per %s",
+            user["email"]
+        )
+        return "Errore nel recupero della pratica.", 500
 
     if not case:
-
-        return redirect(
-            url_for("debtor_situation")
-        )
+        return redirect(url_for("debtor_situation"))
 
     case_id = case["id"]
 
-    if get_paid_payment(
-        user["email"],
-        case_id,
-        service_key
-    ):
-
-        return redirect(
-            url_for("payments")
-        )
+    try:
+        if get_paid_payment(user["email"], case_id, service_key):
+            return redirect(url_for("payments"))
+    except Exception:
+        app.logger.exception("Errore nel controllo del pagamento esistente.")
+        return "Errore nel controllo del pagamento.", 500
 
     if service_key == "pdf":
+        try:
+            solutions = get_solutions(case_id)
+            if not any(s["status"] == "sent" for s in solutions):
+                return redirect(url_for("payments"))
+        except Exception:
+            app.logger.exception("Errore nel controllo del documento PDF.")
+            return "Errore nel controllo del documento PDF.", 500
 
-        solutions = get_solutions(
-            case_id
-        )
-
-        if not any(
-            s["status"] == "sent"
-            for s in solutions
-        ):
-
-            return redirect(
-                url_for("payments")
-            )
-
-    conn = db_connect()
-
-    cursor = conn.execute(
-        """
-        INSERT INTO payments
-        (
-            user_email,
-            case_id,
-            service,
-            amount,
-            currency,
-            status,
-            created_at
-        )
-        VALUES (?, ?, ?, ?, ?, 'pending', ?)
-        """,
-        (
-            user["email"],
-            case_id,
-            service_key,
-            service["amount"],
-            service["currency"],
-            now_iso()
-        )
-    )
-
-    payment_id = cursor.lastrowid
-
-    conn.commit()
-    conn.close()
+    payment_id = None
 
     try:
+        conn = db_connect()
+        cursor = conn.execute(
+            """
+            INSERT INTO payments
+            (
+                user_email,
+                case_id,
+                service,
+                amount,
+                currency,
+                status,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, 'pending', ?)
+            """,
+            (
+                user["email"],
+                case_id,
+                service_key,
+                service["amount"],
+                service["currency"],
+                now_iso()
+            )
+        )
+        payment_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+    except Exception:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        app.logger.exception(
+            "Errore SQLite durante la creazione del pagamento."
+        )
+        return "Errore nella registrazione del pagamento.", 500
+
+    try:
+        app.logger.info(
+            "Creazione Checkout Stripe: payment_id=%s case_id=%s service=%s amount=%s",
+            payment_id,
+            case_id,
+            service_key,
+            service["amount"]
+        )
+
+        stripe.api_key = STRIPE_SECRET_KEY
 
         checkout = stripe.checkout.Session.create(
-
             mode="payment",
-
             customer_email=user["email"],
-
             line_items=[
                 {
                     "price_data": {
-                        "currency":
-                            service["currency"],
-
+                        "currency": service["currency"],
                         "product_data": {
-                            "name":
-                                service["name"],
-
-                            "description":
-                                service["description"]
+                            "name": service["name"],
+                            "description": service["description"]
                         },
-
-                        "unit_amount":
-                            service["amount"]
+                        "unit_amount": service["amount"]
                     },
-
                     "quantity": 1
                 }
             ],
-
             metadata={
-                "payment_id":
-                    str(payment_id),
-
-                "case_id":
-                    str(case_id),
-
-                "service":
-                    service_key,
-
-                "user_email":
-                    user["email"]
+                "payment_id": str(payment_id),
+                "case_id": str(case_id),
+                "service": service_key,
+                "user_email": user["email"]
             },
-
             success_url=(
-                url_for(
-                    "payment_success",
-                    _external=True
-                )
-                + "?session_id="
-                + "{CHECKOUT_SESSION_ID}"
+                url_for("payment_success", _external=True)
+                + "?session_id={CHECKOUT_SESSION_ID}"
             ),
-
             cancel_url=url_for(
                 "payment_cancel",
                 payment_id=payment_id,
@@ -2623,45 +2602,50 @@ def create_checkout():
         )
 
         conn = db_connect()
-
         conn.execute(
             """
             UPDATE payments
             SET stripe_session_id = ?
             WHERE id = ?
             """,
-            (
-                checkout.id,
-                payment_id
-            )
+            (checkout.id, payment_id)
         )
-
         conn.commit()
         conn.close()
 
-        return redirect(
-            checkout.url
+        app.logger.info(
+            "Checkout Stripe creato correttamente: %s",
+            checkout.id
         )
+
+        return redirect(checkout.url)
 
     except Exception as exc:
-
-        conn = db_connect()
-
-        conn.execute(
-            """
-            UPDATE payments
-            SET status = 'failed'
-            WHERE id = ?
-            """,
-            (payment_id,)
+        app.logger.exception(
+            "ERRORE STRIPE CHECKOUT: %s",
+            exc
         )
 
-        conn.commit()
-        conn.close()
+        try:
+            conn = db_connect()
+            conn.execute(
+                """
+                UPDATE payments
+                SET status = 'failed'
+                WHERE id = ?
+                """,
+                (payment_id,)
+            )
+            conn.commit()
+            conn.close()
+        except Exception:
+            app.logger.exception(
+                "Impossibile aggiornare il pagamento come failed."
+            )
 
         return (
-            "Errore nella creazione del pagamento Stripe: "
-            + str(exc),
+            "Errore nella creazione del pagamento Stripe. "
+            "Controllare i log di FixTude.",
             500
         )
 
