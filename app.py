@@ -13,6 +13,9 @@ import sqlite3
 import os
 import json
 import uuid
+import secrets
+import smtplib
+from email.message import EmailMessage
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -276,6 +279,18 @@ def init_db():
     """)
 
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token TEXT UNIQUE NOT NULL,
+            expires_at TEXT NOT NULL,
+            used INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS payments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_email TEXT NOT NULL,
@@ -352,6 +367,77 @@ def find_user(email):
 
     conn.close()
 
+    return row
+
+
+# ============================================================
+# PASSWORD RECOVERY
+# ============================================================
+
+def send_password_reset_email(email, reset_url):
+    host = os.environ.get("SMTP_HOST", "").strip()
+    port = int(os.environ.get("SMTP_PORT", "587") or 587)
+    username = os.environ.get("SMTP_USERNAME", "").strip()
+    password = os.environ.get("SMTP_PASSWORD", "").strip()
+    sender = os.environ.get("SMTP_FROM_EMAIL", "").strip() or username
+    sender_name = os.environ.get("SMTP_FROM_NAME", "FixTude").strip()
+
+    if not host or not sender:
+        return False
+
+    msg = EmailMessage()
+    msg["Subject"] = "Recupero password FixTude"
+    msg["From"] = f"{sender_name} <{sender}>"
+    msg["To"] = email
+    msg.set_content(
+        "Hai richiesto il recupero della password FixTude.\n\n"
+        "Apri questo collegamento per impostare una nuova password:\n"
+        f"{reset_url}\n\n"
+        "Il collegamento è valido per 60 minuti. Se non hai fatto tu la richiesta, ignora questa email."
+    )
+
+    with smtplib.SMTP(host, port, timeout=15) as smtp:
+        smtp.starttls()
+        if username and password:
+            smtp.login(username, password)
+        smtp.send_message(msg)
+    return True
+
+
+def create_password_reset_token(user_id):
+    token = secrets.token_urlsafe(32)
+    expires = datetime.now(timezone.utc).timestamp() + 3600
+    expires_iso = datetime.fromtimestamp(expires, timezone.utc).isoformat(timespec="seconds")
+    conn = db_connect()
+    conn.execute("UPDATE password_reset_tokens SET used = 1 WHERE user_id = ? AND used = 0", (user_id,))
+    conn.execute(
+        "INSERT INTO password_reset_tokens (user_id, token, expires_at, used, created_at) VALUES (?, ?, ?, 0, ?)",
+        (user_id, token, expires_iso, now_iso())
+    )
+    conn.commit()
+    conn.close()
+    return token
+
+
+def get_valid_reset_user(token):
+    conn = db_connect()
+    row = conn.execute(
+        """
+        SELECT u.id, u.email, u.role, r.id AS reset_id, r.expires_at
+        FROM password_reset_tokens r
+        JOIN users u ON u.id = r.user_id
+        WHERE r.token = ? AND r.used = 0
+        """,
+        (token,)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    try:
+        if datetime.fromisoformat(row["expires_at"]) <= datetime.now(timezone.utc):
+            return None
+    except Exception:
+        return None
     return row
 
 
@@ -1373,16 +1459,16 @@ name="email"
 required>
 
 <label>Password</label>
-<input type="password"
-name="password"
-required
-minlength="8">
+<div class="password-wrap">
+<input id="reg-password" type="password" name="password" required minlength="8">
+<button type="button" class="toggle-password" onclick="togglePassword('reg-password', this)">👁</button>
+</div>
 
 <label>Conferma password</label>
-<input type="password"
-name="confirm_password"
-required
-minlength="8">
+<div class="password-wrap">
+<input id="reg-confirm" type="password" name="confirm_password" required minlength="8">
+<button type="button" class="toggle-password" onclick="togglePassword('reg-confirm', this)">👁</button>
+</div>
 
 <button>
 Crea account
@@ -1391,7 +1477,9 @@ Crea account
 </form>
 
 </div>
-
+<script>
+function togglePassword(id, button){const input=document.getElementById(id); if(input.type==='password'){input.type='text';button.textContent='🙈'}else{input.type='password';button.textContent='👁'}}
+</script>
 </body>
 </html>
 """
@@ -1495,85 +1583,86 @@ LOGIN_HTML = """
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Login FixTude</title>
 <style>
-body{
-font-family:Arial;
-background:#f6f8fb
-}
-.box{
-max-width:430px;
-margin:80px auto;
-background:white;
-padding:35px;
-border-radius:18px
-}
-input{
-width:100%;
-box-sizing:border-box;
-padding:13px;
-margin:8px 0 15px
-}
-button{
-width:100%;
-padding:13px;
-background:#4f46e5;
-color:white;
-border:0;
-border-radius:8px
-}
-.error{
-background:#fee2e2;
-padding:12px;
-margin-bottom:15px
-}
+body{font-family:Arial;background:#f6f8fb}.box{max-width:430px;margin:80px auto;background:white;padding:35px;border-radius:18px;box-sizing:border-box}input{width:100%;box-sizing:border-box;padding:13px;margin:8px 0 15px}.password-wrap{position:relative}.password-wrap input{padding-right:48px}.toggle-password{position:absolute;right:10px;top:8px;width:38px;height:38px;padding:0;background:transparent;color:#4f46e5;border:0;font-size:19px;cursor:pointer}.button{width:100%;padding:13px;background:#4f46e5;color:white;border:0;border-radius:8px;cursor:pointer}.error{background:#fee2e2;padding:12px;margin-bottom:15px;border-radius:8px}.links{margin-top:18px;text-align:center}.links a{color:#4f46e5;text-decoration:none}
 </style>
 </head>
 <body>
-
 <div class="box">
-
 <a href="/">← FixTude</a>
-
-<h1>
-{% if role == "debtor" %}
-Accesso area privata
-{% else %}
-Accesso Risolutore
-{% endif %}
-</h1>
-
-{% if error %}
-<div class="error">{{ error }}</div>
-{% endif %}
-
+<h1>{% if role == "debtor" %}Accesso area privata{% else %}Accesso Risolutore{% endif %}</h1>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
 <form method="post">
-
 <label>Email</label>
-
-<input type="email"
-name="email"
-required>
-
+<input type="email" name="email" required>
 <label>Password</label>
-
-<input type="password"
-name="password"
-required>
-
-<button>
-Accedi
-</button>
-
-</form>
-
+<div class="password-wrap">
+<input id="login-password" type="password" name="password" required>
+<button class="toggle-password" type="button" onclick="togglePassword('login-password', this)" aria-label="Mostra password">👁</button>
 </div>
-
+<button class="button">Accedi</button>
+</form>
+<div class="links"><a href="{{ url_for('password_forgot') }}">Password dimenticata?</a></div>
+</div>
+<script>
+function togglePassword(id, button){const input=document.getElementById(id); if(input.type==='password'){input.type='text';button.textContent='🙈';button.setAttribute('aria-label','Nascondi password')}else{input.type='password';button.textContent='👁';button.setAttribute('aria-label','Mostra password')}}
+</script>
 </body>
 </html>
 """
+
+@app.route("/password-dimenticata", methods=["GET", "POST"])
+def password_forgot():
+    message = None
+    error = None
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user = find_user(email)
+        if user:
+            try:
+                token = create_password_reset_token(user["id"])
+                base_url = os.environ.get("APP_BASE_URL", request.url_root.rstrip("/"))
+                reset_url = f"{base_url}{url_for('password_reset', token=token)}"
+                sent = send_password_reset_email(email, reset_url)
+                if sent:
+                    message = "Se l'indirizzo è registrato, abbiamo inviato le istruzioni per recuperare la password."
+                else:
+                    error = "Il recupero è predisposto, ma l'invio email non è ancora configurato sul server."
+            except Exception:
+                error = "Non è stato possibile inviare l'email di recupero. Riprova più tardi."
+        else:
+            message = "Se l'indirizzo è registrato, abbiamo inviato le istruzioni per recuperare la password."
+    return render_template_string("""
+    <!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Password dimenticata - FixTude</title>
+    <style>body{font-family:Arial;background:#f6f8fb}.box{max-width:430px;margin:80px auto;background:white;padding:35px;border-radius:18px;box-sizing:border-box}input{width:100%;box-sizing:border-box;padding:13px;margin:8px 0 15px}button{width:100%;padding:13px;background:#4f46e5;color:white;border:0;border-radius:8px}.msg{background:#e8f7ed;padding:12px;border-radius:8px}.err{background:#fee2e2;padding:12px;border-radius:8px}</style></head><body><div class="box"><a href="/privato/login">← Accesso</a><h1>Recupera password</h1><p>Inserisci l'email con cui hai creato l'account.</p>{% if message %}<div class="msg">{{ message }}</div>{% endif %}{% if error %}<div class="err">{{ error }}</div>{% endif %}<form method="post"><label>Email</label><input type="email" name="email" required><button>Invia istruzioni</button></form></div></body></html>
+    """, message=message, error=error)
+
+
+@app.route("/password-reset/<token>", methods=["GET", "POST"])
+def password_reset(token):
+    reset_user = get_valid_reset_user(token)
+    if not reset_user:
+        return render_template_string("""<!doctype html><html lang='it'><body style='font-family:Arial;background:#f6f8fb'><div style='max-width:500px;margin:80px auto;background:white;padding:35px;border-radius:18px'><h1>Link non valido</h1><p>Il collegamento di recupero password è scaduto o non è più valido.</p><a href='{{ url_for("password_forgot") }}'>Richiedi un nuovo link</a></div></body></html>""")
+    error = None
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm_password", "")
+        if len(password) < 8:
+            error = "La password deve avere almeno 8 caratteri."
+        elif password != confirm:
+            error = "Le password non coincidono."
+        else:
+            conn = db_connect()
+            conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(password), reset_user["id"]))
+            conn.execute("UPDATE password_reset_tokens SET used = 1 WHERE id = ?", (reset_user["reset_id"],))
+            conn.commit()
+            conn.close()
+            return redirect(url_for("debtor_login" if reset_user["role"] == "debtor" else "resolver_login"))
+    return render_template_string("""
+    <!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nuova password - FixTude</title><style>body{font-family:Arial;background:#f6f8fb}.box{max-width:430px;margin:80px auto;background:white;padding:35px;border-radius:18px;box-sizing:border-box}input{width:100%;box-sizing:border-box;padding:13px;margin:8px 0 15px}.password-wrap{position:relative}.password-wrap input{padding-right:48px}.toggle-password{position:absolute;right:10px;top:8px;width:38px;height:38px;padding:0;background:transparent;color:#4f46e5;border:0;font-size:19px;cursor:pointer}.button{width:100%;padding:13px;background:#4f46e5;color:white;border:0;border-radius:8px}.error{background:#fee2e2;padding:12px;border-radius:8px;margin-bottom:15px}</style></head><body><div class="box"><h1>Imposta nuova password</h1>{% if error %}<div class="error">{{ error }}</div>{% endif %}<form method="post"><label>Nuova password</label><div class="password-wrap"><input id="newpw" type="password" name="password" minlength="8" required><button type="button" class="toggle-password" onclick="togglePassword('newpw',this)">👁</button></div><label>Conferma password</label><div class="password-wrap"><input id="newpw2" type="password" name="confirm_password" minlength="8" required><button type="button" class="toggle-password" onclick="togglePassword('newpw2',this)">👁</button></div><button class="button">Salva nuova password</button></form></div><script>function togglePassword(id,b){const i=document.getElementById(id);if(i.type==='password'){i.type='text';b.textContent='🙈'}else{i.type='password';b.textContent='👁'}}</script></body></html>
+    """, error=error)
 
 
 @app.route(
@@ -1717,12 +1806,15 @@ def debtor_dashboard():
         <body style="font-family:Arial;background:#f6f8fb">
         <div style="max-width:900px;margin:auto;padding:35px">
 
-        <div style="display:flex;justify-content:space-between">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:20px">
         <div>
         <h1>Area privata FixTude</h1>
         <p>{{ user.email }}</p>
         </div>
+        <div style="display:flex;gap:18px;align-items:center">
+        <a href="/" style="text-decoration:none;color:#4f46e5">← Indietro</a>
         <a href="{{ url_for('logout') }}">Esci</a>
+        </div>
         </div>
 
         <div style="background:white;padding:25px;border-radius:15px;margin-top:20px">
@@ -2041,8 +2133,8 @@ def debtor_situation():
         <body>
         <div class="wrap">
 
-        <a href="{{ url_for('debtor_dashboard') }}">
-        ← Area privata
+        <a href="javascript:history.back()" style="text-decoration:none;color:#4f46e5">
+        ← Indietro
         </a>
 
         <h1>La tua situazione</h1>
@@ -2271,8 +2363,8 @@ def case_summary():
 
         <div style="max-width:900px;margin:auto;padding:30px">
 
-        <a href="{{ url_for('debtor_dashboard') }}">
-        ← Area privata
+        <a href="javascript:history.back()" style="text-decoration:none;color:#4f46e5">
+        ← Indietro
         </a>
 
         <h1>Riepilogo</h1>
@@ -2393,8 +2485,8 @@ def payments():
 
         <div class="wrap">
 
-        <a href="{{ url_for('debtor_dashboard') }}">
-        ← Area privata
+        <a href="javascript:history.back()" style="text-decoration:none;color:#4f46e5">
+        ← Indietro
         </a>
 
         <h1>Pagamenti</h1>
@@ -3074,8 +3166,8 @@ def case_analysis():
         <body>
         <div class="wrap">
 
-        <a href="{{ url_for('debtor_dashboard') }}">
-        ← Area privata
+        <a href="javascript:history.back()" style="text-decoration:none;color:#4f46e5">
+        ← Indietro
         </a>
 
         <h1>Analisi FixTude</h1>
@@ -3828,8 +3920,8 @@ def debtor_notifications():
 
         <div style="max-width:800px;margin:auto;padding:30px">
 
-        <a href="{{ url_for('debtor_dashboard') }}">
-        ← Area privata
+        <a href="javascript:history.back()" style="text-decoration:none;color:#4f46e5">
+        ← Indietro
         </a>
 
         <h1>Notifiche</h1>
