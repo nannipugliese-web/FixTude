@@ -1000,51 +1000,1276 @@ def run_local_agent(case_id):
 # PAYMENTS
 # ============================================================
 
-def get_paid_payment(email, case_id, service):
+def get_paid_payment(
+    email,
+    case_id,
+    service
+):
+
     conn = db_connect()
-    row = conn.execute("""
-        SELECT * FROM payments
-        WHERE user_email = ? AND case_id = ? AND service = ?
+
+    row = conn.execute(
+        """
+        SELECT *
+        FROM payments
+        WHERE user_email = ?
+          AND case_id = ?
+          AND service = ?
           AND status = 'paid'
-        ORDER BY id DESC LIMIT 1
-    """, (email, case_id, service)).fetchone()
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (
+            email,
+            case_id,
+            service
+        )
+    ).fetchone()
+
     conn.close()
+
     return row
 
 
 def get_payment(payment_id):
+
     conn = db_connect()
-    row = conn.execute("SELECT * FROM payments WHERE id = ?", (payment_id,)).fetchone()
+
+    row = conn.execute(
+        """
+        SELECT *
+        FROM payments
+        WHERE id = ?
+        """,
+        (payment_id,)
+    ).fetchone()
+
     conn.close()
+
     return row
 
 
-def mark_payment_paid(payment_id, payment_intent=None):
+def mark_payment_paid(
+    payment_id,
+    payment_intent=None
+):
+
     conn = db_connect()
-    payment = conn.execute("SELECT * FROM payments WHERE id = ?", (payment_id,)).fetchone()
+
+    payment = conn.execute(
+        """
+        SELECT *
+        FROM payments
+        WHERE id = ?
+        """,
+        (payment_id,)
+    ).fetchone()
+
     if not payment:
+
         conn.close()
         return False
-    conn.execute("""
+
+    conn.execute(
+        """
         UPDATE payments
         SET status = 'paid',
-            stripe_payment_intent_id = COALESCE(?, stripe_payment_intent_id),
-            paid_at = COALESCE(paid_at, ?)
-        WHERE id = ? AND status != 'paid'
-    """, (payment_intent, now_iso(), payment_id))
+            stripe_payment_intent_id = ?,
+            paid_at = ?
+        WHERE id = ?
+        """,
+        (
+            payment_intent,
+            now_iso(),
+            payment_id
+        )
+    )
+
     conn.commit()
     conn.close()
+
     return True
 
 
-def mark_payment_cancelled(payment_id):
-    conn = db_connect()
-    conn.execute("""
-        UPDATE payments SET status = 'cancelled'
-        WHERE id = ? AND status = 'pending'
-    """, (payment_id,))
-    conn.commit()
-    conn.close()
+# ============================================================
+# HOME
+# ============================================================
+
+HOME_HTML = """
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+content="width=device-width,initial-scale=1">
+<title>FixTude</title>
+<style>
+body{
+font-family:Arial,sans-serif;
+margin:0;
+background:#f6f8fb;
+color:#18212f
+}
+.wrap{
+max-width:1100px;
+margin:auto;
+padding:25px
+}
+nav{
+display:flex;
+justify-content:space-between;
+align-items:center
+}
+.logo{
+font-size:30px;
+font-weight:800
+}
+.logo span{
+color:#4f46e5
+}
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:25px;
+margin-top:45px
+}
+.card{
+background:white;
+padding:35px;
+border-radius:20px;
+border:1px solid #e5e7eb;
+box-shadow:0 15px 40px rgba(0,0,0,.05)
+}
+.dark{
+background:#18212f;
+color:white
+}
+h1{
+font-size:46px;
+margin:15px 0
+}
+p{
+line-height:1.6
+}
+.button{
+display:inline-block;
+padding:13px 18px;
+border-radius:9px;
+text-decoration:none;
+font-weight:700;
+margin:5px
+}
+.primary{
+background:#4f46e5;
+color:white
+}
+.light{
+background:#eef0f4;
+color:#18212f
+}
+.free{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px
+}
+.free a{
+padding:20px;
+border-radius:12px;
+background:#293241;
+color:white;
+text-decoration:none
+}
+small{
+color:#697586
+}
+@media(max-width:800px){
+.grid{
+grid-template-columns:1fr
+}
+h1{
+font-size:36px
+}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<nav>
+<div class="logo">
+Fix<span>Tude</span>
+</div>
+<div>
+<a href="/privato/login">Accedi</a>
+&nbsp;&nbsp;
+<a href="/registrazione">Registrati</a>
+</div>
+</nav>
+
+<div class="grid">
+
+<div class="card">
+
+<small>SERVIZIO FIXTUDE</small>
+
+<h1>
+Metti ordine nella tua situazione debitoria.
+</h1>
+
+<p>
+Inserisci dati, entrate, spese e debiti.
+FixTude organizza la situazione e produce
+possibili scenari da approfondire.
+</p>
+
+<p>
+<strong>✓ Analisi automatica</strong><br>
+<strong>✓ Possibili scenari</strong><br>
+<strong>✓ Risolutore AI</strong><br>
+<strong>✓ Documenti PDF</strong>
+</p>
+
+<a class="button primary"
+href="/registrazione">
+Registrati gratuitamente
+</a>
+
+<a class="button light"
+href="/privato/login">
+Accedi
+</a>
+
+</div>
+
+<div class="card dark">
+
+<small style="color:#bfc6d4">
+SERVIZIO GRATUITO
+</small>
+
+<h2>
+Controlla autonomamente le tue banche dati
+</h2>
+
+<p>
+Puoi richiedere direttamente agli enti
+le informazioni che ti riguardano.
+</p>
+
+<div class="free">
+
+<a target="_blank"
+href="https://www.modulorichiesta.crif.com/">
+<strong>CRIF</strong><br>
+Modulo ufficiale
+</a>
+
+<a target="_blank"
+href="https://www.experian.it/content/dam/noindex/emea/italy/Nuovo-modulo-SIC.pdf">
+<strong>EXPERIAN</strong><br>
+Modulo ufficiale
+</a>
+
+<a target="_blank"
+href="https://consumatore.ctconline.it/sic/apri-istanza">
+<strong>CTC</strong><br>
+Procedura ufficiale
+</a>
+
+<a target="_blank"
+href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/Modulo-di-richiesta-dei-dati-nominativi-CAI.pdf?force_download=1">
+<strong>CAI</strong><br>
+Modulo ufficiale
+</a>
+
+</div>
+
+</div>
+
+</div>
+
+<footer style="margin-top:60px;padding:25px 0;border-top:1px solid #ddd">
+FixTude · info@fixtude.it · P. IVA: DA INSERIRE
+</footer>
+
+</div>
+
+</body>
+</html>
+"""
+
+
+@app.route("/")
+def home():
+
+    return render_template_string(
+        HOME_HTML
+    )
+
+
+# ============================================================
+# REGISTRATION
+# ============================================================
+
+REGISTRATION_HTML = """
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+content="width=device-width,initial-scale=1">
+<title>Registrazione FixTude</title>
+<style>
+body{
+font-family:Arial;
+background:#f6f8fb
+}
+.box{
+max-width:450px;
+margin:70px auto;
+background:white;
+padding:35px;
+border-radius:18px
+}
+input{
+width:100%;
+box-sizing:border-box;
+padding:13px;
+margin:8px 0 15px
+}
+button{
+width:100%;
+padding:13px;
+background:#4f46e5;
+color:white;
+border:0;
+border-radius:8px
+}
+.error{
+background:#fee2e2;
+padding:12px;
+margin-bottom:15px
+}
+</style>
+</head>
+<body>
+
+<div class="box">
+
+<a href="/">← FixTude</a>
+
+<h1>Crea il tuo account</h1>
+
+{% if error %}
+<div class="error">{{ error }}</div>
+{% endif %}
+
+<form method="post">
+
+<label>Email</label>
+<input type="email"
+name="email"
+required>
+
+<label>Password</label>
+<input type="password"
+name="password"
+required
+minlength="8">
+
+<label>Conferma password</label>
+<input type="password"
+name="confirm_password"
+required
+minlength="8">
+
+<button>
+Crea account
+</button>
+
+</form>
+
+</div>
+
+</body>
+</html>
+"""
+
+
+@app.route(
+    "/registrazione",
+    methods=["GET", "POST"]
+)
+def registration():
+
+    error = None
+
+    if request.method == "POST":
+
+        email = (
+            request.form
+            .get("email", "")
+            .strip()
+            .lower()
+        )
+
+        password = request.form.get(
+            "password",
+            ""
+        )
+
+        confirm = request.form.get(
+            "confirm_password",
+            ""
+        )
+
+        if "@" not in email:
+
+            error = "Email non valida."
+
+        elif len(password) < 8:
+
+            error = (
+                "La password deve avere "
+                "almeno 8 caratteri."
+            )
+
+        elif password != confirm:
+
+            error = (
+                "Le password non coincidono."
+            )
+
+        elif find_user(email):
+
+            error = (
+                "Email già registrata."
+            )
+
+        else:
+
+            conn = db_connect()
+
+            conn.execute(
+                """
+                INSERT INTO users
+                (email,password_hash,role,created_at)
+                VALUES (?,?,'debtor',?)
+                """,
+                (
+                    email,
+                    generate_password_hash(
+                        password
+                    ),
+                    now_iso()
+                )
+            )
+
+            conn.commit()
+            conn.close()
+
+            session.clear()
+
+            session["user"] = {
+                "email": email,
+                "role": "debtor"
+            }
+
+            return redirect(
+                url_for("debtor_dashboard")
+            )
+
+    return render_template_string(
+        REGISTRATION_HTML,
+        error=error
+    )
+
+
+# ============================================================
+# LOGIN
+# ============================================================
+
+LOGIN_HTML = """
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+content="width=device-width,initial-scale=1">
+<title>Login FixTude</title>
+<style>
+body{
+font-family:Arial;
+background:#f6f8fb
+}
+.box{
+max-width:430px;
+margin:80px auto;
+background:white;
+padding:35px;
+border-radius:18px
+}
+input{
+width:100%;
+box-sizing:border-box;
+padding:13px;
+margin:8px 0 15px
+}
+button{
+width:100%;
+padding:13px;
+background:#4f46e5;
+color:white;
+border:0;
+border-radius:8px
+}
+.error{
+background:#fee2e2;
+padding:12px;
+margin-bottom:15px
+}
+</style>
+</head>
+<body>
+
+<div class="box">
+
+<a href="/">← FixTude</a>
+
+<h1>
+{% if role == "debtor" %}
+Accesso area privata
+{% else %}
+Accesso Risolutore
+{% endif %}
+</h1>
+
+{% if error %}
+<div class="error">{{ error }}</div>
+{% endif %}
+
+<form method="post">
+
+<label>Email</label>
+
+<input type="email"
+name="email"
+required>
+
+<label>Password</label>
+
+<input type="password"
+name="password"
+required>
+
+<button>
+Accedi
+</button>
+
+</form>
+
+</div>
+
+</body>
+</html>
+"""
+
+
+@app.route(
+    "/privato/login",
+    methods=["GET", "POST"]
+)
+def debtor_login():
+
+    error = None
+
+    if request.method == "POST":
+
+        email = (
+            request.form
+            .get("email", "")
+            .strip()
+            .lower()
+        )
+
+        password = request.form.get(
+            "password",
+            ""
+        )
+
+        user = find_user(email)
+
+        valid = bool(
+            user
+            and user["role"] == "debtor"
+            and check_password_hash(
+                user["password_hash"],
+                password
+            )
+        )
+
+        if valid:
+
+            session.clear()
+
+            session["user"] = {
+                "email": email,
+                "role": "debtor"
+            }
+
+            return redirect(
+                url_for("debtor_dashboard")
+            )
+
+        error = (
+            "Email o password non corretti."
+        )
+
+    return render_template_string(
+        LOGIN_HTML,
+        role="debtor",
+        error=error
+    )
+
+
+@app.route(
+    "/risolutore/login",
+    methods=["GET", "POST"]
+)
+def resolver_login():
+
+    error = None
+
+    if request.method == "POST":
+
+        email = (
+            request.form
+            .get("email", "")
+            .strip()
+            .lower()
+        )
+
+        password = request.form.get(
+            "password",
+            ""
+        )
+
+        user = find_user(email)
+
+        valid = bool(
+            user
+            and user["role"] == "resolver"
+            and check_password_hash(
+                user["password_hash"],
+                password
+            )
+        )
+
+        if valid:
+
+            session.clear()
+
+            session["user"] = {
+                "email": email,
+                "role": "resolver"
+            }
+
+            return redirect(
+                url_for("resolver_dashboard")
+            )
+
+        error = (
+            "Email o password non corretti."
+        )
+
+    return render_template_string(
+        LOGIN_HTML,
+        role="resolver",
+        error=error
+    )
+
+
+# ============================================================
+# DEBTOR DASHBOARD
+# ============================================================
+
+@app.route("/privato")
+def debtor_dashboard():
+
+    user = require_login(
+        "debtor"
+    )
+
+    if not user:
+        return redirect(
+            url_for("debtor_login")
+        )
+
+    case = get_case_for_email(
+        user["email"]
+    )
+
+    return render_template_string(
+        """
+        <!doctype html>
+        <html lang="it">
+        <body style="font-family:Arial;background:#f6f8fb">
+        <div style="max-width:900px;margin:auto;padding:35px">
+
+        <div style="display:flex;justify-content:space-between">
+        <div>
+        <h1>Area privata FixTude</h1>
+        <p>{{ user.email }}</p>
+        </div>
+        <a href="{{ url_for('logout') }}">Esci</a>
+        </div>
+
+        <div style="background:white;padding:25px;border-radius:15px;margin-top:20px">
+
+        {% if case %}
+
+        <h2>La tua pratica</h2>
+
+        <p>
+        La tua situazione è stata inserita.
+        </p>
+
+        <p>
+        <a href="{{ url_for('case_summary') }}">
+        Riepilogo
+        </a>
+        </p>
+
+        <p>
+        <a href="{{ url_for('case_analysis') }}">
+        Analizza la situazione
+        </a>
+        </p>
+
+        {% else %}
+
+        <h2>Inizia da qui</h2>
+
+        <p>
+        Inserisci la tua situazione economica e debitoria.
+        </p>
+
+        <a href="{{ url_for('debtor_situation') }}">
+        Inserisci la situazione →
+        </a>
+
+        {% endif %}
+
+        <hr>
+
+        <p>
+        <a href="{{ url_for('payments') }}">
+        Area pagamenti
+        </a>
+        </p>
+
+        </div>
+        </div>
+        </body>
+        </html>
+        """,
+        user=user,
+        case=case
+    )
+
+
+# ============================================================
+# SITUATION
+# ============================================================
+
+@app.route(
+    "/privato/situazione",
+    methods=["GET", "POST"]
+)
+def debtor_situation():
+
+    user = require_login(
+        "debtor"
+    )
+
+    if not user:
+        return redirect(
+            url_for("debtor_login")
+        )
+
+    case = get_case_for_email(
+        user["email"]
+    )
+
+    existing = (
+        get_case_data(case["id"])
+        if case else {}
+    )
+
+    existing_debts = (
+        get_debts(case["id"])
+        if case else []
+    )
+
+    if request.method == "POST":
+
+        data = {
+            "name": request.form.get(
+                "name",
+                ""
+            ).strip(),
+
+            "surname": request.form.get(
+                "surname",
+                ""
+            ).strip(),
+
+            "employment": request.form.get(
+                "employment",
+                ""
+            ).strip(),
+
+            "phone": request.form.get(
+                "phone",
+                ""
+            ).strip(),
+
+            "address": request.form.get(
+                "address",
+                ""
+            ).strip(),
+
+            "incomes": [],
+
+            "expenses": []
+        }
+
+        income_labels = request.form.getlist(
+            "income_label"
+        )
+
+        income_amounts = request.form.getlist(
+            "income_amount"
+        )
+
+        for label, amount in zip(
+            income_labels,
+            income_amounts
+        ):
+
+            if label.strip() or amount.strip():
+
+                data["incomes"].append({
+                    "label": label.strip()
+                    or "Entrata",
+
+                    "amount": parse_float(
+                        amount
+                    )
+                })
+
+        expense_labels = request.form.getlist(
+            "expense_label"
+        )
+
+        expense_amounts = request.form.getlist(
+            "expense_amount"
+        )
+
+        for label, amount in zip(
+            expense_labels,
+            expense_amounts
+        ):
+
+            if label.strip() or amount.strip():
+
+                data["expenses"].append({
+                    "label": label.strip()
+                    or "Spesa",
+
+                    "amount": parse_float(
+                        amount
+                    )
+                })
+
+        creditors = request.form.getlist(
+            "creditor"
+        )
+
+        debt_types = request.form.getlist(
+            "debt_type"
+        )
+
+        debt_amounts = request.form.getlist(
+            "debt_amount"
+        )
+
+        debt_payments = request.form.getlist(
+            "debt_payment"
+        )
+
+        timestamp = now_iso()
+
+        conn = db_connect()
+
+        if case:
+
+            case_id = case["id"]
+
+            conn.execute(
+                """
+                UPDATE cases
+                SET data = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    json.dumps(
+                        data,
+                        ensure_ascii=False
+                    ),
+                    timestamp,
+                    case_id
+                )
+            )
+
+            conn.execute(
+                """
+                DELETE FROM debts
+                WHERE case_id = ?
+                """,
+                (case_id,)
+            )
+
+        else:
+
+            cur = conn.execute(
+                """
+                INSERT INTO cases
+                (email,data,created_at,updated_at)
+                VALUES (?,?,?,?)
+                """,
+                (
+                    user["email"],
+                    json.dumps(
+                        data,
+                        ensure_ascii=False
+                    ),
+                    timestamp,
+                    timestamp
+                )
+            )
+
+            case_id = cur.lastrowid
+
+        for (
+            creditor,
+            debt_type,
+            amount,
+            payment
+        ) in zip(
+            creditors,
+            debt_types,
+            debt_amounts,
+            debt_payments
+        ):
+
+            if creditor.strip() or amount.strip():
+
+                conn.execute(
+                    """
+                    INSERT INTO debts
+                    (
+                        case_id,
+                        creditor,
+                        debt_type,
+                        current_amount,
+                        monthly_payment,
+                        notes,
+                        created_at
+                    )
+                    VALUES (?,?,?,?,?,?,?)
+                    """,
+                    (
+                        case_id,
+                        creditor.strip()
+                        or "Creditore non indicato",
+
+                        debt_type.strip(),
+
+                        parse_float(
+                            amount
+                        ),
+
+                        parse_float(
+                            payment
+                        ),
+
+                        "",
+
+                        timestamp
+                    )
+                )
+
+        conn.commit()
+        conn.close()
+
+        return redirect(
+            url_for("case_summary")
+        )
+
+    return render_template_string(
+        """
+        <!doctype html>
+        <html lang="it">
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>FixTude - Situazione</title>
+        <style>
+        body{font-family:Arial;background:#f6f8fb}
+        .wrap{max-width:850px;margin:auto;padding:30px}
+        .card{background:white;padding:25px;border-radius:15px;margin:15px 0}
+        input{width:100%;box-sizing:border-box;padding:11px;margin:5px 0 12px}
+        .row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+        button{padding:13px 20px;background:#4f46e5;color:white;border:0;border-radius:8px}
+        @media(max-width:650px){.row{grid-template-columns:1fr}}
+        </style>
+        </head>
+        <body>
+        <div class="wrap">
+
+        <a href="{{ url_for('debtor_dashboard') }}">
+        ← Area privata
+        </a>
+
+        <h1>La tua situazione</h1>
+
+        <form method="post">
+
+        <div class="card">
+
+        <h2>Dati personali</h2>
+
+        <div class="row">
+
+        <div>
+        <label>Nome</label>
+        <input name="name"
+        value="{{ data.get('name','') }}"
+        required>
+        </div>
+
+        <div>
+        <label>Cognome</label>
+        <input name="surname"
+        value="{{ data.get('surname','') }}"
+        required>
+        </div>
+
+        </div>
+
+        <label>Situazione lavorativa</label>
+        <input name="employment"
+        value="{{ data.get('employment','') }}">
+
+        <label>Telefono</label>
+        <input name="phone"
+        value="{{ data.get('phone','') }}">
+
+        <label>Indirizzo</label>
+        <input name="address"
+        value="{{ data.get('address','') }}">
+
+        </div>
+
+
+        <div class="card">
+
+        <h2>Entrate mensili</h2>
+
+        {% for i in range(4) %}
+
+        <div class="row">
+
+        <div>
+        <label>Entrata</label>
+        <input name="income_label"
+        placeholder="Stipendio">
+        </div>
+
+        <div>
+        <label>Importo</label>
+        <input name="income_amount"
+        type="number"
+        step="0.01"
+        min="0">
+        </div>
+
+        </div>
+
+        {% endfor %}
+
+        </div>
+
+
+        <div class="card">
+
+        <h2>Spese mensili</h2>
+
+        {% for i in range(6) %}
+
+        <div class="row">
+
+        <div>
+        <label>Spesa</label>
+        <input name="expense_label"
+        placeholder="Affitto">
+        </div>
+
+        <div>
+        <label>Importo</label>
+        <input name="expense_amount"
+        type="number"
+        step="0.01"
+        min="0">
+        </div>
+
+        </div>
+
+        {% endfor %}
+
+        </div>
+
+
+        <div class="card">
+
+        <h2>Debiti</h2>
+
+        {% for i in range(5) %}
+
+        <div style="border-top:1px solid #ddd;padding-top:15px">
+
+        <label>Creditore</label>
+        <input name="creditor"
+        placeholder="Banca / finanziaria">
+
+        <label>Tipo</label>
+        <input name="debt_type"
+        placeholder="Prestito / carta">
+
+        <label>Debito residuo</label>
+        <input name="debt_amount"
+        type="number"
+        step="0.01"
+        min="0">
+
+        <label>Rata mensile</label>
+        <input name="debt_payment"
+        type="number"
+        step="0.01"
+        min="0">
+
+        </div>
+
+        {% endfor %}
+
+        </div>
+
+        <button>
+        Salva situazione →
+        </button>
+
+        </form>
+
+        </div>
+        </body>
+        </html>
+        """,
+        data=existing,
+        debts=existing_debts
+    )
+
+
+# ============================================================
+# SUMMARY
+# ============================================================
+
+@app.route("/privato/riepilogo")
+def case_summary():
+
+    user = require_login(
+        "debtor"
+    )
+
+    if not user:
+        return redirect(
+            url_for("debtor_login")
+        )
+
+    case = get_case_for_email(
+        user["email"]
+    )
+
+    if not case:
+        return redirect(
+            url_for("debtor_situation")
+        )
+
+    calc = calculate_case(
+        case["id"]
+    )
+
+    return render_template_string(
+        """
+        <!doctype html>
+        <html lang="it">
+        <body style="font-family:Arial;background:#f6f8fb">
+
+        <div style="max-width:900px;margin:auto;padding:30px">
+
+        <a href="{{ url_for('debtor_dashboard') }}">
+        ← Area privata
+        </a>
+
+        <h1>Riepilogo</h1>
+
+        <div style="background:white;padding:25px;border-radius:15px">
+
+        <h2>Entrate</h2>
+        € {{ "%.2f"|format(total_income) }}
+
+        <h2>Spese</h2>
+        € {{ "%.2f"|format(total_expenses) }}
+
+        <h2>Disponibilità</h2>
+        € {{ "%.2f"|format(monthly_capacity) }}
+
+        <h2>Debito complessivo</h2>
+        € {{ "%.2f"|format(total_debt) }}
+
+        <h2>Rate</h2>
+        € {{ "%.2f"|format(total_payments) }}
+
+        </div>
+
+        <br>
+
+        <a href="{{ url_for('case_analysis') }}">
+        Analizza la situazione →
+        </a>
+
+        </div>
+        </body>
+        </html>
+        """,
+        total_income=calc["total_income"],
+        total_expenses=calc["total_expenses"],
+        monthly_capacity=calc["monthly_capacity"],
+        total_debt=calc["total_debt"],
+        total_payments=calc["total_payments"]
+    )
 
 
 # ============================================================
@@ -1053,277 +2278,675 @@ def mark_payment_cancelled(payment_id):
 
 @app.route("/pagamenti")
 def payments():
-    user = require_login("debtor")
+
+    user = require_login(
+        "debtor"
+    )
+
     if not user:
-        return redirect(url_for("debtor_login"))
+        return redirect(
+            url_for("debtor_login")
+        )
 
-    case = get_case_for_email(user["email"])
+    case = get_case_for_email(
+        user["email"]
+    )
+
     if not case:
-        return render_template_string("""
-        <h1>Pagamenti FixTude</h1>
-        <p>Prima devi creare la tua pratica.</p>
-        <a href="{{ url_for('debtor_situation') }}">Inserisci la situazione</a>
-        """)
 
-    analysis_paid = bool(get_paid_payment(user["email"], case["id"], "analysis"))
-    pdf_paid = bool(get_paid_payment(user["email"], case["id"], "pdf"))
-    solutions = get_solutions(case["id"])
-    has_document = any(s["status"] == "sent" for s in solutions)
+        return render_template_string(
+            """
+            <h1>Pagamenti FixTude</h1>
+            <p>Prima devi creare la tua pratica.</p>
+            <a href="{{ url_for('debtor_situation') }}">
+            Inserisci la situazione
+            </a>
+            """
+        )
 
-    return render_template_string("""
-    <!doctype html><html lang="it"><head>
-    <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Pagamenti FixTude</title>
-    <style>
-    body{font-family:Arial;background:#f6f8fb}.wrap{max-width:800px;margin:auto;padding:30px}
-    .card{background:white;padding:25px;border-radius:15px;margin:15px 0}.price{font-size:30px;font-weight:bold}
-    button{padding:13px 20px;background:#4f46e5;color:white;border:0;border-radius:8px;cursor:pointer}
-    .paid{background:#e8f7ed;padding:12px;border-radius:8px}
-    </style></head><body><div class="wrap">
-    <a href="{{ url_for('debtor_dashboard') }}">← Area privata</a><h1>Pagamenti</h1>
-    <div class="card"><h2>Analisi FixTude</h2>
-    <p>Analisi automatica della tua situazione e individuazione di possibili scenari.</p>
-    <div class="price">€ 1,99</div>
-    {% if analysis_paid %}<div class="paid">✓ Analisi già acquistata.</div><br>
-    <a href="{{ url_for('case_analysis') }}">Apri l'analisi →</a>
-    {% else %}<form method="post" action="{{ url_for('create_checkout') }}">
-    <input type="hidden" name="service" value="analysis"><button>Paga € 1,99 con Stripe</button></form>{% endif %}
-    </div>
-    <div class="card"><h2>Documento PDF</h2>
-    <p>Documento PDF definitivo dopo la validazione del Risolutore.</p><div class="price">€ 9,99</div>
-    {% if pdf_paid %}<div class="paid">✓ Documento già acquistato.</div>
-    {% elif not has_document %}<p>Il documento sarà acquistabile dopo la validazione del Risolutore.</p>
-    {% else %}<form method="post" action="{{ url_for('create_checkout') }}">
-    <input type="hidden" name="service" value="pdf"><button>Paga € 9,99 con Stripe</button></form>{% endif %}
-    </div></div></body></html>
-    """, analysis_paid=analysis_paid, pdf_paid=pdf_paid, has_document=has_document)
+    analysis_paid = bool(
+        get_paid_payment(
+            user["email"],
+            case["id"],
+            "analysis"
+        )
+    )
+
+    pdf_paid = bool(
+        get_paid_payment(
+            user["email"],
+            case["id"],
+            "pdf"
+        )
+    )
+
+    solutions = get_solutions(
+        case["id"]
+    )
+
+    has_document = any(
+        s["status"] == "sent"
+        for s in solutions
+    )
+
+    return render_template_string(
+        """
+        <!doctype html>
+        <html lang="it">
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport"
+        content="width=device-width,initial-scale=1">
+        <title>Pagamenti FixTude</title>
+        <style>
+        body{font-family:Arial;background:#f6f8fb}
+        .wrap{max-width:800px;margin:auto;padding:30px}
+        .card{background:white;padding:25px;border-radius:15px;margin:15px 0}
+        .price{font-size:30px;font-weight:bold}
+        button{padding:13px 20px;background:#4f46e5;color:white;border:0;border-radius:8px}
+        .paid{background:#e8f7ed;padding:12px;border-radius:8px}
+        </style>
+        </head>
+        <body>
+
+        <div class="wrap">
+
+        <a href="{{ url_for('debtor_dashboard') }}">
+        ← Area privata
+        </a>
+
+        <h1>Pagamenti</h1>
+
+        <div class="card">
+
+        <h2>Analisi FixTude</h2>
+
+        <p>
+        Analisi automatica della tua situazione
+        e individuazione di possibili scenari.
+        </p>
+
+        <div class="price">€ 1,99</div>
+
+        {% if analysis_paid %}
+
+        <div class="paid">
+        ✓ Analisi già acquistata.
+        </div>
+
+        <br>
+
+        <a href="{{ url_for('case_analysis') }}">
+        Apri l'analisi →
+        </a>
+
+        {% else %}
+
+        <form method="post"
+        action="{{ url_for('create_checkout') }}">
+
+        <input type="hidden"
+        name="service"
+        value="analysis">
+
+        <button>
+        Paga € 1,99 con Stripe
+        </button>
+
+        </form>
+
+        {% endif %}
+
+        </div>
+
+
+        <div class="card">
+
+        <h2>Documento PDF</h2>
+
+        <p>
+        Documento PDF definitivo dopo
+        la validazione del Risolutore.
+        </p>
+
+        <div class="price">€ 9,99</div>
+
+        {% if pdf_paid %}
+
+        <div class="paid">
+        ✓ Documento già acquistato.
+        </div>
+
+        {% elif not has_document %}
+
+        <p>
+        Il documento sarà acquistabile
+        dopo la validazione del Risolutore.
+        </p>
+
+        {% else %}
+
+        <form method="post"
+        action="{{ url_for('create_checkout') }}">
+
+        <input type="hidden"
+        name="service"
+        value="pdf">
+
+        <button>
+        Paga € 9,99 con Stripe
+        </button>
+
+        </form>
+
+        {% endif %}
+
+        </div>
+
+        </div>
+
+        </body>
+        </html>
+        """,
+        analysis_paid=analysis_paid,
+        pdf_paid=pdf_paid,
+        has_document=has_document
+    )
 
 
 # ============================================================
 # CREATE STRIPE CHECKOUT
 # ============================================================
 
-@app.route("/pagamenti/checkout", methods=["POST"])
+@app.route(
+    "/pagamenti/checkout",
+    methods=["POST"]
+)
 def create_checkout():
+
     user = require_login("debtor")
+
     if not user:
         return redirect(url_for("debtor_login"))
 
     service_key = request.form.get("service", "").strip()
+
     if service_key not in PAYMENT_SERVICES:
         return "Servizio non valido.", 400
 
-    if not STRIPE_SECRET_KEY:
-        app.logger.error("STRIPE_SECRET_KEY assente nelle variabili d'ambiente.")
-        return "Errore di configurazione Stripe.", 500
-
     service = PAYMENT_SERVICES[service_key]
-    case = get_case_for_email(user["email"])
+
+    if not STRIPE_SECRET_KEY:
+        app.logger.error(
+            "STRIPE_SECRET_KEY assente nelle variabili d'ambiente."
+        )
+        return (
+            "Errore di configurazione Stripe. "
+            "STRIPE_SECRET_KEY non è configurata su Render.",
+            500
+        )
+
+    try:
+        case = get_case_for_email(user["email"])
+    except Exception:
+        app.logger.exception(
+            "Errore nel recupero della pratica per %s",
+            user["email"]
+        )
+        return "Errore nel recupero della pratica.", 500
+
     if not case:
         return redirect(url_for("debtor_situation"))
 
     case_id = case["id"]
 
-    if get_paid_payment(user["email"], case_id, service_key):
-        return redirect(url_for("payments"))
+    try:
+        if get_paid_payment(user["email"], case_id, service_key):
+            return redirect(url_for("payments"))
+    except Exception:
+        app.logger.exception("Errore nel controllo del pagamento esistente.")
+        return "Errore nel controllo del pagamento.", 500
 
     if service_key == "pdf":
-        solutions = get_solutions(case_id)
-        if not any(s["status"] == "sent" for s in solutions):
-            return redirect(url_for("payments"))
+        try:
+            solutions = get_solutions(case_id)
+            if not any(s["status"] == "sent" for s in solutions):
+                return redirect(url_for("payments"))
+        except Exception:
+            app.logger.exception("Errore nel controllo del documento PDF.")
+            return "Errore nel controllo del documento PDF.", 500
 
-    conn = None
     payment_id = None
+
     try:
         conn = db_connect()
-        cursor = conn.execute("""
+        cursor = conn.execute(
+            """
             INSERT INTO payments
-            (user_email, case_id, service, amount, currency, status, created_at)
+            (
+                user_email,
+                case_id,
+                service,
+                amount,
+                currency,
+                status,
+                created_at
+            )
             VALUES (?, ?, ?, ?, ?, 'pending', ?)
-        """, (user["email"], case_id, service_key, service["amount"], service["currency"], now_iso()))
+            """,
+            (
+                user["email"],
+                case_id,
+                service_key,
+                service["amount"],
+                service["currency"],
+                now_iso()
+            )
+        )
         payment_id = cursor.lastrowid
         conn.commit()
         conn.close()
-        conn = None
+
     except Exception:
-        if conn:
+        try:
             conn.close()
-        app.logger.exception("Errore SQLite durante la creazione del pagamento.")
+        except Exception:
+            pass
+        app.logger.exception(
+            "Errore SQLite durante la creazione del pagamento."
+        )
         return "Errore nella registrazione del pagamento.", 500
 
     try:
+        app.logger.info(
+            "Creazione Checkout Stripe: payment_id=%s case_id=%s service=%s amount=%s",
+            payment_id,
+            case_id,
+            service_key,
+            service["amount"]
+        )
+
         stripe.api_key = STRIPE_SECRET_KEY
+
         checkout = stripe.checkout.Session.create(
             mode="payment",
             customer_email=user["email"],
-            line_items=[{
-                "price_data": {
-                    "currency": service["currency"],
-                    "product_data": {
-                        "name": service["name"],
-                        "description": service["description"]
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": service["currency"],
+                        "product_data": {
+                            "name": service["name"],
+                            "description": service["description"]
+                        },
+                        "unit_amount": service["amount"]
                     },
-                    "unit_amount": service["amount"]
-                },
-                "quantity": 1
-            }],
+                    "quantity": 1
+                }
+            ],
             metadata={
                 "payment_id": str(payment_id),
                 "case_id": str(case_id),
                 "service": service_key,
                 "user_email": user["email"]
             },
-            success_url=url_for("payment_success", _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url=url_for("payment_cancel", payment_id=payment_id, _external=True)
+            success_url=(
+                url_for("payment_success", _external=True)
+                + "?session_id={CHECKOUT_SESSION_ID}"
+            ),
+            cancel_url=url_for(
+                "payment_cancel",
+                payment_id=payment_id,
+                _external=True
+            )
         )
 
         conn = db_connect()
-        conn.execute("UPDATE payments SET stripe_session_id = ? WHERE id = ?", (checkout.id, payment_id))
+        conn.execute(
+            """
+            UPDATE payments
+            SET stripe_session_id = ?
+            WHERE id = ?
+            """,
+            (checkout.id, payment_id)
+        )
         conn.commit()
         conn.close()
+
+        app.logger.info(
+            "Checkout Stripe creato correttamente: %s",
+            checkout.id
+        )
+
         return redirect(checkout.url)
 
     except Exception as exc:
-        app.logger.exception("ERRORE STRIPE CHECKOUT: %s", exc)
-        conn = db_connect()
-        conn.execute("UPDATE payments SET status = 'failed' WHERE id = ? AND status = 'pending'", (payment_id,))
-        conn.commit()
-        conn.close()
-        return "Errore nella creazione del pagamento Stripe.", 500
+        app.logger.exception(
+            "ERRORE STRIPE CHECKOUT: %s",
+            exc
+        )
+
+        try:
+            conn = db_connect()
+            conn.execute(
+                """
+                UPDATE payments
+                SET status = 'failed'
+                WHERE id = ?
+                """,
+                (payment_id,)
+            )
+            conn.commit()
+            conn.close()
+        except Exception:
+            app.logger.exception(
+                "Impossibile aggiornare il pagamento come failed."
+            )
+
+        return (
+            "Errore nella creazione del pagamento Stripe. "
+            "Controllare i log di FixTude.",
+            500
+        )
 
 
 # ============================================================
-# PAYMENT SUCCESS - SOLO DATABASE LOCALE
+# PAYMENT SUCCESS
 # ============================================================
 
-@app.route("/pagamenti/success")
+@app.route(
+    "/pagamenti/success"
+)
 def payment_success():
-    user = require_login("debtor")
+
+    user = require_login(
+        "debtor"
+    )
+
     if not user:
-        return redirect(url_for("debtor_login"))
+        return redirect(
+            url_for("debtor_login")
+        )
 
-    session_id = request.args.get("session_id", "").strip()
+    session_id = request.args.get(
+        "session_id"
+    )
+
     if not session_id:
-        return redirect(url_for("payments"))
 
-    # IMPORTANTE: qui NON viene chiamata l'API Stripe.
-    # La conferma ufficiale arriva dal webhook Stripe.
-    payment = None
-    conn = db_connect()
-    payment = conn.execute("""
-        SELECT * FROM payments
-        WHERE stripe_session_id = ? AND user_email = ?
-        ORDER BY id DESC LIMIT 1
-    """, (session_id, user["email"])).fetchone()
-    conn.close()
+        return redirect(
+            url_for("payments")
+        )
+
+    if not STRIPE_SECRET_KEY:
+
+        return (
+            "Stripe non configurato.",
+            500
+        )
+
+    try:
+
+        checkout = stripe.checkout.Session.retrieve(
+            session_id
+        )
+
+    except Exception as exc:
+
+        return (
+            "Impossibile verificare il pagamento: "
+            + str(exc),
+            500
+        )
+
+    metadata = (
+        checkout.metadata or {}
+    )
+
+    payment_id = metadata.get(
+        "payment_id"
+    )
+
+    if not payment_id:
+
+        return (
+            "Pagamento non riconosciuto.",
+            400
+        )
+
+    payment = get_payment(
+        int(payment_id)
+    )
 
     if not payment:
-        return render_template_string("""
-        <!doctype html><html lang="it"><head><meta charset="utf-8">
-        <meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>Pagamento FixTude</title></head><body>
-        <div style="max-width:600px;margin:80px auto;font-family:Arial;text-align:center">
-        <h1>Pagamento in verifica</h1>
-        <p>Il pagamento è stato inviato a Stripe. Stiamo attendendo la conferma.</p>
-        <p><strong>Non effettuare un secondo pagamento.</strong></p>
-        <a href="{{ url_for('payments') }}">Torna ai pagamenti</a>
-        </div></body></html>
-        """)
 
-    if payment["status"] == "paid":
+        return (
+            "Pagamento non trovato.",
+            404
+        )
+
+    if payment["user_email"] != user["email"]:
+
+        abort(403)
+
+    if checkout.payment_status == "paid":
+
+        mark_payment_paid(
+            int(payment_id),
+            checkout.payment_intent
+        )
+
         status = "paid"
-        message = "Il pagamento è stato confermato correttamente."
-    elif payment["status"] in ("cancelled", "failed"):
-        status = payment["status"]
-        message = "Il pagamento non risulta completato."
-    else:
-        status = "pending"
-        message = "Il pagamento è in verifica. Non effettuare un secondo pagamento."
 
-    return render_template_string("""
-    <!doctype html><html lang="it"><head><meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1"><title>Pagamento FixTude</title>
-    <style>body{font-family:Arial;background:#f6f8fb}.box{max-width:600px;margin:80px auto;background:white;padding:35px;border-radius:18px;text-align:center}.ok{background:#e8f7ed;padding:15px;border-radius:10px}.wait{background:#fff4d6;padding:15px;border-radius:10px}</style>
-    </head><body><div class="box">
-    {% if status == "paid" %}<h1>Pagamento completato</h1><div class="ok">{{ message }}</div>
-    {% else %}<h1>Pagamento in verifica</h1><div class="wait">{{ message }}</div>{% endif %}
-    <a href="{{ url_for('payments') }}">Torna ai pagamenti</a>
-    </div></body></html>
-    """, status=status, message=message)
+    else:
+
+        status = checkout.payment_status
+
+    return render_template_string(
+        """
+        <!doctype html>
+        <html lang="it">
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport"
+        content="width=device-width,initial-scale=1">
+        <title>Pagamento FixTude</title>
+        <style>
+        body{font-family:Arial;background:#f6f8fb}
+        .box{max-width:600px;margin:80px auto;background:white;padding:35px;border-radius:18px;text-align:center}
+        .ok{background:#e8f7ed;padding:15px;border-radius:10px}
+        a{display:inline-block;margin-top:20px}
+        </style>
+        </head>
+        <body>
+        <div class="box">
+
+        {% if status == "paid" %}
+
+        <h1>Pagamento completato</h1>
+
+        <div class="ok">
+        Il pagamento è stato registrato correttamente.
+        </div>
+
+        {% else %}
+
+        <h1>Pagamento in verifica</h1>
+
+        <p>
+        Stripe ha ricevuto la richiesta.
+        Il pagamento verrà confermato automaticamente.
+        </p>
+
+        {% endif %}
+
+        <a href="{{ url_for('payments') }}">
+        Torna ai pagamenti
+        </a>
+
+        </div>
+        </body>
+        </html>
+        """,
+        status=status
+    )
 
 
 # ============================================================
 # PAYMENT CANCEL
 # ============================================================
 
-@app.route("/pagamenti/cancel/<int:payment_id>")
+@app.route(
+    "/pagamenti/cancel/<int:payment_id>"
+)
 def payment_cancel(payment_id):
-    user = require_login("debtor")
+
+    user = require_login(
+        "debtor"
+    )
+
     if not user:
-        return redirect(url_for("debtor_login"))
+        return redirect(
+            url_for("debtor_login")
+        )
 
-    payment = get_payment(payment_id)
+    payment = get_payment(
+        payment_id
+    )
+
     if payment and payment["user_email"] == user["email"]:
-        mark_payment_cancelled(payment_id)
 
-    return redirect(url_for("payments"))
+        conn = db_connect()
+
+        conn.execute(
+            """
+            UPDATE payments
+            SET status = 'cancelled'
+            WHERE id = ?
+              AND status = 'pending'
+            """,
+            (payment_id,)
+        )
+
+        conn.commit()
+        conn.close()
+
+    return redirect(
+        url_for("payments")
+    )
 
 
 # ============================================================
 # STRIPE WEBHOOK
 # ============================================================
 
-@app.route("/stripe/webhook", methods=["POST"])
+@app.route(
+    "/stripe/webhook",
+    methods=["POST"]
+)
 def stripe_webhook():
+
     payload = request.get_data()
-    signature = request.headers.get("Stripe-Signature", "")
+
+    signature = request.headers.get(
+        "Stripe-Signature",
+        ""
+    )
 
     if not STRIPE_WEBHOOK_SECRET:
-        app.logger.error("STRIPE_WEBHOOK_SECRET non configurato.")
-        return "STRIPE_WEBHOOK_SECRET non configurato.", 500
+
+        return (
+            "STRIPE_WEBHOOK_SECRET non configurato.",
+            500
+        )
 
     try:
+
         event = stripe.Webhook.construct_event(
             payload,
             signature,
             STRIPE_WEBHOOK_SECRET
         )
+
     except ValueError:
-        return "Payload non valido.", 400
+
+        return (
+            "Payload non valido.",
+            400
+        )
+
     except stripe.error.SignatureVerificationError:
-        return "Firma Stripe non valida.", 400
-    except Exception:
-        app.logger.exception("Errore nella verifica del webhook Stripe.")
-        return "Errore webhook.", 400
 
-    event_type = event.get("type", "")
-    checkout = event.get("data", {}).get("object", {}) or {}
-    metadata = checkout.get("metadata") or {}
-    payment_id = metadata.get("payment_id")
+        return (
+            "Firma Stripe non valida.",
+            400
+        )
 
-    if payment_id:
-        try:
-            payment_id = int(payment_id)
-        except (TypeError, ValueError):
-            payment_id = None
+    event_type = event["type"]
 
     if event_type in (
         "checkout.session.completed",
         "checkout.session.async_payment_succeeded"
-    ) and payment_id:
-        if checkout.get("payment_status") == "paid":
-            mark_payment_paid(
-                payment_id,
-                checkout.get("payment_intent")
+    ):
+
+        checkout = event["data"]["object"]
+
+        metadata = (
+            checkout.get("metadata")
+            or {}
+        )
+
+        payment_id = metadata.get(
+            "payment_id"
+        )
+
+        if payment_id:
+
+            if checkout.get(
+                "payment_status"
+            ) == "paid":
+
+                mark_payment_paid(
+                    int(payment_id),
+                    checkout.get(
+                        "payment_intent"
+                    )
+                )
+
+    elif event_type == "checkout.session.expired":
+
+        checkout = event["data"]["object"]
+
+        metadata = (
+            checkout.get("metadata")
+            or {}
+        )
+
+        payment_id = metadata.get(
+            "payment_id"
+        )
+
+        if payment_id:
+
+            conn = db_connect()
+
+            conn.execute(
+                """
+                UPDATE payments
+                SET status = 'cancelled'
+                WHERE id = ?
+                  AND status = 'pending'
+                """,
+                (int(payment_id),)
             )
 
-    elif event_type == "checkout.session.expired" and payment_id:
-        mark_payment_cancelled(payment_id)
+            conn.commit()
+            conn.close()
 
-    # Il webhook deve restare rapido: nessuna analisi, PDF o email qui.
     return "", 200
 
 
+# ============================================================
 # DEBTOR ANALYSIS
 # ============================================================
 
