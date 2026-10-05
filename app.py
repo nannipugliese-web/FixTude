@@ -339,11 +339,11 @@ def init_db():
         if column not in existing_columns:
             conn.execute(f"ALTER TABLE payments ADD COLUMN {column} {definition}")
 
-    existing_solution_columns = {
+    solution_columns = {
         row[1] for row in conn.execute("PRAGMA table_info(solution_documents)").fetchall()
     }
-    if "email_sent_at" not in existing_solution_columns:
-        conn.execute("ALTER TABLE solution_documents ADD COLUMN email_sent_at TEXT")
+    if "final_email_sent_at" not in solution_columns:
+        conn.execute("ALTER TABLE solution_documents ADD COLUMN final_email_sent_at TEXT")
 
     for email, data in DEMO_USERS.items():
 
@@ -1083,8 +1083,29 @@ def run_local_agent(case_id):
 
         conn.commit()
 
-        # Il PDF definitivo NON viene generato qui: viene creato soltanto
-        # dopo la revisione e approvazione del Risolutore.
+        try:
+
+            pdf_path = generate_pdf(
+                solution_id
+            )
+
+            conn.execute(
+                """
+                UPDATE solution_documents
+                SET pdf_path = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    pdf_path,
+                    now_iso(),
+                    solution_id
+                )
+            )
+
+        except Exception:
+
+            pass
 
     conn.commit()
     conn.close()
@@ -1959,84 +1980,187 @@ def resolver_login():
 @app.route("/privato")
 def debtor_dashboard():
 
-    user = require_login(
-        "debtor"
-    )
-
+    user = require_login("debtor")
     if not user:
-        return redirect(
-            url_for("debtor_login")
-        )
+        return redirect(url_for("debtor_login"))
 
-    case = get_case_for_email(
-        user["email"]
+    case = get_case_for_email(user["email"])
+    case_data = get_case_data(case["id"]) if case else {}
+
+    analysis_payment = None
+    pdf_payment = None
+    solutions = []
+    latest_solution = None
+    notifications = []
+    unread_count = 0
+
+    if case:
+        analysis_payment = get_paid_payment(user["email"], case["id"], "analysis")
+        pdf_payment = get_paid_payment(user["email"], case["id"], "pdf")
+        solutions = get_solutions(case["id"])
+        latest_solution = solutions[0] if solutions else None
+
+        conn = db_connect()
+        notifications = conn.execute(
+            """SELECT * FROM notifications WHERE email = ? ORDER BY id DESC LIMIT 5""",
+            (user["email"],)
+        ).fetchall()
+        unread_count = conn.execute(
+            """SELECT COUNT(*) FROM notifications WHERE email = ? AND read = 0""",
+            (user["email"],)
+        ).fetchone()[0]
+        conn.close()
+
+    pdf_ready = bool(
+        pdf_payment and latest_solution and latest_solution["status"] == "sent"
+        and latest_solution["pdf_path"] and Path(latest_solution["pdf_path"]).exists()
     )
+
+    pdf_in_review = bool(pdf_payment and not pdf_ready)
 
     return render_template_string(
         """
         <!doctype html>
         <html lang="it">
-        <body style="font-family:Arial;background:#f6f8fb">
-        <div style="max-width:900px;margin:auto;padding:35px">
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Area Personale - FixTude</title>
+        <style>
+        *{box-sizing:border-box}
+        body{font-family:Arial,sans-serif;background:#f5f7fb;color:#172033;margin:0}
+        .wrap{max-width:1050px;margin:auto;padding:28px 20px 50px}
+        .top{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:24px}
+        .top h1{margin:0 0 6px;font-size:30px}.muted{color:#667085}
+        .actions{display:flex;gap:14px;align-items:center}.actions a{text-decoration:none}
+        .back{color:#4f46e5}.logout{color:#b42318}
+        .hero{background:white;border-radius:18px;padding:25px;margin-bottom:18px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+        .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+        .card{background:white;border-radius:16px;padding:22px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+        .card h2{margin-top:0;font-size:20px}.card p{line-height:1.5}
+        .link{display:inline-block;margin-top:10px;color:#4f46e5;text-decoration:none;font-weight:600}
+        .status{display:inline-block;padding:7px 11px;border-radius:999px;font-size:13px;font-weight:700;margin:8px 0}
+        .green{background:#e8f7ed;color:#176b3a}.orange{background:#fff4d6;color:#8a5a00}.gray{background:#eef1f5;color:#596273}
+        .row{display:flex;justify-content:space-between;gap:15px;border-top:1px solid #edf0f4;padding:12px 0}.row:first-of-type{border-top:0}
+        .notice{background:#fff8e6;border:1px solid #f2df9a;padding:14px;border-radius:12px;margin-top:12px}
+        .mini{font-size:14px;color:#667085}
+        @media(max-width:700px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}.actions{width:100%;justify-content:space-between}}
+        </style>
+        </head>
+        <body>
+        <div class="wrap">
 
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:20px">
-        <div>
-        <h1>Area privata FixTude</h1>
-        <p>{{ user.email }}</p>
+        <div class="top">
+          <div>
+            <h1>Area Personale FixTude</h1>
+            <div class="muted">{{ case_data.get('name','') }} {{ case_data.get('surname','') }} · {{ user.email }}</div>
+          </div>
+          <div class="actions">
+            <a class="back" href="javascript:history.back()">← Indietro</a>
+            <a class="logout" href="{{ url_for('logout') }}">Esci</a>
+          </div>
         </div>
-        <div style="display:flex;gap:18px;align-items:center">
-        <a href="/" style="text-decoration:none;color:#4f46e5">← Indietro</a>
-        <a href="{{ url_for('logout') }}">Esci</a>
+
+        {% if not case %}
+        <div class="hero">
+          <h2>Inizia da qui</h2>
+          <p>Inserisci i tuoi dati per creare la tua pratica FixTude.</p>
+          <a class="link" href="{{ url_for('debtor_situation') }}">Inserisci i tuoi dati →</a>
         </div>
-        </div>
-
-        <div style="background:white;padding:25px;border-radius:15px;margin-top:20px">
-
-        {% if case %}
-
-        <h2>La tua pratica</h2>
-
-        <p>
-        La tua situazione è stata inserita.
-        </p>
-
-        <p>
-        <a href="{{ url_for('case_summary') }}">
-        Riepilogo
-        </a>
-        </p>
-
-        <p>
-        <a href="{{ url_for('case_analysis') }}">
-        Analizza la situazione
-        </a>
-        </p>
-
         {% else %}
 
-        <h2>Inizia da qui</h2>
+        <div class="hero">
+          <h2>La mia situazione</h2>
+          <p>La tua pratica è attiva. Da questa area puoi gestire dati, analisi, documenti e pagamenti.</p>
+          <a class="link" href="{{ url_for('case_summary') }}">Visualizza riepilogo →</a>
+          &nbsp;&nbsp;
+          <a class="link" href="{{ url_for('debtor_situation') }}">Modifica dati →</a>
+        </div>
 
-        <a href="{{ url_for('debtor_situation') }}">
-        Inserisci i tuoi dati →
-        </a>
+        <div class="grid">
 
-        {% endif %}
+          <div class="card">
+            <h2>La mia analisi</h2>
+            {% if analysis_payment %}
+              <span class="status green">PAGAMENTO EFFETTUATO</span>
+              <p class="mini">Analisi FixTude · € 1,99</p>
+              <a class="link" href="{{ url_for('case_analysis') }}">Apri l'analisi →</a>
+            {% else %}
+              <span class="status gray">NON ACQUISTATA</span>
+              <p class="mini">Analisi FixTude · € 1,99</p>
+              <a class="link" href="{{ url_for('payments') }}">Acquista analisi →</a>
+            {% endif %}
+          </div>
 
-        <hr>
+          <div class="card">
+            <h2>Il mio documento</h2>
+            {% if pdf_ready %}
+              <span class="status green">DOCUMENTO DISPONIBILE</span>
+              <p class="mini">Documento FixTude · € 9,99</p>
+              <a class="link" href="{{ url_for('download_solution', solution_id=latest_solution.id) }}">Scarica il PDF →</a>
+            {% elif pdf_in_review %}
+              <span class="status orange">IN REVISIONE</span>
+              <p class="mini">Pagamento ricevuto · € 9,99</p>
+              <div class="notice">Il documento è stato pagato in anticipo ed è ora in revisione completa da parte del Risolutore. Riceverai una email quando il PDF sarà approvato.</div>
+            {% else %}
+              <span class="status gray">NON ACQUISTATO</span>
+              <p class="mini">Documento FixTude · € 9,99</p>
+              <p>Puoi acquistare subito il documento. Il pagamento viene effettuato ora; il PDF definitivo sarà disponibile dopo la revisione e validazione del Risolutore.</p>
+              <form method="post" action="{{ url_for('create_checkout') }}" style="margin-top:14px">
+                <input type="hidden" name="service" value="pdf">
+                <button type="submit" style="padding:13px 22px;background:#4f46e5;color:white;border:0;border-radius:9px;font-weight:700;cursor:pointer">Paga € 9,99 con Stripe</button>
+              </form>
+              <p class="mini" style="margin-top:10px">Pagamento sicuro tramite Stripe. Dopo il pagamento la pratica passerà in revisione.</p>
+            {% endif %}
+          </div>
 
-        <p>
-        <a href="{{ url_for('payments') }}">
-        Area pagamenti
-        </a>
-        </p>
+          <div class="card">
+            <h2>Pagamenti e documenti fiscali</h2>
+            <p>Consulta pagamenti, ricevute e documenti riepilogativi.</p>
+            <a class="link" href="{{ url_for('payments') }}">Apri pagamenti →</a>
+          </div>
+
+          <div class="card">
+            <h2>Documenti caricati</h2>
+            <p>Gestisci i documenti che hai fornito a FixTude per l'analisi della tua situazione.</p>
+            <a class="link" href="{{ url_for('debtor_situation') }}">Gestisci la situazione →</a>
+          </div>
+
+          <div class="card">
+            <h2>Notifiche</h2>
+            {% if unread_count %}
+              <span class="status orange">{{ unread_count }} NUOVE</span>
+            {% else %}
+              <span class="status gray">NESSUNA NUOVA</span>
+            {% endif %}
+            {% for n in notifications[:3] %}
+              <div class="row"><span>{{ n.title }}</span><span class="mini">{{ n.created_at }}</span></div>
+            {% endfor %}
+            <a class="link" href="{{ url_for('debtor_notifications') }}">Vedi notifiche →</a>
+          </div>
+
+          <div class="card">
+            <h2>Profilo e sicurezza</h2>
+            <p>Email: <strong>{{ user.email }}</strong></p>
+            <a class="link" href="{{ url_for('password_forgot') }}">Recupera / modifica password →</a>
+          </div>
 
         </div>
+        {% endif %}
         </div>
         </body>
         </html>
         """,
         user=user,
-        case=case
+        case=case,
+        case_data=case_data,
+        analysis_payment=analysis_payment,
+        pdf_payment=pdf_payment,
+        latest_solution=latest_solution,
+        pdf_ready=pdf_ready,
+        pdf_in_review=pdf_in_review,
+        notifications=notifications,
+        unread_count=unread_count
     )
 
 
@@ -2638,6 +2762,7 @@ def payments():
         s["status"] == "sent"
         for s in solutions
     )
+    latest_solution = solutions[0] if solutions else None
 
     return render_template_string(
         """
@@ -2653,8 +2778,10 @@ def payments():
         .wrap{max-width:800px;margin:auto;padding:30px}
         .card{background:white;padding:25px;border-radius:15px;margin:15px 0}
         .price{font-size:30px;font-weight:bold}
-        button{padding:13px 20px;background:#4f46e5;color:white;border:0;border-radius:8px}
+        button{padding:13px 20px;background:#4f46e5;color:white;border:0;border-radius:8px;font-weight:700;cursor:pointer}
         .paid{background:#e8f7ed;padding:12px;border-radius:8px}
+        .review{background:#fff4d6;padding:12px;border-radius:8px}
+        .small{color:#667085;font-size:14px}
         </style>
         </head>
         <body>
@@ -2723,27 +2850,22 @@ def payments():
 
         {% if pdf_paid %}
 
-        {% if has_document %}
         <div class="paid">
-        ✓ Documento approvato e disponibile.
+        ✓ Pagamento ricevuto: € 9,99
         </div>
         <p><a href="{{ url_for('download_payment_document', payment_id=pdf_payment.id, document_type='receipt') }}">Scarica ricevuta</a> · <a href="{{ url_for('download_payment_document', payment_id=pdf_payment.id, document_type='fiscal') }}">Scarica documento riepilogativo</a></p>
+
+        {% if has_document %}
+        <p><strong>✓ Documento definitivo disponibile.</strong></p>
+        <p><a href="{{ url_for('download_solution', solution_id=latest_solution.id) }}">Scarica PDF definitivo →</a></p>
         {% else %}
-        <div style="background:#fff7df;padding:12px;border-radius:8px">
-        ✓ Pagamento ricevuto. Il documento è <strong>in revisione</strong> da parte del Risolutore.
-        </div>
-        <p><a href="{{ url_for('download_payment_document', payment_id=pdf_payment.id, document_type='receipt') }}">Scarica ricevuta</a> · <a href="{{ url_for('download_payment_document', payment_id=pdf_payment.id, document_type='fiscal') }}">Scarica documento riepilogativo</a></p>
-        <p>Quando la revisione sarà completata, il PDF definitivo sarà disponibile qui e ti verrà inviato anche via email.</p>
+        <p><strong>🕐 Documento in revisione.</strong></p>
+        <p>Il pagamento è stato ricevuto. Il Risolutore sta completando la revisione. Riceverai una email quando il PDF definitivo sarà disponibile.</p>
         {% endif %}
 
-        {% elif not has_document %}
-
-        <p>
-        Il documento sarà acquistabile
-        dopo la validazione del Risolutore.
-        </p>
-
         {% else %}
+
+        <p class="small">Paghi ora € 9,99. Il Risolutore completerà la revisione dopo il pagamento e il PDF definitivo verrà reso disponibile nell'Area Personale e inviato via email.</p>
 
         <form method="post"
         action="{{ url_for('create_checkout') }}">
@@ -2752,7 +2874,7 @@ def payments():
         name="service"
         value="pdf">
 
-        <button>
+        <button type="submit">
         Paga € 9,99 con Stripe
         </button>
 
@@ -2770,6 +2892,7 @@ def payments():
         analysis_paid=analysis_paid,
         pdf_paid=pdf_paid,
         has_document=has_document,
+        latest_solution=latest_solution,
         analysis_payment=analysis_payment,
         pdf_payment=pdf_payment
     )
@@ -2827,18 +2950,6 @@ def create_checkout():
     except Exception:
         app.logger.exception("Errore nel controllo del pagamento esistente.")
         return "Errore nel controllo del pagamento.", 500
-
-    if service_key == "pdf":
-        try:
-            # Il Documento FixTude si paga IN ANTICIPO.
-            # È sufficiente che esista almeno una soluzione generata;
-            # la consegna resta bloccata fino all'approvazione del Risolutore.
-            solutions = get_solutions(case_id)
-            if not solutions:
-                return redirect(url_for("payments"))
-        except Exception:
-            app.logger.exception("Errore nel controllo delle soluzioni PDF.")
-            return "Errore nel controllo del documento PDF.", 500
 
     payment_id = None
 
@@ -3027,7 +3138,7 @@ def payment_success():
         <style>body{font-family:Arial;background:#f6f8fb}.box{max-width:650px;margin:80px auto;background:white;padding:35px;border-radius:18px;text-align:center}.ok{background:#e8f7ed;padding:15px;border-radius:10px}.wait{background:#fff7df;padding:15px;border-radius:10px}a{display:inline-block;margin-top:20px}</style>
         </head><body><div class="box">
         {% if status == "paid" %}
-        <h1>Pagamento completato</h1><div class="ok">Il pagamento è stato registrato. Ricevuta e documento riepilogativo sono disponibili nell'Area Privata.{% if payment and payment["service"] == "pdf" %} Il documento definitivo resta in revisione fino all'approvazione del Risolutore.{% endif %}</div>
+        <h1>Pagamento completato</h1><div class="ok">Il pagamento è stato registrato. Ricevuta e documento riepilogativo sono disponibili nell'Area Privata.</div>
         {% else %}
         <h1>Pagamento in verifica</h1><div class="wait">Il pagamento è stato ricevuto da Stripe e verrà confermato automaticamente. Non effettuare un secondo pagamento.</div>
         {% endif %}
@@ -3764,11 +3875,11 @@ def correct_solution(solution_id):
 
 
 # ============================================================
-# EMAIL DOCUMENTO FINALE
+# FINAL SOLUTION EMAIL
 # ============================================================
 
-def send_solution_email(solution_id):
-    """Invia al debitore il PDF definitivo dopo l'approvazione del Risolutore."""
+def send_final_solution_email(solution_id):
+    """Invia al cliente il PDF definitivo dopo l'approvazione del Risolutore."""
     conn = db_connect()
     solution = conn.execute(
         "SELECT * FROM solution_documents WHERE id = ?",
@@ -3779,12 +3890,11 @@ def send_solution_email(solution_id):
     if not solution or solution["status"] != "sent":
         return False
 
-    if solution["email_sent_at"]:
+    if solution["final_email_sent_at"]:
         return True
 
-    path = solution["pdf_path"]
-    if not path or not Path(path).exists():
-        path = generate_pdf(solution_id)
+    if not solution["pdf_path"] or not Path(solution["pdf_path"]).exists():
+        return False
 
     case = get_case(solution["case_id"])
     if not case:
@@ -3796,26 +3906,29 @@ def send_solution_email(solution_id):
     password = os.environ.get("SMTP_PASSWORD", "").strip()
     sender = os.environ.get("SMTP_FROM_EMAIL", "").strip() or username
     sender_name = os.environ.get("SMTP_FROM_NAME", "FixTude").strip()
-
     if not host or not sender:
         return False
 
+    data = get_case_data(solution["case_id"])
+    customer_name = (data.get("name", "") + " " + data.get("surname", "")).strip() or "Cliente FixTude"
+
     msg = EmailMessage()
-    msg["Subject"] = "FixTude - documento definitivo disponibile"
+    msg["Subject"] = "FixTude - il tuo documento è disponibile"
     msg["From"] = f"{sender_name} <{sender}>"
     msg["To"] = case["email"]
     msg.set_content(
-        "La revisione del Risolutore FixTude è stata completata.\n\n"
-        f"Il documento definitivo \"{solution['title']}\" è ora disponibile.\n\n"
-        "Puoi scaricarlo dalla tua Area Privata. Lo trovi anche in allegato a questa email.\n\n"
-        "FixTude"
+        f"Gentile {customer_name},\n\n"
+        "la revisione completa del tuo documento FixTude è stata conclusa dal Risolutore.\n\n"
+        "Il documento PDF definitivo è ora disponibile nella tua Area Personale FixTude. "
+        "Lo trovi anche in allegato a questa email.\n\n"
+        "Cordiali saluti,\nFixTude"
     )
-    with open(path, "rb") as f:
+    with open(solution["pdf_path"], "rb") as f:
         msg.add_attachment(
             f.read(),
             maintype="application",
             subtype="pdf",
-            filename=Path(path).name
+            filename=Path(solution["pdf_path"]).name
         )
 
     with smtplib.SMTP(host, port, timeout=15) as smtp:
@@ -3826,19 +3939,19 @@ def send_solution_email(solution_id):
 
     conn = db_connect()
     conn.execute(
-        "UPDATE solution_documents SET email_sent_at = ?, updated_at = ? WHERE id = ?",
-        (now_iso(), now_iso(), solution_id)
+        "UPDATE solution_documents SET final_email_sent_at = ? WHERE id = ?",
+        (now_iso(), solution_id)
     )
     conn.commit()
     conn.close()
     return True
 
 
-def _safe_send_solution_email(solution_id):
+def _safe_send_final_solution_email(solution_id):
     try:
-        send_solution_email(solution_id)
+        send_final_solution_email(solution_id)
     except Exception:
-        app.logger.exception("Errore invio email documento soluzione %s", solution_id)
+        app.logger.exception("Errore invio PDF finale per solution_id=%s", solution_id)
 
 
 # ============================================================
@@ -3951,9 +4064,9 @@ def approve_solution(solution_id):
     conn.commit()
     conn.close()
 
-    # Il PDF definitivo viene inviato solo dopo l'approvazione.
+    # Il PDF viene inviato solo dopo l'approvazione definitiva.
     threading.Thread(
-        target=lambda: _safe_send_solution_email(solution_id),
+        target=lambda: _safe_send_final_solution_email(solution_id),
         daemon=True
     ).start()
 
