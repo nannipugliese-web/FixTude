@@ -339,6 +339,12 @@ def init_db():
         if column not in existing_columns:
             conn.execute(f"ALTER TABLE payments ADD COLUMN {column} {definition}")
 
+    existing_solution_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(solution_documents)").fetchall()
+    }
+    if "email_sent_at" not in existing_solution_columns:
+        conn.execute("ALTER TABLE solution_documents ADD COLUMN email_sent_at TEXT")
+
     for email, data in DEMO_USERS.items():
 
         existing = conn.execute(
@@ -1077,29 +1083,8 @@ def run_local_agent(case_id):
 
         conn.commit()
 
-        try:
-
-            pdf_path = generate_pdf(
-                solution_id
-            )
-
-            conn.execute(
-                """
-                UPDATE solution_documents
-                SET pdf_path = ?,
-                    updated_at = ?
-                WHERE id = ?
-                """,
-                (
-                    pdf_path,
-                    now_iso(),
-                    solution_id
-                )
-            )
-
-        except Exception:
-
-            pass
+        # Il PDF definitivo NON viene generato qui: viene creato soltanto
+        # dopo la revisione e approvazione del Risolutore.
 
     conn.commit()
     conn.close()
@@ -2738,10 +2723,18 @@ def payments():
 
         {% if pdf_paid %}
 
+        {% if has_document %}
         <div class="paid">
-        ✓ Documento già acquistato.
+        ✓ Documento approvato e disponibile.
         </div>
         <p><a href="{{ url_for('download_payment_document', payment_id=pdf_payment.id, document_type='receipt') }}">Scarica ricevuta</a> · <a href="{{ url_for('download_payment_document', payment_id=pdf_payment.id, document_type='fiscal') }}">Scarica documento riepilogativo</a></p>
+        {% else %}
+        <div style="background:#fff7df;padding:12px;border-radius:8px">
+        ✓ Pagamento ricevuto. Il documento è <strong>in revisione</strong> da parte del Risolutore.
+        </div>
+        <p><a href="{{ url_for('download_payment_document', payment_id=pdf_payment.id, document_type='receipt') }}">Scarica ricevuta</a> · <a href="{{ url_for('download_payment_document', payment_id=pdf_payment.id, document_type='fiscal') }}">Scarica documento riepilogativo</a></p>
+        <p>Quando la revisione sarà completata, il PDF definitivo sarà disponibile qui e ti verrà inviato anche via email.</p>
+        {% endif %}
 
         {% elif not has_document %}
 
@@ -2837,11 +2830,14 @@ def create_checkout():
 
     if service_key == "pdf":
         try:
+            # Il Documento FixTude si paga IN ANTICIPO.
+            # È sufficiente che esista almeno una soluzione generata;
+            # la consegna resta bloccata fino all'approvazione del Risolutore.
             solutions = get_solutions(case_id)
-            if not any(s["status"] == "sent" for s in solutions):
+            if not solutions:
                 return redirect(url_for("payments"))
         except Exception:
-            app.logger.exception("Errore nel controllo del documento PDF.")
+            app.logger.exception("Errore nel controllo delle soluzioni PDF.")
             return "Errore nel controllo del documento PDF.", 500
 
     payment_id = None
@@ -3031,7 +3027,7 @@ def payment_success():
         <style>body{font-family:Arial;background:#f6f8fb}.box{max-width:650px;margin:80px auto;background:white;padding:35px;border-radius:18px;text-align:center}.ok{background:#e8f7ed;padding:15px;border-radius:10px}.wait{background:#fff7df;padding:15px;border-radius:10px}a{display:inline-block;margin-top:20px}</style>
         </head><body><div class="box">
         {% if status == "paid" %}
-        <h1>Pagamento completato</h1><div class="ok">Il pagamento è stato registrato. Ricevuta e documento riepilogativo sono disponibili nell'Area Privata.</div>
+        <h1>Pagamento completato</h1><div class="ok">Il pagamento è stato registrato. Ricevuta e documento riepilogativo sono disponibili nell'Area Privata.{% if payment and payment["service"] == "pdf" %} Il documento definitivo resta in revisione fino all'approvazione del Risolutore.{% endif %}</div>
         {% else %}
         <h1>Pagamento in verifica</h1><div class="wait">Il pagamento è stato ricevuto da Stripe e verrà confermato automaticamente. Non effettuare un secondo pagamento.</div>
         {% endif %}
@@ -3768,6 +3764,84 @@ def correct_solution(solution_id):
 
 
 # ============================================================
+# EMAIL DOCUMENTO FINALE
+# ============================================================
+
+def send_solution_email(solution_id):
+    """Invia al debitore il PDF definitivo dopo l'approvazione del Risolutore."""
+    conn = db_connect()
+    solution = conn.execute(
+        "SELECT * FROM solution_documents WHERE id = ?",
+        (solution_id,)
+    ).fetchone()
+    conn.close()
+
+    if not solution or solution["status"] != "sent":
+        return False
+
+    if solution["email_sent_at"]:
+        return True
+
+    path = solution["pdf_path"]
+    if not path or not Path(path).exists():
+        path = generate_pdf(solution_id)
+
+    case = get_case(solution["case_id"])
+    if not case:
+        return False
+
+    host = os.environ.get("SMTP_HOST", "").strip()
+    port = int(os.environ.get("SMTP_PORT", "587") or 587)
+    username = os.environ.get("SMTP_USERNAME", "").strip()
+    password = os.environ.get("SMTP_PASSWORD", "").strip()
+    sender = os.environ.get("SMTP_FROM_EMAIL", "").strip() or username
+    sender_name = os.environ.get("SMTP_FROM_NAME", "FixTude").strip()
+
+    if not host or not sender:
+        return False
+
+    msg = EmailMessage()
+    msg["Subject"] = "FixTude - documento definitivo disponibile"
+    msg["From"] = f"{sender_name} <{sender}>"
+    msg["To"] = case["email"]
+    msg.set_content(
+        "La revisione del Risolutore FixTude è stata completata.\n\n"
+        f"Il documento definitivo \"{solution['title']}\" è ora disponibile.\n\n"
+        "Puoi scaricarlo dalla tua Area Privata. Lo trovi anche in allegato a questa email.\n\n"
+        "FixTude"
+    )
+    with open(path, "rb") as f:
+        msg.add_attachment(
+            f.read(),
+            maintype="application",
+            subtype="pdf",
+            filename=Path(path).name
+        )
+
+    with smtplib.SMTP(host, port, timeout=15) as smtp:
+        smtp.starttls()
+        if username and password:
+            smtp.login(username, password)
+        smtp.send_message(msg)
+
+    conn = db_connect()
+    conn.execute(
+        "UPDATE solution_documents SET email_sent_at = ?, updated_at = ? WHERE id = ?",
+        (now_iso(), now_iso(), solution_id)
+    )
+    conn.commit()
+    conn.close()
+    return True
+
+
+def _safe_send_solution_email(solution_id):
+    try:
+        send_solution_email(solution_id)
+    except Exception:
+        app.logger.exception("Errore invio email documento soluzione %s", solution_id)
+
+
+# ============================================================
 # APPROVE
 # ============================================================
 
@@ -3876,6 +3950,12 @@ def approve_solution(solution_id):
 
     conn.commit()
     conn.close()
+
+    # Il PDF definitivo viene inviato solo dopo l'approvazione.
+    threading.Thread(
+        target=lambda: _safe_send_solution_email(solution_id),
+        daemon=True
+    ).start()
 
     return redirect(
         url_for(
