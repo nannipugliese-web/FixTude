@@ -1214,7 +1214,7 @@ Fix<span>Tude</span>
 <small>SERVIZIO FIXTUDE</small>
 
 <h1>
-Metti ordine nella tua situazione debitoria.
+Metti in ordine la tua situazione debitoria
 </h1>
 
 <p>
@@ -1248,7 +1248,7 @@ Accedi
 SERVIZIO GRATUITO
 </small>
 
-<h2>
+<h2 style="white-space:nowrap">
 Controlla autonomamente le tue banche dati
 </h2>
 
@@ -1332,7 +1332,7 @@ background:white;
 padding:35px;
 border-radius:18px
 }
-input{
+input,select{
 width:100%;
 box-sizing:border-box;
 padding:13px;
@@ -1751,10 +1751,6 @@ def debtor_dashboard():
 
         <h2>Inizia da qui</h2>
 
-        <p>
-        Inserisci i tuoi dati.
-        </p>
-
         <a href="{{ url_for('debtor_situation') }}">
         Inserisci i tuoi dati →
         </a>
@@ -2031,129 +2027,204 @@ def debtor_situation():
         <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>FixTude - I tuoi dati</title>
+        <title>FixTude - Situazione</title>
         <style>
-        body{font-family:Arial;background:#f6f8fb;color:#111827}
+        body{font-family:Arial;background:#f6f8fb}
         .wrap{max-width:850px;margin:auto;padding:30px}
-        .card{background:white;padding:25px;border-radius:15px;margin:15px 0;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-        input,select{width:100%;box-sizing:border-box;padding:11px;margin:5px 0 12px;border:1px solid #d1d5db;border-radius:8px;background:white;font:inherit}
-        label{font-weight:600;display:block;margin-top:4px}
+        .card{background:white;padding:25px;border-radius:15px;margin:15px 0}
+        input{width:100%;box-sizing:border-box;padding:11px;margin:5px 0 12px}
         .row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
-        .hint{color:#6b7280;font-size:14px;margin-top:-4px}
-        button{padding:13px 20px;background:#4f46e5;color:white;border:0;border-radius:8px;cursor:pointer;font-size:15px}
-        .debt-box{border-top:1px solid #e5e7eb;padding-top:15px;margin-top:15px}
+        button{padding:13px 20px;background:#4f46e5;color:white;border:0;border-radius:8px}
         @media(max-width:650px){.row{grid-template-columns:1fr}}
         </style>
         </head>
         <body>
         <div class="wrap">
-        <a href="{{ url_for('debtor_dashboard') }}">← Area privata</a>
-        <h1>I tuoi dati</h1>
-        <p class="hint">Inserisci i dati richiesti. Potrai aggiornarli in qualsiasi momento.</p>
+
+        <a href="{{ url_for('debtor_dashboard') }}">
+        ← Area privata
+        </a>
+
+        <h1>La tua situazione</h1>
+
         <form method="post">
 
         <div class="card">
-        <h2>Dati anagrafici</h2>
+
+        <h2>Dati personali</h2>
+
         <div class="row">
-        <div><label>Nome</label><input name="name" value="{{ data.get('name','') }}" required></div>
-        <div><label>Cognome</label><input name="surname" value="{{ data.get('surname','') }}" required></div>
+
+        <div>
+        <label>Nome</label>
+        <input name="name"
+        value="{{ data.get('name','') }}"
+        required>
         </div>
+
+        <div>
+        <label>Cognome</label>
+        <input name="surname"
+        value="{{ data.get('surname','') }}"
+        required>
+        </div>
+
+        </div>
+
         <label>Codice fiscale</label>
-        <input name="tax_code" value="{{ data.get('tax_code','') }}" maxlength="16" placeholder="Codice fiscale">
+        <input name="tax_code"
+        value="{{ data.get('tax_code','') }}"
+        maxlength="16"
+        style="text-transform:uppercase">
+
         <label>Posizione lavorativa</label>
         <select name="employment">
-            <option value="">Seleziona</option>
-            <option value="Dipendente" {% if data.get('employment') == 'Dipendente' %}selected{% endif %}>Dipendente</option>
-            <option value="Autonomo / professionista" {% if data.get('employment') == 'Autonomo / professionista' %}selected{% endif %}>Autonomo / professionista</option>
-            <option value="Imprenditore" {% if data.get('employment') == 'Imprenditore' %}selected{% endif %}>Imprenditore</option>
-            <option value="Pensionato" {% if data.get('employment') == 'Pensionato' %}selected{% endif %}>Pensionato</option>
-            <option value="Disoccupato" {% if data.get('employment') == 'Disoccupato' %}selected{% endif %}>Disoccupato</option>
-            <option value="Inoccupato" {% if data.get('employment') == 'Inoccupato' %}selected{% endif %}>Inoccupato</option>
-            <option value="Studente" {% if data.get('employment') == 'Studente' %}selected{% endif %}>Studente</option>
-            <option value="Altro" {% if data.get('employment') == 'Altro' %}selected{% endif %}>Altro</option>
+        <option value="">Seleziona</option>
+        <option value="Dipendente" {% if data.get('employment') == 'Dipendente' %}selected{% endif %}>Dipendente</option>
+        <option value="Autonomo" {% if data.get('employment') == 'Autonomo' %}selected{% endif %}>Autonomo</option>
+        <option value="Imprenditore" {% if data.get('employment') == 'Imprenditore' %}selected{% endif %}>Imprenditore</option>
+        <option value="Pensionato" {% if data.get('employment') == 'Pensionato' %}selected{% endif %}>Pensionato</option>
+        <option value="Disoccupato" {% if data.get('employment') == 'Disoccupato' %}selected{% endif %}>Disoccupato</option>
+        <option value="Studente" {% if data.get('employment') == 'Studente' %}selected{% endif %}>Studente</option>
+        <option value="Altro" {% if data.get('employment') == 'Altro' %}selected{% endif %}>Altro</option>
         </select>
-        <div class="row">
-        <div><label>Telefono</label><input name="phone" value="{{ data.get('phone','') }}"></div>
-        <div><label>Indirizzo</label><input name="address" value="{{ data.get('address','') }}"></div>
-        </div>
+
+        <label>Telefono</label>
+        <input name="phone"
+        value="{{ data.get('phone','') }}">
+
+        <label>Indirizzo</label>
+        <input name="address"
+        value="{{ data.get('address','') }}">
+
         </div>
 
+
         <div class="card">
+
         <h2>Entrate mensili</h2>
-        <p class="hint">Indica la tipologia di ogni entrata e il relativo importo mensile.</p>
+
         {% for i in range(4) %}
+
         <div class="row">
-        <div><label>Tipo di entrata</label>
+
+        <div>
+        <label>Tipo di entrata</label>
         <select name="income_label">
-            <option value="">Seleziona</option>
-            <option value="Stipendio">Stipendio</option>
-            <option value="Pensione">Pensione</option>
-            <option value="Lavoro autonomo / professionale">Lavoro autonomo / professionale</option>
-            <option value="Reddito da impresa">Reddito da impresa</option>
-            <option value="Assegno / mantenimento">Assegno / mantenimento</option>
-            <option value="Reddito da locazione">Reddito da locazione</option>
-            <option value="Altra entrata">Altra entrata</option>
-        </select></div>
-        <div><label>Importo mensile</label><input name="income_amount" type="number" step="0.01" min="0" placeholder="2000"></div>
-        </div>
-        {% endfor %}
+        <option value="">Seleziona</option>
+        <option value="Stipendio">Stipendio</option>
+        <option value="Pensione">Pensione</option>
+        <option value="Reddito da lavoro autonomo">Reddito da lavoro autonomo</option>
+        <option value="Reddito da impresa">Reddito da impresa</option>
+        <option value="Assegno">Assegno</option>
+        <option value="Affitto percepito">Affitto percepito</option>
+        <option value="Altro">Altro</option>
+        </select>
         </div>
 
+        <div>
+        <label>Importo</label>
+        <input name="income_amount"
+        type="number"
+        step="0.01"
+        min="0">
+        </div>
+
+        </div>
+
+        {% endfor %}
+
+        </div>
+
+
         <div class="card">
+
         <h2>Spese mensili</h2>
-        <p class="hint">Indica le principali spese e il relativo importo mensile.</p>
+
         {% for i in range(6) %}
+
         <div class="row">
-        <div><label>Tipo di spesa</label>
+
+        <div>
+        <label>Tipo di spesa</label>
         <select name="expense_label">
-            <option value="">Seleziona</option>
-            <option value="Affitto / mutuo">Affitto / mutuo</option>
-            <option value="Utenze domestiche">Utenze domestiche</option>
-            <option value="Alimentari">Alimentari</option>
-            <option value="Trasporti">Trasporti</option>
-            <option value="Istruzione">Istruzione</option>
-            <option value="Spese mediche">Spese mediche</option>
-            <option value="Assicurazioni">Assicurazioni</option>
-            <option value="Spese familiari">Spese familiari</option>
-            <option value="Altre spese personali">Altre spese personali</option>
-            <option value="Altro">Altro</option>
-        </select></div>
-        <div><label>Importo mensile</label><input name="expense_amount" type="number" step="0.01" min="0" placeholder="700"></div>
+        <option value="">Seleziona</option>
+        <option value="Affitto">Affitto</option>
+        <option value="Mutuo">Mutuo</option>
+        <option value="Utenze">Utenze</option>
+        <option value="Alimentari">Alimentari</option>
+        <option value="Trasporti">Trasporti</option>
+        <option value="Spese mediche">Spese mediche</option>
+        <option value="Spese familiari">Spese familiari</option>
+        <option value="Altro">Altro</option>
+        </select>
         </div>
+
+        <div>
+        <label>Importo</label>
+        <input name="expense_amount"
+        type="number"
+        step="0.01"
+        min="0">
+        </div>
+
+        </div>
+
         {% endfor %}
+
         </div>
+
 
         <div class="card">
+
         <h2>Debiti</h2>
-        <p class="hint">Per ogni posizione indica il creditore, il tipo di debito, il debito residuo e la rata mensile.</p>
+
         {% for i in range(5) %}
-        <div class="debt-box">
-        <div class="row">
-        <div><label>Creditore</label><input name="creditor" placeholder="Banca / finanziaria / altro"></div>
-        <div><label>Tipo</label>
+
+        <div style="border-top:1px solid #ddd;padding-top:15px">
+
+        <label>Creditore</label>
+        <input name="creditor"
+        placeholder="Banca / finanziaria">
+
+        <label>Tipo</label>
         <select name="debt_type">
-            <option value="">Seleziona</option>
-            <option value="Prestito personale">Prestito personale</option>
-            <option value="Mutuo">Mutuo</option>
-            <option value="Carta di credito">Carta di credito</option>
-            <option value="Finanziamento">Finanziamento</option>
-            <option value="Scoperto di conto">Scoperto di conto</option>
-            <option value="Debito fiscale">Debito fiscale</option>
-            <option value="Debito condominiale">Debito condominiale</option>
-            <option value="Utenze">Utenze</option>
-            <option value="Altro">Altro</option>
-        </select></div>
-        </div>
-        <div class="row">
-        <div><label>Debito residuo</label><input name="debt_amount" type="number" step="0.01" min="0" placeholder="20000"></div>
-        <div><label>Rata mensile</label><input name="debt_payment" type="number" step="0.01" min="0" placeholder="500"></div>
-        </div>
-        </div>
-        {% endfor %}
+        <option value="">Seleziona</option>
+        <option value="Prestito personale">Prestito personale</option>
+        <option value="Finanziamento">Finanziamento</option>
+        <option value="Carta di credito">Carta di credito</option>
+        <option value="Mutuo">Mutuo</option>
+        <option value="Fido / scoperto">Fido / scoperto</option>
+        <option value="Debito fiscale">Debito fiscale</option>
+        <option value="Debito previdenziale">Debito previdenziale</option>
+        <option value="Utenze">Utenze</option>
+        <option value="Altro">Altro</option>
+        </select>
+
+        <label>Debito residuo</label>
+        <input name="debt_amount"
+        type="number"
+        step="0.01"
+        min="0">
+
+        <label>Rata mensile</label>
+        <input name="debt_payment"
+        type="number"
+        step="0.01"
+        min="0">
+
         </div>
 
-        <button type="submit">Salva i dati →</button>
+        {% endfor %}
+
+        </div>
+
+        <button>
+        Salva situazione →
+        </button>
+
         </form>
+
         </div>
         </body>
         </html>
