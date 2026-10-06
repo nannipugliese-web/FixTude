@@ -1380,160 +1380,288 @@ HOME_HTML = """
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="FixTude organizza la situazione debitoria e fornisce risposte plausibili e possibili percorsi da approfondire.">
-<title>FixTude — Metti in ordine la tua situazione debitoria</title>
+<meta name="viewport"
+content="width=device-width,initial-scale=1">
+<title>FixTude</title>
 <style>
-:root{
-  --primary:#4f46e5;
-  --primary-dark:#4338ca;
-  --navy:#18212f;
-  --text:#253044;
-  --muted:#697586;
-  --bg:#f5f7fb;
-  --card:#ffffff;
-  --line:#e5e9f0;
-  --soft:#eef0ff;
-  --green:#168653;
-  --green-soft:#e8f8f0;
+body{
+font-family:Arial,sans-serif;
+margin:0;
+background:#f6f8fb;
+color:#18212f
 }
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
-a{color:inherit}
-.wrap{max-width:1120px;margin:0 auto;padding:24px 22px 30px}
-nav{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:4px 0}
-.logo{font-size:31px;font-weight:800;letter-spacing:-1.2px;color:var(--navy)}
-.logo span{color:var(--primary)}
-.nav-links{display:flex;align-items:center;gap:20px;font-size:14px;font-weight:700}
-.nav-links a{text-decoration:none}
-.nav-login{color:var(--navy)}
-.nav-register{background:var(--primary);color:#fff;padding:10px 15px;border-radius:10px}
-.nav-register:hover{background:var(--primary-dark)}
-.hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(330px,.85fr);gap:22px;margin-top:48px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:24px;box-shadow:0 16px 45px rgba(24,33,47,.07)}
-.hero-main{padding:46px 44px 42px}
-.eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:800;letter-spacing:.7px;color:var(--primary);background:var(--soft);padding:8px 11px;border-radius:999px}
-h1{font-size:48px;line-height:1.06;letter-spacing:-1.8px;margin:18px 0 18px;color:var(--navy);max-width:720px}
-.lead{font-size:19px;line-height:1.62;margin:0;color:#4c586b;max-width:700px}
-.features{display:grid;grid-template-columns:1fr 1fr;gap:11px 20px;margin:28px 0 30px}
-.feature{display:flex;align-items:flex-start;gap:9px;font-size:15px;line-height:1.4;font-weight:700}
-.check{display:inline-flex;flex:0 0 22px;width:22px;height:22px;align-items:center;justify-content:center;border-radius:50%;background:var(--green-soft);color:var(--green);font-size:13px;font-weight:900;margin-top:0}
-.actions{display:flex;flex-wrap:wrap;gap:10px}
-.button{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:12px 19px;border-radius:11px;text-decoration:none;font-weight:800;font-size:14px}
-.primary{background:var(--primary);color:#fff;box-shadow:0 7px 18px rgba(79,70,229,.20)}
-.primary:hover{background:var(--primary-dark)}
-.light{background:#eef1f6;color:var(--navy)}
-.light:hover{background:#e4e8ef}
-.hero-side{padding:34px;background:var(--navy);color:#fff;position:relative;overflow:hidden}
-.hero-side:after{content:"";position:absolute;width:190px;height:190px;border-radius:50%;right:-90px;top:-90px;background:rgba(79,70,229,.25)}
-.side-label{color:#bfc8d6;font-size:12px;font-weight:800;letter-spacing:.7px;position:relative;z-index:1}
-.hero-side h2{font-size:28px;line-height:1.16;letter-spacing:-.5px;margin:13px 0 11px;position:relative;z-index:1}
-.hero-side p{color:#d7dde6;line-height:1.55;margin:0 0 22px;position:relative;z-index:1}
-.free{display:grid;grid-template-columns:1fr 1fr;gap:10px;position:relative;z-index:1}
-.free a{padding:17px 14px;border:1px solid rgba(255,255,255,.10);border-radius:13px;background:#293241;color:#fff;text-decoration:none;transition:.15s}
-.free a:hover{background:#323c4c;transform:translateY(-2px)}
-.free strong{font-size:14px}.free span{display:block;color:#bfc8d6;font-size:12px;margin-top:4px}
-.trust{margin-top:18px;padding:17px 20px;border:1px solid var(--line);border-radius:15px;background:#fff;color:var(--muted);font-size:13px;line-height:1.55}
-.trust strong{color:var(--navy)}
-.education{margin-top:24px;padding:36px;background:var(--navy);color:#fff;border-radius:24px;box-shadow:0 16px 45px rgba(24,33,47,.08)}
-.education-head{display:flex;justify-content:space-between;align-items:flex-start;gap:25px;margin-bottom:24px}
-.education-head small{color:#aeb7c6;font-weight:800;letter-spacing:.5px}
-.education-head h2{font-size:34px;letter-spacing:-.6px;margin:8px 0 6px}
-.education-head p{margin:0;color:#d4dae3;max-width:720px;line-height:1.55}
-.education-badge{background:var(--primary);padding:9px 13px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}
+.wrap{
+max-width:1100px;
+margin:auto;
+padding:25px
+}
+nav{
+display:flex;
+justify-content:space-between;
+align-items:center
+}
+.logo{
+font-size:30px;
+font-weight:800
+}
+.logo span{
+color:#4f46e5
+}
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:25px;
+margin-top:45px
+}
+.card{
+background:white;
+padding:35px;
+border-radius:20px;
+border:1px solid #e5e7eb;
+box-shadow:0 15px 40px rgba(0,0,0,.05)
+}
+.dark{
+background:#18212f;
+color:white
+}
+h1{
+font-size:46px;
+margin:15px 0
+}
+p{
+line-height:1.6
+}
+.button{
+display:inline-block;
+padding:13px 18px;
+border-radius:9px;
+text-decoration:none;
+font-weight:700;
+margin:5px
+}
+.primary{
+background:#4f46e5;
+color:white
+}
+.light{
+background:#eef0f4;
+color:#18212f
+}
+.free{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px
+}
+.free a{
+padding:20px;
+border-radius:12px;
+background:#293241;
+color:white;
+text-decoration:none
+}
+small{
+color:#697586
+}
+@media(max-width:800px){
+.grid{
+grid-template-columns:1fr
+}
+h1{
+font-size:36px
+}
+}
+
+.education{margin-top:45px;padding:35px;background:#18212f;color:white;border-radius:20px;box-shadow:0 15px 40px rgba(0,0,0,.08)}
+.education-head{display:flex;justify-content:space-between;align-items:flex-start;gap:25px;margin-bottom:25px}
+.education-head small{color:#aeb7c6;font-weight:700;letter-spacing:.4px}
+.education-head h2{font-size:34px;margin:8px 0 6px}
+.education-head p{margin:0;color:#d4dae3;max-width:700px}
+.education-badge{background:#4f46e5;padding:9px 13px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}
 .education-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
-.education-card{display:block;padding:22px;background:#293241;border:1px solid rgba(255,255,255,.08);border-radius:15px;color:#fff;text-decoration:none;transition:transform .15s,background .15s}
+.education-card{display:block;padding:22px;background:#293241;border:1px solid rgba(255,255,255,.08);border-radius:15px;color:white;text-decoration:none;transition:transform .15s,background .15s}
 .education-card:hover{transform:translateY(-3px);background:#323c4c}
-.education-card span{display:inline-block;font-size:12px;color:#aeb7c6;font-weight:800;margin-bottom:15px}
+.education-card span{display:inline-block;font-size:12px;color:#aeb7c6;font-weight:800;margin-bottom:16px}
 .education-card strong{display:block;font-size:18px;line-height:1.3;margin-bottom:9px}
 .education-card p{font-size:14px;line-height:1.5;color:#cbd2dc;margin:0 0 18px}
 .education-card b{font-size:13px;color:#fff}
-.education-cta{margin-top:18px;padding:18px 20px;border-radius:13px;background:#f5f7fa;color:var(--navy);display:flex;justify-content:space-between;gap:20px;align-items:center}
-.education-cta strong{font-size:15px}.education-cta span{font-size:13px;color:var(--muted)}
-footer{margin-top:30px;padding:22px 0 8px;border-top:1px solid var(--line);color:#788394;font-size:13px;line-height:1.7}
-footer a{color:var(--primary);text-decoration:none;font-weight:700}
-@media(max-width:820px){
-  .wrap{padding:16px 12px 25px}
-  nav{padding:3px 2px}
-  .logo{font-size:27px}
-  .nav-links{gap:10px;font-size:13px}
-  .nav-register{padding:9px 11px}
-  .hero{grid-template-columns:1fr;gap:14px;margin-top:27px}
-  .hero-main{padding:28px 20px 25px}
-  h1{font-size:34px;line-height:1.08;letter-spacing:-1px;margin:16px 0 15px}
-  .lead{font-size:16px;line-height:1.55}
-  .features{grid-template-columns:1fr;gap:10px;margin:23px 0 25px}
-  .actions{display:grid;grid-template-columns:1fr;gap:8px}
-  .button{width:100%}
-  .hero-side{padding:25px 19px}
-  .hero-side h2{font-size:25px}
-  .free{gap:8px}
-  .free a{padding:14px 10px;text-align:center}
-  .education{padding:25px 18px;border-radius:19px}
-  .education-head{flex-direction:column;gap:13px;margin-bottom:17px}
-  .education-head h2{font-size:28px}
-  .education-head p{font-size:14px}
-  .education-grid{grid-template-columns:1fr;gap:9px}
-  .education-card{display:grid;grid-template-columns:34px 1fr;column-gap:9px;padding:14px 13px;border-radius:12px}
-  .education-card span{grid-row:1 / span 3;margin:2px 0 0}
-  .education-card strong{font-size:16px;margin-bottom:4px}
-  .education-card p{font-size:13px;line-height:1.4;margin-bottom:7px}
-  .education-card b{font-size:12px}
-  .education-cta{margin-top:12px;padding:14px;flex-direction:column;align-items:flex-start;gap:5px}
-  .education-cta strong{font-size:14px}.education-cta span{font-size:12px}
-  footer{margin-top:24px}
+.education-cta{margin-top:18px;padding:18px 20px;border-radius:13px;background:#f5f7fa;color:#18212f;display:flex;justify-content:space-between;gap:20px;align-items:center}
+.education-cta strong{font-size:15px}.education-cta span{font-size:13px;color:#697586}
+@media(max-width:800px){.education-head{flex-direction:column}.education-grid{grid-template-columns:1fr}.education-cta{flex-direction:column;align-items:flex-start}}
+
+/* ============================================================
+   FixTude responsive refinement — desktop + mobile
+   ============================================================ */
+.free{
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:12px !important;
+    margin-top:18px !important;
 }
-@media(max-width:390px){
-  .nav-links{gap:7px}.nav-login{display:none}
-  h1{font-size:31px}.hero-side h2{font-size:23px}
-  .free strong{font-size:13px}.free span{font-size:11px}
+.free a{
+    display:block;
+    min-width:0;
+    margin:0 !important;
+    padding:14px !important;
+    border-radius:12px;
+    text-decoration:none;
+}
+.education-grid{
+    display:grid !important;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:16px !important;
+}
+.education-card{
+    min-width:0;
+}
+@media(max-width:760px){
+    body{
+        overflow-x:hidden;
+    }
+    .free{
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        gap:10px !important;
+        margin-top:14px !important;
+    }
+    .free a{
+        padding:12px 10px !important;
+        font-size:13px;
+        line-height:1.35;
+    }
+    .education-grid{
+        grid-template-columns:1fr !important;
+        gap:12px !important;
+    }
+    .education-card{
+        width:100%;
+        margin:0 !important;
+    }
+    h1{
+        font-size:32px !important;
+        line-height:1.15 !important;
+    }
+    h2{
+        font-size:24px !important;
+        line-height:1.2 !important;
+    }
+    p{
+        line-height:1.5;
+    }
+    .card{
+        padding:22px 18px !important;
+    }
+    .container{
+        width:100% !important;
+        max-width:100% !important;
+        padding-left:14px !important;
+        padding-right:14px !important;
+    }
+}
+@media(max-width:430px){
+    .free a{
+        min-height:76px;
+    }
+    .free a strong{
+        font-size:14px;
+    }
 }
 </style>
 </head>
 <body>
+
 <div class="wrap">
+
 <nav>
-  <div class="logo">Fix<span>Tude</span></div>
-  <div class="nav-links">
-    <a class="nav-login" href="/privato/login">Accedi</a>
-    <a class="nav-register" href="/registrazione">Registrati</a>
-  </div>
+<div class="logo">
+Fix<span>Tude</span>
+</div>
+<div>
+<a href="/privato/login">Accedi</a>
+&nbsp;&nbsp;
+<a href="/registrazione">Registrati</a>
+</div>
 </nav>
 
-<section class="hero">
-  <div class="card hero-main">
-    <div class="eyebrow">SERVIZIO FIXTUDE</div>
-    <h1>Metti in ordine la tua situazione debitoria</h1>
-    <p class="lead">Inserisci dati, entrate, spese e debiti. <strong>FixTude organizza la tua situazione, fornisce risposte plausibili e individua possibili percorsi concreti da approfondire</strong> per affrontare le situazioni debitorie.</p>
+<div class="grid">
 
-    <div class="features">
-      <div class="feature"><span class="check">✓</span><span>Analisi automatica</span></div>
-      <div class="feature"><span class="check">✓</span><span>Possibili scenari</span></div>
-      <div class="feature"><span class="check">✓</span><span>Esperto FixTude</span></div>
-      <div class="feature"><span class="check">✓</span><span>Generazione di documenti PDF</span></div>
-    </div>
+<div class="card">
 
-    <div class="actions">
-      <a class="button primary" href="/registrazione">Registrati gratuitamente</a>
-      <a class="button light" href="/privato/login">Accedi</a>
-    </div>
-  </div>
+<small>SERVIZIO FIXTUDE</small>
 
-  <div class="card hero-side">
-    <div class="side-label">SERVIZIO GRATUITO</div>
-    <h2>Controlla autonomamente le banche dati</h2>
-    <p>Puoi richiedere direttamente agli enti le informazioni che ti riguardano.</p>
-    <div class="free">
-      <a target="_blank" rel="noopener noreferrer" href="https://www.modulorichiesta.crif.com/"><strong>CRIF</strong><span>Modulo ufficiale</span></a>
-      <a target="_blank" rel="noopener noreferrer" href="https://www.experian.it/content/dam/noindex/emea/italy/Nuovo-modulo-SIC.pdf"><strong>EXPERIAN</strong><span>Modulo ufficiale</span></a>
-      <a target="_blank" rel="noopener noreferrer" href="https://consumatore.ctconline.it/sic/apri-istanza"><strong>CTC</strong><span>Procedura ufficiale</span></a>
-      <a target="_blank" rel="noopener noreferrer" href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/Modulo-di-richiesta-dei-dati-nominativi-CAI.pdf?force_download=1"><strong>CAI</strong><span>Modulo ufficiale</span></a>
-    </div>
-  </div>
-</section>
+<h1>
+Metti in ordine la tua situazione debitoria
+</h1>
 
-<div class="trust"><strong>Importante:</strong> FixTude offre analisi informative e simulazioni sulla base dei dati inseriti. Non sostituisce un professionista abilitato e gli scenari proposti devono essere valutati in relazione alla situazione personale e ai rapporti con i singoli creditori.</div>
+<p>
+Inserisci dati, entrate, spese e debiti.
+FixTude organizza la situazione e produce
+possibili scenari da approfondire.
+</p>
+
+<p>
+<strong>✓ Analisi automatica</strong><br>
+<strong>✓ Possibili scenari</strong><br>
+<strong>✓ Esperto AI</strong><br>
+<strong>✓ Documenti PDF</strong>
+</p>
+
+<a class="button primary"
+href="/registrazione">
+Registrati gratuitamente
+</a>
+
+<a class="button light"
+href="/privato/login">
+Accedi
+</a>
+
+</div>
+
+<div class="card dark">
+
+<small style="color:#bfc6d4">
+SERVIZIO GRATUITO
+</small>
+
+<h2 style="white-space:nowrap">
+Controlla autonomamente le banche dati
+</h2>
+
+<p>
+Puoi richiedere direttamente agli enti
+le informazioni che ti riguardano.
+</p>
+
+<div class="free">
+
+<a target="_blank"
+href="https://www.modulorichiesta.crif.com/">
+<strong>CRIF</strong><br>
+Modulo ufficiale
+</a>
+
+<a target="_blank"
+href="https://www.experian.it/content/dam/noindex/emea/italy/Nuovo-modulo-SIC.pdf">
+<strong>EXPERIAN</strong><br>
+Modulo ufficiale
+</a>
+
+<a target="_blank"
+href="https://consumatore.ctconline.it/sic/apri-istanza">
+<strong>CTC</strong><br>
+Procedura ufficiale
+</a>
+
+<a target="_blank"
+href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/Modulo-di-richiesta-dei-dati-nominativi-CAI.pdf?force_download=1">
+<strong>CAI</strong><br>
+Modulo ufficiale
+</a>
+
+</div>
+
+</div>
+
+</div>
 
 <section class="education">
   <div class="education-head">
@@ -1545,15 +1673,19 @@ footer a{color:var(--primary);text-decoration:none;font-weight:700}
     <div class="education-badge">GUIDE GRATUITE</div>
   </div>
   <div class="education-grid">
-    <a href="{{ url_for('guide_situation') }}" class="education-card"><span>01</span><strong>Capire la propria situazione debitoria</strong><p>Da dove partire e quali dati raccogliere prima di prendere decisioni.</p><b>Leggi la guida →</b></a>
-    <a href="{{ url_for('guide_sic') }}" class="education-card"><span>02</span><strong>CRIF, Experian e CTC: cosa sono?</strong><p>Come funzionano i SIC e quali informazioni possono contenere.</p><b>Leggi la guida →</b></a>
-    <a href="{{ url_for('guide_rates') }}" class="education-card"><span>03</span><strong>Quando le rate diventano difficili da sostenere</strong><p>Come valutare entrate, spese, rate e disponibilità mensile.</p><b>Leggi la guida →</b></a>
+    <a href="#" class="education-card"><span>01</span><strong>Capire la propria situazione debitoria</strong><p>Da dove partire e quali dati raccogliere prima di prendere decisioni.</p><b>Leggi la guida →</b></a>
+    <a href="#" class="education-card"><span>02</span><strong>CRIF, Experian e CTC: cosa sono?</strong><p>Come funzionano i SIC e quali informazioni possono contenere.</p><b>Leggi la guida →</b></a>
+    <a href="#" class="education-card"><span>03</span><strong>Quando le rate diventano difficili da sostenere</strong><p>Come valutare entrate, spese, rate e disponibilità mensile.</p><b>Leggi la guida →</b></a>
   </div>
   <div class="education-cta"><strong>Prima di affrontare un problema, impara a leggerlo.</strong><span>Le guide FixTude sono gratuite e pensate per essere comprensibili a tutti.</span></div>
 </section>
 
-<footer>FixTude · <a href="mailto:info@fixtude.it">info@fixtude.it</a> · P. IVA: 15990471003</footer>
+<footer style="margin-top:60px;padding:25px 0;border-top:1px solid #ddd">
+FixTude · <a href="mailto:info@fixtude.it">info@fixtude.it</a> · P. IVA: 15990471003
+</footer>
+
 </div>
+
 </body>
 </html>
 """
@@ -1567,21 +1699,6 @@ def home():
     )
 
 
-@app.route("/educazione-finanziaria/situazione-debitoria")
-def guide_situation():
-    return render_template_string('<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Come capire la tua situazione debitoria · FixTude</title><style>\n:root{--blue:#4f46e5;--ink:#18212f;--muted:#697586;--bg:#f6f8fb;--line:#e5e7eb}*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--ink)}.guide-wrap{max-width:900px;margin:auto;padding:22px}.guide-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:35px}.guide-nav .logo{font-size:28px;font-weight:800}.guide-nav .logo span{color:var(--blue)}.guide-nav a{color:var(--blue);text-decoration:none;font-weight:700}.hero{background:var(--ink);color:white;padding:42px;border-radius:22px;margin-bottom:22px}.hero small{color:#aeb7c6;font-weight:800;letter-spacing:.5px}.hero h1{font-size:42px;line-height:1.1;margin:12px 0}.hero p{font-size:18px;line-height:1.6;color:#d4dae3;margin:0}.article{background:white;border:1px solid var(--line);border-radius:20px;padding:38px;box-shadow:0 12px 35px rgba(0,0,0,.05)}.article h2{font-size:25px;margin:30px 0 10px}.article h2:first-child{margin-top:0}.article p,.article li{font-size:16px;line-height:1.7}.article ul{padding-left:23px}.tip{background:#f1f3ff;border-left:4px solid var(--blue);padding:17px 18px;border-radius:10px;margin:22px 0}.warning{background:#fff7ed;border-left:4px solid #f59e0b;padding:17px 18px;border-radius:10px;margin:22px 0}.links{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:18px 0}.links a{padding:14px;background:#f6f8fb;border:1px solid var(--line);border-radius:10px;color:var(--blue);text-decoration:none;font-weight:700}.cta{margin-top:28px;background:var(--ink);color:white;padding:25px;border-radius:16px}.cta h3{margin:0 0 8px}.cta p{color:#d4dae3}.cta a{display:inline-block;background:var(--blue);color:white;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:700}.back{display:inline-block;margin-bottom:18px;color:var(--blue);text-decoration:none;font-weight:700}footer{text-align:center;color:var(--muted);font-size:13px;padding:25px 0}@media(max-width:700px){.guide-wrap{padding:14px}.guide-nav{margin-bottom:20px}.guide-nav .logo{font-size:24px}.hero{padding:27px 20px;border-radius:16px}.hero h1{font-size:31px}.hero p{font-size:16px}.article{padding:22px 18px;border-radius:16px}.article h2{font-size:22px}.article p,.article li{font-size:15px}.links{grid-template-columns:1fr}.cta{padding:20px}.cta a{display:block;text-align:center}}\n</style></head><body><div class="guide-wrap"><div class="guide-nav"><div class="logo">Fix<span>Tude</span></div><a href="/privato">Area Personale</a></div><a class="back" href="/">← Torna a FixTude</a><section class="hero"><small>GUIDA GRATUITA · 01</small><h1>Come capire la tua situazione debitoria</h1><p>Prima di cercare una soluzione, metti in ordine i numeri che descrivono davvero la tua situazione.</p></section><article class="article"><h2>Da dove partire</h2><p>Quando si hanno più debiti, il primo errore è guardare soltanto il totale. Per capire davvero la situazione servono almeno quattro elementi: quanto entra ogni mese, quanto si spende, quanto si paga in rate e quanto resta disponibile.</p><div class="tip"><strong>Regola pratica:</strong> prima di cercare una soluzione, costruisci una fotografia aggiornata della situazione.</div><h2>1. Raccogli tutte le posizioni</h2><p>Prepara un elenco dei debiti e, per ciascuno, indica creditore, importo residuo, rata, scadenza, eventuali arretrati e tipo di finanziamento o posizione.</p><h2>2. Calcola le entrate reali</h2><p>Considera le entrate mensili effettivamente disponibili. Se variano, usa una media prudente invece di basarti sul mese migliore.</p><h2>3. Separa spese essenziali e spese variabili</h2><p>Affitto o mutuo, utenze, alimentazione, trasporti e altre spese necessarie vanno distinte dalle spese che possono variare. Questo aiuta a capire quale margine esiste realmente.</p><h2>4. Calcola la disponibilità mensile</h2><p>Un calcolo semplice è: <strong>entrate − spese necessarie = disponibilità prima delle rate</strong>. Da qui si può valutare il peso complessivo degli impegni finanziari.</p><h2>5. Controlla anche le informazioni esterne</h2><p>Se esistono dubbi su finanziamenti, ritardi o segnalazioni, è utile verificare i dati presenti nei sistemi di informazione creditizia e conservarne una copia.</p><div class="warning"><strong>Attenzione:</strong> una fotografia incompleta può portare a decisioni sbagliate. Non inserire un nuovo impegno finanziario solo perché la rata sembra sostenibile isolatamente.</div><h2>Una fotografia utile</h2><p>Alla fine dovresti poter rispondere con numeri aggiornati a cinque domande: quanto devo? a chi? quanto pago ogni mese? quanto mi costa vivere? quanto posso realisticamente destinare ai debiti?</p><div class="cta"><h3>Vuoi capire meglio la tua situazione?</h3><p>FixTude analizza dati, entrate, spese e debiti e costruisce possibili scenari da approfondire.</p><a href="/privato/situazione">Inizia con FixTude →</a></div></article><footer>FixTude · <a href="mailto:info@fixtude.it">info@fixtude.it</a> · P. IVA 15990471003</footer></div></body></html>')
-
-
-@app.route("/educazione-finanziaria/crif-experian-ctc")
-def guide_sic():
-    return render_template_string('<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CRIF, Experian e CTC: cosa sono? · FixTude</title><style>\n:root{--blue:#4f46e5;--ink:#18212f;--muted:#697586;--bg:#f6f8fb;--line:#e5e7eb}*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--ink)}.guide-wrap{max-width:900px;margin:auto;padding:22px}.guide-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:35px}.guide-nav .logo{font-size:28px;font-weight:800}.guide-nav .logo span{color:var(--blue)}.guide-nav a{color:var(--blue);text-decoration:none;font-weight:700}.hero{background:var(--ink);color:white;padding:42px;border-radius:22px;margin-bottom:22px}.hero small{color:#aeb7c6;font-weight:800;letter-spacing:.5px}.hero h1{font-size:42px;line-height:1.1;margin:12px 0}.hero p{font-size:18px;line-height:1.6;color:#d4dae3;margin:0}.article{background:white;border:1px solid var(--line);border-radius:20px;padding:38px;box-shadow:0 12px 35px rgba(0,0,0,.05)}.article h2{font-size:25px;margin:30px 0 10px}.article h2:first-child{margin-top:0}.article p,.article li{font-size:16px;line-height:1.7}.article ul{padding-left:23px}.tip{background:#f1f3ff;border-left:4px solid var(--blue);padding:17px 18px;border-radius:10px;margin:22px 0}.warning{background:#fff7ed;border-left:4px solid #f59e0b;padding:17px 18px;border-radius:10px;margin:22px 0}.links{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:18px 0}.links a{padding:14px;background:#f6f8fb;border:1px solid var(--line);border-radius:10px;color:var(--blue);text-decoration:none;font-weight:700}.cta{margin-top:28px;background:var(--ink);color:white;padding:25px;border-radius:16px}.cta h3{margin:0 0 8px}.cta p{color:#d4dae3}.cta a{display:inline-block;background:var(--blue);color:white;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:700}.back{display:inline-block;margin-bottom:18px;color:var(--blue);text-decoration:none;font-weight:700}footer{text-align:center;color:var(--muted);font-size:13px;padding:25px 0}@media(max-width:700px){.guide-wrap{padding:14px}.guide-nav{margin-bottom:20px}.guide-nav .logo{font-size:24px}.hero{padding:27px 20px;border-radius:16px}.hero h1{font-size:31px}.hero p{font-size:16px}.article{padding:22px 18px;border-radius:16px}.article h2{font-size:22px}.article p,.article li{font-size:15px}.links{grid-template-columns:1fr}.cta{padding:20px}.cta a{display:block;text-align:center}}\n</style></head><body><div class="guide-wrap"><div class="guide-nav"><div class="logo">Fix<span>Tude</span></div><a href="/privato">Area Personale</a></div><a class="back" href="/">← Torna a FixTude</a><section class="hero"><small>GUIDA GRATUITA · 02</small><h1>CRIF, Experian e CTC: cosa sono?</h1><p>Come controllare le principali banche dati creditizie e distinguere i SIC dalla CAI.</p></section><article class="article"><h2>Cosa sono i SIC</h2><p>I Sistemi di Informazioni Creditizie (SIC) sono banche dati gestite da soggetti privati che raccolgono e condividono, secondo le regole applicabili, informazioni sui rapporti di credito. Tra i sistemi conosciuti in Italia ci sono CRIF, Experian e CTC.</p><h2>Perché controllarli</h2><p>Prima di valutare una situazione debitoria può essere utile sapere quali rapporti risultano presenti e verificare che i dati siano corretti e aggiornati.</p><h2>CRIF</h2><p>Per chiedere l\'accesso ai propri dati è possibile utilizzare i canali ufficiali indicati da CRIF.</p><div class="links"><a target="_blank" rel="noopener" href="https://www.crif.it/consumatori/sistema-informazioni-creditizie-sic/accedi-ai-tuoi-dati-consumatori/">CRIF · Accesso ai dati</a><a target="_blank" rel="noopener" href="https://www.modulorichiesta.crif.com/">CRIF · Modulo richiesta</a></div><h2>Experian</h2><p>Experian mette a disposizione la documentazione per richiedere l\'accesso ai dati del SIC.</p><div class="links"><a target="_blank" rel="noopener" href="https://www.experian.it/content/dam/noindex/emea/italy/Nuovo-modulo-SIC.pdf">Experian · Modulo SIC</a></div><h2>CTC</h2><p>Per CTC è disponibile una procedura ufficiale dedicata al consumatore.</p><div class="links"><a target="_blank" rel="noopener" href="https://consumatore.ctconline.it/sic/apri-istanza">CTC · Accesso consumatore</a></div><h2>Non confondere SIC e CAI</h2><p>La Centrale d\'Allarme Interbancaria (CAI) è distinta dai SIC. Per informazioni e accesso ai dati CAI si può fare riferimento alla Banca d\'Italia.</p><div class="links"><a target="_blank" rel="noopener" href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/index.html">Banca d\'Italia · CAI</a><a target="_blank" rel="noopener" href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/Modulo-di-richiesta-dei-dati-nominativi-CAI.pdf?force_download=1">CAI · Modulo ufficiale</a></div><div class="warning"><strong>Importante:</strong> trovare un\'informazione in un SIC non significa automaticamente che un finanziamento verrà rifiutato o che una posizione sia irregolare. Il significato dipende dai dati presenti e dal contesto.</div><div class="cta"><h3>Vuoi capire meglio la tua situazione?</h3><p>FixTude analizza dati, entrate, spese e debiti e costruisce possibili scenari da approfondire.</p><a href="/privato/situazione">Inizia con FixTude →</a></div></article><footer>FixTude · <a href="mailto:info@fixtude.it">info@fixtude.it</a> · P. IVA 15990471003</footer></div></body></html>')
-
-
-@app.route("/educazione-finanziaria/rate-difficili")
-def guide_rates():
-    return render_template_string('<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Non riesci più a pagare le rate? Da dove cominciare · FixTude</title><style>\n:root{--blue:#4f46e5;--ink:#18212f;--muted:#697586;--bg:#f6f8fb;--line:#e5e7eb}*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--ink)}.guide-wrap{max-width:900px;margin:auto;padding:22px}.guide-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:35px}.guide-nav .logo{font-size:28px;font-weight:800}.guide-nav .logo span{color:var(--blue)}.guide-nav a{color:var(--blue);text-decoration:none;font-weight:700}.hero{background:var(--ink);color:white;padding:42px;border-radius:22px;margin-bottom:22px}.hero small{color:#aeb7c6;font-weight:800;letter-spacing:.5px}.hero h1{font-size:42px;line-height:1.1;margin:12px 0}.hero p{font-size:18px;line-height:1.6;color:#d4dae3;margin:0}.article{background:white;border:1px solid var(--line);border-radius:20px;padding:38px;box-shadow:0 12px 35px rgba(0,0,0,.05)}.article h2{font-size:25px;margin:30px 0 10px}.article h2:first-child{margin-top:0}.article p,.article li{font-size:16px;line-height:1.7}.article ul{padding-left:23px}.tip{background:#f1f3ff;border-left:4px solid var(--blue);padding:17px 18px;border-radius:10px;margin:22px 0}.warning{background:#fff7ed;border-left:4px solid #f59e0b;padding:17px 18px;border-radius:10px;margin:22px 0}.links{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:18px 0}.links a{padding:14px;background:#f6f8fb;border:1px solid var(--line);border-radius:10px;color:var(--blue);text-decoration:none;font-weight:700}.cta{margin-top:28px;background:var(--ink);color:white;padding:25px;border-radius:16px}.cta h3{margin:0 0 8px}.cta p{color:#d4dae3}.cta a{display:inline-block;background:var(--blue);color:white;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:700}.back{display:inline-block;margin-bottom:18px;color:var(--blue);text-decoration:none;font-weight:700}footer{text-align:center;color:var(--muted);font-size:13px;padding:25px 0}@media(max-width:700px){.guide-wrap{padding:14px}.guide-nav{margin-bottom:20px}.guide-nav .logo{font-size:24px}.hero{padding:27px 20px;border-radius:16px}.hero h1{font-size:31px}.hero p{font-size:16px}.article{padding:22px 18px;border-radius:16px}.article h2{font-size:22px}.article p,.article li{font-size:15px}.links{grid-template-columns:1fr}.cta{padding:20px}.cta a{display:block;text-align:center}}\n</style></head><body><div class="guide-wrap"><div class="guide-nav"><div class="logo">Fix<span>Tude</span></div><a href="/privato">Area Personale</a></div><a class="back" href="/">← Torna a FixTude</a><section class="hero"><small>GUIDA GRATUITA · 03</small><h1>Non riesci più a pagare le rate? Da dove cominciare</h1><p>Prima di cercare una soluzione, misura il peso reale delle rate sul tuo bilancio mensile.</p></section><article class="article"><h2>Quando una rata diventa un problema</h2><p>La difficoltà non nasce necessariamente quando una rata è molto alta. Può comparire quando, sommate tutte le rate e le spese necessarie, il reddito non lascia più un margine sufficiente.</p><h2>1. Somma tutte le rate</h2><p>Inserisci nello stesso calcolo finanziamenti, prestiti personali, carte revolving e altri impegni ricorrenti. Non guardare una rata alla volta.</p><h2>2. Calcola il reddito disponibile</h2><p>Parti dalle entrate mensili e sottrai le spese necessarie. Il risultato indica quanto rimane prima di considerare il peso complessivo delle rate.</p><h2>3. Guarda il rapporto tra rate e reddito</h2><p>Il rapporto tra rate mensili e reddito è un indicatore utile per descrivere il peso del debito, ma non è una soglia universale valida per tutti. Una stessa percentuale può avere effetti diversi in base a casa, famiglia, spese e stabilità del reddito.</p><div class="tip"><strong>Esempio:</strong> due persone possono avere la stessa rata totale, ma una può avere molte più spese essenziali dell\'altra. Per questo la rata da sola non racconta tutta la situazione.</div><h2>4. Individua i segnali di pressione</h2><ul><li>usi continuamente il credito per coprire spese ordinarie;</li><li>paghi una rata ricorrendo a un altro finanziamento;</li><li>rimandi spese essenziali;</li><li>hai già rate scadute o pagamenti in ritardo;</li><li>il reddito disponibile cambia molto da un mese all\'altro.</li></ul><h2>5. Non aspettare che il problema diventi urgente</h2><p>Se il bilancio mensile è già sotto pressione, conviene ricostruire subito la situazione completa e valutare quali informazioni mancano. Parlare tempestivamente con i soggetti interessati può essere più utile che attendere l\'accumulo di ulteriori arretrati.</p><div class="warning"><strong>Attenzione:</strong> non esiste una percentuale magica che stabilisca da sola se una situazione è sostenibile. Servono reddito, spese, composizione del debito e regolarità dei pagamenti.</div><h2>Il primo passo è misurare</h2><p>Con numeri aggiornati puoi capire se il problema riguarda una singola rata, l\'insieme degli impegni oppure l\'equilibrio generale tra entrate e uscite.</p><div class="cta"><h3>Vuoi capire meglio la tua situazione?</h3><p>FixTude analizza dati, entrate, spese e debiti e costruisce possibili scenari da approfondire.</p><a href="/privato/situazione">Inizia con FixTude →</a></div></article><footer>FixTude · <a href="mailto:info@fixtude.it">info@fixtude.it</a> · P. IVA 15990471003</footer></div></body></html>')
-
-
 # ============================================================
 # REGISTRATION
 # ============================================================
@@ -1591,49 +1708,188 @@ REGISTRATION_HTML = """
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Registrazione FixTude</title>
 <style>
+*{box-sizing:border-box}
 body{
-font-family:Arial;
-background:#f6f8fb
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f5f7fb;
+    color:#18212f;
+    min-height:100vh;
+}
+.page{
+    padding:28px 16px 50px;
 }
 .box{
-max-width:450px;
-margin:70px auto;
-background:white;
-padding:35px;
-border-radius:18px
+    width:100%;
+    max-width:460px;
+    margin:35px auto 0;
+    background:#fff;
+    padding:34px;
+    border:1px solid #e5e9f0;
+    border-radius:20px;
+    box-shadow:0 10px 30px rgba(24,33,47,.07);
 }
-input,select{
-width:100%;
-box-sizing:border-box;
-padding:13px;
-margin:8px 0 15px
+.back{
+    color:#4f46e5;
+    text-decoration:none;
+    font-weight:600;
+    font-size:14px;
 }
-button{
-width:100%;
-padding:13px;
-background:#4f46e5;
-color:white;
-border:0;
-border-radius:8px
+h1{
+    margin:22px 0 8px;
+    font-size:30px;
+    line-height:1.15;
+}
+.subtitle{
+    margin:0 0 26px;
+    color:#667085;
+    line-height:1.5;
+    font-size:15px;
+}
+label{
+    display:block;
+    margin:0 0 7px;
+    font-size:14px;
+    font-weight:700;
+    color:#344054;
+}
+.field{
+    margin-bottom:19px;
+}
+input{
+    width:100%;
+    height:48px;
+    padding:0 14px;
+    border:1px solid #d8dee8;
+    border-radius:10px;
+    background:#fff;
+    color:#18212f;
+    font-size:16px;
+    outline:none;
+    transition:border-color .15s,box-shadow .15s;
+}
+input:focus{
+    border-color:#4f46e5;
+    box-shadow:0 0 0 3px rgba(79,70,229,.10);
+}
+.password-wrap{
+    position:relative;
+}
+.password-wrap input{
+    padding-right:48px;
+}
+.toggle-password{
+    position:absolute;
+    right:10px;
+    top:50%;
+    transform:translateY(-50%);
+    width:32px;
+    height:32px;
+    padding:0;
+    margin:0;
+    background:transparent;
+    color:#667085;
+    border:0;
+    border-radius:7px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.toggle-password:hover{
+    background:#f2f4f7;
+    color:#344054;
+}
+.eye{
+    width:18px;
+    height:12px;
+    border:1.7px solid currentColor;
+    border-radius:70% 70% 70% 70% / 90% 90% 90% 90%;
+    position:relative;
+    display:block;
+}
+.eye:after{
+    content:"";
+    position:absolute;
+    width:5px;
+    height:5px;
+    border:1.5px solid currentColor;
+    border-radius:50%;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+}
+button.submit{
+    width:100%;
+    height:50px;
+    margin-top:3px;
+    padding:0 16px;
+    background:#4f46e5;
+    color:#fff;
+    border:0;
+    border-radius:10px;
+    font-size:16px;
+    font-weight:700;
+    cursor:pointer;
+}
+button.submit:hover{
+    background:#4338ca;
+}
+.email-note{
+    margin:-5px 0 21px;
+    padding:11px 13px;
+    background:#f5f7ff;
+    border:1px solid #e2e5ff;
+    border-radius:9px;
+    color:#555f73;
+    font-size:13px;
+    line-height:1.45;
 }
 .error{
-background:#fee2e2;
-padding:12px;
-margin-bottom:15px
+    background:#fff1f2;
+    color:#b42318;
+    border:1px solid #fecdd3;
+    padding:12px 13px;
+    margin-bottom:20px;
+    border-radius:9px;
+    font-size:14px;
+}
+@media(max-width:600px){
+    .page{
+        padding:15px 12px 35px;
+    }
+    .box{
+        margin:15px auto 0;
+        padding:24px 19px 22px;
+        border-radius:16px;
+    }
+    h1{
+        font-size:26px;
+    }
+    .subtitle{
+        font-size:14px;
+        margin-bottom:22px;
+    }
+    input{
+        height:48px;
+        font-size:16px;
+    }
 }
 </style>
 </head>
 <body>
-
+<div class="page">
 <div class="box">
 
-<a href="/">← FixTude</a>
+<a class="back" href="/">← FixTude</a>
 
 <h1>Crea il tuo account</h1>
+<p class="subtitle">
+Inserisci i tuoi dati per accedere alla tua Area Personale.
+</p>
 
 {% if error %}
 <div class="error">{{ error }}</div>
@@ -1641,32 +1897,57 @@ margin-bottom:15px
 
 <form method="post">
 
-<label>Email</label>
-<input type="email"
-name="email"
-required>
-
-<label>Password</label>
-<div class="password-wrap">
-<input id="reg-password" type="password" name="password" required minlength="8">
-<button type="button" class="toggle-password" onclick="togglePassword('reg-password', this)">👁</button>
+<div class="field">
+<label for="email">Email</label>
+<input id="email" type="email" name="email" autocomplete="email" required>
 </div>
 
-<label>Conferma password</label>
-<div class="password-wrap">
-<input id="reg-confirm" type="password" name="confirm_password" required minlength="8">
-<button type="button" class="toggle-password" onclick="togglePassword('reg-confirm', this)">👁</button>
+<div class="email-note">
+La tua email sarà utilizzata per accedere a FixTude e per ricevere i documenti PDF acquistati.
 </div>
 
-<button>
-Crea account
+<div class="field">
+<label for="reg-password">Password</label>
+<div class="password-wrap">
+<input id="reg-password" type="password" name="password"
+       autocomplete="new-password" required minlength="8">
+<button type="button" class="toggle-password"
+        aria-label="Mostra password"
+        onclick="togglePassword('reg-password', this)">
+<span class="eye"></span>
 </button>
+</div>
+</div>
+
+<div class="field">
+<label for="reg-confirm">Conferma password</label>
+<div class="password-wrap">
+<input id="reg-confirm" type="password" name="confirm_password"
+       autocomplete="new-password" required minlength="8">
+<button type="button" class="toggle-password"
+        aria-label="Mostra conferma password"
+        onclick="togglePassword('reg-confirm', this)">
+<span class="eye"></span>
+</button>
+</div>
+</div>
+
+<button class="submit" type="submit">Crea account</button>
 
 </form>
-
 </div>
+</div>
+
 <script>
-function togglePassword(id, button){const input=document.getElementById(id); if(input.type==='password'){input.type='text';button.textContent='🙈'}else{input.type='password';button.textContent='👁'}}
+function togglePassword(id, button){
+    const input = document.getElementById(id);
+    const visible = input.type === "text";
+    input.type = visible ? "password" : "text";
+    button.setAttribute(
+        "aria-label",
+        visible ? "Mostra password" : "Nascondi password"
+    );
+}
 </script>
 </body>
 </html>
