@@ -1472,7 +1472,7 @@ font-size:36px
 }
 }
 
-.education{margin-top:45px;padding:35px;background:#18212f;color:white;border-radius:20px;box-shadow:0 15px 40px rgba(0,0,0,.08)}
+.education{margin-top:52px;padding:35px;background:#18212f;color:white;border-radius:20px;box-shadow:0 15px 40px rgba(0,0,0,.08)}
 .education-head{display:flex;justify-content:space-between;align-items:flex-start;gap:25px;margin-bottom:25px}
 .education-head small{color:#aeb7c6;font-weight:700;letter-spacing:.4px}
 .education-head h2{font-size:34px;margin:8px 0 6px}
@@ -1497,16 +1497,14 @@ font-size:36px
 .grid{
     align-items:stretch !important;
 }
-.grid > .card{
-    height:100%;
-}
+/* Grid stretch keeps both cards equal without forcing
+   a content-box height that can overflow into the next section. */
 
 /* The SIC card uses the available height intelligently. */
 .dark{
     align-self:stretch !important;
     display:flex !important;
     flex-direction:column !important;
-    min-height:100% !important;
 }
 
 /* More air between description and SIC buttons,
@@ -1573,12 +1571,8 @@ font-size:36px
         grid-template-columns:1fr !important;
         align-items:stretch !important;
     }
-    .grid > .card{
-        height:auto;
-    }
     .dark{
         align-self:auto !important;
-        min-height:0 !important;
     }
     .sic-title{
         white-space:normal !important;
@@ -1643,6 +1637,15 @@ font-size:36px
     }
     .free a strong{
         font-size:14px;
+    }
+}
+
+.education-intro{
+    white-space:nowrap;
+}
+@media(max-width:760px){
+    .education-intro{
+        white-space:normal;
     }
 }
 </style>
