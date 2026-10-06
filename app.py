@@ -74,7 +74,7 @@ PAYMENT_SERVICES = {
     },
     "pdf": {
         "name": "Documento FixTude",
-        "description": "Documento PDF definitivo validato dal Risolutore.",
+        "description": "Documento PDF definitivo validato dall'Esperto.",
         "amount": 999,
         "currency": "eur"
     }
@@ -1506,7 +1506,7 @@ possibili scenari da approfondire.
 <p>
 <strong>✓ Analisi automatica</strong><br>
 <strong>✓ Possibili scenari</strong><br>
-<strong>✓ Risolutore AI</strong><br>
+<strong>✓ Esperto AI</strong><br>
 <strong>✓ Documenti PDF</strong>
 </p>
 
@@ -1570,7 +1570,7 @@ Modulo ufficiale
 </div>
 
 <footer style="margin-top:60px;padding:25px 0;border-top:1px solid #ddd">
-FixTude · info@fixtude.it · P. IVA: DA INSERIRE
+FixTude · <a href="mailto:info@fixtude.it">info@fixtude.it</a> · P. IVA: 15990471003
 </footer>
 
 </div>
@@ -1786,7 +1786,7 @@ body{font-family:Arial;background:#f6f8fb}.box{max-width:430px;margin:80px auto;
 <body>
 <div class="box">
 <a href="/">← FixTude</a>
-<h1>{% if role == "debtor" %}Accesso area privata{% else %}Accesso Risolutore{% endif %}</h1>
+<h1>{% if role == "debtor" %}Accesso area privata{% else %}Accesso Esperto{% endif %}</h1>
 {% if error %}<div class="error">{{ error }}</div>{% endif %}
 <form method="post">
 <label>Email</label>
@@ -2101,11 +2101,11 @@ def debtor_dashboard():
             {% elif pdf_in_review %}
               <span class="status orange">IN REVISIONE</span>
               <p class="mini">Pagamento ricevuto · € 9,99</p>
-              <div class="notice">Il documento è stato pagato in anticipo ed è ora in revisione completa da parte del Risolutore. Riceverai una email quando il PDF sarà approvato.</div>
+              <div class="notice">Il documento è stato pagato in anticipo ed è ora in revisione completa da parte dell'Esperto. Riceverai una email quando il PDF sarà approvato.</div>
             {% else %}
               <span class="status gray">NON ACQUISTATO</span>
               <p class="mini">Documento FixTude · € 9,99</p>
-              <p>Puoi acquistare subito il documento. Il pagamento viene effettuato ora; il PDF definitivo sarà disponibile dopo la revisione e validazione del Risolutore.</p>
+              <p>Puoi acquistare subito il documento. Il pagamento viene effettuato ora; il PDF definitivo sarà disponibile dopo la revisione e validazione dell'Esperto.</p>
               <form method="post" action="{{ url_for('create_checkout') }}" style="margin-top:14px">
                 <input type="hidden" name="service" value="pdf">
                 <button type="submit" style="padding:13px 22px;background:#4f46e5;color:white;border:0;border-radius:9px;font-weight:700;cursor:pointer">Paga € 9,99 con Stripe</button>
@@ -2843,7 +2843,7 @@ def payments():
 
         <p>
         Documento PDF definitivo dopo
-        la validazione del Risolutore.
+        la validazione dell'Esperto.
         </p>
 
         <div class="price">€ 9,99</div>
@@ -2860,12 +2860,12 @@ def payments():
         <p><a href="{{ url_for('download_solution', solution_id=latest_solution.id) }}">Scarica PDF definitivo →</a></p>
         {% else %}
         <p><strong>🕐 Documento in revisione.</strong></p>
-        <p>Il pagamento è stato ricevuto. Il Risolutore sta completando la revisione. Riceverai una email quando il PDF definitivo sarà disponibile.</p>
+        <p>Il pagamento è stato ricevuto. L'Esperto sta completando la revisione. Riceverai una email quando il PDF definitivo sarà disponibile.</p>
         {% endif %}
 
         {% else %}
 
-        <p class="small">Paghi ora € 9,99. Il Risolutore completerà la revisione dopo il pagamento e il PDF definitivo verrà reso disponibile nell'Area Personale e inviato via email.</p>
+        <p class="small">Paghi ora € 9,99. L'Esperto completerà la revisione dopo il pagamento e il PDF definitivo verrà reso disponibile nell'Area Personale e inviato via email.</p>
 
         <form method="post"
         action="{{ url_for('create_checkout') }}">
@@ -3030,8 +3030,7 @@ def create_checkout():
                 + "?session_id={CHECKOUT_SESSION_ID}"
             ),
             cancel_url=url_for(
-                "payment_cancel",
-                payment_id=payment_id,
+                "payments",
                 _external=True
             )
         )
@@ -3528,7 +3527,7 @@ def resolver_dashboard():
 
         <div style="display:flex;justify-content:space-between">
 
-        <h1>Risolutore AI</h1>
+        <h1>Esperto AI</h1>
 
         <a href="{{ url_for('logout') }}">
         Esci
@@ -3879,7 +3878,7 @@ def correct_solution(solution_id):
 # ============================================================
 
 def send_final_solution_email(solution_id):
-    """Invia al cliente il PDF definitivo dopo l'approvazione del Risolutore."""
+    """Invia al cliente il PDF definitivo dopo l'approvazione dell'Esperto."""
     conn = db_connect()
     solution = conn.execute(
         "SELECT * FROM solution_documents WHERE id = ?",
@@ -3918,7 +3917,7 @@ def send_final_solution_email(solution_id):
     msg["To"] = case["email"]
     msg.set_content(
         f"Gentile {customer_name},\n\n"
-        "la revisione completa del tuo documento FixTude è stata conclusa dal Risolutore.\n\n"
+        "la revisione completa del tuo documento FixTude è stata conclusa dall'Esperto.\n\n"
         "Il documento PDF definitivo è ora disponibile nella tua Area Personale FixTude. "
         "Lo trovi anche in allegato a questa email.\n\n"
         "Cordiali saluti,\nFixTude"
@@ -4051,7 +4050,7 @@ def approve_solution(solution_id):
                 case["email"],
                 "Nuovo documento disponibile",
                 (
-                    "Il Risolutore ha validato "
+                    "L'Esperto ha validato "
                     "il documento: "
                     + solution["title"]
                 ),
