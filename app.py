@@ -2788,7 +2788,7 @@ def payments():
 
         <div class="wrap">
 
-        <a href="javascript:history.back()" style="text-decoration:none;color:#4f46e5">
+        <a href="{{ url_for('debtor_dashboard') }}" style="text-decoration:none;color:#4f46e5">
         ← Indietro
         </a>
 
