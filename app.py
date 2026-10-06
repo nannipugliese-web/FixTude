@@ -1380,230 +1380,160 @@ HOME_HTML = """
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-content="width=device-width,initial-scale=1">
-<title>FixTude</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="FixTude organizza la situazione debitoria e fornisce risposte plausibili e possibili percorsi da approfondire.">
+<title>FixTude — Metti in ordine la tua situazione debitoria</title>
 <style>
-body{
-font-family:Arial,sans-serif;
-margin:0;
-background:#f6f8fb;
-color:#18212f
+:root{
+  --primary:#4f46e5;
+  --primary-dark:#4338ca;
+  --navy:#18212f;
+  --text:#253044;
+  --muted:#697586;
+  --bg:#f5f7fb;
+  --card:#ffffff;
+  --line:#e5e9f0;
+  --soft:#eef0ff;
+  --green:#168653;
+  --green-soft:#e8f8f0;
 }
-.wrap{
-max-width:1100px;
-margin:auto;
-padding:25px
-}
-nav{
-display:flex;
-justify-content:space-between;
-align-items:center
-}
-.logo{
-font-size:30px;
-font-weight:800
-}
-.logo span{
-color:#4f46e5
-}
-.grid{
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:25px;
-margin-top:45px
-}
-.card{
-background:white;
-padding:35px;
-border-radius:20px;
-border:1px solid #e5e7eb;
-box-shadow:0 15px 40px rgba(0,0,0,.05)
-}
-.dark{
-background:#18212f;
-color:white
-}
-h1{
-font-size:46px;
-margin:15px 0
-}
-p{
-line-height:1.6
-}
-.button{
-display:inline-block;
-padding:13px 18px;
-border-radius:9px;
-text-decoration:none;
-font-weight:700;
-margin:5px
-}
-.primary{
-background:#4f46e5;
-color:white
-}
-.light{
-background:#eef0f4;
-color:#18212f
-}
-.free{
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:10px
-}
-.free a{
-padding:20px;
-border-radius:12px;
-background:#293241;
-color:white;
-text-decoration:none
-}
-small{
-color:#697586
-}
-@media(max-width:800px){
-  .wrap{padding:14px 12px}
-  nav{padding:4px 2px;gap:14px}
-  .logo{font-size:26px}
-  nav>div:last-child{display:flex;gap:12px;align-items:center}
-  .grid{grid-template-columns:1fr;gap:14px;margin-top:24px}
-  .card{padding:22px 18px;border-radius:16px}
-  h1{font-size:30px;line-height:1.12}
-  h2{font-size:24px;line-height:1.15}
-  .button{display:block;text-align:center;margin:8px 0}
-  .free{grid-template-columns:1fr 1fr;gap:8px}
-  .free a{padding:14px 10px;text-align:center}
-  .education{margin-top:28px;padding:20px 16px;border-radius:16px}
-  .education-head{margin-bottom:16px}
-  .education-head h2{font-size:27px}
-  .education-head p{font-size:14px}
-  .education-grid{grid-template-columns:1fr;gap:9px}
-  .education-card{display:grid;grid-template-columns:36px 1fr;column-gap:10px;align-items:start;padding:14px 13px;border-radius:12px}
-  .education-card span{grid-row:1 / span 3;margin:2px 0 0;font-size:11px}
-  .education-card strong{font-size:16px;margin:0 0 4px}
-  .education-card p{font-size:13px;line-height:1.4;margin:0 0 7px}
-  .education-card b{font-size:12px}
-  .education-cta{margin-top:12px;padding:14px;gap:5px}
-  .education-cta strong{font-size:14px}
-  .education-cta span{font-size:12px}
-  footer{margin-top:30px!important}
-}
-
-.education{margin-top:45px;padding:35px;background:#18212f;color:white;border-radius:20px;box-shadow:0 15px 40px rgba(0,0,0,.08)}
-.education-head{display:flex;justify-content:space-between;align-items:flex-start;gap:25px;margin-bottom:25px}
-.education-head small{color:#aeb7c6;font-weight:700;letter-spacing:.4px}
-.education-head h2{font-size:34px;margin:8px 0 6px}
-.education-head p{margin:0;color:#d4dae3;max-width:700px}
-.education-badge{background:#4f46e5;padding:9px 13px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+a{color:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:24px 22px 30px}
+nav{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:4px 0}
+.logo{font-size:31px;font-weight:800;letter-spacing:-1.2px;color:var(--navy)}
+.logo span{color:var(--primary)}
+.nav-links{display:flex;align-items:center;gap:20px;font-size:14px;font-weight:700}
+.nav-links a{text-decoration:none}
+.nav-login{color:var(--navy)}
+.nav-register{background:var(--primary);color:#fff;padding:10px 15px;border-radius:10px}
+.nav-register:hover{background:var(--primary-dark)}
+.hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(330px,.85fr);gap:22px;margin-top:48px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:24px;box-shadow:0 16px 45px rgba(24,33,47,.07)}
+.hero-main{padding:46px 44px 42px}
+.eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:800;letter-spacing:.7px;color:var(--primary);background:var(--soft);padding:8px 11px;border-radius:999px}
+h1{font-size:48px;line-height:1.06;letter-spacing:-1.8px;margin:18px 0 18px;color:var(--navy);max-width:720px}
+.lead{font-size:19px;line-height:1.62;margin:0;color:#4c586b;max-width:700px}
+.features{display:grid;grid-template-columns:1fr 1fr;gap:11px 20px;margin:28px 0 30px}
+.feature{display:flex;align-items:flex-start;gap:9px;font-size:15px;line-height:1.4;font-weight:700}
+.check{display:inline-flex;flex:0 0 22px;width:22px;height:22px;align-items:center;justify-content:center;border-radius:50%;background:var(--green-soft);color:var(--green);font-size:13px;font-weight:900;margin-top:0}
+.actions{display:flex;flex-wrap:wrap;gap:10px}
+.button{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:12px 19px;border-radius:11px;text-decoration:none;font-weight:800;font-size:14px}
+.primary{background:var(--primary);color:#fff;box-shadow:0 7px 18px rgba(79,70,229,.20)}
+.primary:hover{background:var(--primary-dark)}
+.light{background:#eef1f6;color:var(--navy)}
+.light:hover{background:#e4e8ef}
+.hero-side{padding:34px;background:var(--navy);color:#fff;position:relative;overflow:hidden}
+.hero-side:after{content:"";position:absolute;width:190px;height:190px;border-radius:50%;right:-90px;top:-90px;background:rgba(79,70,229,.25)}
+.side-label{color:#bfc8d6;font-size:12px;font-weight:800;letter-spacing:.7px;position:relative;z-index:1}
+.hero-side h2{font-size:28px;line-height:1.16;letter-spacing:-.5px;margin:13px 0 11px;position:relative;z-index:1}
+.hero-side p{color:#d7dde6;line-height:1.55;margin:0 0 22px;position:relative;z-index:1}
+.free{display:grid;grid-template-columns:1fr 1fr;gap:10px;position:relative;z-index:1}
+.free a{padding:17px 14px;border:1px solid rgba(255,255,255,.10);border-radius:13px;background:#293241;color:#fff;text-decoration:none;transition:.15s}
+.free a:hover{background:#323c4c;transform:translateY(-2px)}
+.free strong{font-size:14px}.free span{display:block;color:#bfc8d6;font-size:12px;margin-top:4px}
+.trust{margin-top:18px;padding:17px 20px;border:1px solid var(--line);border-radius:15px;background:#fff;color:var(--muted);font-size:13px;line-height:1.55}
+.trust strong{color:var(--navy)}
+.education{margin-top:24px;padding:36px;background:var(--navy);color:#fff;border-radius:24px;box-shadow:0 16px 45px rgba(24,33,47,.08)}
+.education-head{display:flex;justify-content:space-between;align-items:flex-start;gap:25px;margin-bottom:24px}
+.education-head small{color:#aeb7c6;font-weight:800;letter-spacing:.5px}
+.education-head h2{font-size:34px;letter-spacing:-.6px;margin:8px 0 6px}
+.education-head p{margin:0;color:#d4dae3;max-width:720px;line-height:1.55}
+.education-badge{background:var(--primary);padding:9px 13px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}
 .education-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
-.education-card{display:block;padding:22px;background:#293241;border:1px solid rgba(255,255,255,.08);border-radius:15px;color:white;text-decoration:none;transition:transform .15s,background .15s}
+.education-card{display:block;padding:22px;background:#293241;border:1px solid rgba(255,255,255,.08);border-radius:15px;color:#fff;text-decoration:none;transition:transform .15s,background .15s}
 .education-card:hover{transform:translateY(-3px);background:#323c4c}
-.education-card span{display:inline-block;font-size:12px;color:#aeb7c6;font-weight:800;margin-bottom:16px}
+.education-card span{display:inline-block;font-size:12px;color:#aeb7c6;font-weight:800;margin-bottom:15px}
 .education-card strong{display:block;font-size:18px;line-height:1.3;margin-bottom:9px}
 .education-card p{font-size:14px;line-height:1.5;color:#cbd2dc;margin:0 0 18px}
 .education-card b{font-size:13px;color:#fff}
-.education-cta{margin-top:18px;padding:18px 20px;border-radius:13px;background:#f5f7fa;color:#18212f;display:flex;justify-content:space-between;gap:20px;align-items:center}
-.education-cta strong{font-size:15px}.education-cta span{font-size:13px;color:#697586}
-@media(max-width:800px){.education-head{flex-direction:column}.education-grid{grid-template-columns:1fr}.education-cta{flex-direction:column;align-items:flex-start}}
+.education-cta{margin-top:18px;padding:18px 20px;border-radius:13px;background:#f5f7fa;color:var(--navy);display:flex;justify-content:space-between;gap:20px;align-items:center}
+.education-cta strong{font-size:15px}.education-cta span{font-size:13px;color:var(--muted)}
+footer{margin-top:30px;padding:22px 0 8px;border-top:1px solid var(--line);color:#788394;font-size:13px;line-height:1.7}
+footer a{color:var(--primary);text-decoration:none;font-weight:700}
+@media(max-width:820px){
+  .wrap{padding:16px 12px 25px}
+  nav{padding:3px 2px}
+  .logo{font-size:27px}
+  .nav-links{gap:10px;font-size:13px}
+  .nav-register{padding:9px 11px}
+  .hero{grid-template-columns:1fr;gap:14px;margin-top:27px}
+  .hero-main{padding:28px 20px 25px}
+  h1{font-size:34px;line-height:1.08;letter-spacing:-1px;margin:16px 0 15px}
+  .lead{font-size:16px;line-height:1.55}
+  .features{grid-template-columns:1fr;gap:10px;margin:23px 0 25px}
+  .actions{display:grid;grid-template-columns:1fr;gap:8px}
+  .button{width:100%}
+  .hero-side{padding:25px 19px}
+  .hero-side h2{font-size:25px}
+  .free{gap:8px}
+  .free a{padding:14px 10px;text-align:center}
+  .education{padding:25px 18px;border-radius:19px}
+  .education-head{flex-direction:column;gap:13px;margin-bottom:17px}
+  .education-head h2{font-size:28px}
+  .education-head p{font-size:14px}
+  .education-grid{grid-template-columns:1fr;gap:9px}
+  .education-card{display:grid;grid-template-columns:34px 1fr;column-gap:9px;padding:14px 13px;border-radius:12px}
+  .education-card span{grid-row:1 / span 3;margin:2px 0 0}
+  .education-card strong{font-size:16px;margin-bottom:4px}
+  .education-card p{font-size:13px;line-height:1.4;margin-bottom:7px}
+  .education-card b{font-size:12px}
+  .education-cta{margin-top:12px;padding:14px;flex-direction:column;align-items:flex-start;gap:5px}
+  .education-cta strong{font-size:14px}.education-cta span{font-size:12px}
+  footer{margin-top:24px}
+}
+@media(max-width:390px){
+  .nav-links{gap:7px}.nav-login{display:none}
+  h1{font-size:31px}.hero-side h2{font-size:23px}
+  .free strong{font-size:13px}.free span{font-size:11px}
+}
 </style>
 </head>
 <body>
-
 <div class="wrap">
-
 <nav>
-<div class="logo">
-Fix<span>Tude</span>
-</div>
-<div>
-<a href="/privato/login">Accedi</a>
-&nbsp;&nbsp;
-<a href="/registrazione">Registrati</a>
-</div>
+  <div class="logo">Fix<span>Tude</span></div>
+  <div class="nav-links">
+    <a class="nav-login" href="/privato/login">Accedi</a>
+    <a class="nav-register" href="/registrazione">Registrati</a>
+  </div>
 </nav>
 
-<div class="grid">
+<section class="hero">
+  <div class="card hero-main">
+    <div class="eyebrow">SERVIZIO FIXTUDE</div>
+    <h1>Metti in ordine la tua situazione debitoria</h1>
+    <p class="lead">Inserisci dati, entrate, spese e debiti. <strong>FixTude organizza la tua situazione, fornisce risposte plausibili e individua possibili percorsi concreti da approfondire</strong> per affrontare le situazioni debitorie.</p>
 
-<div class="card">
+    <div class="features">
+      <div class="feature"><span class="check">✓</span><span>Analisi automatica</span></div>
+      <div class="feature"><span class="check">✓</span><span>Possibili scenari</span></div>
+      <div class="feature"><span class="check">✓</span><span>Esperto FixTude</span></div>
+      <div class="feature"><span class="check">✓</span><span>Generazione di documenti PDF</span></div>
+    </div>
 
-<small>SERVIZIO FIXTUDE</small>
+    <div class="actions">
+      <a class="button primary" href="/registrazione">Registrati gratuitamente</a>
+      <a class="button light" href="/privato/login">Accedi</a>
+    </div>
+  </div>
 
-<h1>
-Metti in ordine la tua situazione debitoria
-</h1>
+  <div class="card hero-side">
+    <div class="side-label">SERVIZIO GRATUITO</div>
+    <h2>Controlla autonomamente le banche dati</h2>
+    <p>Puoi richiedere direttamente agli enti le informazioni che ti riguardano.</p>
+    <div class="free">
+      <a target="_blank" rel="noopener noreferrer" href="https://www.modulorichiesta.crif.com/"><strong>CRIF</strong><span>Modulo ufficiale</span></a>
+      <a target="_blank" rel="noopener noreferrer" href="https://www.experian.it/content/dam/noindex/emea/italy/Nuovo-modulo-SIC.pdf"><strong>EXPERIAN</strong><span>Modulo ufficiale</span></a>
+      <a target="_blank" rel="noopener noreferrer" href="https://consumatore.ctconline.it/sic/apri-istanza"><strong>CTC</strong><span>Procedura ufficiale</span></a>
+      <a target="_blank" rel="noopener noreferrer" href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/Modulo-di-richiesta-dei-dati-nominativi-CAI.pdf?force_download=1"><strong>CAI</strong><span>Modulo ufficiale</span></a>
+    </div>
+  </div>
+</section>
 
-<p>
-Inserisci dati, entrate, spese e debiti.
-FixTude organizza la situazione e produce
-possibili scenari da approfondire.
-</p>
-
-<p>
-<strong>✓ Analisi automatica</strong><br>
-<strong>✓ Possibili scenari</strong><br>
-<strong>✓ Esperto AI</strong><br>
-<strong>✓ Documenti PDF</strong>
-</p>
-
-<a class="button primary"
-href="/registrazione">
-Registrati gratuitamente
-</a>
-
-<a class="button light"
-href="/privato/login">
-Accedi
-</a>
-
-</div>
-
-<div class="card dark">
-
-<small style="color:#bfc6d4">
-SERVIZIO GRATUITO
-</small>
-
-<h2 style="white-space:nowrap">
-Controlla autonomamente le banche dati
-</h2>
-
-<p>
-Puoi richiedere direttamente agli enti
-le informazioni che ti riguardano.
-</p>
-
-<div class="free">
-
-<a target="_blank"
-href="https://www.modulorichiesta.crif.com/">
-<strong>CRIF</strong><br>
-Modulo ufficiale
-</a>
-
-<a target="_blank"
-href="https://www.experian.it/content/dam/noindex/emea/italy/Nuovo-modulo-SIC.pdf">
-<strong>EXPERIAN</strong><br>
-Modulo ufficiale
-</a>
-
-<a target="_blank"
-href="https://consumatore.ctconline.it/sic/apri-istanza">
-<strong>CTC</strong><br>
-Procedura ufficiale
-</a>
-
-<a target="_blank"
-href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/Modulo-di-richiesta-dei-dati-nominativi-CAI.pdf?force_download=1">
-<strong>CAI</strong><br>
-Modulo ufficiale
-</a>
-
-</div>
-
-</div>
-
-</div>
+<div class="trust"><strong>Importante:</strong> FixTude offre analisi informative e simulazioni sulla base dei dati inseriti. Non sostituisce un professionista abilitato e gli scenari proposti devono essere valutati in relazione alla situazione personale e ai rapporti con i singoli creditori.</div>
 
 <section class="education">
   <div class="education-head">
@@ -1622,12 +1552,8 @@ Modulo ufficiale
   <div class="education-cta"><strong>Prima di affrontare un problema, impara a leggerlo.</strong><span>Le guide FixTude sono gratuite e pensate per essere comprensibili a tutti.</span></div>
 </section>
 
-<footer style="margin-top:60px;padding:25px 0;border-top:1px solid #ddd">
-FixTude · <a href="mailto:info@fixtude.it">info@fixtude.it</a> · P. IVA: 15990471003
-</footer>
-
+<footer>FixTude · <a href="mailto:info@fixtude.it">info@fixtude.it</a> · P. IVA: 15990471003</footer>
 </div>
-
 </body>
 </html>
 """
