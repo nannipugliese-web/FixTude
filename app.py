@@ -1463,12 +1463,31 @@ small{
 color:#697586
 }
 @media(max-width:800px){
-.grid{
-grid-template-columns:1fr
-}
-h1{
-font-size:36px
-}
+  .wrap{padding:14px 12px}
+  nav{padding:4px 2px;gap:14px}
+  .logo{font-size:26px}
+  nav>div:last-child{display:flex;gap:12px;align-items:center}
+  .grid{grid-template-columns:1fr;gap:14px;margin-top:24px}
+  .card{padding:22px 18px;border-radius:16px}
+  h1{font-size:30px;line-height:1.12}
+  h2{font-size:24px;line-height:1.15}
+  .button{display:block;text-align:center;margin:8px 0}
+  .free{grid-template-columns:1fr 1fr;gap:8px}
+  .free a{padding:14px 10px;text-align:center}
+  .education{margin-top:28px;padding:20px 16px;border-radius:16px}
+  .education-head{margin-bottom:16px}
+  .education-head h2{font-size:27px}
+  .education-head p{font-size:14px}
+  .education-grid{grid-template-columns:1fr;gap:9px}
+  .education-card{display:grid;grid-template-columns:36px 1fr;column-gap:10px;align-items:start;padding:14px 13px;border-radius:12px}
+  .education-card span{grid-row:1 / span 3;margin:2px 0 0;font-size:11px}
+  .education-card strong{font-size:16px;margin:0 0 4px}
+  .education-card p{font-size:13px;line-height:1.4;margin:0 0 7px}
+  .education-card b{font-size:12px}
+  .education-cta{margin-top:12px;padding:14px;gap:5px}
+  .education-cta strong{font-size:14px}
+  .education-cta span{font-size:12px}
+  footer{margin-top:30px!important}
 }
 
 .education{margin-top:45px;padding:35px;background:#18212f;color:white;border-radius:20px;box-shadow:0 15px 40px rgba(0,0,0,.08)}
