@@ -1490,24 +1490,50 @@ font-size:36px
 @media(max-width:800px){.education-head{flex-direction:column}.education-grid{grid-template-columns:1fr}.education-cta{flex-direction:column;align-items:flex-start}}
 
 /* ============================================================
-   FixTude responsive refinement — desktop + mobile
+   FixTude responsive refinement — final symmetry
    ============================================================ */
+
+/* The two main cards always have exactly the same height. */
+.grid{
+    align-items:stretch !important;
+}
+.grid > .card{
+    height:100%;
+}
+
+/* The SIC card uses the available height intelligently. */
+.dark{
+    align-self:stretch !important;
+    display:flex !important;
+    flex-direction:column !important;
+    min-height:100% !important;
+}
+
+/* More air between description and SIC buttons,
+   while the 2x2 grid fills the card proportionally. */
 .free{
     display:grid !important;
     grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:14px !important;
-    margin-top:24px !important;
+    grid-template-rows:repeat(2,minmax(0,1fr));
+    gap:18px !important;
+    margin-top:30px !important;
+    margin-bottom:8px !important;
+    flex:1 1 auto !important;
+    align-content:stretch !important;
 }
 .free a{
-    display:block;
+    display:flex !important;
+    flex-direction:column;
+    justify-content:center;
     min-width:0;
+    min-height:76px;
     margin:0 !important;
-    padding:15px 16px !important;
-    border-radius:13px;
+    padding:17px 20px !important;
+    border-radius:14px;
     text-decoration:none;
     background:rgba(255,255,255,.10) !important;
-    border:1px solid rgba(255,255,255,.07);
-    box-shadow:0 4px 12px rgba(0,0,0,.10);
+    border:1px solid rgba(255,255,255,.09);
+    box-shadow:0 5px 14px rgba(0,0,0,.11);
     transition:
         transform .18s ease,
         background .18s ease,
@@ -1516,17 +1542,23 @@ font-size:36px
 }
 .free a:hover{
     transform:translateY(-4px);
-    background:rgba(255,255,255,.17) !important;
-    border-color:rgba(255,255,255,.18);
-    box-shadow:0 10px 22px rgba(0,0,0,.22);
+    background:rgba(255,255,255,.18) !important;
+    border-color:rgba(255,255,255,.20);
+    box-shadow:0 12px 25px rgba(0,0,0,.24);
 }
 .free a:active{
     transform:translateY(-1px);
 }
 .free a strong{
     display:inline-block;
-    margin-bottom:2px;
+    margin-bottom:3px;
 }
+
+.sic-title{
+    margin-top:20px;
+    margin-bottom:0;
+}
+
 .education-grid{
     display:grid !important;
     grid-template-columns:repeat(3,minmax(0,1fr));
@@ -1535,25 +1567,38 @@ font-size:36px
 .education-card{
     min-width:0;
 }
+
 @media(max-width:800px){
     .grid{
-        grid-template-columns:1fr;
+        grid-template-columns:1fr !important;
+        align-items:stretch !important;
+    }
+    .grid > .card{
+        height:auto;
     }
     .dark{
-        align-self:auto;
+        align-self:auto !important;
+        min-height:0 !important;
+    }
+    .sic-title{
+        white-space:normal !important;
     }
 }
+
 @media(max-width:760px){
     body{
         overflow-x:hidden;
     }
     .free{
         grid-template-columns:repeat(2,minmax(0,1fr)) !important;
-        gap:10px !important;
-        margin-top:20px !important;
+        grid-template-rows:repeat(2,minmax(0,1fr)) !important;
+        gap:12px !important;
+        margin-top:22px !important;
+        margin-bottom:0 !important;
     }
     .free a{
-        padding:13px 11px !important;
+        min-height:76px;
+        padding:14px 12px !important;
         font-size:13px;
         line-height:1.35;
     }
@@ -1586,22 +1631,18 @@ font-size:36px
         padding-right:14px !important;
     }
 }
+
 @media(max-width:430px){
+    .free{
+        gap:10px !important;
+        margin-top:20px !important;
+    }
     .free a{
-        min-height:74px;
+        min-height:72px;
+        padding:12px 10px !important;
     }
     .free a strong{
         font-size:14px;
-    }
-}
-
-.sic-title{
-    margin-top:20px;
-    margin-bottom:0;
-}
-@media(max-width:800px){
-    .sic-title{
-        white-space:normal !important;
     }
 }
 </style>
@@ -1640,8 +1681,8 @@ possibili scenari da approfondire.
 <p>
 <strong>✓ Analisi automatica</strong><br>
 <strong>✓ Possibili scenari</strong><br>
-<strong>✓ Esperto AI</strong><br>
-<strong>✓ Documenti PDF</strong>
+<strong>✓ Esperto FixTude</strong><br>
+<strong>✓ Generazione di documenti PDF</strong>
 </p>
 
 <a class="button primary"
@@ -3842,7 +3883,7 @@ def resolver_dashboard():
 
         <div style="display:flex;justify-content:space-between">
 
-        <h1>Esperto AI</h1>
+        <h1>Esperto FixTude</h1>
 
         <a href="{{ url_for('logout') }}">
         Esci
