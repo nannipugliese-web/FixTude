@@ -1421,8 +1421,9 @@ border:1px solid #e5e7eb;
 box-shadow:0 15px 40px rgba(0,0,0,.05)
 }
 .dark{
-background:#18212f;
-color:white
+background:linear-gradient(135deg,#18212f 0%,#1e2b40 52%,#293f68 100%);
+color:white;
+align-self:start;
 }
 h1{
 font-size:46px;
@@ -1494,16 +1495,37 @@ font-size:36px
 .free{
     display:grid !important;
     grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:12px !important;
-    margin-top:18px !important;
+    gap:14px !important;
+    margin-top:24px !important;
 }
 .free a{
     display:block;
     min-width:0;
     margin:0 !important;
-    padding:14px !important;
-    border-radius:12px;
+    padding:15px 16px !important;
+    border-radius:13px;
     text-decoration:none;
+    background:rgba(255,255,255,.10) !important;
+    border:1px solid rgba(255,255,255,.07);
+    box-shadow:0 4px 12px rgba(0,0,0,.10);
+    transition:
+        transform .18s ease,
+        background .18s ease,
+        box-shadow .18s ease,
+        border-color .18s ease;
+}
+.free a:hover{
+    transform:translateY(-4px);
+    background:rgba(255,255,255,.17) !important;
+    border-color:rgba(255,255,255,.18);
+    box-shadow:0 10px 22px rgba(0,0,0,.22);
+}
+.free a:active{
+    transform:translateY(-1px);
+}
+.free a strong{
+    display:inline-block;
+    margin-bottom:2px;
 }
 .education-grid{
     display:grid !important;
@@ -1513,6 +1535,14 @@ font-size:36px
 .education-card{
     min-width:0;
 }
+@media(max-width:800px){
+    .grid{
+        grid-template-columns:1fr;
+    }
+    .dark{
+        align-self:auto;
+    }
+}
 @media(max-width:760px){
     body{
         overflow-x:hidden;
@@ -1520,10 +1550,10 @@ font-size:36px
     .free{
         grid-template-columns:repeat(2,minmax(0,1fr)) !important;
         gap:10px !important;
-        margin-top:14px !important;
+        margin-top:20px !important;
     }
     .free a{
-        padding:12px 10px !important;
+        padding:13px 11px !important;
         font-size:13px;
         line-height:1.35;
     }
@@ -1558,10 +1588,20 @@ font-size:36px
 }
 @media(max-width:430px){
     .free a{
-        min-height:76px;
+        min-height:74px;
     }
     .free a strong{
         font-size:14px;
+    }
+}
+
+.sic-title{
+    margin-top:20px;
+    margin-bottom:0;
+}
+@media(max-width:800px){
+    .sic-title{
+        white-space:normal !important;
     }
 }
 </style>
@@ -1622,7 +1662,7 @@ Accedi
 SERVIZIO GRATUITO
 </small>
 
-<h2 style="white-space:nowrap">
+<h2 class="sic-title">
 Controlla autonomamente le banche dati
 </h2>
 
