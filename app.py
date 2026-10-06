@@ -1470,6 +1470,23 @@ h1{
 font-size:36px
 }
 }
+
+.education{margin-top:45px;padding:35px;background:#18212f;color:white;border-radius:20px;box-shadow:0 15px 40px rgba(0,0,0,.08)}
+.education-head{display:flex;justify-content:space-between;align-items:flex-start;gap:25px;margin-bottom:25px}
+.education-head small{color:#aeb7c6;font-weight:700;letter-spacing:.4px}
+.education-head h2{font-size:34px;margin:8px 0 6px}
+.education-head p{margin:0;color:#d4dae3;max-width:700px}
+.education-badge{background:#4f46e5;padding:9px 13px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}
+.education-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
+.education-card{display:block;padding:22px;background:#293241;border:1px solid rgba(255,255,255,.08);border-radius:15px;color:white;text-decoration:none;transition:transform .15s,background .15s}
+.education-card:hover{transform:translateY(-3px);background:#323c4c}
+.education-card span{display:inline-block;font-size:12px;color:#aeb7c6;font-weight:800;margin-bottom:16px}
+.education-card strong{display:block;font-size:18px;line-height:1.3;margin-bottom:9px}
+.education-card p{font-size:14px;line-height:1.5;color:#cbd2dc;margin:0 0 18px}
+.education-card b{font-size:13px;color:#fff}
+.education-cta{margin-top:18px;padding:18px 20px;border-radius:13px;background:#f5f7fa;color:#18212f;display:flex;justify-content:space-between;gap:20px;align-items:center}
+.education-cta strong{font-size:15px}.education-cta span{font-size:13px;color:#697586}
+@media(max-width:800px){.education-head{flex-direction:column}.education-grid{grid-template-columns:1fr}.education-cta{flex-direction:column;align-items:flex-start}}
 </style>
 </head>
 <body>
@@ -1568,6 +1585,23 @@ Modulo ufficiale
 </div>
 
 </div>
+
+<section class="education">
+  <div class="education-head">
+    <div>
+      <small>IMPARA A CAPIRE LA TUA SITUAZIONE</small>
+      <h2>Educazione finanziaria</h2>
+      <p>Informazioni semplici e concrete per orientarti tra debiti, rate, segnalazioni e possibilità da approfondire.</p>
+    </div>
+    <div class="education-badge">GUIDE GRATUITE</div>
+  </div>
+  <div class="education-grid">
+    <a href="#" class="education-card"><span>01</span><strong>Capire la propria situazione debitoria</strong><p>Da dove partire e quali dati raccogliere prima di prendere decisioni.</p><b>Leggi la guida →</b></a>
+    <a href="#" class="education-card"><span>02</span><strong>CRIF, Experian e CTC: cosa sono?</strong><p>Come funzionano i SIC e quali informazioni possono contenere.</p><b>Leggi la guida →</b></a>
+    <a href="#" class="education-card"><span>03</span><strong>Quando le rate diventano difficili da sostenere</strong><p>Come valutare entrate, spese, rate e disponibilità mensile.</p><b>Leggi la guida →</b></a>
+  </div>
+  <div class="education-cta"><strong>Prima di affrontare un problema, impara a leggerlo.</strong><span>Le guide FixTude sono gratuite e pensate per essere comprensibili a tutti.</span></div>
+</section>
 
 <footer style="margin-top:60px;padding:25px 0;border-top:1px solid #ddd">
 FixTude · <a href="mailto:info@fixtude.it">info@fixtude.it</a> · P. IVA: 15990471003
