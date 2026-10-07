@@ -2333,12 +2333,46 @@ def resolver_login():
 
         user = find_user(email)
 
+        # Accesso demo Risolutore: le credenziali pubblicate sono sempre valide.
+        # Se il database di Render è vecchio, ricrea/aggiorna comunque l'utente.
+        demo_resolver = (
+            email == "pro@fixtude.it"
+            and password == "1234"
+        )
+
+        if demo_resolver:
+            try:
+                conn = db_connect()
+                existing = conn.execute(
+                    "SELECT id FROM users WHERE email = ?",
+                    ("pro@fixtude.it",)
+                ).fetchone()
+                password_hash = generate_password_hash("1234")
+                if existing:
+                    conn.execute(
+                        "UPDATE users SET password_hash = ?, role = 'resolver' WHERE email = ?",
+                        (password_hash, "pro@fixtude.it")
+                    )
+                else:
+                    conn.execute(
+                        "INSERT INTO users (email, password_hash, role, created_at) VALUES (?, ?, 'resolver', ?)",
+                        ("pro@fixtude.it", password_hash, now_iso())
+                    )
+                conn.commit()
+                conn.close()
+                user = find_user(email)
+            except Exception:
+                app.logger.exception("Impossibile sincronizzare l'account demo Risolutore.")
+
         valid = bool(
-            user
-            and user["role"] == "resolver"
-            and check_password_hash(
-                user["password_hash"],
-                password
+            demo_resolver
+            or (
+                user
+                and user["role"] == "resolver"
+                and check_password_hash(
+                    user["password_hash"],
+                    password
+                )
             )
         )
 
