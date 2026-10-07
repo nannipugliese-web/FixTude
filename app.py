@@ -1676,7 +1676,9 @@ font-size:36px
 Fix<span>Tude</span>
 </div>
 <div>
-<a href="/privato/login">Accedi</a>
+<a href="/privato/login">👤 Debitore</a>
+&nbsp;&nbsp;
+<a href="/risolutore/login">🧑‍💼 Risolutore</a>
 &nbsp;&nbsp;
 <a href="/registrazione">Registrati</a>
 </div>
@@ -1712,7 +1714,12 @@ Registrati gratuitamente
 
 <a class="button light"
 href="/privato/login">
-Accedi
+👤 Accedi come Debitore
+</a>
+
+<a class="button light"
+href="/risolutore/login" style="margin-top:10px">
+🧑‍💼 Accedi come Risolutore
 </a>
 
 </div>
@@ -2273,6 +2280,14 @@ def debtor_login():
             "password",
             ""
         )
+
+        # Se le credenziali demo del Risolutore vengono inserite nella login
+        # generale, accompagniamo automaticamente l'utente alla login corretta.
+        # Questo evita l'errore "Email o password non corretti" quando si parte
+        # dal pulsante Accedi della home page. Il blocco di login del Risolutore
+        # resta invariato.
+        if email == "pro@fixtude.it" and password == "1234":
+            return redirect(url_for("resolver_login"))
 
         user = find_user(email)
 
