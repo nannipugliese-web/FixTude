@@ -39,7 +39,9 @@ app.secret_key = os.environ.get(
 
 BASE_DIR = Path(__file__).resolve().parent
 
-DB_PATH = BASE_DIR / "fixtude.db"
+_default_db = Path("/var/data/fixtude.db") if Path("/var/data").exists() else (BASE_DIR / "fixtude.db")
+DB_PATH = Path(os.environ.get("FIXTUDE_DB_PATH", str(_default_db))).expanduser()
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 UPLOAD_DIR = BASE_DIR / "uploads"
 PDF_DIR = BASE_DIR / "generated_pdfs"
 
@@ -73,8 +75,8 @@ PAYMENT_SERVICES = {
         "currency": "eur"
     },
     "pdf": {
-        "name": "Documento FixTude",
-        "description": "Documento PDF definitivo validato dall'Esperto.",
+        "name": "Kit FixTude",
+        "description": "Kit PDF FixTude personalizzato e validato dall'Esperto.",
         "amount": 999,
         "currency": "eur"
     }
@@ -365,6 +367,21 @@ def init_db():
                     generate_password_hash(data["password"]),
                     data["role"],
                     now_iso()
+                )
+            )
+        else:
+            # Account demo sempre coerenti con le credenziali pubblicate.
+            # Non modifichiamo gli account normali registrati dagli utenti.
+            conn.execute(
+                """
+                UPDATE users
+                SET password_hash = ?, role = ?
+                WHERE email = ?
+                """,
+                (
+                    generate_password_hash(data["password"]),
+                    data["role"],
+                    email
                 )
             )
 
