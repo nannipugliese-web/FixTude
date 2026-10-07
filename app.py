@@ -1685,7 +1685,7 @@ possibili scenari da approfondire.
 <strong>✓ Analisi automatica</strong><br>
 <strong>✓ Possibili scenari</strong><br>
 <strong>✓ Esperto FixTude</strong><br>
-<strong>✓ Generazione di documenti PDF</strong>
+<strong>✓ KIT PDF FixTude</strong>
 </p>
 
 <a class="button primary"
