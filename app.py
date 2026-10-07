@@ -1465,6 +1465,23 @@ color:white
 background:#eef0f4;
 color:#18212f
 }
+.access-buttons{
+display:flex;
+gap:10px;
+margin-top:5px;
+}
+.access-buttons .button{
+flex:1;
+text-align:center;
+margin:0;
+white-space:nowrap;
+}
+@media(max-width:760px){
+.access-buttons .button{
+font-size:13px;
+padding:12px 8px;
+}
+}
 .free{
 display:grid;
 grid-template-columns:1fr 1fr;
@@ -1678,7 +1695,7 @@ Fix<span>Tude</span>
 <div>
 <a href="/privato/login">👤 Debitore</a>
 &nbsp;&nbsp;
-<a href="/risolutore/login">🧑‍💼 Risolutore</a>
+<a href="/risolutore/login">🛡️ Area Riservata Staff FixTude</a>
 &nbsp;&nbsp;
 <a href="/registrazione">Registrati</a>
 </div>
@@ -1712,15 +1729,15 @@ href="/registrazione">
 Registrati gratuitamente
 </a>
 
-<a class="button light"
-href="/privato/login">
+<div class="access-buttons">
+<a class="button light" href="/privato/login">
 👤 Accedi come Debitore
 </a>
 
-<a class="button light"
-href="/risolutore/login" style="margin-top:10px">
-🧑‍💼 Accedi come Risolutore
+<a class="button light" href="/risolutore/login">
+🛡️ Area Riservata Staff FixTude
 </a>
+</div>
 
 </div>
 
@@ -2186,7 +2203,7 @@ body{font-family:Arial;background:#f6f8fb}.box{max-width:430px;margin:80px auto;
 <body>
 <div class="box">
 <a href="/">← FixTude</a>
-<h1>{% if role == "debtor" %}Accesso area privata{% else %}Accesso Esperto{% endif %}</h1>
+<h1>{% if role == "debtor" %}Accesso area privata{% else %}Area Riservata Staff FixTude{% endif %}</h1>
 {% if error %}<div class="error">{{ error }}</div>{% endif %}
 <form method="post">
 <label>Email</label>
@@ -4173,7 +4190,7 @@ def resolver_case(case_id):
           </div>
 
           <div class="card wide">
-            <h2>Azioni del Risolutore</h2>
+            <h2>Azioni dello Staff</h2>
             <div class="actions">
               <form method="post" action="{{ url_for('resolver_run_analysis', case_id=case.id) }}">
                 <button class="primary">Genera / rigenera analisi</button>
