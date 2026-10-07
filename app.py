@@ -16,6 +16,7 @@ import uuid
 import secrets
 import smtplib
 import threading
+import re
 from email.message import EmailMessage
 from datetime import datetime, timezone
 from pathlib import Path
@@ -47,6 +48,8 @@ PDF_DIR = BASE_DIR / "generated_pdfs"
 
 UPLOAD_DIR.mkdir(exist_ok=True)
 PDF_DIR.mkdir(exist_ok=True)
+KIT_LIBRARY_DIR = (Path("/var/data") / "kit_library") if Path("/var/data").exists() else (BASE_DIR / "kit_library")
+KIT_LIBRARY_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ============================================================
@@ -329,6 +332,9 @@ def init_db():
             FOREIGN KEY(payment_id) REFERENCES payments(id) ON DELETE CASCADE
         )
     """)
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS kit_library (id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,category TEXT NOT NULL DEFAULT 'Generale',description TEXT,file_path TEXT NOT NULL,original_filename TEXT NOT NULL,validated INTEGER NOT NULL DEFAULT 0,active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS solution_attachments (id INTEGER PRIMARY KEY AUTOINCREMENT,solution_id INTEGER NOT NULL,library_id INTEGER NOT NULL,created_at TEXT NOT NULL,UNIQUE(solution_id,library_id),FOREIGN KEY(solution_id) REFERENCES solution_documents(id) ON DELETE CASCADE,FOREIGN KEY(library_id) REFERENCES kit_library(id) ON DELETE CASCADE)""")
 
     # Campi aggiunti senza rompere i database FixTude già esistenti.
     existing_columns = {
@@ -3952,299 +3958,198 @@ def case_analysis():
 # RESOLVER DASHBOARD
 # ============================================================
 
+# ============================================================
+# STAFF / ESPERTO DASHBOARD
+# ============================================================
+
+def get_case_payment_state(case_id, email):
+    return {"analysis": get_paid_payment(email, case_id, "analysis"), "kit": get_paid_payment(email, case_id, "pdf")}
+
+def get_library_files(active_only=True):
+    conn=db_connect(); sql="SELECT * FROM kit_library" + (" WHERE active=1" if active_only else "") + " ORDER BY category,title"; rows=conn.execute(sql).fetchall(); conn.close(); return rows
+
+def get_solution_attachments(solution_id):
+    conn=db_connect(); rows=conn.execute("SELECT kl.* FROM solution_attachments sa JOIN kit_library kl ON kl.id=sa.library_id WHERE sa.solution_id=? ORDER BY kl.category,kl.title",(solution_id,)).fetchall(); conn.close(); return rows
+
+def save_solution_attachments(solution_id, library_ids):
+    conn=db_connect(); conn.execute("DELETE FROM solution_attachments WHERE solution_id=?",(solution_id,))
+    for raw in library_ids:
+        try: lid=int(raw)
+        except (TypeError,ValueError): continue
+        conn.execute("INSERT OR IGNORE INTO solution_attachments(solution_id,library_id,created_at) VALUES(?,?,?)",(solution_id,lid,now_iso()))
+    conn.commit(); conn.close()
+
+def get_paid_service_label(case_id,email):
+    state=get_case_payment_state(case_id,email)
+    if state["kit"]: return "KIT FIXTUDE — €9,99","kit"
+    if state["analysis"]: return "ANALISI FIXTUDE — €1,99","analysis"
+    return "NESSUN SERVIZIO PAGATO","none"
+
+def build_paid_response_content(case_id):
+    calc=calculate_case(case_id); data=get_case_data(case_id); analysis=latest_analysis(case_id)
+    name=((data.get("name","")+" "+data.get("surname","")).strip() or "Cliente FixTude")
+    scenarios=(analysis or {}).get("scenarios",[]) if analysis else []; warnings=calc.get("warnings",[])
+    lines=[
+      "RISPOSTA FIXTUDE — ANALISI DELLA SITUAZIONE","",f"Cliente: {name}",f"Data elaborazione: {datetime.now().strftime('%d/%m/%Y')}","",
+      "1. OGGETTO E FINALITÀ","La presente risposta riepiloga i dati forniti dal cliente e restituisce una lettura organizzata della situazione economica e debitoria. L'obiettivo è aiutare il cliente a comprendere i principali elementi di pressione finanziaria e a individuare possibili percorsi da approfondire. Le valutazioni sono indicative e non costituiscono parere legale, finanziario o garanzia di accettazione da parte dei creditori.","",
+      "2. QUADRO ECONOMICO RILEVATO",f"Entrate mensili dichiarate: € {calc['total_income']:.2f}",f"Spese mensili dichiarate: € {calc['total_expenses']:.2f}",f"Disponibilità teorica residua: € {calc['monthly_capacity']:.2f}",f"Debito complessivo dichiarato: € {calc['total_debt']:.2f}",f"Rate mensili dichiarate: € {calc['total_payments']:.2f}",f"Incidenza delle rate sulle entrate: {(calc['total_payments']/calc['total_income']*100 if calc['total_income'] else 0):.1f}%",f"Valutazione sintetica di sostenibilità: {calc['sustainability']}","",
+      "3. LETTURA DELLA SITUAZIONE","I dati inseriti devono essere letti nel loro insieme. La differenza tra entrate e spese rappresenta una disponibilità teorica e non equivale automaticamente alla somma che un creditore accetterà come rata. La sostenibilità di un eventuale piano dipende inoltre dalla regolarità dei redditi, dalle spese non ricorrenti, dal numero e dalla natura delle posizioni e dalle condizioni richieste dalle singole controparti.","",
+      "4. ELEMENTI DI ATTENZIONE"]
+    lines += [f"• {w}" for w in warnings] if warnings else ["Non sono emersi avvisi automatici particolari sulla base dei dati inseriti."]
+    lines += ["","5. POSSIBILI PERCORSI DA APPROFONDIRE"]
+    if scenarios:
+        for sc in scenarios:
+            lines.append(f"• {sc.get('title','Scenario')} — {sc.get('description','')}")
+            if sc.get("estimated_monthly"): lines.append(f"  Rata simulata: € {sc['estimated_monthly']:.2f}; durata indicativa: {sc.get('months','n.d.')} mesi.")
+            if sc.get("estimated_amount"): lines.append(f"  Importo transattivo simulato: € {sc['estimated_amount']:.2f}.")
+    else: lines.append("È opportuno completare l'analisi prima di formulare una simulazione economica.")
+    lines += ["","6. INDICAZIONI OPERATIVE","Prima di assumere impegni è consigliabile verificare ogni posizione con la documentazione disponibile: contratto, estratto della posizione, comunicazioni ricevute, importi richiesti e scadenze. Eventuali richieste di rateizzazione, rinegoziazione o definizione transattiva devono essere rivolte al creditore competente e diventano efficaci solo se accettate dalla controparte secondo le modalità previste.","","7. CONCLUSIONE","Sulla base dei dati forniti, FixTude ha organizzato la situazione e individuato le principali aree sulle quali concentrare l'attenzione. Le simulazioni contenute nella presente risposta servono esclusivamente come supporto informativo. Se la situazione presenta elementi complessi, contestazioni, procedure giudiziarie o importi rilevanti, è opportuno sottoporre la documentazione a un professionista qualificato prima di assumere decisioni.","","NOTA FIXTUDE","Questo documento è stato preparato sulla base delle informazioni inserite nel servizio. FixTude non garantisce l'esito di richieste, trattative o procedure e non sostituisce un professionista abilitato."]
+    return "\n\n".join(lines)
+
+def generate_staff_response_pdf(solution_id):
+    conn=db_connect(); solution=conn.execute("SELECT * FROM solution_documents WHERE id=?",(solution_id,)).fetchone(); conn.close()
+    if not solution: raise FileNotFoundError("Documento non trovato.")
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+    from reportlab.lib.units import mm
+    path=PDF_DIR/f"fixtude_risposta_{solution_id}.pdf"; styles=getSampleStyleSheet()
+    body=ParagraphStyle("FixBody",parent=styles["BodyText"],fontName="Helvetica",fontSize=10.5,leading=15,spaceAfter=7)
+    h=ParagraphStyle("FixH",parent=styles["Heading2"],fontName="Helvetica-Bold",fontSize=15,leading=19,spaceBefore=5,spaceAfter=10)
+    title=ParagraphStyle("FixTitle",parent=styles["Title"],fontName="Helvetica-Bold",fontSize=22,leading=26,alignment=1,spaceAfter=15)
+    story=[Paragraph("FixTude",title),Paragraph(_safe_pdf_text(solution["title"]),h),Spacer(1,5*mm)]
+    paragraphs=[x.strip() for x in solution["content"].split("\n\n") if x.strip()]
+    # Tre pagine minime: separazione strutturale, senza ripetere artificialmente il contenuto.
+    cut1=max(1,len(paragraphs)//3); cut2=max(cut1+1,(len(paragraphs)*2)//3)
+    for idx,block in enumerate(paragraphs):
+        if idx==cut1 or idx==cut2: story.append(PageBreak())
+        safe=_safe_pdf_text(block).replace("\n","<br/>")
+        story.append(Paragraph(safe,h if re.match(r"^[0-9]+\.",block) or block in ("RISPOSTA FIXTUDE — ANALISI DELLA SITUAZIONE","NOTA FIXTUDE") else body))
+    story.append(Spacer(1,8*mm)); story.append(Paragraph("Documento informativo FixTude. Non costituisce parere legale o finanziario.",body))
+    SimpleDocTemplate(str(path),pagesize=A4,rightMargin=19*mm,leftMargin=19*mm,topMargin=18*mm,bottomMargin=18*mm).build(story)
+    return str(path)
+
 @app.route("/risolutore")
 def resolver_dashboard():
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    conn=db_connect(); cases=conn.execute("SELECT * FROM cases ORDER BY id DESC").fetchall(); conn.close()
+    rows=[]
+    for case in cases:
+        label,service=get_paid_service_label(case["id"],case["email"]); rows.append({"case":case,"data":get_case_data(case["id"]),"service_label":label,"service":service,"solutions":get_solutions(case["id"])})
+    return render_template_string('''<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Area Riservata Staff FixTude</title><style>*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#18212f;font-family:Arial}.wrap{max-width:1180px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;align-items:center}.brand{font-size:27px;font-weight:800}.muted{color:#687385}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}.stat,.card{background:#fff;border:1px solid #e2e7ef;border-radius:15px;padding:18px;box-shadow:0 4px 16px rgba(20,30,50,.04)}.stat b{font-size:25px;display:block;margin-top:5px}.tabs{display:flex;gap:8px;margin:15px 0}.tab{background:#eef1f7;border-radius:9px;padding:8px 12px;font-weight:700}.case{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center}.badge{display:inline-block;padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800;background:#eef0f6}.paid{background:#e8f8f0;color:#166b46}.pending{background:#fff4d9;color:#745500}.btn{display:inline-block;border:0;border-radius:9px;padding:10px 14px;text-decoration:none;font-weight:700;background:#4f46e5;color:white}.library-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}@media(max-width:800px){.grid{grid-template-columns:1fr 1fr}.library-grid{grid-template-columns:1fr}.case{grid-template-columns:1fr}}@media(max-width:500px){.grid{grid-template-columns:1fr}}</style></head><body><div class="wrap"><div class="top"><div><div class="brand">Area Riservata Staff FixTude</div><div class="muted">Pratiche, risposte, PDF e KIT da validare</div></div><a href="{{url_for('logout')}}">Esci</a></div><div class="grid"><div class="stat">Pratiche<b>{{rows|length}}</b></div><div class="stat">Analisi €1,99<b>{{rows|selectattr('service','equalto','analysis')|list|length}}</b></div><div class="stat">Kit €9,99<b>{{rows|selectattr('service','equalto','kit')|list|length}}</b></div><div class="stat">Libreria PDF<b>{{library|length}}</b></div></div><div class="tabs"><span class="tab">📂 Tutte le pratiche</span><a class="tab" href="#libreria">📚 Libreria PDF</a></div>{% for row in rows %}<div class="card" style="margin-bottom:12px"><div class="case"><div><strong>Pratica #{{row.case.id}}</strong> · {{row.data.get('name','Cliente')}} {{row.data.get('surname','')}}</div><div><div class="muted">{{row.case.email}}</div><span class="badge {{'paid' if row.service!='none' else 'pending'}}">{{row.service_label}}</span> <span class="badge">{{row.solutions|length}} documenti</span></div><a class="btn" href="{{url_for('resolver_case',case_id=row.case.id)}}">Apri pratica →</a></div></div>{% else %}<div class="card">Nessuna pratica.</div>{% endfor %}<div id="libreria" class="card"><h2>Libreria PDF FixTude</h2><p class="muted">Carica i PDF che lo Staff potrà selezionare, validare e inviare ai clienti del KIT.</p><form method="post" action="{{url_for('kit_library_upload')}}" enctype="multipart/form-data"><input name="title" required placeholder="Titolo" style="padding:10px;width:28%"><input name="category" placeholder="Categoria" style="padding:10px;width:18%"><input name="file" required type="file" accept="application/pdf"><button class="btn">Carica PDF</button></form><div class="library-grid" style="margin-top:14px">{% for f in library %}<div class="stat"><strong>{{f.title}}</strong><div class="muted">{{f.category}} · {{'VALIDATO' if f.validated else 'DA VALIDARE'}}</div><div>{{f.original_filename}}</div>{% if not f.validated %}<form method="post" action="{{url_for('kit_library_validate',library_id=f.id)}}"><button class="btn" style="margin-top:8px">Valida PDF</button></form>{% endif %}<a href="{{url_for('kit_library_download',library_id=f.id)}}">Scarica / verifica</a></div>{% endfor %}</div></div></div></body></html>''',rows=rows,library=get_library_files())
 
-    user = require_login(
-        "resolver"
-    )
+@app.route("/risolutore/libreria/upload",methods=["POST"])
+def kit_library_upload():
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    uploaded=request.files.get("file"); title=request.form.get("title","").strip(); category=request.form.get("category","Generale").strip() or "Generale"
+    if not uploaded or not uploaded.filename.lower().endswith(".pdf") or not title: return redirect(url_for("resolver_dashboard"))
+    filename=secure_filename(uploaded.filename); path=KIT_LIBRARY_DIR/f"{uuid.uuid4().hex}_{filename}"; uploaded.save(path)
+    conn=db_connect(); conn.execute("INSERT INTO kit_library(title,category,description,file_path,original_filename,validated,active,created_at,updated_at) VALUES(?,?,?,?,?,0,1,?,?)",(title,category,"",str(path),filename,now_iso(),now_iso())); conn.commit(); conn.close()
+    return redirect(url_for("resolver_dashboard")+"#libreria")
 
-    if not user:
-        return redirect(
-            url_for("resolver_login")
-        )
+@app.route("/risolutore/libreria/<int:library_id>/valida",methods=["POST"])
+def kit_library_validate(library_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    conn=db_connect(); conn.execute("UPDATE kit_library SET validated=1,updated_at=? WHERE id=?",(now_iso(),library_id)); conn.commit(); conn.close(); return redirect(url_for("resolver_dashboard")+"#libreria")
 
-    conn = db_connect()
+@app.route("/risolutore/libreria/<int:library_id>/download")
+def kit_library_download(library_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    conn=db_connect(); row=conn.execute("SELECT * FROM kit_library WHERE id=?",(library_id,)).fetchone(); conn.close()
+    if not row or not Path(row["file_path"]).exists(): abort(404)
+    return send_file(row["file_path"],as_attachment=True,download_name=row["original_filename"])
 
-    cases = conn.execute(
-        """
-        SELECT *
-        FROM cases
-        ORDER BY id DESC
-        """
-    ).fetchall()
-
-    conn.close()
-
-    return render_template_string(
-        """
-        <!doctype html>
-        <html lang="it">
-        <body style="font-family:Arial;background:#f6f8fb">
-
-        <div style="max-width:900px;margin:auto;padding:30px">
-
-        <div style="display:flex;justify-content:space-between">
-
-        <h1>Esperto FixTude</h1>
-
-        <a href="{{ url_for('logout') }}">
-        Esci
-        </a>
-
-        </div>
-
-        {% for case in cases %}
-
-        {% set data = get_case_data(case.id) %}
-
-        <div style="background:white;padding:20px;border-radius:15px;margin:15px 0">
-
-        <h2>
-        {{ data.get('name','Cliente') }}
-        {{ data.get('surname','') }}
-        </h2>
-
-        <p>
-        {{ case.email }}
-        </p>
-
-        <a href="{{ url_for('resolver_case', case_id=case.id) }}">
-        Apri pratica →
-        </a>
-
-        </div>
-
-        {% else %}
-
-        <div style="background:white;padding:25px;border-radius:15px">
-        Nessuna pratica.
-        </div>
-
-        {% endfor %}
-
-        </div>
-        </body>
-        </html>
-        """,
-        cases=cases,
-        get_case_data=get_case_data
-    )
-
-
-@app.route(
-    "/risolutore/pratica/<int:case_id>"
-)
+@app.route("/risolutore/pratica/<int:case_id>")
 def resolver_case(case_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    case=get_case(case_id)
+    if not case: abort(404)
+    calc=calculate_case(case_id); analysis=latest_analysis(case_id); solutions=get_solutions(case_id); service_label,service=get_paid_service_label(case_id,case["email"]); library=get_library_files()
+    response_solution=next((x for x in solutions if x["solution_type"] in ("paid_response","kit_report")),None); response_attachments=get_solution_attachments(response_solution["id"]) if response_solution else []
+    payment_ratio=round(calc["total_payments"]/calc["total_income"]*100,1) if calc["total_income"] else 0; situation_label="DA APPROFONDIRE" if calc["monthly_capacity"]<=0 else ("SOTTO PRESSIONE" if calc["total_payments"]>calc["monthly_capacity"] else "DA VALUTARE")
+    return render_template_string('''<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pratica #{{case.id}} — Staff FixTude</title><style>*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#18212f;font-family:Arial}.wrap{max-width:1180px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between}.hero{background:#18212f;color:#fff;border-radius:18px;padding:22px;margin:15px 0}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:#fff;border:1px solid #e3e8ef;border-radius:15px;padding:20px;margin:12px 0}.metric{font-size:23px;font-weight:800}.muted{color:#6b7482}.badge{display:inline-block;padding:7px 10px;border-radius:999px;background:#e8f8f0;color:#176945;font-size:12px;font-weight:800}.warning{background:#fff6df;border:1px solid #eed69a;padding:12px;border-radius:10px;margin:8px 0}.lib{display:grid;grid-template-columns:1fr 1fr;gap:8px}.lib label{display:block;padding:10px;border:1px solid #dfe5ed;border-radius:9px;background:#fafbfd}.btn{display:inline-block;border:0;border-radius:9px;padding:10px 14px;font-weight:700;text-decoration:none;cursor:pointer;background:#4f46e5;color:#fff}.sec{background:#edf0f6;color:#253047}textarea{width:100%;min-height:330px;padding:13px;border:1px solid #d9e0ea;border-radius:10px;font-family:Arial;line-height:1.5}@media(max-width:800px){.grid{grid-template-columns:1fr 1fr}.lib{grid-template-columns:1fr}}@media(max-width:500px){.grid{grid-template-columns:1fr}}</style></head><body><div class="wrap"><div class="top"><a href="{{url_for('resolver_dashboard')}}">← Dashboard Staff</a><a href="{{url_for('logout')}}">Esci</a></div><div class="hero"><div style="color:#b9c2d0">PRATICA #{{case.id}} · {{service_label}}</div><h1>{{calc.data.get('name','Cliente')}} {{calc.data.get('surname','')}}</h1><div>{{case.email}}</div><p><span class="badge">{{situation_label}}</span></p></div><div class="grid"><div class="card"><div class="muted">Entrate</div><div class="metric">€ {{'%.2f'|format(calc.total_income)}}</div></div><div class="card"><div class="muted">Spese</div><div class="metric">€ {{'%.2f'|format(calc.total_expenses)}}</div></div><div class="card"><div class="muted">Debito</div><div class="metric">€ {{'%.2f'|format(calc.total_debt)}}</div></div><div class="card"><div class="muted">Rate / reddito</div><div class="metric">{{payment_ratio}}%</div></div></div><div class="card"><h2>Dati cliente e posizioni</h2><p><b>Email:</b> {{case.email}}</p><p><b>Telefono:</b> {{calc.data.get('phone','—')}}</p><p><b>Indirizzo:</b> {{calc.data.get('address','—')}}</p>{% for d in calc.debts %}<div style="padding:10px;border-top:1px solid #edf0f4"><b>{{d.creditor}}</b> · {{d.debt_type or 'Posizione'}} · € {{'%.2f'|format(d.current_amount)}} · rata € {{'%.2f'|format(d.monthly_payment)}}</div>{% endfor %}</div><div class="card"><h2>Analisi e generatore di risposte</h2><form method="post" action="{{url_for('resolver_run_analysis',case_id=case.id)}}"><button class="btn">Genera / rigenera analisi</button></form>{% if analysis %}<div style="margin-top:15px;white-space:pre-line;line-height:1.55">{{analysis.summary}}</div>{% for w in calc.warnings %}<div class="warning">⚠ {{w}}</div>{% endfor %}{% endif %}</div>{% if service=='analysis' %}<div class="card"><h2>Risposta cliente — €1,99</h2><p class="muted">La risposta deve essere articolata e il PDF deve avere almeno 3 pagine. Il testo è modificabile prima dell'invio.</p>{% if response_solution %}<form method="post" action="{{url_for('save_paid_response',solution_id=response_solution.id)}}"><textarea name="content">{{response_solution.content}}</textarea><p><button class="btn sec">Salva e rigenera PDF</button> <a class="btn" href="{{url_for('download_solution',solution_id=response_solution.id)}}">Anteprima PDF</a></p></form><form method="post" action="{{url_for('send_paid_response',solution_id=response_solution.id)}}"><button class="btn">✓ Valida e invia al cliente da info@fixtude.it</button></form>{% else %}<form method="post" action="{{url_for('generate_paid_response',case_id=case.id)}}"><button class="btn">Genera risposta articolata + PDF</button></form>{% endif %}</div>{% endif %}{% if service=='kit' %}<div class="card"><h2>Kit FixTude — €9,99</h2><p class="muted">Seleziona i PDF della libreria, verifica il contenuto e inviali insieme al rapporto personalizzato.</p><form method="post" action="{{url_for('prepare_kit',case_id=case.id)}}"><div class="lib">{% for f in library %}<label><input type="checkbox" name="library_ids" value="{{f.id}}" {% if f.id in response_attachments|map(attribute='id')|list %}checked{% endif %}> <b>{{f.title}}</b><br><span class="muted">{{f.category}} · {{'VALIDATO' if f.validated else 'DA VALIDARE'}}</span></label>{% endfor %}</div><p><button class="btn">Salva selezione KIT</button></p></form>{% if response_solution %}<a class="btn" href="{{url_for('download_solution',solution_id=response_solution.id)}}">Scarica rapporto personalizzato</a>{% endif %}<form method="post" action="{{url_for('send_kit',case_id=case.id)}}" style="margin-top:10px"><button class="btn">✓ Valida e invia KIT al cliente da info@fixtude.it</button></form></div>{% endif %}<div class="card"><h2>Documenti</h2>{% for s in solutions %}<div style="border-top:1px solid #edf0f4;padding:12px 0"><b>{{s.title}}</b> · {{s.status}} {% if s.final_email_sent_at %}· Email inviata{% endif %}{% if s.pdf_path %} · <a href="{{url_for('download_solution',solution_id=s.id)}}">PDF</a>{% endif %}</div>{% else %}<p class="muted">Nessun documento.</p>{% endfor %}</div></div></body></html>''',case=case,calc=calc,analysis=analysis,solutions=solutions,service=service,service_label=service_label,library=library,response_solution=response_solution,response_attachments=response_attachments,payment_ratio=payment_ratio,situation_label=situation_label)
 
-    user = require_login(
-        "resolver"
-    )
+@app.route("/risolutore/pratica/<int:case_id>/genera-risposta",methods=["POST"])
+def generate_paid_response(case_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    case=get_case(case_id)
+    if not case: abort(404)
+    if not get_paid_payment(case["email"],case_id,"analysis") and not get_paid_payment(case["email"],case_id,"pdf"): abort(403)
+    content=build_paid_response_content(case_id); conn=db_connect(); existing=conn.execute("SELECT * FROM solution_documents WHERE case_id=? AND solution_type='paid_response' ORDER BY id DESC LIMIT 1",(case_id,)).fetchone(); ts=now_iso()
+    if existing: conn.execute("UPDATE solution_documents SET title=?,content=?,status='pending_review',updated_at=?,approved_at=NULL,sent_at=NULL WHERE id=?",("Risposta FixTude",content,ts,existing["id"])); sid=existing["id"]
+    else: sid=conn.execute("INSERT INTO solution_documents(case_id,title,solution_type,content,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",(case_id,"Risposta FixTude","paid_response",content,"pending_review",ts,ts)).lastrowid
+    conn.commit(); conn.close(); path=generate_staff_response_pdf(sid); conn=db_connect(); conn.execute("UPDATE solution_documents SET pdf_path=?,updated_at=? WHERE id=?",(path,now_iso(),sid)); conn.commit(); conn.close(); return redirect(url_for("resolver_case",case_id=case_id))
 
-    if not user:
-        return redirect(
-            url_for("resolver_login")
-        )
+@app.route("/risolutore/soluzione/<int:solution_id>/salva-risposta",methods=["POST"])
+def save_paid_response(solution_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    content=request.form.get("content","").strip(); conn=db_connect(); sol=conn.execute("SELECT * FROM solution_documents WHERE id=?",(solution_id,)).fetchone()
+    if not sol: conn.close(); abort(404)
+    conn.execute("UPDATE solution_documents SET content=?,status='pending_review',approved_at=NULL,sent_at=NULL,updated_at=? WHERE id=?",(content,now_iso(),solution_id)); case_id=sol["case_id"]; conn.commit(); conn.close(); path=generate_staff_response_pdf(solution_id); conn=db_connect(); conn.execute("UPDATE solution_documents SET pdf_path=?,updated_at=? WHERE id=?",(path,now_iso(),solution_id)); conn.commit(); conn.close(); return redirect(url_for("resolver_case",case_id=case_id))
 
-    case = get_case(case_id)
+@app.route("/risolutore/pratica/<int:case_id>/kit",methods=["POST"])
+def prepare_kit(case_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    case=get_case(case_id)
+    if not case: abort(404)
+    ids=request.form.getlist("library_ids"); solutions=get_solutions(case_id); solution=next((x for x in solutions if x["solution_type"] in ("paid_response","kit_report")),None)
+    if not solution:
+        content=build_paid_response_content(case_id); conn=db_connect(); ts=now_iso(); sid=conn.execute("INSERT INTO solution_documents(case_id,title,solution_type,content,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",(case_id,"Rapporto Kit FixTude","kit_report",content,"pending_review",ts,ts)).lastrowid; conn.commit(); conn.close(); path=generate_staff_response_pdf(sid); conn=db_connect(); conn.execute("UPDATE solution_documents SET pdf_path=? WHERE id=?",(path,sid)); conn.commit(); conn.close(); solution=get_solutions(case_id)[-1]
+    save_solution_attachments(solution["id"],ids); return redirect(url_for("resolver_case",case_id=case_id))
 
-    if not case:
-        abort(404)
+def _smtp_sender():
+    host=os.environ.get("SMTP_HOST","").strip(); port=int(os.environ.get("SMTP_PORT","587") or 587); username=os.environ.get("SMTP_USERNAME","").strip(); password=os.environ.get("SMTP_PASSWORD","").strip(); sender="info@fixtude.it"; sender_name=os.environ.get("SMTP_FROM_NAME","FixTude").strip(); return host,port,username,password,sender,sender_name
 
-    calc = calculate_case(
-        case_id
-    )
+def _send_staff_email(to_email,subject,body,attachments):
+    host,port,username,password,sender,sender_name=_smtp_sender()
+    if not host: return False
+    msg=EmailMessage(); msg["Subject"]=subject; msg["From"]=f"{sender_name} <info@fixtude.it>"; msg["To"]=to_email; msg.set_content(body)
+    for path,filename in attachments:
+        if path and Path(path).exists():
+            with open(path,"rb") as f: msg.add_attachment(f.read(),maintype="application",subtype="pdf",filename=filename)
+    with smtplib.SMTP(host,port,timeout=20) as smtp:
+        smtp.starttls()
+        if username and password: smtp.login(username,password)
+        smtp.send_message(msg)
+    return True
 
-    analysis = latest_analysis(
-        case_id
-    )
+@app.route("/risolutore/soluzione/<int:solution_id>/invia",methods=["POST"])
+def send_paid_response(solution_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    conn=db_connect(); sol=conn.execute("SELECT * FROM solution_documents WHERE id=?",(solution_id,)).fetchone(); conn.close()
+    if not sol: abort(404)
+    case=get_case(sol["case_id"])
+    if not case: abort(404)
+    path=generate_staff_response_pdf(solution_id); conn=db_connect(); conn.execute("UPDATE solution_documents SET pdf_path=?,status='sent',approved_at=?,sent_at=?,updated_at=? WHERE id=?",(path,now_iso(),now_iso(),now_iso(),solution_id)); conn.commit(); conn.close()
+    data=get_case_data(sol["case_id"]); name=((data.get("name","")+" "+data.get("surname","")).strip() or "Cliente")
+    ok=_send_staff_email(case["email"],"FixTude - la tua risposta è disponibile",f"Gentile {name},\n\nabbiamo completato la revisione della tua richiesta. In allegato trovi la risposta FixTude.\n\nCordiali saluti,\nFixTude",[(path,"Risposta_FixTude.pdf")])
+    conn=db_connect(); conn.execute("UPDATE solution_documents SET final_email_sent_at=? WHERE id=?",(now_iso() if ok else None,solution_id)); conn.commit(); conn.close(); return redirect(url_for("resolver_case",case_id=sol["case_id"]))
 
-    solutions = get_solutions(
-        case_id
-    )
-
-    scenario = None
-    if analysis:
-        try:
-            scenario_list = analysis.get("scenarios", [])
-            if scenario_list:
-                scenario = scenario_list[0]
-        except Exception:
-            scenario = None
-
-    payment_ratio = 0
-    if calc["total_income"] > 0:
-        payment_ratio = round(
-            calc["total_payments"] / calc["total_income"] * 100,
-            1
-        )
-
-    capacity = calc["monthly_capacity"]
-    payments = calc["total_payments"]
-
-    if capacity <= 0:
-        situation_label = "DA APPROFONDIRE"
-    elif payments > capacity:
-        situation_label = "SOTTO PRESSIONE"
-    else:
-        situation_label = "DA VALUTARE"
-
-    return render_template_string(
-        """
-        <!doctype html>
-        <html lang="it">
-        <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>Pratica #{{ case.id }} — Esperto FixTude</title>
-        <style>
-          *{box-sizing:border-box}
-          body{margin:0;font-family:Arial,sans-serif;background:#f5f7fb;color:#18212f}
-          .wrap{max-width:1080px;margin:auto;padding:24px}
-          .top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:22px}
-          .back{color:#4f46e5;text-decoration:none;font-weight:700}
-          .logout{color:#5b6472;text-decoration:none}
-          h1{font-size:30px;margin:8px 0 4px}
-          h2{font-size:20px;margin:0 0 16px}
-          h3{font-size:16px;margin:0 0 8px}
-          .muted{color:#697386}
-          .hero{background:#18212f;color:white;border-radius:18px;padding:24px;margin-bottom:18px}
-          .hero-row{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
-          .badge{display:inline-block;padding:7px 11px;border-radius:999px;background:#fff2cf;color:#765700;font-size:12px;font-weight:800}
-          .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px}
-          .card{background:white;border:1px solid #e5e9f0;border-radius:16px;padding:22px;box-shadow:0 4px 16px rgba(20,30,50,.05)}
-          .metric{font-size:25px;font-weight:800;margin-top:5px}
-          .metric-label{font-size:13px;color:#697386}
-          .wide{margin-bottom:18px}
-          .analysis{font-size:16px;line-height:1.65;white-space:pre-line;color:#303b4b}
-          .scenario{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:14px}
-          .scenario-box{background:#f7f8fc;border-radius:12px;padding:15px}
-          .scenario-value{font-size:21px;font-weight:800;margin-top:5px}
-          .warning{background:#fff7e6;border:1px solid #f0d69a;border-radius:12px;padding:14px;margin-top:10px;color:#654d12}
-          .actions{display:flex;flex-wrap:wrap;gap:10px}
-          button,.button{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}
-          .primary{background:#4f46e5;color:white}
-          .secondary{background:#eef0f6;color:#273246}
-          .kit{background:#eef8f2;border:1px solid #cfe8d9}
-          .kit-list{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:14px 0 18px}
-          .kit-item{background:white;border:1px solid #dfe7e2;border-radius:10px;padding:11px}
-          textarea{font-family:Arial,sans-serif}
-          @media(max-width:700px){
-            .wrap{padding:15px}.hero-row{display:block}.grid{grid-template-columns:1fr 1fr}.scenario{grid-template-columns:1fr}.kit-list{grid-template-columns:1fr}h1{font-size:25px}
-          }
-        </style>
-        </head>
-        <body>
-        <div class="wrap">
-
-          <div class="top">
-            <a class="back" href="{{ url_for('resolver_dashboard') }}">← Pratiche</a>
-            <a class="logout" href="{{ url_for('logout') }}">Esci</a>
-          </div>
-
-          <div class="hero">
-            <div class="hero-row">
-              <div>
-                <div class="muted" style="color:#b9c2d0">ESPERTO FIXTUDE · PRATICA #{{ case.id }}</div>
-                <h1>{{ calc.data.get('name','Cliente') }} {{ calc.data.get('surname','') }}</h1>
-                <div style="color:#cbd2dc">{{ case.email }}</div>
-              </div>
-              <div><span class="badge">{{ situation_label }}</span></div>
-            </div>
-          </div>
-
-          <div class="grid">
-            <div class="card"><div class="metric-label">Entrate mensili</div><div class="metric">€ {{ "%.2f"|format(calc.total_income) }}</div></div>
-            <div class="card"><div class="metric-label">Spese mensili</div><div class="metric">€ {{ "%.2f"|format(calc.total_expenses) }}</div></div>
-            <div class="card"><div class="metric-label">Disponibilità teorica</div><div class="metric">€ {{ "%.2f"|format(calc.monthly_capacity) }}</div></div>
-            <div class="card"><div class="metric-label">Debito complessivo</div><div class="metric">€ {{ "%.2f"|format(calc.total_debt) }}</div></div>
-            <div class="card"><div class="metric-label">Rate attuali</div><div class="metric">€ {{ "%.2f"|format(calc.total_payments) }}</div></div>
-            <div class="card"><div class="metric-label">Incidenza rate / reddito</div><div class="metric">{{ payment_ratio }}%</div></div>
-          </div>
-
-          <div class="card wide">
-            <h2>Analisi FixTude</h2>
-            {% if analysis %}
-              <div class="analysis">{{ analysis.summary }}</div>
-            {% else %}
-              <p class="muted">L'analisi non è ancora stata elaborata.</p>
-            {% endif %}
-
-            {% for warning in calc.warnings %}
-              <div class="warning">⚠ {{ warning }}</div>
-            {% endfor %}
-          </div>
-
-          <div class="card wide">
-            <h2>Piano di rientro sostenibile</h2>
-            {% if scenario and scenario.get('estimated_monthly') %}
-              <p class="muted">Simulazione indicativa basata sui dati inseriti dal cliente. Non costituisce una proposta vincolante per il creditore.</p>
-              <div class="scenario">
-                <div class="scenario-box"><div class="metric-label">Rata indicativa</div><div class="scenario-value">€ {{ "%.2f"|format(scenario.get('estimated_monthly',0)) }}</div></div>
-                <div class="scenario-box"><div class="metric-label">Durata indicativa</div><div class="scenario-value">{{ scenario.get('months','—') }} mesi</div></div>
-                <div class="scenario-box"><div class="metric-label">Totale simulato</div><div class="scenario-value">€ {{ "%.2f"|format(scenario.get('estimated_monthly',0) * scenario.get('months',0)) }}</div></div>
-              </div>
-            {% else %}
-              <p class="muted">Genera l'analisi per ottenere una prima simulazione del piano.</p>
-            {% endif %}
-          </div>
-
-          <div class="card wide">
-            <h2>Azioni dello Staff</h2>
-            <div class="actions">
-              <form method="post" action="{{ url_for('resolver_run_analysis', case_id=case.id) }}">
-                <button class="primary">Genera / rigenera analisi</button>
-              </form>
-              <a class="button secondary" href="#kit">Prepara Kit FixTude</a>
-            </div>
-          </div>
-
-          <div id="kit" class="card wide kit">
-            <h2>Kit FixTude — preparazione</h2>
-            <p>Seleziona i documenti pertinenti alla situazione del cliente. Il kit viene verificato prima della consegna.</p>
-            <div class="kit-list">
-              <div class="kit-item">☑ Rapporto FixTude</div>
-              <div class="kit-item">☑ Richiesta di rateizzazione</div>
-              <div class="kit-item">☑ Richiesta riduzione rata</div>
-              <div class="kit-item">☑ Piano di rientro</div>
-              <div class="kit-item">☐ Richiesta di rinegoziazione</div>
-              <div class="kit-item">☐ Proposta transattiva</div>
-            </div>
-            <div class="actions">
-              <button class="primary" type="button" onclick="alert('Preparazione Kit FixTude: funzione in collegamento con la libreria documenti.')">Prepara Kit</button>
-            </div>
-          </div>
-
-          {% for solution in solutions %}
-          <div class="card wide">
-            <h2>{{ solution.title }}</h2>
-            <textarea name="content" style="width:100%;min-height:180px;padding:12px;border:1px solid #dfe4ec;border-radius:10px">{{ solution.content }}</textarea>
-            <form method="post" action="{{ url_for('correct_solution', solution_id=solution.id) }}" style="margin-top:12px">
-              <input name="note" placeholder="Nota supervisore" style="width:100%;padding:11px;border:1px solid #dfe4ec;border-radius:10px">
-              <button class="secondary" style="margin-top:10px">Salva correzione</button>
-            </form>
-            {% if solution.status != "sent" %}
-            <form method="post" action="{{ url_for('approve_solution', solution_id=solution.id) }}" style="margin-top:10px">
-              <button class="primary">Valida e invia al cliente</button>
-            </form>
-            {% else %}
-            <strong>Documento validato e inviato.</strong>
-            {% endif %}
-          </div>
-          {% endfor %}
-
-        </div>
-        </body>
-        </html>
-        """,
-        case=case,
-        calc=calc,
-        analysis=analysis,
-        solutions=solutions,
-        scenario=scenario,
-        payment_ratio=payment_ratio,
-        situation_label=situation_label
-    )
+@app.route("/risolutore/pratica/<int:case_id>/invia-kit",methods=["POST"])
+def send_kit(case_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    case=get_case(case_id)
+    if not case: abort(404)
+    solutions=get_solutions(case_id); report=next((x for x in solutions if x["solution_type"] in ("paid_response","kit_report")),None); attachments=[]
+    if report and report["pdf_path"] and Path(report["pdf_path"]).exists(): attachments.append((report["pdf_path"],"Rapporto_FixTude.pdf"))
+    for f in get_solution_attachments(report["id"]) if report else []:
+        if f["validated"] and Path(f["file_path"]).exists(): attachments.append((f["file_path"],f["original_filename"]))
+    if not attachments: return redirect(url_for("resolver_case",case_id=case_id))
+    data=get_case_data(case_id); name=((data.get("name","")+" "+data.get("surname","")).strip() or "Cliente")
+    ok=_send_staff_email(case["email"],"FixTude - il tuo KIT è disponibile",f"Gentile {name},\n\nabbiamo completato la preparazione del tuo KIT FixTude. In allegato trovi il rapporto e i documenti selezionati e verificati.\n\nCordiali saluti,\nFixTude",attachments)
+    if report:
+        conn=db_connect(); conn.execute("UPDATE solution_documents SET status='sent',approved_at=?,sent_at=?,final_email_sent_at=?,updated_at=? WHERE id=?",(now_iso(),now_iso(),now_iso() if ok else None,now_iso(),report["id"])); conn.commit(); conn.close()
+    return redirect(url_for("resolver_case",case_id=case_id))
 
 
 @app.route(
