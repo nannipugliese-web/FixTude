@@ -4031,41 +4031,31 @@ def resolver_case(case_id):
         case_id
     )
 
-    data = calc.get("data") or {}
-    client_name = (
-        f"{data.get('name', '')} {data.get('surname', '')}"
-    ).strip() or "Cliente"
+    scenario = None
+    if analysis:
+        try:
+            scenario_list = analysis.get("scenarios", [])
+            if scenario_list:
+                scenario = scenario_list[0]
+        except Exception:
+            scenario = None
 
-    capacity = calc.get("monthly_capacity", 0) or 0
-    payments = calc.get("total_payments", 0) or 0
-    debt = calc.get("total_debt", 0) or 0
-    income = calc.get("total_income", 0) or 0
-    expenses = calc.get("total_expenses", 0) or 0
-
-    if capacity > 0:
-        sustainable_payment = min(
-            max(50, round(capacity * 0.30, 2)),
-            payments if payments > 0 else max(50, round(capacity * 0.30, 2))
+    payment_ratio = 0
+    if calc["total_income"] > 0:
+        payment_ratio = round(
+            calc["total_payments"] / calc["total_income"] * 100,
+            1
         )
-        sustainable_months = max(
-            1,
-            round(debt / sustainable_payment)
-        ) if debt > 0 else 0
-    else:
-        sustainable_payment = 0
-        sustainable_months = 0
 
-    imbalance = round(payments - capacity, 2)
+    capacity = calc["monthly_capacity"]
+    payments = calc["total_payments"]
 
     if capacity <= 0:
-        situation_label = "DATI DA APPROFONDIRE"
-        situation_class = "orange"
+        situation_label = "DA APPROFONDIRE"
     elif payments > capacity:
-        situation_label = "RATA ATTUALE NON SOSTENIBILE"
-        situation_class = "red"
+        situation_label = "SOTTO PRESSIONE"
     else:
-        situation_label = "EQUILIBRIO TEORICO"
-        situation_class = "green"
+        situation_label = "DA VALUTARE"
 
     return render_template_string(
         """
@@ -4073,162 +4063,141 @@ def resolver_case(case_id):
         <html lang="it">
         <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Pratica #{{ case.id }} · Esperto FixTude</title>
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Pratica #{{ case.id }} — Esperto FixTude</title>
         <style>
           *{box-sizing:border-box}
-          body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f5f7fb;color:#18212f}
-          .wrap{max-width:1100px;margin:auto;padding:24px 18px 50px}
-          a{text-decoration:none;color:#4f46e5;font-weight:600}
-          .top{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:22px}
-          .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#687386;font-weight:700}
-          h1{margin:5px 0 0;font-size:30px}
-          .client{color:#687386;margin-top:5px}
-          .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
-          .card{background:#fff;border:1px solid #e5e9f0;border-radius:18px;padding:22px;box-shadow:0 5px 18px rgba(20,30,50,.05);margin-bottom:18px}
-          .card h2{margin:0 0 16px;font-size:20px}
-          .metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-          .metric{background:#f8fafc;border-radius:13px;padding:14px}
-          .metric span{display:block;color:#687386;font-size:13px;margin-bottom:6px}
-          .metric strong{font-size:21px}
-          .status{display:inline-block;padding:7px 10px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.03em}
-          .status.red{background:#fdecec;color:#b42318}.status.green{background:#e8f8f0;color:#168653}.status.orange{background:#fff4df;color:#a15c00}
-          .highlight{border-left:4px solid #4f46e5;background:#f7f7ff;padding:14px 16px;border-radius:10px;margin-top:15px;line-height:1.55}
-          .analysis{font-size:15px;line-height:1.65;white-space:pre-line;color:#344054}
-          .warnings{margin:15px 0 0;padding:0;list-style:none}
-          .warnings li{background:#fff7e8;border:1px solid #f2dfb6;padding:10px 12px;border-radius:9px;margin-top:8px;color:#76520a;font-size:13px}
-          .scenario{border:1px solid #e5e9f0;border-radius:14px;padding:16px;margin-top:12px;background:#fff}
-          .scenario h3{margin:0 0 7px;font-size:16px}
-          .scenario p{margin:7px 0;color:#526070;line-height:1.5;font-size:14px}
-          .scenario-data{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
-          .pill{background:#f5f7fb;padding:9px 11px;border-radius:9px;font-size:13px}
-          .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-          button{border:0;border-radius:10px;padding:12px 15px;font-weight:700;cursor:pointer;font-size:14px}
-          .primary{background:#4f46e5;color:#fff}.secondary{background:#eef1f6;color:#273244}
-          .kit{border:1px solid #dcdcff;background:#fafaff}
-          .kit-list{display:grid;gap:8px;margin:15px 0}
-          .kit-item{background:#fff;border:1px solid #e5e9f0;border-radius:10px;padding:11px 12px;font-size:14px}
-          .muted{color:#687386;font-size:13px;line-height:1.5}
-          textarea{width:100%;min-height:150px;border:1px solid #d9dee7;border-radius:10px;padding:12px;font:inherit;line-height:1.5}
-          input{width:100%;padding:11px;border:1px solid #d9dee7;border-radius:10px;font:inherit}
-          .solution-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-          @media(max-width:760px){.grid{grid-template-columns:1fr}.metrics,.actions{grid-template-columns:1fr}.top{align-items:flex-start}.top h1{font-size:24px}.wrap{padding:18px 12px 35px}}
+          body{margin:0;font-family:Arial,sans-serif;background:#f5f7fb;color:#18212f}
+          .wrap{max-width:1080px;margin:auto;padding:24px}
+          .top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:22px}
+          .back{color:#4f46e5;text-decoration:none;font-weight:700}
+          .logout{color:#5b6472;text-decoration:none}
+          h1{font-size:30px;margin:8px 0 4px}
+          h2{font-size:20px;margin:0 0 16px}
+          h3{font-size:16px;margin:0 0 8px}
+          .muted{color:#697386}
+          .hero{background:#18212f;color:white;border-radius:18px;padding:24px;margin-bottom:18px}
+          .hero-row{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+          .badge{display:inline-block;padding:7px 11px;border-radius:999px;background:#fff2cf;color:#765700;font-size:12px;font-weight:800}
+          .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px}
+          .card{background:white;border:1px solid #e5e9f0;border-radius:16px;padding:22px;box-shadow:0 4px 16px rgba(20,30,50,.05)}
+          .metric{font-size:25px;font-weight:800;margin-top:5px}
+          .metric-label{font-size:13px;color:#697386}
+          .wide{margin-bottom:18px}
+          .analysis{font-size:16px;line-height:1.65;white-space:pre-line;color:#303b4b}
+          .scenario{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:14px}
+          .scenario-box{background:#f7f8fc;border-radius:12px;padding:15px}
+          .scenario-value{font-size:21px;font-weight:800;margin-top:5px}
+          .warning{background:#fff7e6;border:1px solid #f0d69a;border-radius:12px;padding:14px;margin-top:10px;color:#654d12}
+          .actions{display:flex;flex-wrap:wrap;gap:10px}
+          button,.button{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}
+          .primary{background:#4f46e5;color:white}
+          .secondary{background:#eef0f6;color:#273246}
+          .kit{background:#eef8f2;border:1px solid #cfe8d9}
+          .kit-list{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:14px 0 18px}
+          .kit-item{background:white;border:1px solid #dfe7e2;border-radius:10px;padding:11px}
+          textarea{font-family:Arial,sans-serif}
+          @media(max-width:700px){
+            .wrap{padding:15px}.hero-row{display:block}.grid{grid-template-columns:1fr 1fr}.scenario{grid-template-columns:1fr}.kit-list{grid-template-columns:1fr}h1{font-size:25px}
+          }
         </style>
         </head>
         <body>
         <div class="wrap">
 
           <div class="top">
-            <div>
-              <a href="{{ url_for('resolver_dashboard') }}">← Pratiche</a>
-              <div class="eyebrow" style="margin-top:18px">Esperto FixTude · Pratica #{{ case.id }}</div>
-              <h1>{{ client_name }}</h1>
-              <div class="client">{{ case.email }}</div>
+            <a class="back" href="{{ url_for('resolver_dashboard') }}">← Pratiche</a>
+            <a class="logout" href="{{ url_for('logout') }}">Esci</a>
+          </div>
+
+          <div class="hero">
+            <div class="hero-row">
+              <div>
+                <div class="muted" style="color:#b9c2d0">ESPERTO FIXTUDE · PRATICA #{{ case.id }}</div>
+                <h1>{{ calc.data.get('name','Cliente') }} {{ calc.data.get('surname','') }}</h1>
+                <div style="color:#cbd2dc">{{ case.email }}</div>
+              </div>
+              <div><span class="badge">{{ situation_label }}</span></div>
             </div>
-            <a href="{{ url_for('logout') }}">Esci</a>
           </div>
 
           <div class="grid">
-            <div>
-              <div class="card">
-                <h2>Quadro economico</h2>
-                <div class="metrics">
-                  <div class="metric"><span>Entrate mensili</span><strong>€ {{ "%.2f"|format(income) }}</strong></div>
-                  <div class="metric"><span>Spese mensili</span><strong>€ {{ "%.2f"|format(expenses) }}</strong></div>
-                  <div class="metric"><span>Disponibilità teorica</span><strong>€ {{ "%.2f"|format(capacity) }}</strong></div>
-                  <div class="metric"><span>Debito complessivo</span><strong>€ {{ "%.2f"|format(debt) }}</strong></div>
-                  <div class="metric"><span>Rate attuali</span><strong>€ {{ "%.2f"|format(payments) }}</strong></div>
-                  <div class="metric"><span>Scostamento rate / capacità</span><strong>€ {{ "%.2f"|format(imbalance) }}</strong></div>
-                </div>
-                <div style="margin-top:16px">
-                  <span class="status {{ situation_class }}">{{ situation_label }}</span>
-                </div>
-                {% if calc.warnings %}
-                <ul class="warnings">
-                  {% for warning in calc.warnings %}<li>{{ warning }}</li>{% endfor %}
-                </ul>
-                {% endif %}
-              </div>
+            <div class="card"><div class="metric-label">Entrate mensili</div><div class="metric">€ {{ "%.2f"|format(calc.total_income) }}</div></div>
+            <div class="card"><div class="metric-label">Spese mensili</div><div class="metric">€ {{ "%.2f"|format(calc.total_expenses) }}</div></div>
+            <div class="card"><div class="metric-label">Disponibilità teorica</div><div class="metric">€ {{ "%.2f"|format(calc.monthly_capacity) }}</div></div>
+            <div class="card"><div class="metric-label">Debito complessivo</div><div class="metric">€ {{ "%.2f"|format(calc.total_debt) }}</div></div>
+            <div class="card"><div class="metric-label">Rate attuali</div><div class="metric">€ {{ "%.2f"|format(calc.total_payments) }}</div></div>
+            <div class="card"><div class="metric-label">Incidenza rate / reddito</div><div class="metric">{{ payment_ratio }}%</div></div>
+          </div>
 
-              <div class="card">
-                <h2>Analisi FixTude</h2>
-                {% if analysis %}
-                  <div class="analysis">{{ analysis.summary }}</div>
-                  {% if analysis.metrics %}
-                  <div class="highlight">
-                    <strong>Lettura sintetica</strong><br>
-                    Capacità teorica: <strong>€ {{ "%.2f"|format(analysis.metrics.monthly_capacity or 0) }}</strong> ·
-                    Rate attuali: <strong>€ {{ "%.2f"|format(analysis.metrics.total_payments or 0) }}</strong> ·
-                    Debito: <strong>€ {{ "%.2f"|format(analysis.metrics.total_debt or 0) }}</strong>
-                  </div>
-                  {% endif %}
-                {% else %}
-                  <p class="muted">L'analisi non è ancora stata generata. Avvia l'elaborazione per ottenere una valutazione della situazione e i possibili scenari.</p>
-                {% endif %}
-                <form method="post" action="{{ url_for('resolver_run_analysis', case_id=case.id) }}" style="margin-top:16px">
-                  <button class="primary">{{ 'Rigenera analisi' if analysis else 'Genera analisi FixTude' }}</button>
-                </form>
+          <div class="card wide">
+            <h2>Analisi FixTude</h2>
+            {% if analysis %}
+              <div class="analysis">{{ analysis.summary }}</div>
+            {% else %}
+              <p class="muted">L'analisi non è ancora stata elaborata.</p>
+            {% endif %}
+
+            {% for warning in calc.warnings %}
+              <div class="warning">⚠ {{ warning }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="card wide">
+            <h2>Piano di rientro sostenibile</h2>
+            {% if scenario and scenario.get('estimated_monthly') %}
+              <p class="muted">Simulazione indicativa basata sui dati inseriti dal cliente. Non costituisce una proposta vincolante per il creditore.</p>
+              <div class="scenario">
+                <div class="scenario-box"><div class="metric-label">Rata indicativa</div><div class="scenario-value">€ {{ "%.2f"|format(scenario.get('estimated_monthly',0)) }}</div></div>
+                <div class="scenario-box"><div class="metric-label">Durata indicativa</div><div class="scenario-value">{{ scenario.get('months','—') }} mesi</div></div>
+                <div class="scenario-box"><div class="metric-label">Totale simulato</div><div class="scenario-value">€ {{ "%.2f"|format(scenario.get('estimated_monthly',0) * scenario.get('months',0)) }}</div></div>
               </div>
+            {% else %}
+              <p class="muted">Genera l'analisi per ottenere una prima simulazione del piano.</p>
+            {% endif %}
+          </div>
+
+          <div class="card wide">
+            <h2>Azioni del Risolutore</h2>
+            <div class="actions">
+              <form method="post" action="{{ url_for('resolver_run_analysis', case_id=case.id) }}">
+                <button class="primary">Genera / rigenera analisi</button>
+              </form>
+              <a class="button secondary" href="#kit">Prepara Kit FixTude</a>
             </div>
+          </div>
 
-            <div>
-              <div class="card">
-                <h2>Piano di rientro sostenibile</h2>
-                {% if sustainable_payment > 0 and debt > 0 %}
-                  <div class="metrics">
-                    <div class="metric"><span>Rata indicativa</span><strong>€ {{ "%.2f"|format(sustainable_payment) }}</strong></div>
-                    <div class="metric"><span>Durata indicativa</span><strong>{{ sustainable_months }} mesi</strong></div>
-                  </div>
-                  <div class="highlight">
-                    Questa è una <strong>simulazione indicativa</strong> costruita sui dati inseriti. La proposta deve essere verificata e sottoposta al creditore, che resta libero di accettarla o modificarla.
-                  </div>
-                {% else %}
-                  <p class="muted">Non ci sono ancora dati sufficienti per stimare un piano di rientro.</p>
-                {% endif %}
-              </div>
-
-              <div class="card kit">
-                <h2>Azioni del Risolutore</h2>
-                <p class="muted">Il Kit FixTude verrà composto scegliendo solo i documenti pertinenti alla situazione del cliente.</p>
-                <div class="kit-list">
-                  <div class="kit-item">☑ Rapporto FixTude sulla situazione</div>
-                  <div class="kit-item">☑ Piano di rientro / richiesta di rateizzazione</div>
-                  <div class="kit-item">☐ Richiesta di riduzione della rata</div>
-                  <div class="kit-item">☐ Richiesta di rinegoziazione</div>
-                  <div class="kit-item">☐ Proposta transattiva</div>
-                  <div class="kit-item">☑ Lettera di accompagnamento</div>
-                </div>
-                <div class="actions">
-                  <button class="primary" type="button" onclick="alert('La composizione del Kit FixTude sarà collegata alla libreria dei documenti nel prossimo passaggio.')">Prepara Kit FixTude</button>
-                  <button class="secondary" type="button" onclick="window.print()">Stampa pratica</button>
-                </div>
-                <p class="muted" style="margin-top:12px">La generazione definitiva dei PDF del Kit sarà attivata dopo il collegamento alla libreria documenti e alla procedura di verifica.</p>
-              </div>
+          <div id="kit" class="card wide kit">
+            <h2>Kit FixTude — preparazione</h2>
+            <p>Seleziona i documenti pertinenti alla situazione del cliente. Il kit viene verificato prima della consegna.</p>
+            <div class="kit-list">
+              <div class="kit-item">☑ Rapporto FixTude</div>
+              <div class="kit-item">☑ Richiesta di rateizzazione</div>
+              <div class="kit-item">☑ Richiesta riduzione rata</div>
+              <div class="kit-item">☑ Piano di rientro</div>
+              <div class="kit-item">☐ Richiesta di rinegoziazione</div>
+              <div class="kit-item">☐ Proposta transattiva</div>
+            </div>
+            <div class="actions">
+              <button class="primary" type="button" onclick="alert('Preparazione Kit FixTude: funzione in collegamento con la libreria documenti.')">Prepara Kit</button>
             </div>
           </div>
 
           {% for solution in solutions %}
-          <div class="card">
+          <div class="card wide">
             <h2>{{ solution.title }}</h2>
-            <p class="muted">Documento/scenario generato da FixTude. Il Risolutore può modificarlo e verificarne il contenuto prima dell'eventuale invio.</p>
-            <form method="post" action="{{ url_for('correct_solution', solution_id=solution.id) }}">
-              <textarea name="content">{{ solution.content }}</textarea>
-              <div style="margin-top:10px">
-                <input name="note" placeholder="Nota del Risolutore / supervisore">
-              </div>
-              <div class="solution-actions">
-                <button class="secondary">Salva correzione</button>
-              </div>
+            <textarea name="content" style="width:100%;min-height:180px;padding:12px;border:1px solid #dfe4ec;border-radius:10px">{{ solution.content }}</textarea>
+            <form method="post" action="{{ url_for('correct_solution', solution_id=solution.id) }}" style="margin-top:12px">
+              <input name="note" placeholder="Nota supervisore" style="width:100%;padding:11px;border:1px solid #dfe4ec;border-radius:10px">
+              <button class="secondary" style="margin-top:10px">Salva correzione</button>
             </form>
-            <div style="margin-top:12px">
             {% if solution.status != "sent" %}
-              <form method="post" action="{{ url_for('approve_solution', solution_id=solution.id) }}">
-                <button class="primary">Valida e invia al cliente</button>
-              </form>
+            <form method="post" action="{{ url_for('approve_solution', solution_id=solution.id) }}" style="margin-top:10px">
+              <button class="primary">Valida e invia al cliente</button>
+            </form>
             {% else %}
-              <span class="status green">DOCUMENTO VALIDATO E INVIATO</span>
+            <strong>Documento validato e inviato.</strong>
             {% endif %}
-            </div>
           </div>
           {% endfor %}
 
@@ -4240,17 +4209,9 @@ def resolver_case(case_id):
         calc=calc,
         analysis=analysis,
         solutions=solutions,
-        client_name=client_name,
-        income=income,
-        expenses=expenses,
-        capacity=capacity,
-        debt=debt,
-        payments=payments,
-        imbalance=imbalance,
-        situation_label=situation_label,
-        situation_class=situation_class,
-        sustainable_payment=sustainable_payment,
-        sustainable_months=sustainable_months
+        scenario=scenario,
+        payment_ratio=payment_ratio,
+        situation_label=situation_label
     )
 
 
