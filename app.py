@@ -1688,6 +1688,101 @@ font-size:36px
         white-space:normal;
     }
 }
+
+/* ============================================================
+   MOBILE / VISUAL REFINEMENT — FixTude v23
+   ============================================================ */
+*{box-sizing:border-box}
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+body{
+  background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 48%,#eef7f5 100%);
+  color:#18212f;
+}
+.wrap{max-width:1120px;padding:20px 24px 34px}
+nav{gap:18px;flex-wrap:wrap;padding:4px 0 8px}
+nav>div:last-child{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+nav>div:last-child a{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:38px;padding:9px 12px;border-radius:10px;
+  text-decoration:none;font-weight:700;color:#344054;
+  background:rgba(255,255,255,.72);border:1px solid rgba(79,70,229,.10);
+  box-shadow:0 3px 12px rgba(30,41,59,.05);
+}
+nav>div:last-child a:hover{background:#fff;color:#4f46e5;transform:translateY(-1px)}
+.logo{letter-spacing:-.7px}
+.grid{gap:20px;margin-top:30px}
+.card{padding:30px}
+.card:first-child{background:rgba(255,255,255,.94)}
+.dark{background:linear-gradient(145deg,#18212f 0%,#27375b 100%)}
+.education{
+  margin-top:30px;padding:27px;
+  background:linear-gradient(145deg,#18212f 0%,#24375d 100%);
+}
+.education-head{gap:15px;margin-bottom:18px}
+.education-head h2{font-size:30px}
+.education-grid{gap:12px}
+.education-card{padding:18px}
+.education-card span{margin-bottom:10px}
+.education-card strong{font-size:16px}
+.education-card p{font-size:13px;line-height:1.4;margin-bottom:12px}
+.education-cta{margin-top:14px;padding:15px 17px}
+
+@media(max-width:760px){
+  .wrap{padding:12px 12px 24px}
+  nav{display:block;margin-bottom:6px}
+  nav>.logo{font-size:27px;margin:2px 4px 11px}
+  nav>div:last-child{
+    display:grid;grid-template-columns:1fr 1fr;gap:7px;width:100%;
+  }
+  nav>div:last-child a{
+    min-height:40px;padding:8px 7px;font-size:12px;line-height:1.15;
+    white-space:normal;text-align:center;
+  }
+  nav>div:last-child a:last-child{
+    grid-column:1 / -1;
+  }
+  .grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+  .card{padding:21px 17px;border-radius:16px}
+  h1{font-size:30px!important;line-height:1.08;margin:11px 0 13px}
+  h2{font-size:22px!important;line-height:1.15}
+  p{font-size:14px;line-height:1.48}
+  .button{padding:11px 12px;margin:4px 0;font-size:13px}
+  .access-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:7px}
+  .access-buttons .button{font-size:12px;min-height:43px;display:flex;align-items:center;justify-content:center;padding:8px 6px;white-space:normal;line-height:1.15}
+  .free{gap:9px!important;margin-top:18px!important}
+  .free a{min-height:68px!important;padding:11px 9px!important;font-size:12px;line-height:1.25}
+  .sic-title{margin-top:14px}
+  .education{margin-top:18px;padding:19px 13px;border-radius:16px}
+  .education-head{display:flex;flex-direction:row;align-items:center;gap:9px;margin-bottom:13px}
+  .education-head>div:first-child{min-width:0;flex:1}
+  .education-head small{font-size:9px;letter-spacing:.25px}
+  .education-head h2{font-size:23px!important;margin:4px 0}
+  .education-head p{font-size:12px;line-height:1.35;margin:0}
+  .education-badge{font-size:9px;padding:7px 8px;flex:0 0 auto}
+  /* On mobile the three education cards stay horizontal and compact. */
+  .education-grid{
+    display:flex!important;flex-direction:row!important;gap:9px!important;
+    overflow-x:auto;overflow-y:hidden;padding:2px 2px 7px;
+    scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+  }
+  .education-card{
+    flex:0 0 78%;width:78%;min-width:78%;
+    padding:15px 13px;border-radius:13px;scroll-snap-align:start;
+  }
+  .education-card span{font-size:10px;margin-bottom:7px}
+  .education-card strong{font-size:15px;line-height:1.2;margin-bottom:7px}
+  .education-card p{font-size:12px;line-height:1.35;margin-bottom:9px}
+  .education-card b{font-size:11px}
+  .education-cta{margin-top:9px;padding:12px 13px;display:block}
+  .education-cta strong{display:block;font-size:12px;margin-bottom:4px}
+  .education-cta span{font-size:11px;line-height:1.3}
+  footer{margin-top:28px!important;padding:18px 0!important;font-size:11px}
+}
+@media(max-width:430px){
+  nav>div:last-child a{font-size:11px}
+  .access-buttons .button{font-size:11px}
+  .education-card{flex-basis:84%;min-width:84%;width:84%}
+}
 </style>
 </head>
 <body>
@@ -1699,9 +1794,9 @@ font-size:36px
 Fix<span>Tude</span>
 </div>
 <div>
-<a href="/privato/login">👤 Debitore</a>
+<a href="/privato/login">👤 Accesso cliente</a>
 &nbsp;&nbsp;
-<a href="/risolutore/login">🛡️ Area Riservata Staff FixTude</a>
+<a href="/risolutore/login">🛡️ Area Riservata FixTude</a>
 &nbsp;&nbsp;
 <a href="/registrazione">Registrati</a>
 </div>
@@ -1737,11 +1832,11 @@ Registrati gratuitamente
 
 <div class="access-buttons">
 <a class="button light" href="/privato/login">
-👤 Accedi come Debitore
+👤 Accedi come cliente
 </a>
 
 <a class="button light" href="/risolutore/login">
-🛡️ Area Riservata Staff FixTude
+🛡️ Area Riservata FixTude
 </a>
 </div>
 
@@ -2209,7 +2304,7 @@ body{font-family:Arial;background:#f6f8fb}.box{max-width:430px;margin:80px auto;
 <body>
 <div class="box">
 <a href="/">← FixTude</a>
-<h1>{% if role == "debtor" %}Accesso area privata{% else %}Area Riservata Staff FixTude{% endif %}</h1>
+<h1>{% if role == "debtor" %}Accesso area privata{% else %}Area Riservata FixTude{% endif %}</h1>
 {% if error %}<div class="error">{{ error }}</div>{% endif %}
 <form method="post">
 <label>Email</label>
@@ -4037,7 +4132,7 @@ def resolver_dashboard():
     rows=[]
     for case in cases:
         label,service=get_paid_service_label(case["id"],case["email"]); rows.append({"case":case,"data":get_case_data(case["id"]),"service_label":label,"service":service,"solutions":get_solutions(case["id"])})
-    return render_template_string('''<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Area Riservata Staff FixTude</title><style>*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#18212f;font-family:Arial}.wrap{max-width:1180px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;align-items:center}.brand{font-size:27px;font-weight:800}.muted{color:#687385}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}.stat,.card{background:#fff;border:1px solid #e2e7ef;border-radius:15px;padding:18px;box-shadow:0 4px 16px rgba(20,30,50,.04)}.stat b{font-size:25px;display:block;margin-top:5px}.tabs{display:flex;gap:8px;margin:15px 0}.tab{background:#eef1f7;border-radius:9px;padding:8px 12px;font-weight:700}.case{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center}.badge{display:inline-block;padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800;background:#eef0f6}.paid{background:#e8f8f0;color:#166b46}.pending{background:#fff4d9;color:#745500}.btn{display:inline-block;border:0;border-radius:9px;padding:10px 14px;text-decoration:none;font-weight:700;background:#4f46e5;color:white}.library-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}@media(max-width:800px){.grid{grid-template-columns:1fr 1fr}.library-grid{grid-template-columns:1fr}.case{grid-template-columns:1fr}}@media(max-width:500px){.grid{grid-template-columns:1fr}}</style></head><body><div class="wrap"><div class="top"><div><div class="brand">Area Riservata Staff FixTude</div><div class="muted">Pratiche, risposte, PDF e KIT da validare</div></div><a href="{{url_for('logout')}}">Esci</a></div><div class="grid"><div class="stat">Pratiche<b>{{rows|length}}</b></div><div class="stat">Analisi €1,99<b>{{rows|selectattr('service','equalto','analysis')|list|length}}</b></div><div class="stat">Kit €9,99<b>{{rows|selectattr('service','equalto','kit')|list|length}}</b></div><div class="stat">Libreria PDF<b>{{library|length}}</b></div></div><div class="tabs"><span class="tab">📂 Tutte le pratiche</span><a class="tab" href="{{url_for('kit_library')}}">📚 Libreria PDF</a></div>{% for row in rows %}<div class="card" style="margin-bottom:12px"><div class="case"><div><strong>Pratica #{{row.case.id}}</strong> · {{row.data.get('name','Cliente')}} {{row.data.get('surname','')}}</div><div><div class="muted">{{row.case.email}}</div><span class="badge {{'paid' if row.service!='none' else 'pending'}}">{{row.service_label}}</span> <span class="badge">{{row.solutions|length}} documenti</span></div><a class="btn" href="{{url_for('resolver_case',case_id=row.case.id)}}">Apri pratica →</a></div></div>{% else %}<div class="card">Nessuna pratica.</div>{% endfor %}<div id="libreria" class="card"><h2>Libreria PDF FixTude</h2><p class="muted">Carica i PDF che lo Staff potrà selezionare, validare e inviare ai clienti del KIT.</p><form method="post" action="{{url_for('kit_library_upload')}}" enctype="multipart/form-data"><input name="title" required placeholder="Titolo" style="padding:10px;width:28%"><input name="category" placeholder="Categoria" style="padding:10px;width:18%"><input name="file" required type="file" accept="application/pdf"><button class="btn">Carica PDF</button></form><div class="library-grid" style="margin-top:14px">{% for f in library %}<div class="stat"><strong>{{f.title}}</strong><div class="muted">{{f.category}} · {{'VALIDATO' if f.validated else 'DA VALIDARE'}}</div><div>{{f.original_filename}}</div>{% if not f.validated %}<form method="post" action="{{url_for('kit_library_validate',library_id=f.id)}}"><button class="btn" style="margin-top:8px">Valida PDF</button></form>{% endif %}<a href="{{url_for('kit_library_download',library_id=f.id)}}">Scarica / verifica</a></div>{% endfor %}</div></div></div></body></html>''',rows=rows,library=get_library_files())
+    return render_template_string('''<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Area Riservata FixTude</title><style>*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#18212f;font-family:Arial}.wrap{max-width:1180px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;align-items:center}.brand{font-size:27px;font-weight:800}.muted{color:#687385}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}.stat,.card{background:#fff;border:1px solid #e2e7ef;border-radius:15px;padding:18px;box-shadow:0 4px 16px rgba(20,30,50,.04)}.stat b{font-size:25px;display:block;margin-top:5px}.tabs{display:flex;gap:8px;margin:15px 0}.tab{background:#eef1f7;border-radius:9px;padding:8px 12px;font-weight:700}.case{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center}.badge{display:inline-block;padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800;background:#eef0f6}.paid{background:#e8f8f0;color:#166b46}.pending{background:#fff4d9;color:#745500}.btn{display:inline-block;border:0;border-radius:9px;padding:10px 14px;text-decoration:none;font-weight:700;background:#4f46e5;color:white}.library-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}@media(max-width:800px){.grid{grid-template-columns:1fr 1fr}.library-grid{grid-template-columns:1fr}.case{grid-template-columns:1fr}}@media(max-width:500px){.grid{grid-template-columns:1fr}}</style></head><body><div class="wrap"><div class="top"><div><div class="brand">Area Riservata FixTude</div><div class="muted">Pratiche, risposte, PDF e KIT da validare</div></div><a href="{{url_for('logout')}}">Esci</a></div><div class="grid"><div class="stat">Pratiche<b>{{rows|length}}</b></div><div class="stat">Analisi €1,99<b>{{rows|selectattr('service','equalto','analysis')|list|length}}</b></div><div class="stat">Kit €9,99<b>{{rows|selectattr('service','equalto','kit')|list|length}}</b></div><div class="stat">Libreria PDF<b>{{library|length}}</b></div></div><div class="tabs"><span class="tab">📂 Tutte le pratiche</span><a class="tab" href="{{url_for('kit_library')}}">📚 Libreria PDF</a></div>{% for row in rows %}<div class="card" style="margin-bottom:12px"><div class="case"><div><strong>Pratica #{{row.case.id}}</strong> · {{row.data.get('name','Cliente')}} {{row.data.get('surname','')}}</div><div><div class="muted">{{row.case.email}}</div><span class="badge {{'paid' if row.service!='none' else 'pending'}}">{{row.service_label}}</span> <span class="badge">{{row.solutions|length}} documenti</span></div><a class="btn" href="{{url_for('resolver_case',case_id=row.case.id)}}">Apri pratica →</a></div></div>{% else %}<div class="card">Nessuna pratica.</div>{% endfor %}<div id="libreria" class="card"><h2>Libreria PDF FixTude</h2><p class="muted">Carica i PDF che lo Staff potrà selezionare, validare e inviare ai clienti del KIT.</p><form method="post" action="{{url_for('kit_library_upload')}}" enctype="multipart/form-data"><input name="title" required placeholder="Titolo" style="padding:10px;width:28%"><input name="category" placeholder="Categoria" style="padding:10px;width:18%"><input name="file" required type="file" accept="application/pdf"><button class="btn">Carica PDF</button></form><div class="library-grid" style="margin-top:14px">{% for f in library %}<div class="stat"><strong>{{f.title}}</strong><div class="muted">{{f.category}} · {{'VALIDATO' if f.validated else 'DA VALIDARE'}}</div><div>{{f.original_filename}}</div>{% if not f.validated %}<form method="post" action="{{url_for('kit_library_validate',library_id=f.id)}}"><button class="btn" style="margin-top:8px">Valida PDF</button></form>{% endif %}<a href="{{url_for('kit_library_download',library_id=f.id)}}">Scarica / verifica</a></div>{% endfor %}</div></div></div></body></html>''',rows=rows,library=get_library_files())
 
 @app.route("/risolutore/libreria")
 def kit_library():
