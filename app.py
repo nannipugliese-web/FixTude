@@ -1839,16 +1839,7 @@ possibili scenari da approfondire.
 <strong>✓ KIT PDF FixTude</strong>
 </p>
 
-<a class="button primary"
-href="/registrazione">
-Registrati gratuitamente
-</a>
-
 <div class="home-access">
-<a class="button primary register-home" href="/registrazione">
-Registrati
-</a>
-
 <div class="access-buttons">
 <a class="button light" href="/privato/login">
 👤 Accesso cliente
