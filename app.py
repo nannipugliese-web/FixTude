@@ -1690,6 +1690,20 @@ font-size:36px
 }
 
 /* ============================================================
+   HOME ACCESS — FixTude v25
+   ============================================================ */
+.home-access{margin-top:18px}
+.register-home{display:block !important;width:100%;text-align:center;margin-bottom:10px}
+.access-buttons{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important;margin-top:0 !important}
+.access-buttons .button{width:100%;margin:0 !important;text-align:center;white-space:nowrap}
+@media(max-width:430px){
+  .home-access{margin-top:14px}
+  .register-home{padding:12px 14px !important;margin-bottom:9px}
+  .access-buttons{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:8px !important}
+  .access-buttons .button{padding:11px 7px !important;font-size:12px !important;line-height:1.15 !important}
+}
+
+/* ============================================================
    MOBILE / VISUAL REFINEMENT — FixTude v23
    ============================================================ */
 *{box-sizing:border-box}
@@ -1830,14 +1844,20 @@ href="/registrazione">
 Registrati gratuitamente
 </a>
 
+<div class="home-access">
+<a class="button primary register-home" href="/registrazione">
+Registrati
+</a>
+
 <div class="access-buttons">
 <a class="button light" href="/privato/login">
-👤 Accedi come cliente
+👤 Accesso cliente
 </a>
 
 <a class="button light" href="/risolutore/login">
-🛡️ Area Riservata FixTude
+🔐 Area Riservata FixTude
 </a>
+</div>
 </div>
 
 </div>
