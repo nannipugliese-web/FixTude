@@ -1807,13 +1807,6 @@ nav>div:last-child a:hover{background:#fff;color:#4f46e5;transform:translateY(-1
 <div class="logo">
 Fix<span>Tude</span>
 </div>
-<div>
-<a href="/privato/login">👤 Accesso cliente</a>
-&nbsp;&nbsp;
-<a href="/risolutore/login">🛡️ Area Riservata FixTude</a>
-&nbsp;&nbsp;
-<a href="/registrazione">Registrati</a>
-</div>
 </nav>
 
 <div class="grid">
@@ -1840,6 +1833,10 @@ possibili scenari da approfondire.
 </p>
 
 <div class="home-access">
+<a class="button primary register-home" href="/registrazione">
+Registrati
+</a>
+
 <div class="access-buttons">
 <a class="button light" href="/privato/login">
 👤 Accesso cliente
