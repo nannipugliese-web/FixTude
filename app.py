@@ -1697,8 +1697,10 @@ font-size:36px
 .access-buttons{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important;margin-top:0 !important}
 .access-buttons .button{width:100%;margin:0 !important;text-align:center;white-space:nowrap}
 @media(max-width:430px){
+  .logo{display:inline-block !important;width:max-content !important;white-space:nowrap !important;letter-spacing:-1px !important}
+  .logo span{display:inline !important}
   .home-access{margin-top:14px}
-  .register-home{padding:12px 14px !important;margin-bottom:9px}
+  .register-home{padding:12px 14px !important;margin-bottom:15px}
   .access-buttons{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:8px !important}
   .access-buttons .button{padding:11px 7px !important;font-size:12px !important;line-height:1.15 !important}
 }
