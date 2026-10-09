@@ -1839,6 +1839,24 @@ nav>div:last-child a:hover{background:#fff;color:#4f46e5;transform:translateY(-1
   .access-buttons .button{font-size:11px}
   .education-card{flex-basis:84%;min-width:84%;width:84%}
 }
+
+/* CTA registrazione nel box SIC: stessa gerarchia visiva del box bianco */
+.sic-register{
+  display:block !important;
+  width:100%;
+  text-align:center;
+  margin:18px 0 0 !important;
+  padding:13px 16px;
+  line-height:1.25;
+  flex-shrink:0;
+}
+@media(max-width:760px){
+  .sic-register{
+    margin-top:16px !important;
+    padding:12px 14px;
+    font-size:14px;
+  }
+}
 </style>
 </head>
 <body>
@@ -1939,6 +1957,10 @@ Modulo ufficiale
 </a>
 
 </div>
+
+<a class="button primary register-home sic-register" href="/registrazione">
+Registrati per accedere ai SIC
+</a>
 
 </div>
 
