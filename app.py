@@ -294,6 +294,8 @@ def init_db():
         "billing_cap": "TEXT",
         "billing_city": "TEXT",
         "billing_province": "TEXT",
+        "address": "TEXT",
+        "phone": "TEXT",
         "vat_number": "TEXT",
         "recipient_code": "TEXT",
         "pec": "TEXT"
@@ -1840,15 +1842,7 @@ nav>div:last-child a:hover{background:#fff;color:#4f46e5;transform:translateY(-1
   .education-card{flex-basis:84%;min-width:84%;width:84%}
 }
 
-/* SIC non attivi prima della registrazione/accesso cliente */
-.free.sic-locked{opacity:.58;filter:saturate(.55)}
-.sic-locked-message{
-  grid-column:1 / -1;
-  display:flex;align-items:center;justify-content:center;
-  min-height:76px;padding:14px 16px;text-align:center;
-  border:1px dashed rgba(255,255,255,.28);border-radius:14px;
-  color:#e2e8f0;font-size:13px;line-height:1.4;
-}
+/* I pulsanti SIC restano visibili; senza accesso il clic è disabilitato. */
 /* CTA registrazione nel box SIC: stessa gerarchia visiva del box bianco */
 .sic-register{
   display:block !important;
@@ -1939,40 +1933,32 @@ Puoi richiedere direttamente agli enti
 le informazioni che ti riguardano.
 </p>
 
-<div class="free {% if not session.get('user') or session.get('user', {}).get('role') != 'debtor' %}sic-locked{% endif %}">
+<div class="free">
 
-{% if session.get('user') and session.get('user', {}).get('role') == 'debtor' %}
-<a target="_blank" rel="noopener noreferrer"
-href="https://www.modulorichiesta.crif.com/">
+<a {% if session.get('user') and session.get('user', {}).get('role') == 'debtor' %}href="https://www.modulorichiesta.crif.com/" target="_blank" rel="noopener noreferrer"{% else %}href="#" aria-disabled="true" title="Registrati per attivare il collegamento" onclick="return false;"{% endif %}>
 <strong>CRIF</strong><br>
 Modulo ufficiale
 </a>
 
-<a target="_blank" rel="noopener noreferrer"
-href="https://www.experian.it/content/dam/noindex/emea/italy/Nuovo-modulo-SIC.pdf">
+<a {% if session.get('user') and session.get('user', {}).get('role') == 'debtor' %}href="https://www.experian.it/content/dam/noindex/emea/italy/Nuovo-modulo-SIC.pdf" target="_blank" rel="noopener noreferrer"{% else %}href="#" aria-disabled="true" title="Registrati per attivare il collegamento" onclick="return false;"{% endif %}>
 <strong>EXPERIAN</strong><br>
 Modulo ufficiale
 </a>
 
-<a target="_blank" rel="noopener noreferrer"
-href="https://consumatore.ctconline.it/sic/apri-istanza">
+<a {% if session.get('user') and session.get('user', {}).get('role') == 'debtor' %}href="https://consumatore.ctconline.it/sic/apri-istanza" target="_blank" rel="noopener noreferrer"{% else %}href="#" aria-disabled="true" title="Registrati per attivare il collegamento" onclick="return false;"{% endif %}>
 <strong>CTC</strong><br>
 Procedura ufficiale
 </a>
 
-<a target="_blank" rel="noopener noreferrer"
-href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/Modulo-di-richiesta-dei-dati-nominativi-CAI.pdf?force_download=1">
+<a {% if session.get('user') and session.get('user', {}).get('role') == 'debtor' %}href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/Modulo-di-richiesta-dei-dati-nominativi-CAI.pdf?force_download=1" target="_blank" rel="noopener noreferrer"{% else %}href="#" aria-disabled="true" title="Registrati per attivare il collegamento" onclick="return false;"{% endif %}>
 <strong>CAI</strong><br>
 Modulo ufficiale
 </a>
-{% else %}
-<div class="sic-locked-message">Registrati o accedi al tuo account per attivare i collegamenti alle banche dati.</div>
-{% endif %}
 
 </div>
 
 {% if not session.get('user') or session.get('user', {}).get('role') != 'debtor' %}
-<a class="button primary register-home sic-register" href="/registrazione">
+<a class="button primary register-home sic-register" href="/registrazione-sic">
 Registrati
 </a>
 {% else %}
@@ -2380,6 +2366,90 @@ def registration():
         REGISTRATION_HTML,
         error=error
     )
+
+
+# ============================================================
+# REGISTRAZIONE SEMPLICE PER ACCESSO AI SIC
+# ============================================================
+
+SIC_REGISTRATION_HTML = """
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Registrazione gratuita · FixTude</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:20px;font-family:Arial,Helvetica,sans-serif;background:#f5f7fb;color:#18212f}
+.box{max-width:560px;margin:25px auto;background:#fff;padding:30px;border:1px solid #e5e9f0;border-radius:18px;box-shadow:0 10px 30px rgba(24,33,47,.07)}
+a{color:#4f46e5;text-decoration:none;font-weight:700}h1{font-size:28px;margin:22px 0 8px}.intro{color:#667085;line-height:1.5;margin:0 0 22px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{min-width:0}.full{grid-column:1/-1}label{display:block;font-size:14px;font-weight:700;margin:0 0 7px}
+input{width:100%;height:46px;padding:0 12px;border:1px solid #d8dee8;border-radius:9px;font-size:16px;background:#fff}input:focus{outline:2px solid #d9d7ff;border-color:#4f46e5}
+button{width:100%;height:49px;margin-top:20px;background:#4f46e5;color:white;border:0;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}.error{padding:12px;background:#fff1f2;border:1px solid #fecdd3;border-radius:9px;color:#b42318;margin:0 0 16px}.note{font-size:12px;color:#667085;line-height:1.5;margin-top:14px}
+@media(max-width:520px){body{padding:12px}.box{margin:10px auto;padding:22px 18px}h1{font-size:25px}.grid{grid-template-columns:1fr}.full{grid-column:auto}}
+</style>
+</head>
+<body><main class="box">
+<a href="/">← Torna alla homepage</a>
+<h1>Registrazione gratuita</h1>
+<p class="intro">Crea il tuo account FixTude con i soli dati anagrafici. La registrazione non avvia l'analisi della situazione debitoria e non richiede l'inserimento di entrate, spese o debiti.</p>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="post" autocomplete="on">
+<div class="grid">
+<div class="field"><label for="first_name">Nome</label><input id="first_name" name="first_name" autocomplete="given-name" required></div>
+<div class="field"><label for="last_name">Cognome</label><input id="last_name" name="last_name" autocomplete="family-name" required></div>
+<div class="field full"><label for="address">Indirizzo</label><input id="address" name="address" autocomplete="street-address" required></div>
+<div class="field full"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required></div>
+<div class="field"><label for="pec">PEC (facoltativa)</label><input id="pec" name="pec" type="email" autocomplete="off"></div>
+<div class="field"><label for="phone">Recapito telefonico</label><input id="phone" name="phone" type="tel" autocomplete="tel" required></div>
+<div class="field"><label for="password">Password (min. 8 caratteri)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required></div>
+<div class="field"><label for="confirm_password">Conferma password</label><input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" minlength="8" required></div>
+</div>
+<button type="submit">Crea account gratuito</button>
+<p class="note">Dopo la registrazione tornerai alla homepage: i pulsanti CRIF, Experian, CTC e CAI saranno attivi. Se hai già un account, <a href="/privato/login">accedi qui</a>.</p>
+</form></main></body></html>
+"""
+
+
+@app.route("/registrazione-sic", methods=["GET", "POST"])
+def registration_sic():
+    error = None
+    if request.method == "POST":
+        first_name = request.form.get("first_name", "").strip()
+        last_name = request.form.get("last_name", "").strip()
+        address = request.form.get("address", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        pec = request.form.get("pec", "").strip().lower()
+        phone = request.form.get("phone", "").strip()
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm_password", "")
+
+        if not all([first_name, last_name, address, phone]) or "@" not in email:
+            error = "Compila tutti i campi obbligatori con dati validi."
+        elif pec and "@" not in pec:
+            error = "L'indirizzo PEC non sembra valido."
+        elif len(password) < 8:
+            error = "La password deve contenere almeno 8 caratteri."
+        elif password != confirm:
+            error = "Le password non coincidono."
+        elif find_user(email):
+            error = "Questa email è già registrata. Accedi con il tuo account oppure usa un'altra email."
+        else:
+            conn = db_connect()
+            conn.execute(
+                """INSERT INTO users
+                   (email,password_hash,role,created_at,first_name,last_name,address,pec,phone)
+                   VALUES (?,?, 'debtor', ?, ?, ?, ?, ?, ?)""",
+                (email, generate_password_hash(password), now_iso(), first_name,
+                 last_name, address, pec or None, phone)
+            )
+            conn.commit()
+            conn.close()
+            session.clear()
+            session["user"] = {"email": email, "role": "debtor"}
+            return redirect(url_for("home"))
+
+    return render_template_string(SIC_REGISTRATION_HTML, error=error)
 
 
 # ============================================================
