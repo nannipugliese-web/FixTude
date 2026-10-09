@@ -1882,11 +1882,14 @@ nav>div:last-child a:hover{background:#fff;color:#4f46e5;transform:translateY(-1
 .book-feature .education-book-card{width:100%;max-width:240px;justify-self:center;}
 .book-feature .education-book-cover-wrap{margin:12px 12px 0;}
 .book-feature .education-book-copy{padding:14px 14px 17px;}
-.book-feature-text small{font-weight:800;letter-spacing:.1em;color:#bac9e7;}
+.book-feature-text small{display:block;font-weight:800;letter-spacing:.1em;color:#bac9e7;margin-bottom:10px;}
 .book-feature-text h3{font-size:clamp(22px,2.5vw,32px);margin:9px 0 12px;color:#fff;}
-.book-feature-text p{font-size:16px;line-height:1.6;color:#d9e2f0;max-width:650px;}
+.book-feature-text p{font-size:16px;line-height:1.65;color:#d9e2f0;max-width:none;margin:0 0 14px;}
+.book-feature-text .book-points{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0 20px;}
+.book-feature-text .book-point{padding:13px 14px;border:1px solid rgba(255,255,255,.13);border-radius:12px;background:rgba(255,255,255,.045);color:#e4ebf6;font-size:14px;line-height:1.5;}
+.book-feature-text .book-point strong{display:block;color:#fff;font-size:14px;margin-bottom:5px;}
 .book-feature-text .book-price{display:inline-block;margin-top:8px;padding:11px 16px;border-radius:9px;background:#d51f32;color:#fff;font-weight:800;text-decoration:none;}
-@media(max-width:760px){.book-feature{grid-template-columns:minmax(0,1fr);padding:18px;gap:16px}.book-feature .education-book-card{max-width:230px}.book-feature-text{text-align:center}.book-feature-text p{font-size:15px}}
+@media(max-width:760px){.book-feature{grid-template-columns:minmax(0,1fr);padding:18px;gap:16px}.book-feature .education-book-card{max-width:230px}.book-feature-text{text-align:left}.book-feature-text p{font-size:15px}.book-feature-text .book-points{grid-template-columns:minmax(0,1fr);gap:9px}.book-feature-text .book-point{padding:11px 12px}}
 .education-book-card{
   display:flex;
   min-width:0;
@@ -1933,30 +1936,30 @@ nav>div:last-child a:hover{background:#fff;color:#4f46e5;transform:translateY(-1
   filter:saturate(1.06) contrast(1.025);
 }
 .paid-brush{
-  position:absolute;
+  position:relative;
   z-index:2;
-  top:13%;
-  left:-8%;
-  width:116%;
   display:flex;
+  width:max-content;
+  max-width:94%;
   justify-content:center;
+  margin:10px auto 8px;
+  padding:0 8px;
   pointer-events:none;
-  transform:rotate(-11deg);
+  transform:rotate(-2deg);
 }
 .paid-brush::before{
   content:"";
   position:absolute;
-  inset:0 -2% 0 -2%;
-  min-height:31px;
+  z-index:-1;
+  inset:0 -5px 0 -5px;
   background:#d51f32;
-  border-radius:3px 8px 4px 6px;
-  clip-path:polygon(2% 13%,96% 0,100% 73%,4% 100%,0 78%);
-  box-shadow:0 3px 7px rgba(0,0,0,.22);
+  clip-path:polygon(2% 18%,13% 7%,28% 12%,43% 0,57% 8%,73% 2%,88% 11%,100% 4%,96% 78%,83% 88%,68% 82%,52% 100%,37% 89%,22% 95%,7% 84%,0 91%);
+  filter:drop-shadow(0 2px 2px rgba(0,0,0,.2));
 }
 .paid-brush span{
   position:relative;
   display:block;
-  padding:8px 8px 7px;
+  padding:7px 8px 8px;
   color:#fff;
   font-size:clamp(10px,1vw,13px);
   line-height:1;
@@ -2157,9 +2160,16 @@ Accedi alla tua area cliente
       </div>
     </a>
     <div class="book-feature-text">
-      <small>APPROFONDIMENTO A PAGAMENTO</small>
+      <small>APPROFONDIMENTO</small>
       <h3>NIENTE PANICO</h3>
-      <p>Quando suonano al citofono, non disperare: c’è sempre una soluzione. Il libro FixTude è incluso nel KIT PDF da € 9,99, insieme ai documenti e ai materiali previsti dal servizio.</p>
+      <p>Quando arriva una richiesta di pagamento, la prima cosa da fare è fermarsi, leggere e capire. <em>Niente Panico</em> accompagna il lettore nei primi passi per affrontare i debiti con maggiore lucidità, senza promesse miracolose e senza decisioni impulsive.</p>
+      <div class="book-points">
+        <div class="book-point"><strong>1. Capire la situazione</strong>Raccogliere comunicazioni, importi, scadenze e documenti per distinguere ciò che è urgente da ciò che richiede una verifica.</div>
+        <div class="book-point"><strong>2. Valutare le possibilità</strong>Mettere a confronto entrate, spese essenziali e debiti per capire quale impegno mensile può essere sostenibile.</div>
+        <div class="book-point"><strong>3. Preparare il dialogo</strong>Affrontare il confronto con il creditore in modo ordinato, con richieste chiare e informazioni pertinenti.</div>
+        <div class="book-point"><strong>4. Fare un passo alla volta</strong>Riconoscere quando serve approfondire o chiedere supporto qualificato prima di firmare o accettare un accordo.</div>
+      </div>
+      <p>Il libro è incluso nel KIT PDF FixTude da € 9,99, insieme ai documenti e ai materiali previsti dal servizio.</p>
       <a class="book-price" href="/registrazione">Scopri il KIT PDF FixTude · € 9,99 →</a>
     </div>
   </section>
