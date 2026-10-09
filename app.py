@@ -284,6 +284,23 @@ def init_db():
         )
     """)
 
+    # Dati fiscali del cliente, necessari per predisporre la fattura elettronica.
+    user_columns = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
+    for column, definition in {
+        "first_name": "TEXT",
+        "last_name": "TEXT",
+        "fiscal_code": "TEXT",
+        "billing_address": "TEXT",
+        "billing_cap": "TEXT",
+        "billing_city": "TEXT",
+        "billing_province": "TEXT",
+        "vat_number": "TEXT",
+        "recipient_code": "TEXT",
+        "pec": "TEXT"
+    }.items():
+        if column not in user_columns:
+            conn.execute(f"ALTER TABLE users ADD COLUMN {column} {definition}")
+
     conn.execute("""
         CREATE TABLE IF NOT EXISTS password_reset_tokens (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -422,6 +439,25 @@ def find_user(email):
     conn.close()
 
     return row
+
+
+def fiscal_data_complete(email):
+    row = find_user(email)
+    if not row:
+        return False
+    required = [
+        "first_name", "last_name", "fiscal_code",
+        "billing_address", "billing_cap", "billing_city",
+        "billing_province"
+    ]
+    return all(str(row[column] or "").strip() for column in required)
+
+
+def get_fiscal_data(email):
+    row = find_user(email)
+    if not row:
+        return {}
+    return dict(row)
 
 
 # ============================================================
@@ -1729,6 +1765,10 @@ nav>div:last-child a:hover{background:#fff;color:#4f46e5;transform:translateY(-1
 .grid{gap:20px;margin-top:30px}
 .card{padding:30px}
 .card:first-child{background:rgba(255,255,255,.94)}
+.home-price{margin:17px 0 18px;padding:13px 15px;border:1px solid rgba(79,70,229,.16);border-radius:12px;background:linear-gradient(110deg,rgba(238,242,255,.88),rgba(248,250,252,.92));}
+.home-price strong{display:block;color:#4f46e5;font-size:17px;line-height:1.3}
+.home-price span{display:block;margin-top:5px;color:#697586;font-size:12px;line-height:1.4}
+@media(max-width:760px){.home-price{margin:14px 0;padding:12px 11px}.home-price strong{font-size:15px}.home-price span{font-size:11px}}
 .dark{background:linear-gradient(145deg,#18212f 0%,#27375b 100%)}
 .education{
   margin-top:30px;padding:27px;
@@ -1826,6 +1866,11 @@ Inserisci dati, entrate, spese e debiti.
 FixTude organizza la situazione e produce
 possibili scenari da approfondire.
 </p>
+
+<div class="home-price">
+  <strong>Analisi e documenti a partire da 1,99 €</strong>
+  <span>Analisi FixTude € 1,99 · Kit personalizzato € 9,99</span>
+</div>
 
 <p>
 <strong>✓ Analisi automatica</strong><br>
@@ -2294,6 +2339,106 @@ def registration():
         REGISTRATION_HTML,
         error=error
     )
+
+
+# ============================================================
+# DATI FISCALI CLIENTE
+# ============================================================
+
+FISCAL_DATA_HTML = """
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dati per la fattura · FixTude</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#f6f8fb;color:#18212f}
+.box{max-width:650px;margin:45px auto;background:white;padding:30px;border-radius:18px;box-shadow:0 12px 35px rgba(0,0,0,.06)}
+h1{margin:0 0 10px;font-size:28px}.intro{color:#667085;line-height:1.5}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:700;font-size:13px;margin:7px 0 5px}input,select{width:100%;box-sizing:border-box;padding:12px;border:1px solid #d9dee8;border-radius:9px;font-size:14px;background:white}
+button{width:100%;padding:13px;background:#4f46e5;color:white;border:0;border-radius:9px;font-weight:700;cursor:pointer;margin-top:16px}.error{background:#fee2e2;color:#991b1b;padding:12px;border-radius:9px;margin:15px 0}.note{background:#f1f3ff;padding:13px;border-radius:10px;font-size:13px;color:#4b5563;margin:18px 0}.back{display:inline-block;margin-bottom:18px;color:#4f46e5;text-decoration:none;font-weight:700}
+@media(max-width:650px){.box{margin:15px;padding:21px;border-radius:15px}.grid{grid-template-columns:1fr}.full{grid-column:auto}h1{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="box">
+<a class="back" href="{{ url_for('payments') }}">← Torna ai pagamenti</a>
+<h1>Dati per la fattura</h1>
+<p class="intro">Inserisci i dati fiscali una sola volta. FixTude li conserverà nel tuo account per predisporre correttamente la documentazione fiscale relativa ai tuoi acquisti.</p>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<div class="note"><strong>Per un privato:</strong> sono necessari nome, cognome, codice fiscale e indirizzo. Se hai una PEC puoi indicarla; altrimenti la fattura elettronica potrà essere recapitata con codice destinatario 0000000.</div>
+<form method="post">
+<div class="grid">
+<div><label>Nome *</label><input name="first_name" value="{{ data.first_name or '' }}" required></div>
+<div><label>Cognome *</label><input name="last_name" value="{{ data.last_name or '' }}" required></div>
+<div><label>Codice fiscale *</label><input name="fiscal_code" maxlength="16" value="{{ data.fiscal_code or '' }}" required></div>
+<div><label>P. IVA (se presente)</label><input name="vat_number" maxlength="11" value="{{ data.vat_number or '' }}"></div>
+<div class="full"><label>Indirizzo *</label><input name="billing_address" value="{{ data.billing_address or '' }}" required></div>
+<div><label>CAP *</label><input name="billing_cap" maxlength="5" value="{{ data.billing_cap or '' }}" required></div>
+<div><label>Comune *</label><input name="billing_city" value="{{ data.billing_city or '' }}" required></div>
+<div><label>Provincia *</label><input name="billing_province" maxlength="2" value="{{ data.billing_province or '' }}" required></div>
+<div><label>Codice destinatario</label><input name="recipient_code" maxlength="7" value="{{ data.recipient_code or '' }}" placeholder="0000000"></div>
+<div><label>PEC</label><input type="email" name="pec" value="{{ data.pec or '' }}" placeholder="nome@pec.it"></div>
+</div>
+<button>Salva e continua al pagamento</button>
+</form>
+</div>
+</body>
+</html>
+"""
+
+@app.route("/dati-fiscali", methods=["GET", "POST"])
+def fiscal_data():
+    user = require_login("debtor")
+    if not user:
+        return redirect(url_for("debtor_login"))
+
+    data = get_fiscal_data(user["email"])
+    error = None
+
+    if request.method == "POST":
+        fields = {
+            "first_name": request.form.get("first_name", "").strip(),
+            "last_name": request.form.get("last_name", "").strip(),
+            "fiscal_code": request.form.get("fiscal_code", "").strip().upper(),
+            "billing_address": request.form.get("billing_address", "").strip(),
+            "billing_cap": request.form.get("billing_cap", "").strip(),
+            "billing_city": request.form.get("billing_city", "").strip(),
+            "billing_province": request.form.get("billing_province", "").strip().upper(),
+            "vat_number": request.form.get("vat_number", "").strip(),
+            "recipient_code": request.form.get("recipient_code", "").strip().upper(),
+            "pec": request.form.get("pec", "").strip().lower()
+        }
+
+        if any(not fields[k] for k in ("first_name","last_name","fiscal_code","billing_address","billing_cap","billing_city","billing_province")):
+            error = "Compila tutti i campi obbligatori contrassegnati con *."
+        elif not re.fullmatch(r"[A-Z0-9]{16}", fields["fiscal_code"]):
+            error = "Il codice fiscale deve contenere 16 caratteri alfanumerici."
+        elif not re.fullmatch(r"\d{5}", fields["billing_cap"]):
+            error = "Il CAP deve contenere 5 cifre."
+        elif not re.fullmatch(r"[A-Z]{2}", fields["billing_province"]):
+            error = "La provincia deve essere indicata con due lettere."
+        elif fields["vat_number"] and not re.fullmatch(r"\d{11}", fields["vat_number"]):
+            error = "La Partita IVA deve contenere 11 cifre."
+        elif fields["recipient_code"] and fields["recipient_code"] != "0000000" and not re.fullmatch(r"[A-Z0-9]{7}", fields["recipient_code"]):
+            error = "Il codice destinatario deve contenere 7 caratteri."
+        elif fields["pec"] and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", fields["pec"]):
+            error = "L'indirizzo PEC non è valido."
+        else:
+            conn = db_connect()
+            conn.execute("""
+                UPDATE users SET first_name=?, last_name=?, fiscal_code=?,
+                billing_address=?, billing_cap=?, billing_city=?, billing_province=?,
+                vat_number=?, recipient_code=?, pec=? WHERE email=?
+            """, (fields["first_name"],fields["last_name"],fields["fiscal_code"],fields["billing_address"],fields["billing_cap"],fields["billing_city"],fields["billing_province"],fields["vat_number"],fields["recipient_code"],fields["pec"],user["email"]))
+            conn.commit(); conn.close()
+            return redirect(url_for("payments"))
+
+        data = {**data, **fields}
+
+    return render_template_string(FISCAL_DATA_HTML, data=data, error=error)
 
 
 # ============================================================
@@ -3365,6 +3510,17 @@ def payments():
         <h1>Pagamenti</h1>
 
         <div class="card">
+        <h2>Dati per la fattura</h2>
+        {% if fiscal_complete %}
+        <div class="paid">✓ Dati fiscali presenti</div>
+        <p class="small">Puoi modificarli prima di un nuovo acquisto.</p>
+        {% else %}
+        <div class="review">⚠ Completa i dati fiscali prima del pagamento.</div>
+        {% endif %}
+        <a href="{{ url_for('fiscal_data') }}">{{ 'Modifica dati fiscali' if fiscal_complete else 'Inserisci dati fiscali →' }}</a>
+        </div>
+
+        <div class="card">
 
         <h2>Analisi FixTude</h2>
 
@@ -3461,6 +3617,7 @@ def payments():
         """,
         analysis_paid=analysis_paid,
         pdf_paid=pdf_paid,
+        fiscal_complete=fiscal_data_complete(user["email"]),
         has_document=has_document,
         latest_solution=latest_solution,
         analysis_payment=analysis_payment,
@@ -3487,6 +3644,12 @@ def create_checkout():
 
     if service_key not in PAYMENT_SERVICES:
         return "Servizio non valido.", 400
+
+    # Prima del pagamento raccogliamo i dati necessari alla successiva predisposizione
+    # della fattura elettronica. La trasmissione allo SdI resta separata e manuale
+    # tramite Agenzia delle Entrate in questa fase di lancio.
+    if not fiscal_data_complete(user["email"]):
+        return redirect(url_for("fiscal_data", next="pagamenti"))
 
     service = PAYMENT_SERVICES[service_key]
 
@@ -3593,7 +3756,9 @@ def create_checkout():
                 "payment_id": str(payment_id),
                 "case_id": str(case_id),
                 "service": service_key,
-                "user_email": user["email"]
+                "user_email": user["email"],
+                "fiscal_code": get_fiscal_data(user["email"]).get("fiscal_code", ""),
+                "vat_number": get_fiscal_data(user["email"]).get("vat_number", "")
             },
             success_url=(
                 url_for("payment_success", _external=True)
