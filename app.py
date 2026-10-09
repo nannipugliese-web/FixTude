@@ -1860,6 +1860,18 @@ nav>div:last-child a:hover{background:#fff;color:#4f46e5;transform:translateY(-1
     font-size:14px;
   }
 }
+/* SOLO HOME: benefici affiancati e registrazione allineata al box SIC */
+.grid > .card:first-child{display:flex;flex-direction:column}
+.home-benefits{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 14px;margin:24px 0 20px}
+.home-benefits strong{display:block;line-height:1.35}
+.grid > .card:first-child .home-access{margin-top:auto}
+.grid > .card:first-child .access-buttons{margin-bottom:10px}
+.grid > .card:first-child .register-home{margin:0 !important}
+@media(max-width:760px){
+  .home-benefits{gap:9px 8px;margin:20px 0 18px;font-size:14px}
+  .grid > .card:first-child .home-access{margin-top:18px}
+}
+
 </style>
 </head>
 <body>
@@ -1893,18 +1905,14 @@ possibili scenari da approfondire.
   <span>Analisi FixTude € 1,99 · Kit personalizzato € 9,99</span>
 </div>
 
-<p>
-<strong>✓ Analisi automatica</strong><br>
-<strong>✓ Possibili scenari</strong><br>
-<strong>✓ Esperto FixTude</strong><br>
+<div class="home-benefits">
+<strong>✓ Analisi automatica</strong>
+<strong>✓ Possibili scenari</strong>
+<strong>✓ Esperto FixTude</strong>
 <strong>✓ KIT PDF FixTude</strong>
-</p>
+</div>
 
 <div class="home-access">
-<a class="button primary register-home" href="/registrazione">
-Registrati
-</a>
-
 <div class="access-buttons">
 <a class="button light" href="/privato/login">
 👤 Accesso cliente
@@ -1914,6 +1922,9 @@ Registrati
 🔐 Area Riservata FixTude
 </a>
 </div>
+<a class="button primary register-home" href="/registrazione">
+Registrati
+</a>
 </div>
 
 </div>
