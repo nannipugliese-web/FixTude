@@ -1973,7 +1973,7 @@ Modulo ufficiale
 
 {% if not session.get('user') or session.get('user', {}).get('role') != 'debtor' %}
 <a class="button primary register-home sic-register" href="/registrazione">
-Registrati per accedere ai SIC
+Registrati
 </a>
 {% else %}
 <a class="button light sic-register" href="/privato">
