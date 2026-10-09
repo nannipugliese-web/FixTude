@@ -1840,6 +1840,15 @@ nav>div:last-child a:hover{background:#fff;color:#4f46e5;transform:translateY(-1
   .education-card{flex-basis:84%;min-width:84%;width:84%}
 }
 
+/* SIC non attivi prima della registrazione/accesso cliente */
+.free.sic-locked{opacity:.58;filter:saturate(.55)}
+.sic-locked-message{
+  grid-column:1 / -1;
+  display:flex;align-items:center;justify-content:center;
+  min-height:76px;padding:14px 16px;text-align:center;
+  border:1px dashed rgba(255,255,255,.28);border-radius:14px;
+  color:#e2e8f0;font-size:13px;line-height:1.4;
+}
 /* CTA registrazione nel box SIC: stessa gerarchia visiva del box bianco */
 .sic-register{
   display:block !important;
@@ -1930,37 +1939,47 @@ Puoi richiedere direttamente agli enti
 le informazioni che ti riguardano.
 </p>
 
-<div class="free">
+<div class="free {% if not session.get('user') or session.get('user', {}).get('role') != 'debtor' %}sic-locked{% endif %}">
 
-<a target="_blank"
+{% if session.get('user') and session.get('user', {}).get('role') == 'debtor' %}
+<a target="_blank" rel="noopener noreferrer"
 href="https://www.modulorichiesta.crif.com/">
 <strong>CRIF</strong><br>
 Modulo ufficiale
 </a>
 
-<a target="_blank"
+<a target="_blank" rel="noopener noreferrer"
 href="https://www.experian.it/content/dam/noindex/emea/italy/Nuovo-modulo-SIC.pdf">
 <strong>EXPERIAN</strong><br>
 Modulo ufficiale
 </a>
 
-<a target="_blank"
+<a target="_blank" rel="noopener noreferrer"
 href="https://consumatore.ctconline.it/sic/apri-istanza">
 <strong>CTC</strong><br>
 Procedura ufficiale
 </a>
 
-<a target="_blank"
+<a target="_blank" rel="noopener noreferrer"
 href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/Modulo-di-richiesta-dei-dati-nominativi-CAI.pdf?force_download=1">
 <strong>CAI</strong><br>
 Modulo ufficiale
 </a>
+{% else %}
+<div class="sic-locked-message">Registrati o accedi al tuo account per attivare i collegamenti alle banche dati.</div>
+{% endif %}
 
 </div>
 
+{% if not session.get('user') or session.get('user', {}).get('role') != 'debtor' %}
 <a class="button primary register-home sic-register" href="/registrazione">
 Registrati per accedere ai SIC
 </a>
+{% else %}
+<a class="button light sic-register" href="/privato">
+Accedi alla tua area cliente
+</a>
+{% endif %}
 
 </div>
 
