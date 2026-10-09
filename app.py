@@ -1872,12 +1872,21 @@ nav>div:last-child a:hover{background:#fff;color:#4f46e5;transform:translateY(-1
   .grid > .card:first-child .home-access{margin-top:18px}
 }
 
-/* LIBRO NIENTE PANICO: tessera coordinata alle guide, copertina originale e badge pennellata */
+/* LIBRO NIENTE PANICO: sezione autonoma sotto le guide, per rispettare il formato verticale */
 .education-grid{
-  grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
   align-items:stretch;
-  gap:14px !important;
+  gap:15px !important;
 }
+.book-feature{margin:24px 0 0;padding:24px;border:1px solid rgba(255,255,255,.13);border-radius:18px;background:linear-gradient(125deg,rgba(15,29,48,.95),rgba(38,56,85,.92));display:grid;grid-template-columns:minmax(170px,240px) minmax(0,1fr);gap:28px;align-items:center;}
+.book-feature .education-book-card{width:100%;max-width:240px;justify-self:center;}
+.book-feature .education-book-cover-wrap{margin:12px 12px 0;}
+.book-feature .education-book-copy{padding:14px 14px 17px;}
+.book-feature-text small{font-weight:800;letter-spacing:.1em;color:#bac9e7;}
+.book-feature-text h3{font-size:clamp(22px,2.5vw,32px);margin:9px 0 12px;color:#fff;}
+.book-feature-text p{font-size:16px;line-height:1.6;color:#d9e2f0;max-width:650px;}
+.book-feature-text .book-price{display:inline-block;margin-top:8px;padding:11px 16px;border-radius:9px;background:#d51f32;color:#fff;font-weight:800;text-decoration:none;}
+@media(max-width:760px){.book-feature{grid-template-columns:minmax(0,1fr);padding:18px;gap:16px}.book-feature .education-book-card{max-width:230px}.book-feature-text{text-align:center}.book-feature-text p{font-size:15px}}
 .education-book-card{
   display:flex;
   min-width:0;
@@ -2129,6 +2138,12 @@ Accedi alla tua area cliente
     <div class="education-badge">GUIDE GRATUITE</div>
   </div>
   <div class="education-grid">
+    <a href="{{ url_for('guide_situation') }}" class="education-card"><span>01</span><strong>Capire la propria situazione debitoria</strong><p>Da dove partire e quali dati raccogliere prima di prendere decisioni.</p><b>Leggi la guida →</b></a>
+    <a href="{{ url_for('guide_sic') }}" class="education-card"><span>02</span><strong>CRIF, Experian e CTC: cosa sono?</strong><p>Come funzionano i SIC e quali informazioni possono contenere.</p><b>Leggi la guida →</b></a>
+    <a href="{{ url_for('guide_rates') }}" class="education-card"><span>03</span><strong>Quando le rate diventano difficili da sostenere</strong><p>Come valutare entrate, spese, rate e disponibilità mensile.</p><b>Leggi la guida →</b></a>
+  </div>
+  <div class="education-cta"><strong>Prima di affrontare un problema, impara a leggerlo.</strong><span>Le guide FixTude sono gratuite e pensate per essere comprensibili a tutti.</span></div>
+  <section class="book-feature" aria-label="Libro Niente Panico a pagamento">
     <a href="/registrazione" class="education-book-card" aria-label="Scopri Niente Panico, incluso nel KIT PDF FixTude a pagamento">
       <div class="education-book-cover-wrap">
         <img class="education-book-cover" src="/static/niente_panico_cover.jpg" alt="Copertina originale del libro Niente Panico di FixTude, con un mucchio di bollette e avvisi di pagamento">
@@ -2141,11 +2156,13 @@ Accedi alla tua area cliente
         <b>Incluso nel KIT PDF FixTude · € 9,99 →</b>
       </div>
     </a>
-    <a href="{{ url_for('guide_situation') }}" class="education-card"><span>01</span><strong>Capire la propria situazione debitoria</strong><p>Da dove partire e quali dati raccogliere prima di prendere decisioni.</p><b>Leggi la guida →</b></a>
-    <a href="{{ url_for('guide_sic') }}" class="education-card"><span>02</span><strong>CRIF, Experian e CTC: cosa sono?</strong><p>Come funzionano i SIC e quali informazioni possono contenere.</p><b>Leggi la guida →</b></a>
-    <a href="{{ url_for('guide_rates') }}" class="education-card"><span>03</span><strong>Quando le rate diventano difficili da sostenere</strong><p>Come valutare entrate, spese, rate e disponibilità mensile.</p><b>Leggi la guida →</b></a>
-  </div>
-  <div class="education-cta"><strong>Prima di affrontare un problema, impara a leggerlo.</strong><span>Le guide FixTude sono gratuite e pensate per essere comprensibili a tutti.</span></div>
+    <div class="book-feature-text">
+      <small>APPROFONDIMENTO A PAGAMENTO</small>
+      <h3>NIENTE PANICO</h3>
+      <p>Quando suonano al citofono, non disperare: c’è sempre una soluzione. Il libro FixTude è incluso nel KIT PDF da € 9,99, insieme ai documenti e ai materiali previsti dal servizio.</p>
+      <a class="book-price" href="/registrazione">Scopri il KIT PDF FixTude · € 9,99 →</a>
+    </div>
+  </section>
 </section>
 
 <footer style="margin-top:60px;padding:25px 0;border-top:1px solid #ddd">
