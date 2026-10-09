@@ -1872,6 +1872,143 @@ nav>div:last-child a:hover{background:#fff;color:#4f46e5;transform:translateY(-1
   .grid > .card:first-child .home-access{margin-top:18px}
 }
 
+/* LIBRO NIENTE PANICO: tessera coordinata alle guide, copertina originale e badge pennellata */
+.education-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+  align-items:stretch;
+  gap:14px !important;
+}
+.education-book-card{
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  overflow:hidden;
+  border-radius:15px;
+  color:#fff;
+  text-decoration:none;
+  background:linear-gradient(155deg,#293b5b 0%,#1d293d 100%);
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 8px 20px rgba(0,0,0,.14);
+  transition:transform .28s ease,box-shadow .28s ease,border-color .28s ease;
+  perspective:900px;
+}
+.education-book-card:hover,
+.education-book-card:focus-visible{
+  transform:translateY(-7px) scale(1.018);
+  box-shadow:0 18px 32px rgba(0,0,0,.30);
+  border-color:rgba(255,255,255,.32);
+  outline:none;
+}
+.education-book-cover-wrap{
+  position:relative;
+  margin:13px 13px 0;
+  overflow:visible;
+  border-radius:7px;
+  background:#101d2d;
+  box-shadow:0 8px 17px rgba(0,0,0,.28);
+  transform:translateZ(0);
+}
+.education-book-cover{
+  display:block;
+  width:100%;
+  height:auto;
+  aspect-ratio:2/3;
+  object-fit:cover;
+  border-radius:7px;
+  transition:transform .35s cubic-bezier(.2,.75,.25,1),filter .35s ease;
+  transform-origin:center bottom;
+}
+.education-book-card:hover .education-book-cover,
+.education-book-card:focus-visible .education-book-cover{
+  transform:perspective(850px) rotateY(-3deg) rotateX(1.5deg) scale(1.035);
+  filter:saturate(1.06) contrast(1.025);
+}
+.paid-brush{
+  position:absolute;
+  z-index:2;
+  top:13%;
+  left:-8%;
+  width:116%;
+  display:flex;
+  justify-content:center;
+  pointer-events:none;
+  transform:rotate(-11deg);
+}
+.paid-brush::before{
+  content:"";
+  position:absolute;
+  inset:0 -2% 0 -2%;
+  min-height:31px;
+  background:#d51f32;
+  border-radius:3px 8px 4px 6px;
+  clip-path:polygon(2% 13%,96% 0,100% 73%,4% 100%,0 78%);
+  box-shadow:0 3px 7px rgba(0,0,0,.22);
+}
+.paid-brush span{
+  position:relative;
+  display:block;
+  padding:8px 8px 7px;
+  color:#fff;
+  font-size:clamp(10px,1vw,13px);
+  line-height:1;
+  letter-spacing:.045em;
+  font-weight:900;
+  text-align:center;
+  white-space:nowrap;
+  text-shadow:0 1px 1px rgba(0,0,0,.2);
+}
+.education-book-copy{
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  padding:15px 15px 17px;
+}
+.education-book-copy small{
+  color:#b9c8e5;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.09em;
+  margin-bottom:7px;
+}
+.education-book-copy strong{
+  display:block;
+  font-size:16px;
+  line-height:1.25;
+  margin-bottom:8px;
+}
+.education-book-copy p{
+  color:#d5ddeb;
+  font-size:12px;
+  line-height:1.45;
+  margin:0 0 14px;
+}
+.education-book-copy b{
+  display:block;
+  margin-top:auto;
+  font-size:11px;
+  line-height:1.45;
+  color:#fff;
+}
+@media(max-width:1000px){
+  .education-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;}
+  .education-book-copy strong{font-size:17px}
+  .education-book-copy p{font-size:13px}
+}
+@media(max-width:760px){
+  .education-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important}
+  .education-book-card,.education-card{height:100%;padding:0}
+  .education-book-cover-wrap{margin:9px 9px 0}
+  .education-book-copy{padding:11px 10px 13px}
+  .education-book-copy strong{font-size:14px}
+  .education-book-copy p{font-size:12px;line-height:1.4}
+  .education-book-copy b{font-size:10px}
+  .paid-brush span{font-size:10px;padding:7px 5px 6px}
+}
+@media(prefers-reduced-motion:reduce){
+  .education-book-card,.education-book-cover{transition:none !important}
+  .education-book-card:hover,.education-book-card:focus-visible{transform:none}
+}
+
 </style>
 </head>
 <body>
@@ -1992,6 +2129,18 @@ Accedi alla tua area cliente
     <div class="education-badge">GUIDE GRATUITE</div>
   </div>
   <div class="education-grid">
+    <a href="/registrazione" class="education-book-card" aria-label="Scopri Niente Panico, incluso nel KIT PDF FixTude a pagamento">
+      <div class="education-book-cover-wrap">
+        <img class="education-book-cover" src="/static/niente_panico_cover.jpg" alt="Copertina originale del libro Niente Panico di FixTude, con un mucchio di bollette e avvisi di pagamento">
+        <span class="paid-brush"><span>A PAGAMENTO</span></span>
+      </div>
+      <div class="education-book-copy">
+        <small>IL LIBRO FIXTUDE</small>
+        <strong>NIENTE PANICO</strong>
+        <p>Quando suonano al citofono, non disperare: c’è sempre una soluzione.</p>
+        <b>Incluso nel KIT PDF FixTude · € 9,99 →</b>
+      </div>
+    </a>
     <a href="{{ url_for('guide_situation') }}" class="education-card"><span>01</span><strong>Capire la propria situazione debitoria</strong><p>Da dove partire e quali dati raccogliere prima di prendere decisioni.</p><b>Leggi la guida →</b></a>
     <a href="{{ url_for('guide_sic') }}" class="education-card"><span>02</span><strong>CRIF, Experian e CTC: cosa sono?</strong><p>Come funzionano i SIC e quali informazioni possono contenere.</p><b>Leggi la guida →</b></a>
     <a href="{{ url_for('guide_rates') }}" class="education-card"><span>03</span><strong>Quando le rate diventano difficili da sostenere</strong><p>Come valutare entrate, spese, rate e disponibilità mensile.</p><b>Leggi la guida →</b></a>
