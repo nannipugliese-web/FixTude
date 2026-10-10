@@ -1,4 +1,3 @@
-
 import os
 import re
 import ssl
@@ -1144,9 +1143,14 @@ def contact_send():
             body=body,
             reply_to=email
         )
-    except Exception:
-        # Non stampiamo i dati del modulo nei log del server.
-        app.logger.error("Invio email di ricontatto fallito.")
+    except Exception as exc:
+        # Registriamo solo il tipo e il messaggio tecnico dell'errore SMTP,
+        # senza riportare nei log i dati personali inseriti nel modulo.
+        app.logger.error(
+            "Invio email di ricontatto fallito: %s: %s",
+            type(exc).__name__,
+            str(exc)
+        )
         return jsonify(
             error="Al momento non è possibile inviare la richiesta. Riprova più tardi."
         ), 503
