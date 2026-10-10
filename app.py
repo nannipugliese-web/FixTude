@@ -2061,6 +2061,56 @@ nav>div:last-child a:hover{background:#fff;color:#4f46e5;transform:translateY(-1
   .book-feature-text .book-price{min-width:0;width:100%;}
 }
 
+/* FIX v42 — Le guide restano SEMPRE in orizzontale con scorrimento laterale */
+.education-grid{
+  display:flex !important;
+  flex-direction:row !important;
+  flex-wrap:nowrap !important;
+  justify-content:flex-start !important;
+  align-items:stretch !important;
+  gap:16px !important;
+  width:100% !important;
+  max-width:100% !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  padding:4px 3px 14px !important;
+  scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+  scrollbar-color:#7f91b8 rgba(255,255,255,.12);
+}
+.education-grid::-webkit-scrollbar{height:9px}
+.education-grid::-webkit-scrollbar-track{background:rgba(255,255,255,.12);border-radius:99px}
+.education-grid::-webkit-scrollbar-thumb{background:#7f91b8;border-radius:99px}
+.education-grid .education-card{
+  flex:0 0 300px !important;
+  width:300px !important;
+  min-width:300px !important;
+  max-width:300px !important;
+  min-height:285px !important;
+  height:auto !important;
+  scroll-snap-align:start;
+}
+@media(max-width:760px){
+  .education-grid{gap:11px !important;padding:3px 2px 12px !important}
+  .education-grid .education-card{
+    flex:0 0 82% !important;
+    width:82% !important;
+    min-width:82% !important;
+    max-width:82% !important;
+    min-height:245px !important;
+    padding:18px 16px !important;
+  }
+}
+@media(max-width:430px){
+  .education-grid .education-card{
+    flex-basis:86% !important;
+    width:86% !important;
+    min-width:86% !important;
+    max-width:86% !important;
+  }
+}
+
 </style>
 </head>
 <body>
