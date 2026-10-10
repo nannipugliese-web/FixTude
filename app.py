@@ -1,4 +1,5 @@
 import os
+import json
 import re
 import ssl
 import time
@@ -10,9 +11,15 @@ from email.message import EmailMessage
 from html import escape
 
 from flask import (
-    Flask, request, render_template_string, jsonify,
+    Flask, request, render_template_string, jsonify, Response,
     session, redirect, url_for
 )
+
+try:
+    from pywebpush import webpush, WebPushException
+except ImportError:  # L’app resta avviabile anche prima dell’installazione della dipendenza.
+    webpush = None
+    WebPushException = Exception
 
 app = Flask(__name__)
 
@@ -48,6 +55,9 @@ SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USER)
 
 CHAT_ADMIN_PASSWORD = os.environ.get("CHAT_ADMIN_PASSWORD", "")
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
+VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "mailto:info@fixtude.it").strip()
 
 CHAT_TTL_SECONDS = 2 * 60 * 60
 MAX_CHAT_MESSAGES = 150
@@ -55,6 +65,9 @@ MAX_ACTIVE_CHATS = 200
 
 chats = {}
 chat_lock = threading.RLock()
+# Le sottoscrizioni push sono temporanee: si azzerano al riavvio del servizio.
+push_subscriptions = []
+push_lock = threading.RLock()
 
 # Contatori temporanei antispam: nessun file o database.
 rate_limits = {}
@@ -1160,6 +1173,102 @@ def contact_send():
 
 
 # =========================================================
+# NOTIFICHE PUSH PER L'AREA STAFF
+# =========================================================
+
+def send_push_notification(title, body, url="/chat-staff"):
+    """Invia una notifica a tutte le sottoscrizioni attive in memoria."""
+    if not (webpush and VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY):
+        app.logger.warning("Notifiche push non inviate: configurazione o dipendenza mancante.")
+        return
+
+    payload = {"title": title, "body": body, "url": url}
+    with push_lock:
+        subscriptions = list(push_subscriptions)
+
+    expired = []
+    for subscription in subscriptions:
+        try:
+            webpush(
+                subscription_info=subscription,
+                data=json.dumps(payload, ensure_ascii=False),
+                vapid_private_key=VAPID_PRIVATE_KEY,
+                vapid_claims={"sub": VAPID_CLAIMS_EMAIL or "mailto:info@fixtude.it"},
+                timeout=8
+            )
+        except Exception as exc:
+            status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            if status_code in (404, 410):
+                expired.append(subscription)
+            app.logger.warning("Invio push non riuscito (%s).", type(exc).__name__)
+
+    if expired:
+        with push_lock:
+            push_subscriptions[:] = [s for s in push_subscriptions if s not in expired]
+
+
+@app.route("/service-worker.js", methods=["GET"])
+def service_worker():
+    javascript = r'''
+self.addEventListener("push", event => {
+  let data = {title: "FixTude", body: "Hai un nuovo messaggio.", url: "/chat-staff"};
+  try { if (event.data) data = {...data, ...event.data.json()}; } catch (_) {}
+  event.waitUntil(self.registration.showNotification(data.title || "FixTude", {
+    body: data.body || "Hai un nuovo messaggio.",
+    icon: "/favicon.ico",
+    badge: "/favicon.ico",
+    data: {url: data.url || "/chat-staff"}
+  }));
+});
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || "/chat-staff", self.location.origin).href;
+  event.waitUntil(clients.matchAll({type: "window", includeUncontrolled: true}).then(windows => {
+    for (const client of windows) {
+      if (client.url.startsWith(self.location.origin) && "focus" in client) {
+        client.navigate(target);
+        return client.focus();
+      }
+    }
+    return clients.openWindow(target);
+  }));
+});
+'''
+    return Response(javascript, mimetype="application/javascript", headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"})
+
+
+@app.route("/api/push/public-key", methods=["GET"])
+def push_public_key():
+    if not staff_required():
+        return jsonify(error="Accesso non autorizzato."), 401
+    if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
+        return jsonify(error="Chiavi VAPID mancanti nelle variabili d'ambiente."), 503
+    return jsonify(publicKey=VAPID_PUBLIC_KEY)
+
+
+@app.route("/api/push/subscribe", methods=["POST"])
+def push_subscribe():
+    if not staff_required():
+        return jsonify(error="Accesso non autorizzato."), 401
+    if not (VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY and webpush):
+        return jsonify(error="Notifiche push non configurate correttamente."), 503
+    subscription = request.get_json(silent=True)
+    if not isinstance(subscription, dict) or not isinstance(subscription.get("endpoint"), str) or not subscription.get("endpoint", "").startswith("https://"):
+        return jsonify(error="Sottoscrizione push non valida."), 400
+    keys = subscription.get("keys")
+    if not isinstance(keys, dict) or not keys.get("p256dh") or not keys.get("auth"):
+        return jsonify(error="Chiavi della sottoscrizione mancanti."), 400
+    with push_lock:
+        if not any(s.get("endpoint") == subscription["endpoint"] for s in push_subscriptions):
+            if len(push_subscriptions) >= 10:
+                return jsonify(error="Limite dispositivi notifiche raggiunto."), 429
+            push_subscriptions.append(subscription)
+        else:
+            push_subscriptions[:] = [subscription if s.get("endpoint") == subscription["endpoint"] else s for s in push_subscriptions]
+    return jsonify(ok=True)
+
+
+# =========================================================
 # CHAT LIVE - VISITATORE
 # =========================================================
 
@@ -1239,6 +1348,11 @@ def chat_send():
         })
         chat["updated"] = time.time()
 
+    send_push_notification(
+        title="Nuovo messaggio su FixTude",
+        body="Un visitatore ha scritto nella chat. Apri l’Area Riservata per rispondere.",
+        url="/chat-staff"
+    )
     return jsonify(ok=True)
 
 
@@ -1304,6 +1418,9 @@ def chat_staff():
       Le conversazioni esistono soltanto nella memoria temporanea del server.
     </p>
     <div class="actions">
+      <button class="btn" id="enablePush" type="button">
+        Attiva notifiche su questo dispositivo
+      </button>
       <button class="btn outline" id="refreshChats" type="button">
         Aggiorna conversazioni
       </button>
@@ -1345,6 +1462,44 @@ def chat_staff():
       const form = document.getElementById("staffForm");
       const reply = document.getElementById("staffReply");
       const status = document.getElementById("staffStatus");
+      const enablePushButton = document.getElementById("enablePush");
+
+      function urlBase64ToUint8Array(base64String) {
+        const padding = "=".repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const raw = atob(base64);
+        return Uint8Array.from([...raw].map(ch => ch.charCodeAt(0)));
+      }
+
+      async function enablePush() {
+        enablePushButton.disabled = true;
+        status.textContent = "Configurazione notifiche in corso…";
+        try {
+          if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+            throw new Error("Questo browser non supporta le notifiche push.");
+          }
+          const keyData = await api("/api/push/public-key");
+          if (!keyData.publicKey) throw new Error("Chiavi push non configurate su Render.");
+          const permission = await Notification.requestPermission();
+          if (permission !== "granted") throw new Error("Permesso notifiche non concesso.");
+          const registration = await navigator.serviceWorker.register("/service-worker.js");
+          await navigator.serviceWorker.ready;
+          let subscription = await registration.pushManager.getSubscription();
+          if (!subscription) {
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
+            });
+          }
+          await api("/api/push/subscribe", {method:"POST", body:JSON.stringify(subscription)});
+          status.textContent = "Notifiche attivate su questo dispositivo.";
+        } catch (err) {
+          status.textContent = err.message || "Impossibile attivare le notifiche.";
+        } finally {
+          enablePushButton.disabled = false;
+        }
+      }
+      enablePushButton.addEventListener("click", enablePush);
 
       async function api(url, options={}) {
         const r = await fetch(url, {
