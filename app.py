@@ -7,6 +7,7 @@ import uuid
 import smtplib
 import threading
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from email.message import EmailMessage
 from html import escape
 
@@ -46,7 +47,18 @@ app.config["SESSION_COOKIE_SECURE"] = (
 )
 app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 
-EMAIL_DESTINATARIO = "info@fixtude.it"
+# Destinatario di prova: dopo il test riuscito si può impostare
+# EMAIL_DESTINATARIO=info@fixtude.it nelle variabili di Render.
+EMAIL_DESTINATARIO = os.environ.get(
+    "EMAIL_DESTINATARIO", "nannipugliese@gmail.com"
+).strip()
+
+ROME_TZ = ZoneInfo("Europe/Rome")
+
+
+def ora_italiana():
+    """Restituisce l'orario locale italiano, rispettando ora legale e solare."""
+    return datetime.now(ROME_TZ).strftime("%H:%M")
 
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
@@ -160,6 +172,36 @@ def send_email(subject, body, reply_to=None):
             server.ehlo()
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
+
+
+def send_chat_email_async(chat_id, message):
+    """Invia una notifica email per ogni nuovo messaggio del visitatore."""
+    def worker():
+        try:
+            body = (
+                "È arrivato un nuovo messaggio nella chat FixTude.\n\n"
+                f"Conversazione: {chat_id[:8]}\n"
+                f"Orario: {ora_italiana()}\n\n"
+                "Messaggio ricevuto:\n"
+                f"{message}\n\n"
+                "Accedi all'area riservata per rispondere:\n"
+                "https://fixtude.it/chat-staff\n"
+            )
+            send_email(
+                subject="FixTude - nuovo messaggio in chat",
+                body=body
+            )
+            app.logger.info(
+                "Email notifica chat inviata per la conversazione %s",
+                chat_id[:8]
+            )
+        except Exception as exc:
+            app.logger.error(
+                "Invio email notifica chat fallito (%s): %s",
+                type(exc).__name__, str(exc)
+            )
+
+    threading.Thread(target=worker, daemon=True).start()
 
 
 def valid_email(value):
@@ -1344,7 +1386,7 @@ def chat_send():
         chat["messages"].append({
             "sender": "visitor",
             "text": message,
-            "time": datetime.now().strftime("%H:%M")
+            "time": ora_italiana()
         })
         chat["updated"] = time.time()
 
@@ -1353,6 +1395,7 @@ def chat_send():
         body="Un visitatore ha scritto nella chat. Apri l’Area Riservata per rispondere.",
         url="/chat-staff"
     )
+    send_chat_email_async(chat_id, message)
     return jsonify(ok=True)
 
 
@@ -1690,7 +1733,7 @@ def staff_send():
         chat["messages"].append({
             "sender": "staff",
             "text": message,
-            "time": datetime.now().strftime("%H:%M")
+            "time": ora_italiana()
         })
         chat["updated"] = time.time()
 
