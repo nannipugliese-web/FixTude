@@ -2021,6 +2021,46 @@ nav>div:last-child a:hover{background:#fff;color:#4f46e5;transform:translateY(-1
   .education-book-card:hover,.education-book-card:focus-visible{transform:none}
 }
 
+/* Rifinitura v40: guide uniformi, testo più arioso e prezzo su una riga dedicata */
+.education-grid{
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  align-items:stretch !important;
+  gap:16px !important;
+}
+.education-grid .education-card{
+  box-sizing:border-box;
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:flex-start;
+  height:100%;
+  min-width:0;
+  padding:24px 25px !important;
+  text-align:left;
+}
+.education-grid .education-card span{margin:0 0 18px !important;}
+.education-grid .education-card strong{margin:0 0 13px !important;max-width:100%;}
+.education-grid .education-card p{margin:0 0 20px !important;max-width:100%;}
+.education-grid .education-card b{display:block;margin-top:auto;padding-top:4px;}
+.book-feature .paid-brush{display:none !important;}
+.book-feature-text .book-price{
+  display:inline-block;
+  min-width:280px;
+  padding:13px 20px;
+  text-align:center;
+  line-height:1.4;
+}
+.book-feature-text .book-price span{display:block;margin-top:4px;font-size:1.08em;}
+@media(max-width:800px){
+  .education-grid{grid-template-columns:repeat(3,minmax(0,1fr)) !important;gap:12px !important;}
+  .education-grid .education-card{padding:18px 17px !important;}
+}
+@media(max-width:620px){
+  .education-grid{grid-template-columns:minmax(0,1fr) !important;gap:12px !important;}
+  .education-grid .education-card{padding:20px 21px !important;}
+  .book-feature-text .book-price{min-width:0;width:100%;}
+}
+
 </style>
 </head>
 <body>
@@ -2146,33 +2186,6 @@ Accedi alla tua area cliente
     <a href="{{ url_for('guide_rates') }}" class="education-card"><span>03</span><strong>Quando le rate diventano difficili da sostenere</strong><p>Come valutare entrate, spese, rate e disponibilità mensile.</p><b>Leggi la guida →</b></a>
   </div>
   <div class="education-cta"><strong>Prima di affrontare un problema, impara a leggerlo.</strong><span>Le guide FixTude sono gratuite e pensate per essere comprensibili a tutti.</span></div>
-  <section class="book-feature" aria-label="Libro Niente Panico a pagamento">
-    <a href="/registrazione" class="education-book-card" aria-label="Scopri Niente Panico, incluso nel KIT PDF FixTude a pagamento">
-      <div class="education-book-cover-wrap">
-        <img class="education-book-cover" src="/static/niente_panico_cover.jpg" alt="Copertina originale del libro Niente Panico di FixTude, con un mucchio di bollette e avvisi di pagamento">
-        <span class="paid-brush"><span>A PAGAMENTO</span></span>
-      </div>
-      <div class="education-book-copy">
-        <small>IL LIBRO FIXTUDE</small>
-        <strong>NIENTE PANICO</strong>
-        <p>Quando suonano al citofono, non disperare: c’è sempre una soluzione.</p>
-        <b>Incluso nel KIT PDF FixTude · € 9,99 →</b>
-      </div>
-    </a>
-    <div class="book-feature-text">
-      <small>APPROFONDIMENTO</small>
-      <h3>NIENTE PANICO</h3>
-      <p>Quando arriva una richiesta di pagamento, la prima cosa da fare è fermarsi, leggere e capire. <em>Niente Panico</em> accompagna il lettore nei primi passi per affrontare i debiti con maggiore lucidità, senza promesse miracolose e senza decisioni impulsive.</p>
-      <div class="book-points">
-        <div class="book-point"><strong>1. Capire la situazione</strong>Raccogliere comunicazioni, importi, scadenze e documenti per distinguere ciò che è urgente da ciò che richiede una verifica.</div>
-        <div class="book-point"><strong>2. Valutare le possibilità</strong>Mettere a confronto entrate, spese essenziali e debiti per capire quale impegno mensile può essere sostenibile.</div>
-        <div class="book-point"><strong>3. Preparare il dialogo</strong>Affrontare il confronto con il creditore in modo ordinato, con richieste chiare e informazioni pertinenti.</div>
-        <div class="book-point"><strong>4. Fare un passo alla volta</strong>Riconoscere quando serve approfondire o chiedere supporto qualificato prima di firmare o accettare un accordo.</div>
-      </div>
-      <p>Il libro è incluso nel KIT PDF FixTude da € 9,99, insieme ai documenti e ai materiali previsti dal servizio.</p>
-      <a class="book-price" href="/registrazione">Scopri il KIT PDF FixTude · € 9,99 →</a>
-    </div>
-  </section>
 </section>
 
 <footer style="margin-top:60px;padding:25px 0;border-top:1px solid #ddd">
@@ -4647,7 +4660,95 @@ def resolver_case(case_id):
     calc=calculate_case(case_id); analysis=latest_analysis(case_id); solutions=get_solutions(case_id); service_label,service=get_paid_service_label(case_id,case["email"]); library=get_library_files()
     response_solution=next((x for x in solutions if x["solution_type"] in ("paid_response","kit_report")),None); response_attachments=get_solution_attachments(response_solution["id"]) if response_solution else []
     payment_ratio=round(calc["total_payments"]/calc["total_income"]*100,1) if calc["total_income"] else 0; situation_label="DA APPROFONDIRE" if calc["monthly_capacity"]<=0 else ("SOTTO PRESSIONE" if calc["total_payments"]>calc["monthly_capacity"] else "DA VALUTARE")
-    return render_template_string('''<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pratica #{{case.id}} — Staff FixTude</title><style>*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#18212f;font-family:Arial}.wrap{max-width:1180px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between}.hero{background:#18212f;color:#fff;border-radius:18px;padding:22px;margin:15px 0}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:#fff;border:1px solid #e3e8ef;border-radius:15px;padding:20px;margin:12px 0}.metric{font-size:23px;font-weight:800}.muted{color:#6b7482}.badge{display:inline-block;padding:7px 10px;border-radius:999px;background:#e8f8f0;color:#176945;font-size:12px;font-weight:800}.warning{background:#fff6df;border:1px solid #eed69a;padding:12px;border-radius:10px;margin:8px 0}.lib{display:grid;grid-template-columns:1fr 1fr;gap:8px}.lib label{display:block;padding:10px;border:1px solid #dfe5ed;border-radius:9px;background:#fafbfd}.btn{display:inline-block;border:0;border-radius:9px;padding:10px 14px;font-weight:700;text-decoration:none;cursor:pointer;background:#4f46e5;color:#fff}.sec{background:#edf0f6;color:#253047}textarea{width:100%;min-height:330px;padding:13px;border:1px solid #d9e0ea;border-radius:10px;font-family:Arial;line-height:1.5}@media(max-width:800px){.grid{grid-template-columns:1fr 1fr}.lib{grid-template-columns:1fr}}@media(max-width:500px){.grid{grid-template-columns:1fr}}</style></head><body><div class="wrap"><div class="top"><a href="{{url_for('resolver_dashboard')}}">← Dashboard Staff</a><a href="{{url_for('logout')}}">Esci</a></div><div class="hero"><div style="color:#b9c2d0">PRATICA #{{case.id}} · {{service_label}}</div><h1>{{calc.data.get('name','Cliente')}} {{calc.data.get('surname','')}}</h1><div>{{case.email}}</div><p><span class="badge">{{situation_label}}</span></p></div><div class="grid"><div class="card"><div class="muted">Entrate</div><div class="metric">€ {{'%.2f'|format(calc.total_income)}}</div></div><div class="card"><div class="muted">Spese</div><div class="metric">€ {{'%.2f'|format(calc.total_expenses)}}</div></div><div class="card"><div class="muted">Debito</div><div class="metric">€ {{'%.2f'|format(calc.total_debt)}}</div></div><div class="card"><div class="muted">Rate / reddito</div><div class="metric">{{payment_ratio}}%</div></div></div><div class="card"><h2>Dati cliente e posizioni</h2><p><b>Email:</b> {{case.email}}</p><p><b>Telefono:</b> {{calc.data.get('phone','—')}}</p><p><b>Indirizzo:</b> {{calc.data.get('address','—')}}</p>{% for d in calc.debts %}<div style="padding:10px;border-top:1px solid #edf0f4"><b>{{d.creditor}}</b> · {{d.debt_type or 'Posizione'}} · € {{'%.2f'|format(d.current_amount)}} · rata € {{'%.2f'|format(d.monthly_payment)}}</div>{% endfor %}</div><div class="card"><h2>Analisi e generatore di risposte</h2><form method="post" action="{{url_for('resolver_run_analysis',case_id=case.id)}}"><button class="btn">Genera / rigenera analisi</button></form>{% if analysis %}<div style="margin-top:15px;white-space:pre-line;line-height:1.55">{{analysis.summary}}</div>{% for w in calc.warnings %}<div class="warning">⚠ {{w}}</div>{% endfor %}{% endif %}</div>{% if service=='analysis' %}<div class="card"><h2>Risposta cliente — €1,99</h2><p class="muted">La risposta deve essere articolata e il PDF deve avere almeno 3 pagine. Il testo è modificabile prima dell'invio.</p>{% if response_solution %}<form method="post" action="{{url_for('save_paid_response',solution_id=response_solution.id)}}"><textarea name="content">{{response_solution.content}}</textarea><p><button class="btn sec">Salva e rigenera PDF</button> <a class="btn" href="{{url_for('download_solution',solution_id=response_solution.id)}}">Anteprima PDF</a></p></form><form method="post" action="{{url_for('send_paid_response',solution_id=response_solution.id)}}"><button class="btn">✓ Valida e invia al cliente da info@fixtude.it</button></form>{% else %}<form method="post" action="{{url_for('generate_paid_response',case_id=case.id)}}"><button class="btn">Genera risposta articolata + PDF</button></form>{% endif %}</div>{% endif %}{% if service=='kit' %}<div class="card"><h2>Kit FixTude — €9,99</h2><p class="muted">Seleziona i PDF della libreria, verifica il contenuto e inviali insieme al rapporto personalizzato.</p><form method="post" action="{{url_for('prepare_kit',case_id=case.id)}}"><div class="lib">{% for f in library %}<label><input type="checkbox" name="library_ids" value="{{f.id}}" {% if f.id in response_attachments|map(attribute='id')|list %}checked{% endif %}> <b>{{f.title}}</b><br><span class="muted">{{f.category}} · {{'VALIDATO' if f.validated else 'DA VALIDARE'}}</span></label>{% endfor %}</div><p><button class="btn">Salva selezione KIT</button></p></form>{% if response_solution %}<a class="btn" href="{{url_for('download_solution',solution_id=response_solution.id)}}">Scarica rapporto personalizzato</a>{% endif %}<form method="post" action="{{url_for('send_kit',case_id=case.id)}}" style="margin-top:10px"><button class="btn">✓ Valida e invia KIT al cliente da info@fixtude.it</button></form></div>{% endif %}<div class="card"><h2>Documenti</h2>{% for s in solutions %}<div style="border-top:1px solid #edf0f4;padding:12px 0"><b>{{s.title}}</b> · {{s.status}} {% if s.final_email_sent_at %}· Email inviata{% endif %}{% if s.pdf_path %} · <a href="{{url_for('download_solution',solution_id=s.id)}}">PDF</a>{% endif %}</div>{% else %}<p class="muted">Nessun documento.</p>{% endfor %}</div></div></body></html>''',case=case,calc=calc,analysis=analysis,solutions=solutions,service=service,service_label=service_label,library=library,response_solution=response_solution,response_attachments=response_attachments,payment_ratio=payment_ratio,situation_label=situation_label)
+    return render_template_string('''<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pratica #{{case.id}} — Staff FixTude</title><style>*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#18212f;font-family:Arial}.wrap{max-width:1180px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between}.hero{background:#18212f;color:#fff;border-radius:18px;padding:22px;margin:15px 0}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:#fff;border:1px solid #e3e8ef;border-radius:15px;padding:20px;margin:12px 0}.metric{font-size:23px;font-weight:800}.muted{color:#6b7482}.badge{display:inline-block;padding:7px 10px;border-radius:999px;background:#e8f8f0;color:#176945;font-size:12px;font-weight:800}.warning{background:#fff6df;border:1px solid #eed69a;padding:12px;border-radius:10px;margin:8px 0}.lib{display:grid;grid-template-columns:1fr 1fr;gap:8px}.lib label{display:block;padding:10px;border:1px solid #dfe5ed;border-radius:9px;background:#fafbfd}.btn{display:inline-block;border:0;border-radius:9px;padding:10px 14px;font-weight:700;text-decoration:none;cursor:pointer;background:#4f46e5;color:#fff}.sec{background:#edf0f6;color:#253047}textarea{width:100%;min-height:330px;padding:13px;border:1px solid #d9e0ea;border-radius:10px;font-family:Arial;line-height:1.5}@media(max-width:800px){.grid{grid-template-columns:1fr 1fr}.lib{grid-template-columns:1fr}}@media(max-width:500px){.grid{grid-template-columns:1fr}}
+/* v41 — Educazione finanziaria professionale: tre guide uniformi, senza sezione libro */
+.education-grid{
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  grid-auto-rows:1fr !important;
+  align-items:stretch !important;
+  gap:18px !important;
+}
+.education-grid .education-card{
+  box-sizing:border-box !important;
+  width:100% !important;
+  min-width:0 !important;
+  min-height:285px !important;
+  height:100% !important;
+  margin:0 !important;
+  padding:26px 25px 24px !important;
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:flex-start !important;
+  text-align:left !important;
+  border:1px solid rgba(255,255,255,.12) !important;
+  border-radius:16px !important;
+  background:linear-gradient(145deg,#2c3748 0%,#263142 100%) !important;
+  box-shadow:0 7px 18px rgba(0,0,0,.12);
+  overflow-wrap:anywhere;
+  transition:transform .22s ease, box-shadow .22s ease, border-color .22s ease, background .22s ease !important;
+}
+.education-grid .education-card:hover,
+.education-grid .education-card:focus-visible{
+  transform:translateY(-6px) !important;
+  background:linear-gradient(145deg,#354258 0%,#2a374b 100%) !important;
+  border-color:rgba(174,190,255,.48) !important;
+  box-shadow:0 16px 30px rgba(0,0,0,.25) !important;
+  outline:none;
+}
+.education-grid .education-card span{
+  display:block !important;
+  margin:0 0 19px !important;
+  font-size:12px !important;
+  line-height:1.2 !important;
+  letter-spacing:.06em;
+  color:#b9c5da !important;
+}
+.education-grid .education-card strong{
+  display:block !important;
+  width:100%;
+  margin:0 0 13px !important;
+  font-size:18px !important;
+  line-height:1.35 !important;
+  letter-spacing:0;
+}
+.education-grid .education-card p{
+  display:block !important;
+  width:100%;
+  margin:0 0 22px !important;
+  color:#d1d8e3 !important;
+  font-size:14px !important;
+  line-height:1.6 !important;
+}
+.education-grid .education-card b{
+  display:block !important;
+  margin-top:auto !important;
+  padding-top:14px !important;
+  font-size:13px !important;
+  line-height:1.4 !important;
+  font-weight:700;
+}
+@media(max-width:900px){
+  .education-grid{gap:13px !important;}
+  .education-grid .education-card{padding:22px 19px 21px !important;min-height:300px !important;}
+  .education-grid .education-card strong{font-size:16px !important;}
+  .education-grid .education-card p{font-size:13px !important;}
+}
+@media(max-width:650px){
+  .education{padding:22px 17px !important;}
+  .education-grid{grid-template-columns:minmax(0,1fr) !important;gap:13px !important;}
+  .education-grid .education-card{min-height:0 !important;padding:23px 22px 21px !important;}
+  .education-grid .education-card span{margin-bottom:13px !important;}
+  .education-grid .education-card strong{font-size:18px !important;}
+  .education-grid .education-card p{font-size:14px !important;margin-bottom:15px !important;}
+  .education-grid .education-card b{padding-top:8px !important;}
+}
+@media(prefers-reduced-motion:reduce){
+  .education-grid .education-card{transition:none !important;}
+  .education-grid .education-card:hover,.education-grid .education-card:focus-visible{transform:none !important;}
+}
+
+</style></head><body><div class="wrap"><div class="top"><a href="{{url_for('resolver_dashboard')}}">← Dashboard Staff</a><a href="{{url_for('logout')}}">Esci</a></div><div class="hero"><div style="color:#b9c2d0">PRATICA #{{case.id}} · {{service_label}}</div><h1>{{calc.data.get('name','Cliente')}} {{calc.data.get('surname','')}}</h1><div>{{case.email}}</div><p><span class="badge">{{situation_label}}</span></p></div><div class="grid"><div class="card"><div class="muted">Entrate</div><div class="metric">€ {{'%.2f'|format(calc.total_income)}}</div></div><div class="card"><div class="muted">Spese</div><div class="metric">€ {{'%.2f'|format(calc.total_expenses)}}</div></div><div class="card"><div class="muted">Debito</div><div class="metric">€ {{'%.2f'|format(calc.total_debt)}}</div></div><div class="card"><div class="muted">Rate / reddito</div><div class="metric">{{payment_ratio}}%</div></div></div><div class="card"><h2>Dati cliente e posizioni</h2><p><b>Email:</b> {{case.email}}</p><p><b>Telefono:</b> {{calc.data.get('phone','—')}}</p><p><b>Indirizzo:</b> {{calc.data.get('address','—')}}</p>{% for d in calc.debts %}<div style="padding:10px;border-top:1px solid #edf0f4"><b>{{d.creditor}}</b> · {{d.debt_type or 'Posizione'}} · € {{'%.2f'|format(d.current_amount)}} · rata € {{'%.2f'|format(d.monthly_payment)}}</div>{% endfor %}</div><div class="card"><h2>Analisi e generatore di risposte</h2><form method="post" action="{{url_for('resolver_run_analysis',case_id=case.id)}}"><button class="btn">Genera / rigenera analisi</button></form>{% if analysis %}<div style="margin-top:15px;white-space:pre-line;line-height:1.55">{{analysis.summary}}</div>{% for w in calc.warnings %}<div class="warning">⚠ {{w}}</div>{% endfor %}{% endif %}</div>{% if service=='analysis' %}<div class="card"><h2>Risposta cliente — €1,99</h2><p class="muted">La risposta deve essere articolata e il PDF deve avere almeno 3 pagine. Il testo è modificabile prima dell'invio.</p>{% if response_solution %}<form method="post" action="{{url_for('save_paid_response',solution_id=response_solution.id)}}"><textarea name="content">{{response_solution.content}}</textarea><p><button class="btn sec">Salva e rigenera PDF</button> <a class="btn" href="{{url_for('download_solution',solution_id=response_solution.id)}}">Anteprima PDF</a></p></form><form method="post" action="{{url_for('send_paid_response',solution_id=response_solution.id)}}"><button class="btn">✓ Valida e invia al cliente da info@fixtude.it</button></form>{% else %}<form method="post" action="{{url_for('generate_paid_response',case_id=case.id)}}"><button class="btn">Genera risposta articolata + PDF</button></form>{% endif %}</div>{% endif %}{% if service=='kit' %}<div class="card"><h2>Kit FixTude — €9,99</h2><p class="muted">Seleziona i PDF della libreria, verifica il contenuto e inviali insieme al rapporto personalizzato.</p><form method="post" action="{{url_for('prepare_kit',case_id=case.id)}}"><div class="lib">{% for f in library %}<label><input type="checkbox" name="library_ids" value="{{f.id}}" {% if f.id in response_attachments|map(attribute='id')|list %}checked{% endif %}> <b>{{f.title}}</b><br><span class="muted">{{f.category}} · {{'VALIDATO' if f.validated else 'DA VALIDARE'}}</span></label>{% endfor %}</div><p><button class="btn">Salva selezione KIT</button></p></form>{% if response_solution %}<a class="btn" href="{{url_for('download_solution',solution_id=response_solution.id)}}">Scarica rapporto personalizzato</a>{% endif %}<form method="post" action="{{url_for('send_kit',case_id=case.id)}}" style="margin-top:10px"><button class="btn">✓ Valida e invia KIT al cliente da info@fixtude.it</button></form></div>{% endif %}<div class="card"><h2>Documenti</h2>{% for s in solutions %}<div style="border-top:1px solid #edf0f4;padding:12px 0"><b>{{s.title}}</b> · {{s.status}} {% if s.final_email_sent_at %}· Email inviata{% endif %}{% if s.pdf_path %} · <a href="{{url_for('download_solution',solution_id=s.id)}}">PDF</a>{% endif %}</div>{% else %}<p class="muted">Nessun documento.</p>{% endfor %}</div></div></body></html>''',case=case,calc=calc,analysis=analysis,solutions=solutions,service=service,service_label=service_label,library=library,response_solution=response_solution,response_attachments=response_attachments,payment_ratio=payment_ratio,situation_label=situation_label)
 
 @app.route("/risolutore/pratica/<int:case_id>/genera-risposta",methods=["POST"])
 def generate_paid_response(case_id):
