@@ -6,6 +6,8 @@ import time
 import uuid
 import smtplib
 import threading
+import urllib.request
+import urllib.error
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from email.message import EmailMessage
@@ -30,7 +32,7 @@ app = Flask(__name__)
 # Nessun database applicativo.
 # Il calcolatore funziona nel browser.
 # Il modulo di ricontatto invia i dati direttamente a Web3Forms via HTTPS.
-# Le notifiche email della chat usano ancora SMTP.
+# Le notifiche email della chat usano Web3Forms via HTTPS dal server.
 # La chat usa esclusivamente memoria temporanea RAM.
 # =========================================================
 
@@ -176,29 +178,46 @@ def send_email(subject, body, reply_to=None):
 
 
 def send_chat_email_async(chat_id, message):
-    """Invia una notifica email per ogni nuovo messaggio del visitatore."""
+    """Invia la notifica chat via HTTPS a Web3Forms, dal server."""
     def worker():
         try:
-            body = (
-                "È arrivato un nuovo messaggio nella chat FixTude.\n\n"
-                f"Conversazione: {chat_id[:8]}\n"
-                f"Orario: {ora_italiana()}\n\n"
-                "Messaggio ricevuto:\n"
-                f"{message}\n\n"
-                "Accedi all'area riservata per rispondere:\n"
-                "https://fixtude.it/chat-staff\n"
+            payload = {
+                "access_key": os.environ.get(
+                    "WEB3FORMS_ACCESS_KEY",
+                    "6cfd757e-6b16-49e0-96b5-e055a159f403"
+                ),
+                "subject": "FixTude - nuovo messaggio in chat",
+                "from_name": "FixTude - chat cliente",
+                "message": (
+                    "È arrivato un nuovo messaggio nella chat FixTude.\n\n"
+                    f"Conversazione: {chat_id[:8]}\n"
+                    f"Orario: {ora_italiana()}\n\n"
+                    "Messaggio ricevuto:\n"
+                    f"{message}\n\n"
+                    "Rispondi dall'area staff: https://fixtude.it/chat-staff"
+                )
+            }
+            req = urllib.request.Request(
+                "https://api.web3forms.com/submit",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "User-Agent": "FixTude-chat-notification/1.0"
+                },
+                method="POST"
             )
-            send_email(
-                subject="FixTude - nuovo messaggio in chat",
-                body=body
-            )
+            with urllib.request.urlopen(req, timeout=12) as response:
+                result = json.loads(response.read().decode("utf-8"))
+                if response.status < 200 or response.status >= 300 or result.get("success") is not True:
+                    raise RuntimeError(result.get("message", "Web3Forms non ha confermato l'invio"))
             app.logger.info(
-                "Email notifica chat inviata per la conversazione %s",
+                "Notifica email chat confermata da Web3Forms per conversazione %s",
                 chat_id[:8]
             )
         except Exception as exc:
             app.logger.error(
-                "Invio email notifica chat fallito (%s): %s",
+                "Invio notifica email chat via Web3Forms fallito (%s): %s",
                 type(exc).__name__, str(exc)
             )
 
@@ -698,36 +717,6 @@ def page(title, content, include_chat=True):
                 const data = await r.json();
 
                 if (!r.ok) throw new Error(data.error || "Invio non riuscito");
-
-                // La notifica email viene inviata dal browser via HTTPS,
-                // evitando SMTP in uscita da Render.
-                try {
-                  const notification = await fetch("https://api.web3forms.com/submit", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "Accept": "application/json"
-                    },
-                    body: JSON.stringify({
-                      access_key: "6cfd757e-6b16-49e0-96b5-e055a159f403",
-                      subject: "FixTude - nuovo messaggio in chat",
-                      from_name: "FixTude - chat cliente",
-                      message: "È arrivato un nuovo messaggio nella chat FixTude.\\n\\n" +
-                        "Conversazione: " + chatId.slice(0, 8) + "\\n" +
-                        "Orario: " + new Date().toLocaleString("it-IT") + "\\n\\n" +
-                        "Messaggio ricevuto:\\n" + text + "\\n\\n" +
-                        "Rispondi dall'area staff: https://fixtude.it/chat-staff"
-                    })
-                  });
-                  const notificationData = await notification.json();
-                  if (!notification.ok || notificationData.success !== true) {
-                    console.error("Notifica email chat non confermata:", notificationData.message || notification.status);
-                    status.textContent = "Messaggio inviato, ma la notifica email non è stata confermata.";
-                  }
-                } catch (notificationError) {
-                  console.error("Errore notifica email chat:", notificationError);
-                  status.textContent = "Messaggio inviato, ma non è stato possibile confermare la notifica email.";
-                }
 
                 input.value = "";
                 await refreshMessages();
@@ -1449,8 +1438,9 @@ def chat_send():
         body="Un visitatore ha scritto nella chat. Apri l’Area Riservata per rispondere.",
         url="/chat-staff"
     )
-    # La notifica email viene inviata dal browser via Web3Forms HTTPS.
-    # Non usare SMTP da Render per questa notifica.
+    # La notifica email parte dal server via HTTPS: funziona anche se
+    # il browser mobile blocca o interrompe la richiesta verso Web3Forms.
+    send_chat_email_async(chat_id, message)
     return jsonify(ok=True)
 
 
