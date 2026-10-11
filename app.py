@@ -331,8 +331,24 @@ def page(title, content, include_chat=True):
               font-weight:700;
               text-decoration:none;
               cursor:pointer;
+              transition:transform .2s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease, border-color .2s ease;
+              will-change:transform;
+            }
+            button, nav a, .chat-launcher {
+              transition:transform .2s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease;
             }
             .btn:hover {background:var(--blue2)}
+            @media (hover:hover) and (pointer:fine) {
+              .btn:hover, button:hover, .chat-launcher:hover {
+                transform:translateY(-2px);
+                box-shadow:0 7px 18px rgba(18,58,114,.20);
+              }
+              nav a:hover {transform:translateY(-1px)}
+            }
+            .btn:active, button:active, .chat-launcher:active {transform:scale(.98)}
+            @media (prefers-reduced-motion:reduce) {
+              *, *::before, *::after {scroll-behavior:auto !important;transition:none !important;animation:none !important}
+            }
             .btn.light {background:white;color:var(--blue)}
             .btn.outline {
               background:white;
@@ -521,15 +537,24 @@ def page(title, content, include_chat=True):
             .chat-form input {flex:1;min-width:0;padding:10px}
             .chat-form button {padding:10px 13px}
             .chat-hint {font-size:11px;color:var(--muted);padding:0 12px 10px}
-            .product-card {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center}
-            .price {font-size:30px;font-weight:800;color:var(--blue);white-space:nowrap}
+            .product-card {display:grid;grid-template-columns:minmax(190px, .7fr) minmax(0,1.3fr);gap:28px;align-items:center}
+            .shop-book-cover {display:flex;justify-content:center;align-items:center;padding:8px}
+            .shop-book-cover img {display:block;width:min(100%,300px);height:auto;max-height:440px;object-fit:contain;border-radius:5px;box-shadow:0 14px 30px rgba(20,48,85,.18)}
+            .shop-book-description {min-width:0}
+            .shop-book-description form {margin-top:14px}
+            .price {font-size:30px;font-weight:800;color:var(--blue);white-space:nowrap;margin:12px 0}
             .resource-list {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+            .back-row {display:flex;justify-content:flex-start;margin:0 0 16px}
+            .back-button {display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:9px 15px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--blue);font:inherit;font-weight:700;cursor:pointer;transition:background .18s ease,transform .18s ease}
+            .back-button:hover {background:#edf4fc;transform:translateX(-2px)}
+            .back-button:focus-visible {outline:3px solid #8ab8ef;outline-offset:2px}
             .resource-link {display:block;padding:17px;border:1px solid var(--line);border-radius:12px;background:#fff;text-decoration:none;font-weight:700}
             .resource-link span {display:block;font-weight:400;color:var(--muted);font-size:14px;margin-top:5px}
             @media(max-width:650px) {
               nav {width:100%;gap:9px 13px}
               nav a {font-size:13px}
-              .product-card {grid-template-columns:1fr}
+              .product-card {grid-template-columns:minmax(0,1fr);gap:12px}
+              .shop-book-cover img {width:min(72%,250px);max-height:360px}
               .resource-list {grid-template-columns:1fr}
               .nav {align-items:flex-start;flex-direction:column;gap:9px}
               nav {gap:10px 16px}
@@ -573,9 +598,8 @@ def page(title, content, include_chat=True):
             <div class="nav">
               <a class="brand" href="/">FixTude</a>
               <nav>
-                <a href="/">Home</a>
                 <a href="/misuratore">Calcolatore</a>
-                <a href="/consulenza">Ricontatto</a>
+                <a href="/consulenza">Contatta un esperto</a>
                 <a href="/moduli">Moduli gratuiti</a>
                 <a href="/educazione-finanziaria">Educazione finanziaria</a>
                 <a href="/sic">Banche dati SIC</a>
@@ -584,7 +608,14 @@ def page(title, content, include_chat=True):
               </nav>
             </div>
           </header>
-          <main>{{ content|safe }}</main>
+          <main>
+            {% if request.path != '/' %}
+            <div class="back-row">
+              <button class="back-button" type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='/'; }" aria-label="Torna alla pagina precedente">← Indietro</button>
+            </div>
+            {% endif %}
+            {{ content|safe }}
+          </main>
           <footer>
             FixTude · Informazione orientativa, senza impegno.
             <br>Partita IVA 15990471003 ·
@@ -593,13 +624,13 @@ def page(title, content, include_chat=True):
           {% if include_chat %}
           <button class="chat-launcher" id="chatLauncher"
                   type="button" aria-expanded="false">
-            💬 Chat FixTude
+            💬 Chat con un esperto
           </button>
           <section class="chat-panel" id="chatPanel"
-                   aria-label="Chat FixTude">
+                   aria-label="Chat con un esperto FixTude">
             <div class="chat-head">
               <div>
-                <strong>Chat FixTude</strong>
+                <strong>Chat con un esperto FixTude</strong>
                 <div class="chat-status" id="chatStatus">
                   Scrivi un messaggio
                 </div>
@@ -833,8 +864,8 @@ def home():
     <section class="card start-card"><h2>Da dove cominciare</h2><div class="grid">
       <div><strong>1. Fai il calcolo</strong><p class="muted">Usa gratuitamente il calcolatore. I dati inseriti restano nel browser e non serve registrarsi.</p></div>
       <div><strong>2. Valuta il risultato</strong><p class="muted">Ottieni una stima orientativa del margine mensile e del peso delle rate.</p></div>
-      <div><strong>3. Se vuoi, chiedi di essere ricontattato</strong><p class="muted">Lascia i tuoi recapiti e una breve descrizione della situazione. Il contatto è facoltativo e non comporta obblighi.</p></div>
-      <div><strong>4. Hai una domanda?</strong><p class="muted">Apri la Chat Live FixTude in basso a destra per inviare un messaggio allo staff. La chat è disponibile senza registrazione.</p></div>
+      <div><strong>3. Se vuoi, chiedi di parlare con un esperto</strong><p class="muted">Lascia i tuoi recapiti e una breve descrizione della situazione per chiedere il contatto di un esperto FixTude. Il contatto è facoltativo e non comporta obblighi.</p></div>
+      <div><strong>4. Hai una domanda?</strong><p class="muted">Apri la chat con un esperto FixTude in basso a destra per inviare un messaggio allo staff. La chat è disponibile senza registrazione.</p></div>
     </div></section>
     <p class="muted">Il calcolatore e i materiali hanno finalità informative e orientative. Non costituiscono consulenza legale o finanziaria personalizzata e non garantiscono l'accettazione di proposte da parte dei creditori.</p>
     """
@@ -921,12 +952,12 @@ def misuratore():
     </section>
 
     <section class="card">
-      <h2>Vuoi approfondire?</h2>
+      <h2>Vuoi approfondire con un esperto?</h2>
       <p>
         Se lo desideri, puoi chiedere di essere ricontattato
         senza impegno.
       </p>
-      <a class="btn" href="/consulenza">Vai al modulo di ricontatto</a>
+      <a class="btn" href="/consulenza">Richiedi il contatto di un esperto</a>
     </section>
 
     <script>
@@ -1083,7 +1114,7 @@ def misuratore():
 @app.route("/consulenza")
 def consulenza():
     content = """
-    <h1>Richiedi di essere ricontattato</h1>
+    <h1>Richiedi di essere contattato da un esperto FixTude</h1>
     <p class="muted">
       Compila il modulo soltanto se desideri ricevere un contatto.
       La richiesta è gratuita e non ti obbliga a proseguire.
@@ -1477,7 +1508,7 @@ def chat_staff():
     if not CHAT_ADMIN_PASSWORD:
         content = """
         <section class="card">
-          <h1>Chat riservata al gestore</h1>
+          <h1>Chat riservata all’esperto FixTude</h1>
           <p class="error">
             Accesso non configurato. Imposta CHAT_ADMIN_PASSWORD
             nelle variabili d'ambiente di Render.
@@ -1506,7 +1537,7 @@ def chat_staff():
         content = """
         <section class="card" style="max-width:460px;margin:auto">
           <h1>Chat FixTude</h1>
-          <p class="muted">Area riservata al gestore.</p>
+          <p class="muted">Area riservata all’esperto FixTude.</p>
           <form method="post">
             <div class="field">
               <label for="password">Password di accesso</label>
@@ -1520,7 +1551,7 @@ def chat_staff():
         return page("Accesso chat", content, include_chat=False)
 
     content = """
-    <h1>Area riservata · Chat FixTude</h1>
+    <h1>Area riservata · Chat esperto FixTude</h1>
     <p class="muted">
       Seleziona una conversazione per leggere e inviare risposte.
       Le conversazioni esistono soltanto nella memoria temporanea del server.
@@ -1874,7 +1905,10 @@ def sic_banche_dati():
 @app.route("/shop")
 def shop():
     content = '''<h1>Shop FixTude</h1>
-    <section class="card product-card"><div><h2>NIENTE PANICO</h2><p>Una guida pratica per mettere ordine nella situazione debitoria, leggere meglio le proprie possibilità e prepararsi ad affrontare i creditori con maggiore lucidità.</p><p><strong>Formato:</strong> libro digitale PDF.</p><p class="muted">Dopo la conferma del pagamento potrai scaricare il PDF dalla pagina di conferma. Non è necessaria la registrazione.</p></div><div><div class="price">€ 6,99</div><form method="post" action="/shop/acquista"><button class="btn" type="submit">Acquista il libro</button></form></div></section>
+    <section class="card product-card">
+      <div class="shop-book-cover"><img src="/static/niente_panico_cover.png" alt="Copertina del libro Niente Panico di FixTude"></div>
+      <div class="shop-book-description"><h2>NIENTE PANICO</h2><p>Una guida pratica per mettere ordine nella situazione debitoria, leggere meglio le proprie possibilità e prepararsi ad affrontare i creditori con maggiore lucidità.</p><p><strong>Formato:</strong> libro digitale PDF.</p><p class="muted">Dopo la conferma del pagamento potrai scaricare il PDF dalla pagina di conferma. Non è necessaria la registrazione.</p><div class="price">€ 6,99</div><form method="post" action="/shop/acquista"><button class="btn" type="submit">Acquista il libro</button></form></div>
+    </section>
     <p class="muted">I moduli di richiesta debitoria restano gratuiti e sono disponibili nella sezione <a href="/moduli">Moduli gratuiti</a>.</p>'''
     return page("Shop", content)
 
@@ -2015,3 +2049,4 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5000")),
         debug=False
     )
+
