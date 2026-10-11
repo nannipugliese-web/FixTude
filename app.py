@@ -381,13 +381,37 @@ def page(title, content, include_chat=True):
             .error {color:var(--red);font-weight:700}
             .entry-row {
               display:grid;
-              grid-template-columns:minmax(0,1.5fr) minmax(100px,1fr) auto;
+              grid-template-columns:minmax(0,1.25fr) minmax(110px,1fr) minmax(110px,1fr) auto;
               gap:10px;
               align-items:end;
               padding:12px 0;
               border-bottom:1px solid var(--line);
             }
             .entry-row .field {margin:0}
+            .traffic-light {
+              display:flex;
+              align-items:center;
+              gap:12px;
+              border-radius:12px;
+              border:1px solid var(--line);
+              padding:14px 16px;
+              margin:16px 0;
+              background:#fff;
+            }
+            .traffic-light .signal {
+              width:24px;
+              height:24px;
+              min-width:24px;
+              border-radius:50%;
+              background:#9ca3af;
+              border:3px solid rgba(0,0,0,.08);
+            }
+            .traffic-light.red {background:#fff1f1;border-color:#f3b4b4}
+            .traffic-light.red .signal {background:#dc2626}
+            .traffic-light.yellow {background:#fff9e8;border-color:#f3d58b}
+            .traffic-light.yellow .signal {background:#eab308}
+            .traffic-light.green {background:#effaf2;border-color:#a8dfb5}
+            .traffic-light.green .signal {background:#16a34a}
             .remove-button {
               border:1px solid var(--line);
               background:#fff;
@@ -848,10 +872,11 @@ def misuratore():
     </section>
 
     <section class="card">
-      <h2>Debiti e rate mensili</h2>
+      <h2>Debiti e rate in corso</h2>
       <p class="muted">
-        Inserisci la rata mensile di ciascun debito. Il saldo residuo
-        del debito non è necessario per questo calcolo.
+        Per ciascun debito indica l'importo complessivo ancora dovuto
+        e l'eventuale rata mensile che stai già pagando. Se non hai una
+        rata in corso, lascia il campo della rata a zero.
       </p>
       <div id="debtRows"></div>
       <button class="btn outline" type="button" id="addDebt">
@@ -871,7 +896,11 @@ def misuratore():
           <strong id="totalExpenses">€ 0,00</strong>
         </div>
         <div class="total">
-          <span class="muted">Rate totali</span>
+          <span class="muted">Debito complessivo</span>
+          <strong id="totalDebt">€ 0,00</strong>
+        </div>
+        <div class="total">
+          <span class="muted">Rate mensili in corso</span>
           <strong id="totalPayments">€ 0,00</strong>
         </div>
         <div class="total">
@@ -881,6 +910,10 @@ def misuratore():
       </div>
       <div class="notice" id="assessment">
         Inserisci i tuoi importi per ottenere una valutazione indicativa.
+      </div>
+      <div class="traffic-light" id="trafficLight" role="status" aria-live="polite">
+        <span class="signal" aria-hidden="true"></span>
+        <div><strong id="trafficTitle">Semaforo non ancora disponibile</strong><div class="muted" id="trafficDescription">Completa almeno le entrate mensili per visualizzare il livello indicativo.</div></div>
       </div>
       <button class="btn" type="button" id="resetCalculator">
         Azzera i campi
@@ -899,50 +932,28 @@ def misuratore():
     <script>
     (() => {
       const definitions = {
-        income: [
-          ["Stipendio o pensione", 0],
-          ["Altre entrate", 0]
-        ],
-        expense: [
-          ["Casa e utenze", 0],
-          ["Alimentari e necessità", 0],
-          ["Trasporti", 0],
-          ["Altre spese", 0]
-        ],
-        debt: [
-          ["Rata mensile", 0]
-        ]
+        income: [["Stipendio o pensione", 0], ["Altre entrate", 0]],
+        expense: [["Casa e utenze", 0], ["Alimentari e necessità", 0], ["Trasporti", 0], ["Altre spese", 0]],
+        debt: [["Nuovo debito", 0, 0]]
       };
-
-      const labels = {
-        income: "Entrata",
-        expense: "Spesa",
-        debt: "Debito"
-      };
+      const labels = {income:"Entrata", expense:"Spesa", debt:"Debito"};
 
       function money(n) {
-        return n.toLocaleString("it-IT", {
-          style:"currency", currency:"EUR"
-        });
+        return n.toLocaleString("it-IT", {style:"currency", currency:"EUR"});
       }
 
-      function addRow(type, label="", amount=0) {
+      function addRow(type, label="", amount=0, payment=0) {
         const container = document.getElementById(
-          type === "income" ? "incomeRows" :
-          type === "expense" ? "expenseRows" : "debtRows"
+          type === "income" ? "incomeRows" : type === "expense" ? "expenseRows" : "debtRows"
         );
-
         const row = document.createElement("div");
         row.className = "entry-row";
 
         const nameField = document.createElement("div");
         nameField.className = "field name-field";
-
         const nameLabel = document.createElement("label");
-        nameLabel.textContent = type === "debt"
-          ? "Nome del debito (facoltativo)" : "Voce";
+        nameLabel.textContent = type === "debt" ? "Nome del debito (facoltativo)" : "Voce";
         nameField.appendChild(nameLabel);
-
         const nameInput = document.createElement("input");
         nameInput.type = "text";
         nameInput.maxLength = 80;
@@ -951,115 +962,113 @@ def misuratore():
         nameInput.setAttribute("aria-label", "Descrizione");
         nameField.appendChild(nameInput);
 
-        const amountField = document.createElement("div");
-        amountField.className = "field";
+        function makeAmountField(labelText, value, ariaLabel) {
+          const field = document.createElement("div");
+          field.className = "field";
+          const fieldLabel = document.createElement("label");
+          fieldLabel.textContent = labelText;
+          field.appendChild(fieldLabel);
+          const input = document.createElement("input");
+          input.type = "number";
+          input.min = "0";
+          input.max = "100000000";
+          input.step = "0.01";
+          input.inputMode = "decimal";
+          input.value = value;
+          input.setAttribute("aria-label", ariaLabel);
+          field.appendChild(input);
+          input.addEventListener("input", calculate);
+          return {field, input};
+        }
 
-        const amountLabel = document.createElement("label");
-        amountLabel.textContent = type === "debt"
-          ? "Rata mensile (€)" : "Importo mensile (€)";
-        amountField.appendChild(amountLabel);
-
-        const amountInput = document.createElement("input");
-        amountInput.type = "number";
-        amountInput.min = "0";
-        amountInput.max = "100000000";
-        amountInput.step = "0.01";
-        amountInput.inputMode = "decimal";
-        amountInput.value = amount;
-        amountInput.setAttribute("aria-label", "Importo in euro");
-        amountField.appendChild(amountInput);
+        const primary = makeAmountField(
+          type === "debt" ? "Debito complessivo residuo (€)" : "Importo mensile (€)",
+          amount,
+          type === "debt" ? "Importo complessivo del debito in euro" : "Importo in euro"
+        );
+        row.append(nameField, primary.field);
+        if (type === "debt") {
+          const installment = makeAmountField("Rata mensile in corso (€)", payment, "Rata mensile in euro");
+          row.appendChild(installment.field);
+        }
 
         const remove = document.createElement("button");
         remove.type = "button";
         remove.className = "remove-button";
         remove.textContent = "Rimuovi";
         remove.setAttribute("aria-label", "Rimuovi voce");
-        remove.addEventListener("click", () => {
-          row.remove();
-          calculate();
-        });
-
-        row.append(nameField, amountField, remove);
+        remove.addEventListener("click", () => { row.remove(); calculate(); });
+        row.appendChild(remove);
         container.appendChild(row);
-
-        amountInput.addEventListener("input", calculate);
         nameInput.addEventListener("input", calculate);
         calculate();
       }
 
-      function sumRows(id) {
+      function sumRows(id, inputIndex=0) {
         let total = 0;
-        document.querySelectorAll("#" + id + " .entry-row input[type=number]")
-          .forEach(input => {
-            const value = Number(input.value);
-            if (Number.isFinite(value) && value > 0) {
-              total += Math.min(value, 100000000);
-            }
-          });
+        document.querySelectorAll("#" + id + " .entry-row").forEach(row => {
+          const inputs = row.querySelectorAll('input[type="number"]');
+          const input = inputs[inputIndex];
+          if (!input) return;
+          const value = Number(input.value);
+          if (Number.isFinite(value) && value > 0) total += Math.min(value, 100000000);
+        });
         return total;
+      }
+
+      function setTrafficLight(level, title, description) {
+        const light = document.getElementById("trafficLight");
+        light.classList.remove("red", "yellow", "green");
+        if (level) light.classList.add(level);
+        document.getElementById("trafficTitle").textContent = title;
+        document.getElementById("trafficDescription").textContent = description;
       }
 
       function calculate() {
         const income = sumRows("incomeRows");
         const expenses = sumRows("expenseRows");
-        const payments = sumRows("debtRows");
+        const totalDebt = sumRows("debtRows", 0);
+        const payments = sumRows("debtRows", 1);
         const residual = income - expenses - payments;
         const ratio = income > 0 ? payments / income : null;
 
         document.getElementById("totalIncome").textContent = money(income);
         document.getElementById("totalExpenses").textContent = money(expenses);
+        document.getElementById("totalDebt").textContent = money(totalDebt);
         document.getElementById("totalPayments").textContent = money(payments);
         document.getElementById("residual").textContent = money(residual);
 
         const result = document.getElementById("assessment");
-
         if (income <= 0) {
-          result.textContent =
-            "Inserisci almeno un'entrata mensile positiva per ottenere una valutazione.";
+          result.textContent = "Inserisci almeno un'entrata mensile positiva per ottenere una valutazione.";
+          setTrafficLight(null, "Semaforo non ancora disponibile", "Completa almeno le entrate mensili per visualizzare il livello indicativo.");
           return;
         }
 
         if (residual < 0 || ratio >= 0.40) {
-          result.textContent =
-            "Situazione da approfondire: il margine mensile è negativo oppure le rate assorbono una quota elevata delle entrate.";
+          result.textContent = "Situazione di criticità: il margine mensile è negativo oppure le rate assorbono una quota elevata delle entrate.";
+          setTrafficLight("red", "ROSSO — Situazione di criticità", "Il bilancio appare sotto forte pressione. Valuta un approfondimento prima di assumere nuovi impegni.");
         } else if (residual < income * 0.10 || ratio >= 0.25) {
-          result.textContent =
-            "Margine ridotto: le spese e le rate lasciano una disponibilità limitata. Valuta con attenzione il bilancio.";
+          result.textContent = "Attenzione: il margine mensile è ridotto oppure le rate impegnano una parte significativa delle entrate.";
+          setTrafficLight("yellow", "GIALLO — Attenzione", "Il margine disponibile potrebbe essere limitato. Controlla con attenzione spese, rate e imprevisti.");
         } else {
-          result.textContent =
-            "In base ai soli importi inseriti, il margine appare meno sotto pressione. La valutazione non considera tutte le possibili esigenze o variazioni future.";
+          result.textContent = "In base agli importi inseriti, il margine mensile appare relativamente più equilibrato.";
+          setTrafficLight("green", "VERDE — Situazione indicativamente sostenibile", "Il bilancio appare meno sotto pressione in base ai dati inseriti. Mantieni un margine per imprevisti.");
         }
-
-        result.textContent +=
-          " Si tratta di una stima orientativa, non di una certificazione della sostenibilità del debito.";
+        result.textContent += " Il semaforo è una stima orientativa basata solo sui dati inseriti: non è una certificazione della sostenibilità del debito né una consulenza legale o finanziaria.";
       }
 
-      document.getElementById("addIncome").addEventListener("click", () =>
-        addRow("income", "Nuova entrata", 0)
-      );
-      document.getElementById("addExpense").addEventListener("click", () =>
-        addRow("expense", "Nuova spesa", 0)
-      );
-      document.getElementById("addDebt").addEventListener("click", () =>
-        addRow("debt", "Nuovo debito", 0)
-      );
-
+      document.getElementById("addIncome").addEventListener("click", () => addRow("income", "Nuova entrata", 0));
+      document.getElementById("addExpense").addEventListener("click", () => addRow("expense", "Nuova spesa", 0));
+      document.getElementById("addDebt").addEventListener("click", () => addRow("debt", "Nuovo debito", 0, 0));
       document.getElementById("resetCalculator").addEventListener("click", () => {
         document.getElementById("incomeRows").replaceChildren();
         document.getElementById("expenseRows").replaceChildren();
         document.getElementById("debtRows").replaceChildren();
-
-        definitions.income.forEach(([label, value]) =>
-          addRow("income", label, value)
-        );
-        definitions.expense.forEach(([label, value]) =>
-          addRow("expense", label, value)
-        );
-        definitions.debt.forEach(([label, value]) =>
-          addRow("debt", label, value)
-        );
+        definitions.income.forEach(([label, value]) => addRow("income", label, value));
+        definitions.expense.forEach(([label, value]) => addRow("expense", label, value));
+        definitions.debt.forEach(([label, value, payment]) => addRow("debt", label, value, payment));
       });
-
       document.getElementById("resetCalculator").click();
     })();
     </script>
