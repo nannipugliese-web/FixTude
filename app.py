@@ -27,9 +27,10 @@ app = Flask(__name__)
 # =========================================================
 # FIXTUDE - CALCOLATORE + RICONTATTO DIRETTO + CHAT LIVE
 #
-# Nessun database.
+# Nessun database applicativo.
 # Il calcolatore funziona nel browser.
-# Il modulo invia email direttamente via SMTP.
+# Il modulo di ricontatto invia i dati direttamente a Web3Forms via HTTPS.
+# Le notifiche email della chat usano ancora SMTP.
 # La chat usa esclusivamente memoria temporanea RAM.
 # =========================================================
 
@@ -1077,6 +1078,8 @@ def consulenza():
           <input id="website" name="website" tabindex="-1"
                  autocomplete="off">
         </div>
+        <input type="checkbox" name="botcheck" tabindex="-1"
+               autocomplete="off" style="display:none" aria-hidden="true">
 
         <label class="check">
           <input type="checkbox" name="privacy" required>
@@ -1107,6 +1110,7 @@ def consulenza():
       const form = document.getElementById("contactForm");
       const result = document.getElementById("contactResult");
       const button = document.getElementById("contactSubmit");
+      const accessKey = "6cfd757e-6b16-49e0-96b5-e055a159f403";
 
       form.addEventListener("submit", async e => {
         e.preventDefault();
@@ -1116,19 +1120,38 @@ def consulenza():
         if (!form.reportValidity()) return;
 
         const values = Object.fromEntries(new FormData(form).entries());
+
+        // Honeypot: se compilato da un bot, mostra un esito neutro senza inviare.
+        if (String(values.website || "").trim()) {
+          result.className = "notice success";
+          result.textContent =
+            "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
+          form.reset();
+          return;
+        }
+
+        values.access_key = accessKey;
+        values.subject = "FixTude - nuova richiesta di ricontatto";
+        values.from_name = "FixTude - modulo di ricontatto";
+        values.botcheck = values.botcheck || "";
+        delete values.website;
+
         button.disabled = true;
         button.textContent = "Invio in corso…";
 
         try {
-          const response = await fetch("/api/contact", {
-            method:"POST",
-            headers:{"Content-Type":"application/json"},
-            body:JSON.stringify(values)
+          const response = await fetch("https://api.web3forms.com/submit", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            },
+            body: JSON.stringify(values)
           });
-          const data = await response.json();
 
-          if (!response.ok) {
-            throw new Error(data.error || "Non è stato possibile inviare la richiesta.");
+          const data = await response.json();
+          if (!response.ok || data.success !== true) {
+            throw new Error(data.message || "Non è stato possibile inviare la richiesta.");
           }
 
           result.className = "notice success";
@@ -1771,10 +1794,16 @@ def privacy():
       <h2>Modulo di ricontatto</h2>
       <p>
         Se invii il modulo, nome, indirizzo email, eventuale telefono
-        e messaggio vengono trasmessi al server per l'invio a
-        info@fixtude.it. Non vengono registrati in un database
-        dell'applicazione. Il messaggio può rimanere nella casella
-        di posta del destinatario secondo le relative impostazioni.
+        e messaggio vengono trasmessi tramite connessione HTTPS al
+        servizio Web3Forms, che gestisce l'invio della richiesta alla
+        casella email associata alla chiave del modulo. L'applicazione
+        FixTude non conserva una copia di questi dati in un proprio
+        database. Web3Forms dichiara di conservare i dati delle richieste
+        secondo la propria informativa e le impostazioni del servizio;
+        prima del lancio occorre verificare le condizioni aggiornate,
+        i tempi di conservazione e gli eventuali trasferimenti di dati.
+        La richiesta può inoltre rimanere nella casella email del
+        destinatario secondo le relative impostazioni.
       </p>
 
       <h2>Chat</h2>
