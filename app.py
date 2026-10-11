@@ -698,6 +698,37 @@ def page(title, content, include_chat=True):
                 const data = await r.json();
 
                 if (!r.ok) throw new Error(data.error || "Invio non riuscito");
+
+                // La notifica email viene inviata dal browser via HTTPS,
+                // evitando SMTP in uscita da Render.
+                try {
+                  const notification = await fetch("https://api.web3forms.com/submit", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "Accept": "application/json"
+                    },
+                    body: JSON.stringify({
+                      access_key: "6cfd757e-6b16-49e0-96b5-e055a159f403",
+                      subject: "FixTude - nuovo messaggio in chat",
+                      from_name: "FixTude - chat cliente",
+                      message: "È arrivato un nuovo messaggio nella chat FixTude.\\n\\n" +
+                        "Conversazione: " + chatId.slice(0, 8) + "\\n" +
+                        "Orario: " + new Date().toLocaleString("it-IT") + "\\n\\n" +
+                        "Messaggio ricevuto:\\n" + text + "\\n\\n" +
+                        "Rispondi dall'area staff: https://fixtude.it/chat-staff"
+                    })
+                  });
+                  const notificationData = await notification.json();
+                  if (!notification.ok || notificationData.success !== true) {
+                    console.error("Notifica email chat non confermata:", notificationData.message || notification.status);
+                    status.textContent = "Messaggio inviato, ma la notifica email non è stata confermata.";
+                  }
+                } catch (notificationError) {
+                  console.error("Errore notifica email chat:", notificationError);
+                  status.textContent = "Messaggio inviato, ma non è stato possibile confermare la notifica email.";
+                }
+
                 input.value = "";
                 await refreshMessages();
               } catch (err) {
@@ -1418,7 +1449,8 @@ def chat_send():
         body="Un visitatore ha scritto nella chat. Apri l’Area Riservata per rispondere.",
         url="/chat-staff"
     )
-    send_chat_email_async(chat_id, message)
+    # La notifica email viene inviata dal browser via Web3Forms HTTPS.
+    # Non usare SMTP da Render per questa notifica.
     return jsonify(ok=True)
 
 
