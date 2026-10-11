@@ -507,8 +507,6 @@ def page(title, content, include_chat=True):
               nav a {font-size:13px}
               .product-card {grid-template-columns:1fr}
               .resource-list {grid-template-columns:1fr}
-            }
-
               .nav {align-items:flex-start;flex-direction:column;gap:9px}
               nav {gap:10px 16px}
               main {width:calc(100% - 24px);margin:20px auto 45px}
@@ -521,6 +519,28 @@ def page(title, content, include_chat=True):
               .hero p {font-size:16px}
               .chat-launcher {right:13px;bottom:13px}
               .chat-panel {right:8px;bottom:70px;width:calc(100vw - 16px)}
+            }
+            /* Home: spazi più equilibrati e comandi comodi su schermi piccoli */
+            .hero {display:flex;flex-direction:column;gap:0;padding:clamp(24px,4vw,42px)}
+            .hero h1 {margin-bottom:12px}
+            .hero p {margin-bottom:20px}
+            .hero .actions {margin-top:2px;gap:12px}
+            .hero .actions .btn {min-height:48px}
+            .start-card .grid {row-gap:10px;column-gap:24px}
+            .start-card .grid > div {min-width:0;padding:4px 0}
+            .start-card .grid p {margin:7px 0 0}
+            @media(max-width:650px) {
+              main {width:calc(100% - 24px);margin:18px auto 42px}
+              .hero {padding:24px 19px;border-radius:15px}
+              .hero h1 {font-size:clamp(28px,8vw,35px);line-height:1.12;letter-spacing:-.5px;margin-bottom:12px}
+              .hero p {font-size:16px;line-height:1.5;margin-bottom:18px}
+              .hero .actions {display:grid;grid-template-columns:1fr;gap:10px;width:100%}
+              .hero .actions .btn {width:100%;padding:12px 14px;text-align:center;white-space:normal}
+              .start-card {padding:18px 17px}
+              .start-card h2 {margin-top:0;font-size:21px}
+              .start-card .grid {grid-template-columns:1fr;gap:14px}
+              .start-card .grid > div {padding:0 0 12px;border-bottom:1px solid var(--line)}
+              .start-card .grid > div:last-child {padding-bottom:0;border-bottom:0}
             }
           </style>
         </head>
@@ -784,18 +804,14 @@ def home():
     <section class="hero">
       <h1>Fai chiarezza sulla tua situazione debitoria.</h1>
       <p>Inserisci entrate, uscite e rate per capire quanto ti rimane ogni mese e valutare in modo indicativo la sostenibilità dei tuoi impegni.</p>
-      <div class="actions"><a class="btn light" href="/misuratore">Prova il calcolatore gratuito</a><a class="btn outline" href="/educazione-finanziaria">Educazione finanziaria</a></div>
+      <div class="actions"><a class="btn light" href="/misuratore">Prova il calcolatore gratuito</a><a class="btn outline contact-cta" href="/consulenza">Richiedi di essere contattato</a></div>
     </section>
-    <section class="card"><h2>Da dove cominciare</h2><div class="grid">
-      <div><strong>1. Fai il calcolo</strong><p class="muted">Usa gratuitamente il calcolatore. I dati inseriti restano nel browser e non serve registrarsi.</p><a href="/misuratore">Apri il calcolatore →</a></div>
-      <div><strong>2. Valuta il risultato</strong><p class="muted">Ottieni una stima orientativa del margine mensile e del peso delle rate.</p><a href="/misuratore">Calcola il margine mensile →</a></div>
-      <div><strong>3. Se vuoi, puoi chiedere di essere ricontattato da un esperto</strong><p class="muted">Lascia i tuoi recapiti e una breve descrizione della situazione. Il contatto è facoltativo e non comporta obblighi.</p><a class="btn" href="/consulenza">Richiedi di essere ricontattato</a></div>
-      <div><strong>4. Hai una domanda?</strong><p class="muted">Apri la Chat Live FixTude in basso a destra per inviare un messaggio allo staff.</p><span class="muted">La chat è disponibile senza registrazione.</span></div>
+    <section class="card start-card"><h2>Da dove cominciare</h2><div class="grid">
+      <div><strong>1. Fai il calcolo</strong><p class="muted">Usa gratuitamente il calcolatore. I dati inseriti restano nel browser e non serve registrarsi.</p></div>
+      <div><strong>2. Valuta il risultato</strong><p class="muted">Ottieni una stima orientativa del margine mensile e del peso delle rate.</p></div>
+      <div><strong>3. Se vuoi, chiedi di essere ricontattato</strong><p class="muted">Lascia i tuoi recapiti e una breve descrizione della situazione. Il contatto è facoltativo e non comporta obblighi.</p></div>
+      <div><strong>4. Hai una domanda?</strong><p class="muted">Apri la Chat Live FixTude in basso a destra per inviare un messaggio allo staff. La chat è disponibile senza registrazione.</p></div>
     </div></section>
-    <section class="card"><h2>Moduli utili, gratuiti</h2><p>Scarica gratuitamente i modelli per chiedere una dilazione, proporre un saldo e stralcio o presentare un piano di rientro. Compilali con attenzione e verifica che siano adatti al tuo caso.</p><a class="btn" href="/moduli">Consulta e scarica i moduli</a></section>
-    <section class="card"><h2>Controlla gratuitamente le banche dati SIC</h2><p>Puoi chiedere direttamente agli enti l'accesso ai dati personali presenti nelle banche dati creditizie. L'accesso ai tuoi dati è distinto da eventuali servizi commerciali.</p><a class="btn" href="/sic">Vai alle richieste di accesso</a></section>
-    <section class="card product-card"><div><h2>NIENTE PANICO</h2><p>Una guida pratica per affrontare i debiti con metodo, lucidità e passi concreti.</p><a href="/shop">Scopri il libro nello Shop →</a></div><div><div class="price">€ 6,99</div><a class="btn" href="/shop">Acquista il libro</a></div></section>
-    <section class="card"><h2>Educazione finanziaria</h2><p>Guide introduttive per leggere il bilancio familiare, dare priorità ai pagamenti e prepararsi a parlare con i creditori.</p><div class="resource-list"><a class="resource-link" href="/educazione-finanziaria#bilancio">1. Organizzare il bilancio familiare<span>Entrate, spese essenziali e margine mensile.</span></a><a class="resource-link" href="/educazione-finanziaria#priorita">2. Dare priorità ai pagamenti<span>Distinguere necessità, scadenze e rischi.</span></a><a class="resource-link" href="/educazione-finanziaria#creditori">3. Parlare con i creditori<span>Preparare una richiesta chiara e sostenibile.</span></a><a class="resource-link" href="/educazione-finanziaria#errori">4. Errori da evitare<span>Diffidare da promesse facili e valutare le proposte.</span></a></div></section>
     <p class="muted">Il calcolatore e i materiali hanno finalità informative e orientative. Non costituiscono consulenza legale o finanziaria personalizzata e non garantiscono l'accettazione di proposte da parte dei creditori.</p>
     """
     return page("Fai chiarezza", content)
@@ -1990,4 +2006,3 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5000")),
         debug=False
     )
-
