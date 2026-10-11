@@ -6,8 +6,6 @@ import time
 import uuid
 import smtplib
 import threading
-import urllib.request
-import urllib.error
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from email.message import EmailMessage
@@ -15,8 +13,13 @@ from html import escape
 
 from flask import (
     Flask, request, render_template_string, jsonify, Response,
-    session, redirect, url_for
+    session, redirect, url_for, send_file
 )
+
+try:
+    import stripe
+except ImportError:
+    stripe = None
 
 try:
     from pywebpush import webpush, WebPushException
@@ -32,7 +35,7 @@ app = Flask(__name__)
 # Nessun database applicativo.
 # Il calcolatore funziona nel browser.
 # Il modulo di ricontatto invia i dati direttamente a Web3Forms via HTTPS.
-# Le notifiche email della chat usano Web3Forms via HTTPS dal server.
+# Le notifiche email della chat usano ancora SMTP.
 # La chat usa esclusivamente memoria temporanea RAM.
 # =========================================================
 
@@ -178,46 +181,29 @@ def send_email(subject, body, reply_to=None):
 
 
 def send_chat_email_async(chat_id, message):
-    """Invia la notifica chat via HTTPS a Web3Forms, dal server."""
+    """Invia una notifica email per ogni nuovo messaggio del visitatore."""
     def worker():
         try:
-            payload = {
-                "access_key": os.environ.get(
-                    "WEB3FORMS_ACCESS_KEY",
-                    "6cfd757e-6b16-49e0-96b5-e055a159f403"
-                ),
-                "subject": "FixTude - nuovo messaggio in chat",
-                "from_name": "FixTude - chat cliente",
-                "message": (
-                    "È arrivato un nuovo messaggio nella chat FixTude.\n\n"
-                    f"Conversazione: {chat_id[:8]}\n"
-                    f"Orario: {ora_italiana()}\n\n"
-                    "Messaggio ricevuto:\n"
-                    f"{message}\n\n"
-                    "Rispondi dall'area staff: https://fixtude.it/chat-staff"
-                )
-            }
-            req = urllib.request.Request(
-                "https://api.web3forms.com/submit",
-                data=json.dumps(payload).encode("utf-8"),
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                    "User-Agent": "FixTude-chat-notification/1.0"
-                },
-                method="POST"
+            body = (
+                "È arrivato un nuovo messaggio nella chat FixTude.\n\n"
+                f"Conversazione: {chat_id[:8]}\n"
+                f"Orario: {ora_italiana()}\n\n"
+                "Messaggio ricevuto:\n"
+                f"{message}\n\n"
+                "Accedi all'area riservata per rispondere:\n"
+                "https://fixtude.it/chat-staff\n"
             )
-            with urllib.request.urlopen(req, timeout=12) as response:
-                result = json.loads(response.read().decode("utf-8"))
-                if response.status < 200 or response.status >= 300 or result.get("success") is not True:
-                    raise RuntimeError(result.get("message", "Web3Forms non ha confermato l'invio"))
+            send_email(
+                subject="FixTude - nuovo messaggio in chat",
+                body=body
+            )
             app.logger.info(
-                "Notifica email chat confermata da Web3Forms per conversazione %s",
+                "Email notifica chat inviata per la conversazione %s",
                 chat_id[:8]
             )
         except Exception as exc:
             app.logger.error(
-                "Invio notifica email chat via Web3Forms fallito (%s): %s",
+                "Invio email notifica chat fallito (%s): %s",
                 type(exc).__name__, str(exc)
             )
 
@@ -511,7 +497,18 @@ def page(title, content, include_chat=True):
             .chat-form input {flex:1;min-width:0;padding:10px}
             .chat-form button {padding:10px 13px}
             .chat-hint {font-size:11px;color:var(--muted);padding:0 12px 10px}
+            .product-card {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center}
+            .price {font-size:30px;font-weight:800;color:var(--blue);white-space:nowrap}
+            .resource-list {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+            .resource-link {display:block;padding:17px;border:1px solid var(--line);border-radius:12px;background:#fff;text-decoration:none;font-weight:700}
+            .resource-link span {display:block;font-weight:400;color:var(--muted);font-size:14px;margin-top:5px}
             @media(max-width:650px) {
+              nav {width:100%;gap:9px 13px}
+              nav a {font-size:13px}
+              .product-card {grid-template-columns:1fr}
+              .resource-list {grid-template-columns:1fr}
+            }
+
               .nav {align-items:flex-start;flex-direction:column;gap:9px}
               nav {gap:10px 16px}
               main {width:calc(100% - 24px);margin:20px auto 45px}
@@ -535,6 +532,10 @@ def page(title, content, include_chat=True):
                 <a href="/">Home</a>
                 <a href="/misuratore">Calcolatore</a>
                 <a href="/consulenza">Ricontatto</a>
+                <a href="/moduli">Moduli gratuiti</a>
+                <a href="/educazione-finanziaria">Educazione finanziaria</a>
+                <a href="/sic">Banche dati SIC</a>
+                <a href="/shop">Shop</a>
                 <a href="/privacy">Privacy</a>
               </nav>
             </div>
@@ -718,6 +719,36 @@ def page(title, content, include_chat=True):
 
                 if (!r.ok) throw new Error(data.error || "Invio non riuscito");
 
+                // La notifica email viene inviata dal browser via HTTPS,
+                // evitando SMTP in uscita da Render.
+                try {
+                  const notification = await fetch("https://api.web3forms.com/submit", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "Accept": "application/json"
+                    },
+                    body: JSON.stringify({
+                      access_key: "6cfd757e-6b16-49e0-96b5-e055a159f403",
+                      subject: "FixTude - nuovo messaggio in chat",
+                      from_name: "FixTude - chat cliente",
+                      message: "È arrivato un nuovo messaggio nella chat FixTude.\\n\\n" +
+                        "Conversazione: " + chatId.slice(0, 8) + "\\n" +
+                        "Orario: " + new Date().toLocaleString("it-IT") + "\\n\\n" +
+                        "Messaggio ricevuto:\\n" + text + "\\n\\n" +
+                        "Rispondi dall'area staff: https://fixtude.it/chat-staff"
+                    })
+                  });
+                  const notificationData = await notification.json();
+                  if (!notification.ok || notificationData.success !== true) {
+                    console.error("Notifica email chat non confermata:", notificationData.message || notification.status);
+                    status.textContent = "Messaggio inviato, ma la notifica email non è stata confermata.";
+                  }
+                } catch (notificationError) {
+                  console.error("Errore notifica email chat:", notificationError);
+                  status.textContent = "Messaggio inviato, ma non è stato possibile confermare la notifica email.";
+                }
+
                 input.value = "";
                 await refreshMessages();
               } catch (err) {
@@ -752,55 +783,20 @@ def home():
     content = """
     <section class="hero">
       <h1>Fai chiarezza sulla tua situazione debitoria.</h1>
-      <p>
-        Inserisci entrate, uscite e rate per capire quanto ti rimane
-        ogni mese e valutare in modo indicativo la sostenibilità
-        dei tuoi impegni.
-      </p>
-      <div class="actions">
-        <a class="btn light" href="/misuratore">Prova il calcolatore</a>
-        <a class="btn outline" href="/consulenza">Chiedi di essere ricontattato</a>
-      </div>
+      <p>Inserisci entrate, uscite e rate per capire quanto ti rimane ogni mese e valutare in modo indicativo la sostenibilità dei tuoi impegni.</p>
+      <div class="actions"><a class="btn light" href="/misuratore">Prova il calcolatore gratuito</a><a class="btn outline" href="/educazione-finanziaria">Educazione finanziaria</a></div>
     </section>
-
-    <section class="card">
-      <h2>Un primo passo, senza impegno.</h2>
-      <div class="grid">
-        <div>
-          <strong>1. Fai il calcolo</strong>
-          <p class="muted">
-            Inserisci gli importi direttamente nel browser.
-            Non occorre creare un account.
-          </p>
-        </div>
-        <div>
-          <strong>2. Valuta il risultato</strong>
-          <p class="muted">
-            Ottieni una stima orientativa del margine mensile
-            e del peso delle rate.
-          </p>
-        </div>
-        <div>
-          <strong>3. Decidi liberamente</strong>
-          <p class="muted">
-            Se vuoi, puoi chiedere di essere ricontattato.
-            Non sei obbligato a proseguire.
-          </p>
-        </div>
-        <div>
-          <strong>4. Hai una domanda?</strong>
-          <p class="muted">
-            Apri la chat in basso a destra. Potrai ricevere
-            una risposta quando il gestore sarà disponibile.
-          </p>
-        </div>
-      </div>
-    </section>
-    <p class="muted">
-      Il calcolatore fornisce indicazioni generali, non una
-      consulenza legale o finanziaria e non garantisce l'accettazione
-      di eventuali proposte da parte dei creditori.
-    </p>
+    <section class="card"><h2>Da dove cominciare</h2><div class="grid">
+      <div><strong>1. Fai il calcolo</strong><p class="muted">Usa gratuitamente il calcolatore. I dati inseriti restano nel browser e non serve registrarsi.</p><a href="/misuratore">Apri il calcolatore →</a></div>
+      <div><strong>2. Valuta il risultato</strong><p class="muted">Ottieni una stima orientativa del margine mensile e del peso delle rate.</p><a href="/misuratore">Calcola il margine mensile →</a></div>
+      <div><strong>3. Se vuoi, puoi chiedere di essere ricontattato da un esperto</strong><p class="muted">Lascia i tuoi recapiti e una breve descrizione della situazione. Il contatto è facoltativo e non comporta obblighi.</p><a class="btn" href="/consulenza">Richiedi di essere ricontattato</a></div>
+      <div><strong>4. Hai una domanda?</strong><p class="muted">Apri la Chat Live FixTude in basso a destra per inviare un messaggio allo staff.</p><span class="muted">La chat è disponibile senza registrazione.</span></div>
+    </div></section>
+    <section class="card"><h2>Moduli utili, gratuiti</h2><p>Scarica gratuitamente i modelli per chiedere una dilazione, proporre un saldo e stralcio o presentare un piano di rientro. Compilali con attenzione e verifica che siano adatti al tuo caso.</p><a class="btn" href="/moduli">Consulta e scarica i moduli</a></section>
+    <section class="card"><h2>Controlla gratuitamente le banche dati SIC</h2><p>Puoi chiedere direttamente agli enti l'accesso ai dati personali presenti nelle banche dati creditizie. L'accesso ai tuoi dati è distinto da eventuali servizi commerciali.</p><a class="btn" href="/sic">Vai alle richieste di accesso</a></section>
+    <section class="card product-card"><div><h2>NIENTE PANICO</h2><p>Una guida pratica per affrontare i debiti con metodo, lucidità e passi concreti.</p><a href="/shop">Scopri il libro nello Shop →</a></div><div><div class="price">€ 6,99</div><a class="btn" href="/shop">Acquista il libro</a></div></section>
+    <section class="card"><h2>Educazione finanziaria</h2><p>Guide introduttive per leggere il bilancio familiare, dare priorità ai pagamenti e prepararsi a parlare con i creditori.</p><div class="resource-list"><a class="resource-link" href="/educazione-finanziaria#bilancio">1. Organizzare il bilancio familiare<span>Entrate, spese essenziali e margine mensile.</span></a><a class="resource-link" href="/educazione-finanziaria#priorita">2. Dare priorità ai pagamenti<span>Distinguere necessità, scadenze e rischi.</span></a><a class="resource-link" href="/educazione-finanziaria#creditori">3. Parlare con i creditori<span>Preparare una richiesta chiara e sostenibile.</span></a><a class="resource-link" href="/educazione-finanziaria#errori">4. Errori da evitare<span>Diffidare da promesse facili e valutare le proposte.</span></a></div></section>
+    <p class="muted">Il calcolatore e i materiali hanno finalità informative e orientative. Non costituiscono consulenza legale o finanziaria personalizzata e non garantiscono l'accettazione di proposte da parte dei creditori.</p>
     """
     return page("Fai chiarezza", content)
 
@@ -1438,9 +1434,8 @@ def chat_send():
         body="Un visitatore ha scritto nella chat. Apri l’Area Riservata per rispondere.",
         url="/chat-staff"
     )
-    # La notifica email parte dal server via HTTPS: funziona anche se
-    # il browser mobile blocca o interrompe la richiesta verso Web3Forms.
-    send_chat_email_async(chat_id, message)
+    # La notifica email viene inviata dal browser via Web3Forms HTTPS.
+    # Non usare SMTP da Render per questa notifica.
     return jsonify(ok=True)
 
 
@@ -1792,6 +1787,132 @@ def chat_staff_logout():
 
 
 # =========================================================
+# MODULI PDF GRATUITI, EDUCAZIONE FINANZIARIA, SIC E SHOP
+# =========================================================
+
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+PDF_DIR = BASE_DIR / "static" / "pdf"
+BOOK_FILE = PDF_DIR / "NIENTE_PANICO.pdf"
+MODULE_FILES = {
+    "saldo-stralcio": ("FixTude_Modulo_Saldo_e_Stralcio_2_pagine.pdf", "Proposta di saldo e stralcio"),
+    "dilazione": ("FixTude_Modulo_Dilazione_Pagamento_2_pagine.pdf", "Richiesta di dilazione del pagamento"),
+    "piano-rientro": ("FixTude_Modulo_Piano_Rientro_con_Titoli_2_pagine.pdf", "Richiesta di piano di rientro"),
+    "raccolta": ("FixTude_Libreria_Moduli_Richieste_Debitorie_6_pagine_v2.pdf", "Raccolta di moduli di richiesta"),
+}
+
+@app.route("/moduli")
+def moduli_gratuiti():
+    cards = []
+    for slug, (filename, label) in MODULE_FILES.items():
+        cards.append(f'''<div class="card"><h2>{escape(label)}</h2><p class="muted">PDF gratuito, senza registrazione.</p><a class="btn" href="/download/modulo/{slug}">Scarica PDF</a></div>''')
+    content = '''<h1>Moduli FixTude gratuiti</h1>
+    <p class="muted">I modelli sono strumenti orientativi: adattali alla tua situazione, controlla gli importi e allega solo documenti pertinenti. L'invio di una richiesta non garantisce che il creditore la accetti.</p>
+    <div class="grid">''' + "".join(cards) + '''</div>
+    <div class="notice">Non pagare per scaricare questi moduli: in questa fase sono gratuiti.</div>'''
+    return page("Moduli gratuiti", content)
+
+@app.route("/download/modulo/<slug>")
+def download_modulo(slug):
+    item = MODULE_FILES.get(slug)
+    if not item:
+        return "Modulo non trovato", 404
+    path = PDF_DIR / item[0]
+    if not path.is_file():
+        return page("Modulo non disponibile", '<h1>Modulo temporaneamente non disponibile</h1><p>Il file PDF non è stato ancora caricato nel progetto. Riprova più tardi.</p>'), 404
+    return send_file(path, as_attachment=True, download_name=item[0], mimetype="application/pdf")
+
+@app.route("/educazione-finanziaria")
+def educazione_finanziaria():
+    content = '''<h1>Educazione finanziaria</h1>
+    <p class="muted">Guide introduttive gratuite per comprendere meglio il bilancio personale e affrontare le comunicazioni con i creditori.</p>
+    <section class="card" id="bilancio"><h2>1. Organizzare il bilancio familiare</h2><p>Annota le entrate nette effettivamente disponibili e separa le spese essenziali (casa, utenze, alimentazione, salute e trasporti) dalle spese flessibili. Inserisci poi rate, arretrati e scadenze. Il margine mensile è una stima: lascia un cuscinetto per gli imprevisti e non considerare sostenibile una rata che mette a rischio le necessità di base.</p><ul><li>Usa importi mensili omogenei.</li><li>Evita di contare entrate incerte come se fossero garantite.</li><li>Aggiorna il prospetto quando cambiano reddito o spese.</li></ul></section>
+    <section class="card" id="priorita"><h2>2. Dare priorità ai pagamenti</h2><p>Prima di distribuire il denaro tra i debiti, proteggi le necessità essenziali e valuta le scadenze concrete. Non esiste una priorità universale valida per ogni situazione: atti giudiziari, garanzie, utenze e debiti fiscali possono avere conseguenze differenti. Se hai ricevuto un atto con termini, chiedi tempestivamente una valutazione qualificata.</p><ul><li>Apri e conserva le comunicazioni ricevute.</li><li>Segna importo, creditore, scadenza e riferimento della pratica.</li><li>Non ignorare raccomandate, PEC o atti notificati.</li></ul></section>
+    <section class="card" id="creditori"><h2>3. Parlare con i creditori</h2><p>Una richiesta efficace è chiara, documentata e realistica. Indica il riferimento del rapporto, spiega brevemente la difficoltà, proponi un importo compatibile con il bilancio e chiedi conferma scritta delle condizioni. Non promettere pagamenti che non puoi sostenere e non considerare accettata una proposta finché non hai ricevuto una conferma verificabile.</p><p>Puoi partire dai <a href="/moduli">moduli gratuiti FixTude</a> e personalizzarli.</p></section>
+    <section class="card" id="errori"><h2>4. Errori da evitare</h2><ul><li>Pagare intermediari che promettono cancellazioni o risultati garantiti.</li><li>Firmare accordi senza aver letto importi, scadenze e conseguenze.</li><li>Inviare documenti personali a destinatari non verificati.</li><li>Contrarre nuovo debito senza valutare il costo totale e la sostenibilità.</li><li>Rimandare la richiesta di aiuto quando arrivano atti con termini precisi.</li></ul><p>Le informazioni di questa pagina sono generali e non sostituiscono una consulenza professionale.</p></section>'''
+    return page("Educazione finanziaria", content)
+
+@app.route("/sic")
+def sic_banche_dati():
+    content = '''<h1>Accesso gratuito alle banche dati SIC</h1>
+    <p>Puoi esercitare direttamente presso i gestori il diritto di accesso ai dati personali che ti riguardano. Le richieste di accesso ai dati sono distinte da eventuali servizi a pagamento. Segui le istruzioni aggiornate del gestore e usa esclusivamente i suoi canali ufficiali.</p>
+    <div class="grid">
+      <div class="card"><h2>CRIF – EURISC</h2><p>Informazioni per consumatori e accesso ai dati registrati.</p><a class="btn" href="https://www.crif.it/consumatori/" target="_blank" rel="noopener">Sito ufficiale CRIF</a></div>
+      <div class="card"><h2>Experian</h2><p>Informazioni sui dati personali e sui sistemi di informazione creditizia.</p><a class="btn" href="https://www.experian.it/" target="_blank" rel="noopener">Sito ufficiale Experian</a></div>
+      <div class="card"><h2>CTC</h2><p>Consorzio per la tutela del credito: informazioni e procedure per i consumatori.</p><a class="btn" href="https://www.ctconline.it/" target="_blank" rel="noopener">Sito ufficiale CTC</a></div>
+      <div class="card"><h2>CAI – Banca d'Italia</h2><p>Consulta le informazioni ufficiali della Banca d'Italia sulla Centrale d'allarme interbancaria.</p><a class="btn" href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/index.html" target="_blank" rel="noopener">Accesso CAI</a></div>
+    </div>
+    <div class="notice">FixTude non accede alle banche dati per conto dell'utente e non garantisce tempi o risultati. Verifica sempre le istruzioni, l'identificazione richiesta e gli eventuali costi di servizi diversi dall'accesso ai dati personali.</div>'''
+    return page("Banche dati SIC", content)
+
+@app.route("/shop")
+def shop():
+    content = '''<h1>Shop FixTude</h1>
+    <section class="card product-card"><div><h2>NIENTE PANICO</h2><p>Una guida pratica per mettere ordine nella situazione debitoria, leggere meglio le proprie possibilità e prepararsi ad affrontare i creditori con maggiore lucidità.</p><p><strong>Formato:</strong> libro digitale PDF.</p><p class="muted">Dopo la conferma del pagamento potrai scaricare il PDF dalla pagina di conferma. Non è necessaria la registrazione.</p></div><div><div class="price">€ 6,99</div><form method="post" action="/shop/acquista"><button class="btn" type="submit">Acquista il libro</button></form></div></section>
+    <p class="muted">I moduli di richiesta debitoria restano gratuiti e sono disponibili nella sezione <a href="/moduli">Moduli gratuiti</a>.</p>'''
+    return page("Shop", content)
+
+@app.route("/shop/acquista", methods=["POST"])
+def shop_acquista():
+    secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+    if stripe is None or not secret_key:
+        return page("Acquisto temporaneamente non disponibile", '<h1>Acquisto non ancora attivo</h1><p>Il pagamento online non è configurato al momento. Non è stato effettuato alcun addebito.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 503
+    stripe.api_key = secret_key
+    try:
+        checkout = stripe.checkout.Session.create(
+            mode="payment",
+            line_items=[{"price_data": {"currency": "eur", "unit_amount": 699, "product_data": {"name": "NIENTE PANICO - libro digitale FixTude", "description": "Libro digitale in formato PDF"}}, "quantity": 1}],
+            success_url=request.host_url.rstrip("/") + "/shop/conferma?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=request.host_url.rstrip("/") + "/shop?annullato=1",
+            metadata={"fixtude_product": "niente_panico_pdf"},
+        )
+        return redirect(checkout.url, code=303)
+    except Exception:
+        app.logger.exception("Creazione sessione Stripe non riuscita")
+        return page("Acquisto non disponibile", '<h1>Non è stato possibile avviare il pagamento</h1><p>Nessun pagamento è stato confermato. Riprova più tardi.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 502
+
+@app.route("/shop/conferma")
+def shop_conferma():
+    session_id = request.args.get("session_id", "").strip()
+    secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+    if not session_id or stripe is None or not secret_key:
+        return page("Verifica acquisto", '<h1>Non possiamo verificare il pagamento</h1><p>Contatta info@fixtude.it per assistenza.</p>'), 400
+    try:
+        stripe.api_key = secret_key
+        checkout = stripe.checkout.Session.retrieve(session_id)
+        paid = checkout.get("payment_status") == "paid"
+        product = (checkout.get("metadata") or {}).get("fixtude_product") == "niente_panico_pdf"
+        if not paid or not product:
+            return page("Pagamento da verificare", '<h1>Pagamento non ancora confermato</h1><p>Il libro sarà disponibile dopo la conferma del pagamento.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 402
+        if not BOOK_FILE.is_file():
+            return page("PDF in preparazione", '<h1>Pagamento confermato</h1><p>Il pagamento risulta confermato, ma il file del libro non è presente sul server. Contatta info@fixtude.it per ricevere assistenza.</p>'), 500
+        content = '''<h1>Grazie per il tuo acquisto!</h1><section class="card"><p>Il pagamento è stato confermato.</p><p><strong>NIENTE PANICO</strong> è pronto per il download.</p><a class="btn" href="/shop/scarica?session_id=''' + escape(session_id) + '''">Scarica il libro PDF</a></section><p class="muted">Conserva questa pagina finché non hai scaricato il file.</p>'''
+        return page("Acquisto confermato", content)
+    except Exception:
+        app.logger.exception("Verifica sessione Stripe non riuscita")
+        return page("Verifica non riuscita", '<h1>Non è stato possibile verificare il pagamento</h1><p>Riprova più tardi o scrivi a info@fixtude.it.</p>'), 502
+
+@app.route("/shop/scarica")
+def shop_scarica():
+    session_id = request.args.get("session_id", "").strip()
+    secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+    if not session_id or stripe is None or not secret_key:
+        return "Accesso non autorizzato", 403
+    try:
+        stripe.api_key = secret_key
+        checkout = stripe.checkout.Session.retrieve(session_id)
+        paid = checkout.get("payment_status") == "paid"
+        product = (checkout.get("metadata") or {}).get("fixtude_product") == "niente_panico_pdf"
+        if not paid or not product or not BOOK_FILE.is_file():
+            return "Accesso non autorizzato o file non disponibile", 403
+        return send_file(BOOK_FILE, as_attachment=True, download_name="FixTude_NIENTE_PANICO.pdf", mimetype="application/pdf")
+    except Exception:
+        app.logger.exception("Download libro non riuscito")
+        return "Non è stato possibile verificare l'acquisto", 502
+
+
+# =========================================================
 # PRIVACY - BOZZA DA COMPLETARE PRIMA DEL LANCIO
 # =========================================================
 
@@ -1869,3 +1990,4 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5000")),
         debug=False
     )
+
