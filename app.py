@@ -656,7 +656,7 @@ def page(title, content, include_chat=True):
             .ft-cookie-row label{font-weight:700;margin:0}
             .ft-cookie-row small{display:block;font-weight:400;color:#667085}
             .ft-cookie-row input{width:19px;height:19px;accent-color:#2457d6;flex-shrink:0}
-            @media(max-width:600px){#ft-cookie-banner{left:8px;right:8px;bottom:8px;padding:16px;max-height:82vh;overflow:auto;border-radius:13px}.ft-cookie-actions{display:grid;grid-template-columns:1fr}.ft-cookie-btn{width:100%;min-height:43px}}
+            @media(max-width:600px){ #ft-cookie-banner{left:8px;right:8px;bottom:8px;padding:16px;max-height:82vh;overflow:auto;border-radius:13px}.ft-cookie-actions{display:grid;grid-template-columns:1fr}.ft-cookie-btn{width:100%;min-height:43px}}
           </style>
           <script id="fixtude-cookie-script">
           (() => {
