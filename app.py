@@ -1849,35 +1849,114 @@ def chat_staff_logout():
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
+
+# I quattro moduli gratuiti sono direttamente nella cartella static/.
+MODULE_DIR = BASE_DIR / "static"
+
+# Il libro dello Shop mantiene il percorso originale in static/pdf/.
 PDF_DIR = BASE_DIR / "static" / "pdf"
 BOOK_FILE = PDF_DIR / "NIENTE_PANICO.pdf"
+
 MODULE_FILES = {
-    "saldo-stralcio": ("FixTude_Modulo_Saldo_e_Stralcio_2_pagine.pdf", "Proposta di saldo e stralcio"),
-    "dilazione": ("FixTude_Modulo_Dilazione_Pagamento_2_pagine.pdf", "Richiesta di dilazione del pagamento"),
-    "piano-rientro": ("FixTude_Modulo_Piano_Rientro_con_Titoli_2_pagine.pdf", "Richiesta di piano di rientro"),
-    "raccolta": ("FixTude_Libreria_Moduli_Richieste_Debitorie_6_pagine_v2.pdf", "Raccolta di moduli di richiesta"),
+    "saldo-stralcio": (
+        "FixTude_Modulo_Saldo_e_Stralcio_2_pagine.pdf",
+        "Proposta di saldo e stralcio",
+    ),
+    "dilazione": (
+        "FixTude_Modulo_Dilazione_Pagamento_2_pagine.pdf",
+        "Richiesta di dilazione del pagamento",
+    ),
+    "piano-rientro": (
+        "FixTude_Modulo_Piano_Rientro_con_Titoli_2_pagine.pdf",
+        "Richiesta di piano di rientro",
+    ),
+    "raccolta": (
+        "FixTude_Libreria_Moduli_Richieste_Debitorie_6_pagine_v2.pdf",
+        "Raccolta completa di moduli di richiesta",
+    ),
 }
+
 
 @app.route("/moduli")
 def moduli_gratuiti():
     cards = []
+
     for slug, (filename, label) in MODULE_FILES.items():
-        cards.append(f'''<div class="card"><h2>{escape(label)}</h2><p class="muted">PDF gratuito, senza registrazione.</p><a class="btn" href="/download/modulo/{slug}">Scarica PDF</a></div>''')
-    content = '''<h1>Moduli FixTude gratuiti</h1>
-    <p class="muted">I modelli sono strumenti orientativi: adattali alla tua situazione, controlla gli importi e allega solo documenti pertinenti. L'invio di una richiesta non garantisce che il creditore la accetti.</p>
-    <div class="grid">''' + "".join(cards) + '''</div>
-    <div class="notice">Non pagare per scaricare questi moduli: in questa fase sono gratuiti.</div>'''
+        cards.append(f'''
+        <section class="card">
+            <h2>{escape(label)}</h2>
+            <p class="muted">
+                Documento PDF gratuito, consultabile e scaricabile
+                senza registrazione.
+            </p>
+            <div class="actions">
+                <a class="btn outline"
+                   href="/static/{filename}"
+                   target="_blank"
+                   rel="noopener">
+                    Visualizza PDF
+                </a>
+                <a class="btn" href="/download/modulo/{slug}">
+                    Scarica PDF
+                </a>
+            </div>
+        </section>
+        ''')
+
+    content = '''
+    <h1>Moduli FixTude gratuiti</h1>
+    <p class="muted">
+        Consulta e scarica gratuitamente i modelli per preparare
+        richieste ai creditori. Adatta ogni documento alla tua
+        situazione, controlla gli importi e allega soltanto
+        documenti pertinenti. L'invio di una richiesta non garantisce
+        che il creditore accetti la proposta.
+    </p>
+    <div class="grid">
+    ''' + "".join(cards) + '''
+    </div>
+    <div class="notice">
+        Tutti e quattro i documenti sono gratuiti e non richiedono
+        registrazione o pagamento.
+    </div>
+    '''
+
     return page("Moduli gratuiti", content)
+
 
 @app.route("/download/modulo/<slug>")
 def download_modulo(slug):
     item = MODULE_FILES.get(slug)
+
     if not item:
         return "Modulo non trovato", 404
-    path = PDF_DIR / item[0]
+
+    filename = item[0]
+    path = MODULE_DIR / filename
+
     if not path.is_file():
-        return page("Modulo non disponibile", '<h1>Modulo temporaneamente non disponibile</h1><p>Il file PDF non è stato ancora caricato nel progetto. Riprova più tardi.</p>'), 404
-    return send_file(path, as_attachment=True, download_name=item[0], mimetype="application/pdf")
+        app.logger.error("PDF modulo non trovato: %s", path)
+        return page(
+            "Modulo non disponibile",
+            '''
+            <h1>Modulo temporaneamente non disponibile</h1>
+            <p>
+                Il documento non è al momento disponibile.
+                Riprova più tardi.
+            </p>
+            <a class="btn" href="/moduli">
+                Torna ai moduli gratuiti
+            </a>
+            ''',
+        ), 404
+
+    return send_file(
+        path,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/pdf",
+    )
+
 
 @app.route("/educazione-finanziaria")
 def educazione_finanziaria():
