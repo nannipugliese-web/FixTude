@@ -1,2131 +1,5722 @@
-import os
-import json
-import re
-import ssl
-import time
-import uuid
-import smtplib
-import threading
-from datetime import datetime
-from zoneinfo import ZoneInfo
-from email.message import EmailMessage
-from html import escape
-
 from flask import (
-    Flask, request, render_template_string, jsonify, Response,
-    session, redirect, url_for, send_file
+    Flask,
+    request,
+    redirect,
+    url_for,
+    session,
+    render_template_string,
+    send_file,
+    abort,
+    Response
 )
 
-try:
-    import stripe
-except ImportError:
-    stripe = None
+import sqlite3
+import os
+import json
+import uuid
+import secrets
+import smtplib
+import threading
+import re
+from email.message import EmailMessage
+from datetime import datetime, timezone
+from pathlib import Path
 
-try:
-    from pywebpush import webpush, WebPushException
-except ImportError:  # L’app resta avviabile anche prima dell’installazione della dipendenza.
-    webpush = None
-    WebPushException = Exception
+from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
+
+import stripe
+
+
+# ============================================================
+# FIXTUDE - VERSIONE v46 LEGAL DRAFT
+# ============================================================
 
 app = Flask(__name__)
 
-# =========================================================
-# FIXTUDE - CALCOLATORE + RICONTATTO DIRETTO + CHAT LIVE
-#
-# Nessun database applicativo.
-# Il calcolatore funziona nel browser.
-# Il modulo di ricontatto invia i dati direttamente a Web3Forms via HTTPS.
-# Le notifiche email della chat usano ancora SMTP.
-# La chat usa esclusivamente memoria temporanea RAM.
-# =========================================================
-
-app.secret_key = os.environ.get("SECRET_KEY", "")
-
-if not app.secret_key:
-    # Per sicurezza, in produzione configurare SECRET_KEY su Render.
-    app.secret_key = os.urandom(32).hex()
-
-app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = (
-    os.environ.get("COOKIE_SECURE", "1" if os.environ.get("RENDER") else "0")
-    == "1"
+app.secret_key = os.environ.get(
+    "FIXTUDE_SECRET",
+    "fixtude-dev-secret-change-later"
 )
-app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 
-# Destinatario di prova: dopo il test riuscito si può impostare
-# EMAIL_DESTINATARIO=info@fixtude.it nelle variabili di Render.
-EMAIL_DESTINATARIO = os.environ.get(
-    "EMAIL_DESTINATARIO", "nannipugliese@gmail.com"
+BASE_DIR = Path(__file__).resolve().parent
+
+_default_db = Path("/var/data/fixtude.db") if Path("/var/data").exists() else (BASE_DIR / "fixtude.db")
+DB_PATH = Path(os.environ.get("FIXTUDE_DB_PATH", str(_default_db))).expanduser()
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+UPLOAD_DIR = BASE_DIR / "uploads"
+PDF_DIR = BASE_DIR / "generated_pdfs"
+
+UPLOAD_DIR.mkdir(exist_ok=True)
+PDF_DIR.mkdir(exist_ok=True)
+KIT_LIBRARY_DIR = (Path("/var/data") / "kit_library") if Path("/var/data").exists() else (BASE_DIR / "kit_library")
+KIT_LIBRARY_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# ============================================================
+# STRIPE
+# ============================================================
+
+STRIPE_SECRET_KEY = os.environ.get(
+    "STRIPE_SECRET_KEY",
+    ""
 ).strip()
 
-ROME_TZ = ZoneInfo("Europe/Rome")
+STRIPE_WEBHOOK_SECRET = os.environ.get(
+    "STRIPE_WEBHOOK_SECRET",
+    ""
+).strip()
+
+if STRIPE_SECRET_KEY:
+    stripe.api_key = STRIPE_SECRET_KEY
 
 
-def ora_italiana():
-    """Restituisce l'orario locale italiano, rispettando ora legale e solare."""
-    return datetime.now(ROME_TZ).strftime("%H:%M")
-
-SMTP_HOST = os.environ.get("SMTP_HOST", "")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
-SMTP_USER = os.environ.get("SMTP_USER", "")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
-SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USER)
-
-CHAT_ADMIN_PASSWORD = os.environ.get("CHAT_ADMIN_PASSWORD", "")
-VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
-VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
-VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "mailto:info@fixtude.it").strip()
-
-CHAT_TTL_SECONDS = 2 * 60 * 60
-MAX_CHAT_MESSAGES = 150
-MAX_ACTIVE_CHATS = 200
-
-chats = {}
-chat_lock = threading.RLock()
-# Le sottoscrizioni push sono temporanee: si azzerano al riavvio del servizio.
-push_subscriptions = []
-push_lock = threading.RLock()
-
-# Contatori temporanei antispam: nessun file o database.
-rate_limits = {}
-rate_lock = threading.Lock()
+PAYMENT_SERVICES = {
+    "analysis": {
+        "name": "Analisi FixTude",
+        "description": "Analisi automatica della situazione economica e debitoria con elaborazione di possibili scenari.",
+        "amount": 199,
+        "currency": "eur"
+    },
+    "pdf": {
+        "name": "Kit FixTude",
+        "description": "Kit PDF FixTude personalizzato e validato dall'Esperto.",
+        "amount": 999,
+        "currency": "eur"
+    }
+}
 
 
-def clean_old_data():
-    """Rimuove chat inattive e vecchi contatori dalla memoria."""
-    now = time.time()
+# ============================================================
+# DEMO USERS
+# ============================================================
 
-    with chat_lock:
-        expired = [
-            chat_id for chat_id, chat in chats.items()
-            if now - chat["updated"] > CHAT_TTL_SECONDS
-        ]
-        for chat_id in expired:
-            chats.pop(chat_id, None)
-
-    with rate_lock:
-        expired_keys = [
-            key for key, values in rate_limits.items()
-            if not values or now - values[-1] > 3600
-        ]
-        for key in expired_keys:
-            rate_limits.pop(key, None)
+DEMO_USERS = {
+    "demo@fixtude.it": {
+        "password": "1234",
+        "role": "debtor"
+    },
+    "pro@fixtude.it": {
+        "password": "1234",
+        "role": "resolver"
+    }
+}
 
 
-def rate_limited(action, limit, seconds):
-    """Limite temporaneo per ridurre spam e invii ripetuti."""
-    now = time.time()
-    ip = request.remote_addr or "unknown"
-    key = f"{action}:{ip}"
+# ============================================================
+# UTILITY
+# ============================================================
 
-    with rate_lock:
-        values = rate_limits.setdefault(key, [])
-        values[:] = [v for v in values if now - v < seconds]
+def now_iso():
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
-        if len(values) >= limit:
-            return True
 
-        values.append(now)
+def db_connect():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+def current_user():
+    return session.get("user")
+
+
+def require_login(role=None):
+    user = current_user()
+
+    if not user:
+        return None
+
+    if role and user.get("role") != role:
+        return None
+
+    return user
+
+
+def parse_float(value):
+    if value is None:
+        return 0.0
+
+    text = str(value).strip()
+
+    text = (
+        text
+        .replace("€", "")
+        .replace(" ", "")
+    )
+
+    if not text:
+        return 0.0
+
+    if "," in text and "." in text:
+
+        if text.rfind(",") > text.rfind("."):
+            text = text.replace(".", "")
+            text = text.replace(",", ".")
+        else:
+            text = text.replace(",", "")
+
+    elif "," in text:
+        text = text.replace(".", "")
+        text = text.replace(",", ".")
+
+    try:
+        return float(text)
+
+    except ValueError:
+        return 0.0
+
+
+def money(value):
+    try:
+        return float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+# ============================================================
+# DATABASE
+# ============================================================
+
+LEGAL_VERSION = "2026-10-12-v2-privacy-cookie-bozza"
+LEGAL_OWNER_NAME = os.environ.get("FIXTUDE_TITOLARE_NOME", "[INSERIRE NOME E COGNOME / RAGIONE SOCIALE]").strip()
+LEGAL_OWNER_ADDRESS = os.environ.get("FIXTUDE_TITOLARE_INDIRIZZO", "[INSERIRE INDIRIZZO COMPLETO DEL TITOLARE]").strip()
+LEGAL_VAT_NUMBER = os.environ.get("FIXTUDE_PARTITA_IVA", "15990471003").strip()
+LEGAL_EMAIL = os.environ.get("FIXTUDE_EMAIL_CONTATTO", "info@fixtude.it").strip()
+
+
+def record_legal_acceptance(email, document_type, details=""):
+    """Registra la versione delle condizioni accettate; non equivale a un consenso privacy."""
+    try:
+        conn = db_connect()
+        conn.execute(
+            """INSERT INTO legal_acceptances
+               (user_email, document_type, document_version, accepted_at, ip_address, user_agent, details)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (email, document_type, LEGAL_VERSION, now_iso(),
+             (request.headers.get("X-Forwarded-For", request.remote_addr or "")[:200]),
+             (request.headers.get("User-Agent", "")[:500]), details[:1000])
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        app.logger.exception("Impossibile registrare l'accettazione legale per %s", email)
+
+
+def init_db():
+
+    conn = db_connect()
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS cases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            data TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS debts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            case_id INTEGER NOT NULL,
+            creditor TEXT NOT NULL,
+            debt_type TEXT,
+            current_amount REAL DEFAULT 0,
+            monthly_payment REAL DEFAULT 0,
+            notes TEXT,
+            created_at TEXT,
+            FOREIGN KEY(case_id)
+                REFERENCES cases(id)
+                ON DELETE CASCADE
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ai_analyses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            case_id INTEGER NOT NULL,
+            analysis_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(case_id)
+                REFERENCES cases(id)
+                ON DELETE CASCADE
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS solution_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            case_id INTEGER NOT NULL,
+            analysis_id INTEGER,
+            title TEXT NOT NULL,
+            solution_type TEXT NOT NULL,
+            content TEXT NOT NULL,
+            pdf_path TEXT,
+            status TEXT NOT NULL DEFAULT 'pending_review',
+            supervisor_note TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            approved_at TEXT,
+            sent_at TEXT,
+            FOREIGN KEY(case_id)
+                REFERENCES cases(id)
+                ON DELETE CASCADE,
+            FOREIGN KEY(analysis_id)
+                REFERENCES ai_analyses(id)
+                ON DELETE SET NULL
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS supervision (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            solution_id INTEGER NOT NULL,
+            original_content TEXT NOT NULL,
+            corrected_content TEXT NOT NULL,
+            correction_note TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(solution_id)
+                REFERENCES solution_documents(id)
+                ON DELETE CASCADE
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            case_id INTEGER NOT NULL,
+            email TEXT NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            notification_type TEXT NOT NULL DEFAULT 'in_app',
+            read INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(case_id)
+                REFERENCES cases(id)
+                ON DELETE CASCADE
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'debtor',
+            created_at TEXT NOT NULL
+        )
+    """)
+
+    # Dati fiscali del cliente, necessari per predisporre la fattura elettronica.
+    user_columns = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
+    for column, definition in {
+        "first_name": "TEXT",
+        "last_name": "TEXT",
+        "fiscal_code": "TEXT",
+        "billing_address": "TEXT",
+        "billing_cap": "TEXT",
+        "billing_city": "TEXT",
+        "billing_province": "TEXT",
+        "address": "TEXT",
+        "phone": "TEXT",
+        "vat_number": "TEXT",
+        "recipient_code": "TEXT",
+        "pec": "TEXT"
+    }.items():
+        if column not in user_columns:
+            conn.execute(f"ALTER TABLE users ADD COLUMN {column} {definition}")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS legal_acceptances (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_email TEXT NOT NULL,
+            document_type TEXT NOT NULL,
+            document_version TEXT NOT NULL,
+            accepted_at TEXT NOT NULL,
+            ip_address TEXT,
+            user_agent TEXT,
+            details TEXT
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token TEXT UNIQUE NOT NULL,
+            expires_at TEXT NOT NULL,
+            used INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_email TEXT NOT NULL,
+            case_id INTEGER NOT NULL,
+            service TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            currency TEXT NOT NULL DEFAULT 'eur',
+            stripe_session_id TEXT UNIQUE,
+            stripe_payment_intent_id TEXT,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            paid_at TEXT,
+            FOREIGN KEY(case_id)
+                REFERENCES cases(id)
+                ON DELETE CASCADE
+        )
+    """)
+
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_payments_user_case_service
+        ON payments(user_email, case_id, service)
+    """)
+
+    # Documenti generati per i pagamenti: ricevuta e riepilogo fiscale.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS payment_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            payment_id INTEGER NOT NULL,
+            document_type TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(payment_id, document_type),
+            FOREIGN KEY(payment_id) REFERENCES payments(id) ON DELETE CASCADE
+        )
+    """)
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS kit_library (id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,category TEXT NOT NULL DEFAULT 'Generale',description TEXT,file_path TEXT NOT NULL,original_filename TEXT NOT NULL,validated INTEGER NOT NULL DEFAULT 0,active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS solution_attachments (id INTEGER PRIMARY KEY AUTOINCREMENT,solution_id INTEGER NOT NULL,library_id INTEGER NOT NULL,created_at TEXT NOT NULL,UNIQUE(solution_id,library_id),FOREIGN KEY(solution_id) REFERENCES solution_documents(id) ON DELETE CASCADE,FOREIGN KEY(library_id) REFERENCES kit_library(id) ON DELETE CASCADE)""")
+
+    # Campi aggiunti senza rompere i database FixTude già esistenti.
+    existing_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(payments)").fetchall()
+    }
+    for column, definition in {
+        "receipt_email_sent_at": "TEXT",
+        "fiscal_document_status": "TEXT DEFAULT 'da_emettere'"
+    }.items():
+        if column not in existing_columns:
+            conn.execute(f"ALTER TABLE payments ADD COLUMN {column} {definition}")
+
+    solution_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(solution_documents)").fetchall()
+    }
+    if "final_email_sent_at" not in solution_columns:
+        conn.execute("ALTER TABLE solution_documents ADD COLUMN final_email_sent_at TEXT")
+
+    for email, data in DEMO_USERS.items():
+
+        existing = conn.execute(
+            "SELECT id FROM users WHERE email = ?",
+            (email,)
+        ).fetchone()
+
+        if not existing:
+
+            conn.execute(
+                """
+                INSERT INTO users
+                (email, password_hash, role, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    email,
+                    generate_password_hash(data["password"]),
+                    data["role"],
+                    now_iso()
+                )
+            )
+        else:
+            # Account demo sempre coerenti con le credenziali pubblicate.
+            # Non modifichiamo gli account normali registrati dagli utenti.
+            conn.execute(
+                """
+                UPDATE users
+                SET password_hash = ?, role = ?
+                WHERE email = ?
+                """,
+                (
+                    generate_password_hash(data["password"]),
+                    data["role"],
+                    email
+                )
+            )
+
+    conn.commit()
+    conn.close()
+
+
+init_db()
+
+
+# ============================================================
+# USERS
+# ============================================================
+
+def find_user(email):
+
+    email = (
+        email or ""
+    ).strip().lower()
+
+    conn = db_connect()
+
+    row = conn.execute(
+        """
+        SELECT *
+        FROM users
+        WHERE email = ?
+        """,
+        (email,)
+    ).fetchone()
+
+    conn.close()
+
+    return row
+
+
+def fiscal_data_complete(email):
+    row = find_user(email)
+    if not row:
+        return False
+    required = [
+        "first_name", "last_name", "fiscal_code",
+        "billing_address", "billing_cap", "billing_city",
+        "billing_province"
+    ]
+    return all(str(row[column] or "").strip() for column in required)
+
+
+def get_fiscal_data(email):
+    row = find_user(email)
+    if not row:
+        return {}
+    return dict(row)
+
+
+# ============================================================
+# PASSWORD RECOVERY
+# ============================================================
+
+def send_password_reset_email(email, reset_url):
+    host = os.environ.get("SMTP_HOST", "").strip()
+    port = int(os.environ.get("SMTP_PORT", "587") or 587)
+    username = os.environ.get("SMTP_USERNAME", "").strip()
+    password = os.environ.get("SMTP_PASSWORD", "").strip()
+    sender = os.environ.get("SMTP_FROM_EMAIL", "").strip() or username
+    sender_name = os.environ.get("SMTP_FROM_NAME", "FixTude").strip()
+
+    if not host or not sender:
         return False
 
+    msg = EmailMessage()
+    msg["Subject"] = "Recupero password FixTude"
+    msg["From"] = f"{sender_name} <{sender}>"
+    msg["To"] = email
+    msg.set_content(
+        "Hai richiesto il recupero della password FixTude.\n\n"
+        "Apri questo collegamento per impostare una nuova password:\n"
+        f"{reset_url}\n\n"
+        "Il collegamento è valido per 60 minuti. Se non hai fatto tu la richiesta, ignora questa email."
+    )
 
-@app.before_request
-def housekeeping():
-    clean_old_data()
+    with smtplib.SMTP(host, port, timeout=15) as smtp:
+        smtp.starttls()
+        if username and password:
+            smtp.login(username, password)
+        smtp.send_message(msg)
+    return True
 
+
+def create_password_reset_token(user_id):
+    token = secrets.token_urlsafe(32)
+    expires = datetime.now(timezone.utc).timestamp() + 3600
+    expires_iso = datetime.fromtimestamp(expires, timezone.utc).isoformat(timespec="seconds")
+    conn = db_connect()
+    conn.execute("UPDATE password_reset_tokens SET used = 1 WHERE user_id = ? AND used = 0", (user_id,))
+    conn.execute(
+        "INSERT INTO password_reset_tokens (user_id, token, expires_at, used, created_at) VALUES (?, ?, ?, 0, ?)",
+        (user_id, token, expires_iso, now_iso())
+    )
+    conn.commit()
+    conn.close()
+    return token
+
+
+def get_valid_reset_user(token):
+    conn = db_connect()
+    row = conn.execute(
+        """
+        SELECT u.id, u.email, u.role, r.id AS reset_id, r.expires_at
+        FROM password_reset_tokens r
+        JOIN users u ON u.id = r.user_id
+        WHERE r.token = ? AND r.used = 0
+        """,
+        (token,)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    try:
+        if datetime.fromisoformat(row["expires_at"]) <= datetime.now(timezone.utc):
+            return None
+    except Exception:
+        return None
+    return row
+
+
+# ============================================================
+# CASES
+# ============================================================
+
+def get_case(case_id):
+
+    conn = db_connect()
+
+    row = conn.execute(
+        """
+        SELECT *
+        FROM cases
+        WHERE id = ?
+        """,
+        (case_id,)
+    ).fetchone()
+
+    conn.close()
+
+    return row
+
+
+def get_case_for_email(email):
+
+    conn = db_connect()
+
+    row = conn.execute(
+        """
+        SELECT *
+        FROM cases
+        WHERE email = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (email,)
+    ).fetchone()
+
+    conn.close()
+
+    return row
+
+
+def get_case_data(case_id):
+
+    row = get_case(case_id)
+
+    if not row:
+        return {}
+
+    try:
+        return json.loads(
+            row["data"] or "{}"
+        )
+    except Exception:
+        return {}
+
+
+def get_debts(case_id):
+
+    conn = db_connect()
+
+    rows = conn.execute(
+        """
+        SELECT *
+        FROM debts
+        WHERE case_id = ?
+        ORDER BY id
+        """,
+        (case_id,)
+    ).fetchall()
+
+    conn.close()
+
+    return rows
+
+
+# ============================================================
+# ANALYSIS
+# ============================================================
+
+def calculate_case(case_id):
+
+    data = get_case_data(case_id)
+    debts = get_debts(case_id)
+
+    incomes = data.get(
+        "incomes",
+        []
+    ) or []
+
+    expenses = data.get(
+        "expenses",
+        []
+    ) or []
+
+    total_income = sum(
+        parse_float(item.get("amount"))
+        for item in incomes
+        if isinstance(item, dict)
+    )
+
+    total_expenses = sum(
+        parse_float(item.get("amount"))
+        for item in expenses
+        if isinstance(item, dict)
+    )
+
+    monthly_capacity = (
+        total_income -
+        total_expenses
+    )
+
+    total_debt = sum(
+        money(row["current_amount"])
+        for row in debts
+    )
+
+    total_payments = sum(
+        money(row["monthly_payment"])
+        for row in debts
+    )
+
+    if monthly_capacity <= 0:
+
+        sustainability = "critica"
+
+    elif monthly_capacity < total_payments:
+
+        sustainability = "debole"
+
+    elif total_payments <= 0:
+
+        sustainability = "da valutare"
+
+    elif total_payments <= monthly_capacity * 0.30:
+
+        sustainability = "buona"
+
+    else:
+
+        sustainability = "sotto pressione"
+
+    warnings = []
+
+    if total_income <= 0:
+        warnings.append(
+            "Non risultano entrate mensili valorizzate."
+        )
+
+    if monthly_capacity <= 0:
+        warnings.append(
+            "Le spese indicate assorbono interamente o superano le entrate."
+        )
+
+    if total_debt <= 0:
+        warnings.append(
+            "Non risultano debiti valorizzati."
+        )
+
+    if total_payments > monthly_capacity > 0:
+        warnings.append(
+            "Le rate indicate superano la disponibilità teorica mensile."
+        )
+
+    if not data.get("employment"):
+        warnings.append(
+            "La situazione lavorativa non è stata indicata."
+        )
+
+    return {
+        "total_income": round(total_income, 2),
+        "total_expenses": round(total_expenses, 2),
+        "monthly_capacity": round(monthly_capacity, 2),
+        "total_debt": round(total_debt, 2),
+        "total_payments": round(total_payments, 2),
+        "sustainability": sustainability,
+        "warnings": warnings,
+        "debts": debts,
+        "data": data
+    }
+
+
+def build_scenarios(calc):
+
+    capacity = calc["monthly_capacity"]
+    debt = calc["total_debt"]
+    payments = calc["total_payments"]
+
+    scenarios = []
+
+    if debt <= 0:
+
+        return [{
+            "type": "raccolta_dati",
+            "title": "Completamento del quadro",
+            "description": (
+                "Prima di formulare una proposta economica "
+                "è necessario valorizzare almeno una posizione debitoria."
+            ),
+            "estimated_monthly": 0,
+            "priority": "alta"
+        }]
+
+    if capacity > 0:
+
+        sustainable = min(
+            capacity * 0.30,
+            payments if payments > 0 else capacity * 0.30
+        )
+
+        sustainable = max(
+            50,
+            round(sustainable, 2)
+        )
+
+        months = max(
+            1,
+            round(debt / sustainable)
+        )
+
+        scenarios.append({
+            "type": "piano_rientro",
+            "title": "Piano di rientro sostenibile",
+            "description": (
+                "Ipotesi di rata costruita partendo "
+                "dalla disponibilità teorica mensile indicata. "
+                "È una simulazione e non una proposta vincolante."
+            ),
+            "estimated_monthly": sustainable,
+            "months": months,
+            "priority": (
+                "alta"
+                if payments > capacity
+                else "media"
+            )
+        })
+
+        if debt > 5000:
+
+            target = round(
+                debt * 0.70,
+                2
+            )
+
+            settlement_monthly = max(
+                50,
+                round(capacity * 0.25, 2)
+            )
+
+            months2 = max(
+                1,
+                round(
+                    target /
+                    settlement_monthly
+                )
+            )
+
+            scenarios.append({
+                "type": "saldo_stralcio",
+                "title": "Ipotesi di definizione transattiva",
+                "description": (
+                    "Possibile scenario da approfondire "
+                    "con il creditore, subordinato alla disponibilità "
+                    "di una somma e all'accettazione della controparte."
+                ),
+                "estimated_amount": target,
+                "estimated_monthly": settlement_monthly,
+                "months": months2,
+                "priority": "media"
+            })
+
+    scenarios.append({
+        "type": "rinegoziazione",
+        "title": "Richiesta di rinegoziazione",
+        "description": (
+            "Richiesta di riduzione della rata o di diversa "
+            "articolazione dei pagamenti."
+        ),
+        "estimated_monthly": max(
+            0,
+            round(
+                min(
+                    payments,
+                    max(capacity * 0.30, 0)
+                ),
+                2
+            )
+        ),
+        "priority": "media"
+    })
+
+    if calc["sustainability"] == "critica":
+
+        scenarios.append({
+            "type": "approfondimento_professionale",
+            "title": "Approfondimento con professionista qualificato",
+            "description": (
+                "La sostenibilità corrente risulta critica. "
+                "Il caso merita una valutazione professionale."
+            ),
+            "estimated_monthly": 0,
+            "priority": "alta"
+        })
+
+    return scenarios[:4]
+
+
+def latest_analysis(case_id):
+
+    conn = db_connect()
+
+    row = conn.execute(
+        """
+        SELECT *
+        FROM ai_analyses
+        WHERE case_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (case_id,)
+    ).fetchone()
+
+    conn.close()
+
+    if not row:
+        return None
+
+    try:
+        return json.loads(
+            row["analysis_json"]
+        )
+    except Exception:
+        return None
+
+
+# ============================================================
+# SOLUTIONS
+# ============================================================
+
+def get_solutions(case_id):
+
+    conn = db_connect()
+
+    rows = conn.execute(
+        """
+        SELECT *
+        FROM solution_documents
+        WHERE case_id = ?
+        ORDER BY id
+        """,
+        (case_id,)
+    ).fetchall()
+
+    conn.close()
+
+    return rows
+
+
+def build_analysis_text(calc):
+
+    text = []
+
+    text.append(
+        "FixTude ha elaborato una prima valutazione "
+        "automatica della situazione inserita."
+    )
+
+    text.append(
+        f"Entrate mensili: € {calc['total_income']:.2f}."
+    )
+
+    text.append(
+        f"Spese mensili: € {calc['total_expenses']:.2f}."
+    )
+
+    text.append(
+        f"Disponibilità teorica: € {calc['monthly_capacity']:.2f}."
+    )
+
+    text.append(
+        f"Debito complessivo: € {calc['total_debt']:.2f}."
+    )
+
+    text.append(
+        f"Rate mensili: € {calc['total_payments']:.2f}."
+    )
+
+    text.append(
+        "Questa elaborazione è informativa e simulativa "
+        "e non costituisce parere legale né garanzia "
+        "di accettazione da parte dei creditori."
+    )
+
+    return "\n\n".join(text)
+
+
+# ============================================================
+# PDF
+# ============================================================
+
+def generate_pdf(solution_id):
+
+    try:
+
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import (
+            SimpleDocTemplate,
+            Paragraph,
+            Spacer
+        )
+        from reportlab.lib.units import mm
+
+    except Exception as exc:
+
+        raise RuntimeError(
+            "ReportLab non installato: "
+            f"{exc}"
+        )
+
+    conn = db_connect()
+
+    solution = conn.execute(
+        """
+        SELECT *
+        FROM solution_documents
+        WHERE id = ?
+        """,
+        (solution_id,)
+    ).fetchone()
+
+    conn.close()
+
+    if not solution:
+        raise FileNotFoundError(
+            "Documento non trovato."
+        )
+
+    path = PDF_DIR / (
+        f"fixtude_soluzione_{solution_id}.pdf"
+    )
+
+    styles = getSampleStyleSheet()
+
+    document = SimpleDocTemplate(
+        str(path),
+        pagesize=A4,
+        rightMargin=20 * mm,
+        leftMargin=20 * mm,
+        topMargin=20 * mm,
+        bottomMargin=20 * mm
+    )
+
+    story = []
+
+    story.append(
+        Paragraph(
+            solution["title"],
+            styles["Title"]
+        )
+    )
+
+    story.append(
+        Spacer(1, 8 * mm)
+    )
+
+    for line in solution["content"].split("\n"):
+
+        if line.strip():
+
+            story.append(
+                Paragraph(
+                    line.replace(
+                        "&",
+                        "&amp;"
+                    ),
+                    styles["BodyText"]
+                )
+            )
+
+            story.append(
+                Spacer(1, 3 * mm)
+            )
+
+    story.append(
+        Spacer(1, 5 * mm)
+    )
+
+    story.append(
+        Paragraph(
+            "Documento informativo generato da FixTude. "
+            "Non costituisce parere legale o finanziario.",
+            styles["BodyText"]
+        )
+    )
+
+    document.build(story)
+
+    return str(path)
+
+
+# ============================================================
+# LOCAL AGENT
+# ============================================================
+
+def run_local_agent(case_id):
+
+    calc = calculate_case(case_id)
+
+    scenarios = build_scenarios(
+        calc
+    )
+
+    analysis_text = build_analysis_text(
+        calc
+    )
+
+    created = now_iso()
+
+    analysis_payload = {
+        "created_at": created,
+        "summary": analysis_text,
+        "metrics": {
+            "total_income": calc["total_income"],
+            "total_expenses": calc["total_expenses"],
+            "monthly_capacity": calc["monthly_capacity"],
+            "total_debt": calc["total_debt"],
+            "total_payments": calc["total_payments"],
+            "sustainability": calc["sustainability"]
+        },
+        "warnings": calc["warnings"],
+        "scenarios": scenarios
+    }
+
+    conn = db_connect()
+
+    cur = conn.execute(
+        """
+        INSERT INTO ai_analyses
+        (case_id, analysis_json, created_at)
+        VALUES (?, ?, ?)
+        """,
+        (
+            case_id,
+            json.dumps(
+                analysis_payload,
+                ensure_ascii=False
+            ),
+            created
+        )
+    )
+
+    analysis_id = cur.lastrowid
+
+    for scenario in scenarios:
+
+        content = (
+            f"Scenario: {scenario['title']}.\n\n"
+            f"{scenario['description']}\n\n"
+            f"Priorità: {scenario.get('priority', 'media')}.\n"
+        )
+
+        if scenario.get(
+            "estimated_monthly"
+        ):
+
+            content += (
+                f"\nRata mensile simulata: "
+                f"€ {scenario['estimated_monthly']:.2f}."
+            )
+
+        if scenario.get(
+            "estimated_amount"
+        ):
+
+            content += (
+                f"\nImporto transattivo simulato: "
+                f"€ {scenario['estimated_amount']:.2f}."
+            )
+
+        cur = conn.execute(
+            """
+            INSERT INTO solution_documents
+            (
+                case_id,
+                analysis_id,
+                title,
+                solution_type,
+                content,
+                status,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                case_id,
+                analysis_id,
+                scenario["title"],
+                scenario["type"],
+                content,
+                "pending_review",
+                created,
+                created
+            )
+        )
+
+        solution_id = cur.lastrowid
+
+        conn.commit()
+
+        try:
+
+            pdf_path = generate_pdf(
+                solution_id
+            )
+
+            conn.execute(
+                """
+                UPDATE solution_documents
+                SET pdf_path = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    pdf_path,
+                    now_iso(),
+                    solution_id
+                )
+            )
+
+        except Exception:
+
+            pass
+
+    conn.commit()
+    conn.close()
+
+    return analysis_payload
+
+
+# ============================================================
+# PAYMENTS
+# ============================================================
+
+def get_paid_payment(
+    email,
+    case_id,
+    service
+):
+
+    conn = db_connect()
+
+    row = conn.execute(
+        """
+        SELECT *
+        FROM payments
+        WHERE user_email = ?
+          AND case_id = ?
+          AND service = ?
+          AND status = 'paid'
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (
+            email,
+            case_id,
+            service
+        )
+    ).fetchone()
+
+    conn.close()
+
+    return row
+
+
+def get_payment(payment_id):
+
+    conn = db_connect()
+
+    row = conn.execute(
+        """
+        SELECT *
+        FROM payments
+        WHERE id = ?
+        """,
+        (payment_id,)
+    ).fetchone()
+
+    conn.close()
+
+    return row
+
+
+def mark_payment_paid(
+    payment_id,
+    payment_intent=None
+):
+
+    conn = db_connect()
+
+    payment = conn.execute(
+        """
+        SELECT *
+        FROM payments
+        WHERE id = ?
+        """,
+        (payment_id,)
+    ).fetchone()
+
+    if not payment:
+
+        conn.close()
+        return False
+
+    already_paid = payment["status"] == "paid"
+    paid_timestamp = payment["paid_at"] or now_iso()
+
+    conn.execute(
+        """
+        UPDATE payments
+        SET status = 'paid',
+            stripe_payment_intent_id = ?,
+            paid_at = ?
+        WHERE id = ?
+        """,
+        (
+            payment_intent or payment["stripe_payment_intent_id"],
+            paid_timestamp,
+            payment_id
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    if not already_paid:
+        prepare_payment_documents(payment_id)
+
+    return True
+
+
+# ============================================================
+# PAYMENT RECEIPTS / DOCUMENTS
+# ============================================================
+
+def payment_document(payment_id, document_type):
+    conn = db_connect()
+    row = conn.execute(
+        """SELECT * FROM payment_documents
+           WHERE payment_id = ? AND document_type = ?""",
+        (payment_id, document_type)
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def _safe_pdf_text(value):
+    return str(value or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def generate_payment_pdf(payment_id, document_type="receipt"):
+    """Genera un PDF riepilogativo del pagamento e lo archivia.
+
+    'receipt' = ricevuta di pagamento.
+    'fiscal'  = documento riepilogativo con i dati fiscali disponibili.
+    Non viene presentato come fattura elettronica SdI: per quella serve
+    un'integrazione con un intermediario/servizio di fatturazione elettronica.
+    """
+    existing = payment_document(payment_id, document_type)
+    if existing and Path(existing["file_path"]).exists():
+        return existing["file_path"]
+
+    payment = get_payment(payment_id)
+    if not payment:
+        raise FileNotFoundError("Pagamento non trovato.")
+
+    case = get_case(payment["case_id"])
+    data = get_case_data(payment["case_id"])
+
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.lib.units import mm
+
+    prefix = "ricevuta" if document_type == "receipt" else "documento_fiscale"
+    path = PDF_DIR / f"fixtude_{prefix}_{payment_id}.pdf"
+    styles = getSampleStyleSheet()
+    doc = SimpleDocTemplate(str(path), pagesize=A4,
+                            rightMargin=20*mm, leftMargin=20*mm,
+                            topMargin=20*mm, bottomMargin=20*mm)
+    story = [
+        Paragraph("FixTude", styles["Title"]),
+        Spacer(1, 5*mm),
+        Paragraph("Ricevuta di pagamento" if document_type == "receipt" else "Documento riepilogativo fiscale", styles["Heading2"]),
+        Spacer(1, 5*mm),
+        Paragraph(f"Numero pagamento: {_safe_pdf_text(payment_id)}", styles["BodyText"]),
+        Paragraph(f"Data pagamento: {_safe_pdf_text(payment['paid_at'] or payment['created_at'])}", styles["BodyText"]),
+        Paragraph(f"Cliente: {_safe_pdf_text(data.get('name',''))} {_safe_pdf_text(data.get('surname',''))}", styles["BodyText"]),
+        Paragraph(f"Codice fiscale: {_safe_pdf_text(data.get('tax_code',''))}", styles["BodyText"]),
+        Paragraph(f"Email: {_safe_pdf_text(payment['user_email'])}", styles["BodyText"]),
+        Paragraph(f"Indirizzo: {_safe_pdf_text(data.get('address',''))}", styles["BodyText"]),
+        Spacer(1, 5*mm),
+        Paragraph(f"Servizio: {_safe_pdf_text(PAYMENT_SERVICES.get(payment['service'], {}).get('name', payment['service']))}", styles["BodyText"]),
+        Paragraph(f"Importo: € {payment['amount']/100:.2f}".replace('.', ','), styles["BodyText"]),
+        Paragraph(f"Valuta: {_safe_pdf_text(payment['currency'].upper())}", styles["BodyText"]),
+        Spacer(1, 8*mm),
+    ]
+    if document_type == "fiscal":
+        story.append(Paragraph(
+            "Documento riepilogativo generato da FixTude. Non sostituisce la fattura elettronica trasmessa tramite Sistema di Interscambio (SdI).",
+            styles["BodyText"]
+        ))
+    else:
+        story.append(Paragraph("Pagamento registrato tramite il sistema di pagamento utilizzato da FixTude.", styles["BodyText"]))
+    doc.build(story)
+
+    conn = db_connect()
+    conn.execute(
+        """INSERT OR REPLACE INTO payment_documents
+           (payment_id, document_type, file_path, created_at)
+           VALUES (?, ?, ?, ?)""",
+        (payment_id, document_type, str(path), now_iso())
+    )
+    if document_type == "fiscal":
+        conn.execute("UPDATE payments SET fiscal_document_status = 'riepilogo_generato' WHERE id = ?", (payment_id,))
+    conn.commit()
+    conn.close()
+    return str(path)
+
+
+def send_payment_email(payment_id):
+    """Invia una sola email post-pagamento con i documenti disponibili."""
+    payment = get_payment(payment_id)
+    if not payment or payment["status"] != "paid":
+        return False
+    if payment["receipt_email_sent_at"]:
+        return True
+
+    host = os.environ.get("SMTP_HOST", "").strip()
+    port = int(os.environ.get("SMTP_PORT", "587") or 587)
+    username = os.environ.get("SMTP_USERNAME", "").strip()
+    password = os.environ.get("SMTP_PASSWORD", "").strip()
+    sender = os.environ.get("SMTP_FROM_EMAIL", "").strip() or username
+    sender_name = os.environ.get("SMTP_FROM_NAME", "FixTude").strip()
+    if not host or not sender:
+        return False
+
+    receipt_path = generate_payment_pdf(payment_id, "receipt")
+    fiscal_path = generate_payment_pdf(payment_id, "fiscal")
+    service = PAYMENT_SERVICES.get(payment["service"], {})
+
+    msg = EmailMessage()
+    msg["Subject"] = f"FixTude - pagamento ricevuto € {payment['amount']/100:.2f}".replace('.', ',')
+    msg["From"] = f"{sender_name} <{sender}>"
+    msg["To"] = payment["user_email"]
+    msg.set_content(
+        f"Abbiamo ricevuto il pagamento di € {payment['amount']/100:.2f}.\n\n"
+        f"Servizio: {service.get('name', payment['service'])}\n\n"
+        "In allegato trovi la ricevuta di pagamento e il documento riepilogativo. "
+        "I documenti restano disponibili anche nella tua Area Privata.\n\n"
+        "Nota: il documento riepilogativo non sostituisce una fattura elettronica SdI."
+    )
+    for path, label in ((receipt_path, "ricevuta.pdf"), (fiscal_path, "documento_riepilogativo.pdf")):
+        with open(path, "rb") as f:
+            msg.add_attachment(f.read(), maintype="application", subtype="pdf", filename=label)
+
+    with smtplib.SMTP(host, port, timeout=15) as smtp:
+        smtp.starttls()
+        if username and password:
+            smtp.login(username, password)
+        smtp.send_message(msg)
+
+    conn = db_connect()
+    conn.execute("UPDATE payments SET receipt_email_sent_at = ? WHERE id = ?", (now_iso(), payment_id))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def prepare_payment_documents(payment_id):
+    """Prepara i documenti senza bloccare il webhook con l'invio SMTP."""
+    try:
+        generate_payment_pdf(payment_id, "receipt")
+        generate_payment_pdf(payment_id, "fiscal")
+        # L'email viene tentata in background; se SMTP non è configurato
+        # il pagamento resta comunque correttamente registrato e archiviato.
+        threading.Thread(target=lambda: _safe_send_payment_email(payment_id), daemon=True).start()
+    except Exception:
+        app.logger.exception("Errore nella preparazione dei documenti del pagamento %s", payment_id)
+
+
+def _safe_send_payment_email(payment_id):
+    try:
+        send_payment_email(payment_id)
+    except Exception:
+        app.logger.exception("Errore invio email pagamento %s", payment_id)
+
+
+# ============================================================
+# HOME
+# ============================================================
+
+HOME_HTML = """
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+content="width=device-width,initial-scale=1">
+<title>FixTude</title>
+<style>
+body{
+font-family:Arial,sans-serif;
+margin:0;
+background:#f6f8fb;
+color:#18212f
+}
+.wrap{
+max-width:1100px;
+margin:auto;
+padding:25px
+}
+nav{
+display:flex;
+justify-content:space-between;
+align-items:center
+}
+.logo{
+font-size:30px;
+font-weight:800
+}
+.logo span{
+color:#4f46e5
+}
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:25px;
+margin-top:45px
+}
+.card{
+background:white;
+padding:35px;
+border-radius:20px;
+border:1px solid #e5e7eb;
+box-shadow:0 15px 40px rgba(0,0,0,.05)
+}
+.dark{
+background:linear-gradient(135deg,#18212f 0%,#1e2b40 52%,#293f68 100%);
+color:white;
+align-self:start;
+}
+h1{
+font-size:46px;
+margin:15px 0
+}
+p{
+line-height:1.6
+}
+.button{
+display:inline-block;
+padding:13px 18px;
+border-radius:9px;
+text-decoration:none;
+font-weight:700;
+margin:5px
+}
+.primary{
+background:#4f46e5;
+color:white
+}
+.light{
+background:#eef0f4;
+color:#18212f
+}
+.access-buttons{
+display:flex;
+gap:10px;
+margin-top:5px;
+}
+.access-buttons .button{
+flex:1;
+text-align:center;
+margin:0;
+white-space:nowrap;
+}
+@media(max-width:760px){
+.access-buttons .button{
+font-size:13px;
+padding:12px 8px;
+}
+}
+.free{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px
+}
+.free a{
+padding:20px;
+border-radius:12px;
+background:#293241;
+color:white;
+text-decoration:none
+}
+small{
+color:#697586
+}
+@media(max-width:800px){
+.grid{
+grid-template-columns:1fr
+}
+h1{
+font-size:36px
+}
+}
+
+.education{margin-top:52px;padding:35px;background:#18212f;color:white;border-radius:20px;box-shadow:0 15px 40px rgba(0,0,0,.08)}
+.education-head{display:flex;justify-content:space-between;align-items:flex-start;gap:25px;margin-bottom:25px}
+.education-head small{color:#aeb7c6;font-weight:700;letter-spacing:.4px}
+.education-head h2{font-size:34px;margin:8px 0 6px}
+.education-head p{margin:0;color:#d4dae3;max-width:700px}
+.education-badge{background:#4f46e5;padding:9px 13px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}
+.education-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
+.education-card{display:block;padding:22px;background:#293241;border:1px solid rgba(255,255,255,.08);border-radius:15px;color:white;text-decoration:none;transition:transform .15s,background .15s}
+.education-card:hover{transform:translateY(-3px);background:#323c4c}
+.education-card span{display:inline-block;font-size:12px;color:#aeb7c6;font-weight:800;margin-bottom:16px}
+.education-card strong{display:block;font-size:18px;line-height:1.3;margin-bottom:9px}
+.education-card p{font-size:14px;line-height:1.5;color:#cbd2dc;margin:0 0 18px}
+.education-card b{font-size:13px;color:#fff}
+.education-cta{margin-top:18px;padding:18px 20px;border-radius:13px;background:#f5f7fa;color:#18212f;display:flex;justify-content:space-between;gap:20px;align-items:center}
+.education-cta strong{font-size:15px}.education-cta span{font-size:13px;color:#697586}
+@media(max-width:800px){.education-head{flex-direction:column}.education-grid{grid-template-columns:1fr}.education-cta{flex-direction:column;align-items:flex-start}}
+
+/* ============================================================
+   FixTude responsive refinement — final symmetry
+   ============================================================ */
+
+/* The two main cards always have exactly the same height. */
+.grid{
+    align-items:stretch !important;
+}
+/* Grid stretch keeps both cards equal without forcing
+   a content-box height that can overflow into the next section. */
+
+/* The SIC card uses the available height intelligently. */
+.dark{
+    align-self:stretch !important;
+    display:flex !important;
+    flex-direction:column !important;
+}
+
+/* More air between description and SIC buttons,
+   while the 2x2 grid fills the card proportionally. */
+.free{
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:repeat(2,minmax(0,1fr));
+    gap:18px !important;
+    margin-top:30px !important;
+    margin-bottom:8px !important;
+    flex:1 1 auto !important;
+    align-content:stretch !important;
+}
+.free a{
+    display:flex !important;
+    flex-direction:column;
+    justify-content:center;
+    min-width:0;
+    min-height:76px;
+    margin:0 !important;
+    padding:17px 20px !important;
+    border-radius:14px;
+    text-decoration:none;
+    background:rgba(255,255,255,.10) !important;
+    border:1px solid rgba(255,255,255,.09);
+    box-shadow:0 5px 14px rgba(0,0,0,.11);
+    transition:
+        transform .18s ease,
+        background .18s ease,
+        box-shadow .18s ease,
+        border-color .18s ease;
+}
+.free a:hover{
+    transform:translateY(-4px);
+    background:rgba(255,255,255,.18) !important;
+    border-color:rgba(255,255,255,.20);
+    box-shadow:0 12px 25px rgba(0,0,0,.24);
+}
+.free a:active{
+    transform:translateY(-1px);
+}
+.free a strong{
+    display:inline-block;
+    margin-bottom:3px;
+}
+
+.sic-title{
+    margin-top:20px;
+    margin-bottom:0;
+}
+
+.education-grid{
+    display:grid !important;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:16px !important;
+}
+.education-card{
+    min-width:0;
+}
+
+@media(max-width:800px){
+    .grid{
+        grid-template-columns:1fr !important;
+        align-items:stretch !important;
+    }
+    .dark{
+        align-self:auto !important;
+    }
+    .sic-title{
+        white-space:normal !important;
+    }
+}
+
+@media(max-width:760px){
+    body{
+        overflow-x:hidden;
+    }
+    .free{
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        grid-template-rows:repeat(2,minmax(0,1fr)) !important;
+        gap:12px !important;
+        margin-top:22px !important;
+        margin-bottom:0 !important;
+    }
+    .free a{
+        min-height:76px;
+        padding:14px 12px !important;
+        font-size:13px;
+        line-height:1.35;
+    }
+    .education-grid{
+        grid-template-columns:1fr !important;
+        gap:12px !important;
+    }
+    .education-card{
+        width:100%;
+        margin:0 !important;
+    }
+    h1{
+        font-size:32px !important;
+        line-height:1.15 !important;
+    }
+    h2{
+        font-size:24px !important;
+        line-height:1.2 !important;
+    }
+    p{
+        line-height:1.5;
+    }
+    .card{
+        padding:22px 18px !important;
+    }
+    .container{
+        width:100% !important;
+        max-width:100% !important;
+        padding-left:14px !important;
+        padding-right:14px !important;
+    }
+}
+
+@media(max-width:430px){
+    .free{
+        gap:10px !important;
+        margin-top:20px !important;
+    }
+    .free a{
+        min-height:72px;
+        padding:12px 10px !important;
+    }
+    .free a strong{
+        font-size:14px;
+    }
+}
+
+.education-intro{
+    white-space:nowrap;
+}
+@media(max-width:760px){
+    .education-intro{
+        white-space:normal;
+    }
+}
+
+/* ============================================================
+   HOME ACCESS — FixTude v25
+   ============================================================ */
+.home-access{margin-top:18px}
+.register-home{display:block !important;width:100%;text-align:center;margin-bottom:10px}
+.access-buttons{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important;margin-top:0 !important}
+.access-buttons .button{width:100%;margin:0 !important;text-align:center;white-space:nowrap}
+@media(max-width:430px){
+  .logo{display:inline-block !important;width:max-content !important;white-space:nowrap !important;letter-spacing:-1px !important}
+  .logo span{display:inline !important}
+  .home-access{margin-top:14px}
+  .register-home{padding:12px 14px !important;margin-bottom:15px}
+  .access-buttons{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:8px !important}
+  .access-buttons .button{padding:11px 7px !important;font-size:12px !important;line-height:1.15 !important}
+}
+
+/* ============================================================
+   MOBILE / VISUAL REFINEMENT — FixTude v23
+   ============================================================ */
+*{box-sizing:border-box}
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+body{
+  background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 48%,#eef7f5 100%);
+  color:#18212f;
+}
+.wrap{max-width:1120px;padding:20px 24px 34px}
+nav{gap:18px;flex-wrap:wrap;padding:4px 0 8px}
+nav>div:last-child{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+nav>div:last-child a{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:38px;padding:9px 12px;border-radius:10px;
+  text-decoration:none;font-weight:700;color:#344054;
+  background:rgba(255,255,255,.72);border:1px solid rgba(79,70,229,.10);
+  box-shadow:0 3px 12px rgba(30,41,59,.05);
+}
+nav>div:last-child a:hover{background:#fff;color:#4f46e5;transform:translateY(-1px)}
+.logo{letter-spacing:-.7px}
+.grid{gap:20px;margin-top:30px}
+.card{padding:30px}
+.card:first-child{background:rgba(255,255,255,.94)}
+.home-price{margin:17px 0 18px;padding:13px 15px;border:1px solid rgba(79,70,229,.16);border-radius:12px;background:linear-gradient(110deg,rgba(238,242,255,.88),rgba(248,250,252,.92));}
+.home-price strong{display:block;color:#4f46e5;font-size:17px;line-height:1.3}
+.home-price span{display:block;margin-top:5px;color:#697586;font-size:12px;line-height:1.4}
+@media(max-width:760px){.home-price{margin:14px 0;padding:12px 11px}.home-price strong{font-size:15px}.home-price span{font-size:11px}}
+.dark{background:linear-gradient(145deg,#18212f 0%,#27375b 100%)}
+.education{
+  margin-top:30px;padding:27px;
+  background:linear-gradient(145deg,#18212f 0%,#24375d 100%);
+}
+.education-head{gap:15px;margin-bottom:18px}
+.education-head h2{font-size:30px}
+.education-grid{gap:12px}
+.education-card{padding:18px}
+.education-card span{margin-bottom:10px}
+.education-card strong{font-size:16px}
+.education-card p{font-size:13px;line-height:1.4;margin-bottom:12px}
+.education-cta{margin-top:14px;padding:15px 17px}
+
+@media(max-width:760px){
+  .wrap{padding:12px 12px 24px}
+  nav{display:block;margin-bottom:6px}
+  nav>.logo{font-size:27px;margin:2px 4px 11px}
+  nav>div:last-child{
+    display:grid;grid-template-columns:1fr 1fr;gap:7px;width:100%;
+  }
+  nav>div:last-child a{
+    min-height:40px;padding:8px 7px;font-size:12px;line-height:1.15;
+    white-space:normal;text-align:center;
+  }
+  nav>div:last-child a:last-child{
+    grid-column:1 / -1;
+  }
+  .grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+  .card{padding:21px 17px;border-radius:16px}
+  h1{font-size:30px!important;line-height:1.08;margin:11px 0 13px}
+  h2{font-size:22px!important;line-height:1.15}
+  p{font-size:14px;line-height:1.48}
+  .button{padding:11px 12px;margin:4px 0;font-size:13px}
+  .access-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:7px}
+  .access-buttons .button{font-size:12px;min-height:43px;display:flex;align-items:center;justify-content:center;padding:8px 6px;white-space:normal;line-height:1.15}
+  .free{gap:9px!important;margin-top:18px!important}
+  .free a{min-height:68px!important;padding:11px 9px!important;font-size:12px;line-height:1.25}
+  .sic-title{margin-top:14px}
+  .education{margin-top:18px;padding:19px 13px;border-radius:16px}
+  .education-head{display:flex;flex-direction:row;align-items:center;gap:9px;margin-bottom:13px}
+  .education-head>div:first-child{min-width:0;flex:1}
+  .education-head small{font-size:9px;letter-spacing:.25px}
+  .education-head h2{font-size:23px!important;margin:4px 0}
+  .education-head p{font-size:12px;line-height:1.35;margin:0}
+  .education-badge{font-size:9px;padding:7px 8px;flex:0 0 auto}
+  /* On mobile the three education cards stay horizontal and compact. */
+  .education-grid{
+    display:flex!important;flex-direction:row!important;gap:9px!important;
+    overflow-x:auto;overflow-y:hidden;padding:2px 2px 7px;
+    scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+  }
+  .education-card{
+    flex:0 0 78%;width:78%;min-width:78%;
+    padding:15px 13px;border-radius:13px;scroll-snap-align:start;
+  }
+  .education-card span{font-size:10px;margin-bottom:7px}
+  .education-card strong{font-size:15px;line-height:1.2;margin-bottom:7px}
+  .education-card p{font-size:12px;line-height:1.35;margin-bottom:9px}
+  .education-card b{font-size:11px}
+  .education-cta{margin-top:9px;padding:12px 13px;display:block}
+  .education-cta strong{display:block;font-size:12px;margin-bottom:4px}
+  .education-cta span{font-size:11px;line-height:1.3}
+  footer{margin-top:28px!important;padding:18px 0!important;font-size:11px}
+}
+@media(max-width:430px){
+  nav>div:last-child a{font-size:11px}
+  .access-buttons .button{font-size:11px}
+  .education-card{flex-basis:84%;min-width:84%;width:84%}
+}
+
+/* I pulsanti SIC restano visibili; senza accesso il clic è disabilitato. */
+/* CTA registrazione nel box SIC: stessa gerarchia visiva del box bianco */
+.sic-register{
+  display:block !important;
+  width:100%;
+  text-align:center;
+  margin:18px 0 0 !important;
+  padding:13px 16px;
+  line-height:1.25;
+  flex-shrink:0;
+}
+@media(max-width:760px){
+  .sic-register{
+    margin-top:16px !important;
+    padding:12px 14px;
+    font-size:14px;
+  }
+}
+/* SOLO HOME: benefici affiancati e registrazione allineata al box SIC */
+.grid > .card:first-child{display:flex;flex-direction:column}
+.home-benefits{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 14px;margin:24px 0 20px}
+.home-benefits strong{display:block;line-height:1.35}
+.grid > .card:first-child .home-access{margin-top:auto}
+.grid > .card:first-child .access-buttons{margin-bottom:10px}
+.grid > .card:first-child .register-home{margin:0 !important}
+@media(max-width:760px){
+  .home-benefits{gap:9px 8px;margin:20px 0 18px;font-size:14px}
+  .grid > .card:first-child .home-access{margin-top:18px}
+}
+
+/* LIBRO NIENTE PANICO: sezione autonoma sotto le guide, per rispettare il formato verticale */
+.education-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  align-items:stretch;
+  gap:15px !important;
+}
+.book-feature{margin:24px 0 0;padding:24px;border:1px solid rgba(255,255,255,.13);border-radius:18px;background:linear-gradient(125deg,rgba(15,29,48,.95),rgba(38,56,85,.92));display:grid;grid-template-columns:minmax(170px,240px) minmax(0,1fr);gap:28px;align-items:center;}
+.book-feature .education-book-card{width:100%;max-width:240px;justify-self:center;}
+.book-feature .education-book-cover-wrap{margin:12px 12px 0;}
+.book-feature .education-book-copy{padding:14px 14px 17px;}
+.book-feature-text small{display:block;font-weight:800;letter-spacing:.1em;color:#bac9e7;margin-bottom:10px;}
+.book-feature-text h3{font-size:clamp(22px,2.5vw,32px);margin:9px 0 12px;color:#fff;}
+.book-feature-text p{font-size:16px;line-height:1.65;color:#d9e2f0;max-width:none;margin:0 0 14px;}
+.book-feature-text .book-points{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0 20px;}
+.book-feature-text .book-point{padding:13px 14px;border:1px solid rgba(255,255,255,.13);border-radius:12px;background:rgba(255,255,255,.045);color:#e4ebf6;font-size:14px;line-height:1.5;}
+.book-feature-text .book-point strong{display:block;color:#fff;font-size:14px;margin-bottom:5px;}
+.book-feature-text .book-price{display:inline-block;margin-top:8px;padding:11px 16px;border-radius:9px;background:#d51f32;color:#fff;font-weight:800;text-decoration:none;}
+@media(max-width:760px){.book-feature{grid-template-columns:minmax(0,1fr);padding:18px;gap:16px}.book-feature .education-book-card{max-width:230px}.book-feature-text{text-align:left}.book-feature-text p{font-size:15px}.book-feature-text .book-points{grid-template-columns:minmax(0,1fr);gap:9px}.book-feature-text .book-point{padding:11px 12px}}
+.education-book-card{
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  overflow:hidden;
+  border-radius:15px;
+  color:#fff;
+  text-decoration:none;
+  background:linear-gradient(155deg,#293b5b 0%,#1d293d 100%);
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 8px 20px rgba(0,0,0,.14);
+  transition:transform .28s ease,box-shadow .28s ease,border-color .28s ease;
+  perspective:900px;
+}
+.education-book-card:hover,
+.education-book-card:focus-visible{
+  transform:translateY(-7px) scale(1.018);
+  box-shadow:0 18px 32px rgba(0,0,0,.30);
+  border-color:rgba(255,255,255,.32);
+  outline:none;
+}
+.education-book-cover-wrap{
+  position:relative;
+  margin:13px 13px 0;
+  overflow:visible;
+  border-radius:7px;
+  background:#101d2d;
+  box-shadow:0 8px 17px rgba(0,0,0,.28);
+  transform:translateZ(0);
+}
+.education-book-cover{
+  display:block;
+  width:100%;
+  height:auto;
+  aspect-ratio:2/3;
+  object-fit:cover;
+  border-radius:7px;
+  transition:transform .35s cubic-bezier(.2,.75,.25,1),filter .35s ease;
+  transform-origin:center bottom;
+}
+.education-book-card:hover .education-book-cover,
+.education-book-card:focus-visible .education-book-cover{
+  transform:perspective(850px) rotateY(-3deg) rotateX(1.5deg) scale(1.035);
+  filter:saturate(1.06) contrast(1.025);
+}
+.paid-brush{
+  position:relative;
+  z-index:2;
+  display:flex;
+  width:max-content;
+  max-width:94%;
+  justify-content:center;
+  margin:10px auto 8px;
+  padding:0 8px;
+  pointer-events:none;
+  transform:rotate(-2deg);
+}
+.paid-brush::before{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  inset:0 -5px 0 -5px;
+  background:#d51f32;
+  clip-path:polygon(2% 18%,13% 7%,28% 12%,43% 0,57% 8%,73% 2%,88% 11%,100% 4%,96% 78%,83% 88%,68% 82%,52% 100%,37% 89%,22% 95%,7% 84%,0 91%);
+  filter:drop-shadow(0 2px 2px rgba(0,0,0,.2));
+}
+.paid-brush span{
+  position:relative;
+  display:block;
+  padding:7px 8px 8px;
+  color:#fff;
+  font-size:clamp(10px,1vw,13px);
+  line-height:1;
+  letter-spacing:.045em;
+  font-weight:900;
+  text-align:center;
+  white-space:nowrap;
+  text-shadow:0 1px 1px rgba(0,0,0,.2);
+}
+.education-book-copy{
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  padding:15px 15px 17px;
+}
+.education-book-copy small{
+  color:#b9c8e5;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.09em;
+  margin-bottom:7px;
+}
+.education-book-copy strong{
+  display:block;
+  font-size:16px;
+  line-height:1.25;
+  margin-bottom:8px;
+}
+.education-book-copy p{
+  color:#d5ddeb;
+  font-size:12px;
+  line-height:1.45;
+  margin:0 0 14px;
+}
+.education-book-copy b{
+  display:block;
+  margin-top:auto;
+  font-size:11px;
+  line-height:1.45;
+  color:#fff;
+}
+@media(max-width:1000px){
+  .education-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;}
+  .education-book-copy strong{font-size:17px}
+  .education-book-copy p{font-size:13px}
+}
+@media(max-width:760px){
+  .education-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important}
+  .education-book-card,.education-card{height:100%;padding:0}
+  .education-book-cover-wrap{margin:9px 9px 0}
+  .education-book-copy{padding:11px 10px 13px}
+  .education-book-copy strong{font-size:14px}
+  .education-book-copy p{font-size:12px;line-height:1.4}
+  .education-book-copy b{font-size:10px}
+  .paid-brush span{font-size:10px;padding:7px 5px 6px}
+}
+@media(prefers-reduced-motion:reduce){
+  .education-book-card,.education-book-cover{transition:none !important}
+  .education-book-card:hover,.education-book-card:focus-visible{transform:none}
+}
+
+/* Rifinitura v40: guide uniformi, testo più arioso e prezzo su una riga dedicata */
+.education-grid{
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  align-items:stretch !important;
+  gap:16px !important;
+}
+.education-grid .education-card{
+  box-sizing:border-box;
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:flex-start;
+  height:100%;
+  min-width:0;
+  padding:24px 25px !important;
+  text-align:left;
+}
+.education-grid .education-card span{margin:0 0 18px !important;}
+.education-grid .education-card strong{margin:0 0 13px !important;max-width:100%;}
+.education-grid .education-card p{margin:0 0 20px !important;max-width:100%;}
+.education-grid .education-card b{display:block;margin-top:auto;padding-top:4px;}
+.book-feature .paid-brush{display:none !important;}
+.book-feature-text .book-price{
+  display:inline-block;
+  min-width:280px;
+  padding:13px 20px;
+  text-align:center;
+  line-height:1.4;
+}
+.book-feature-text .book-price span{display:block;margin-top:4px;font-size:1.08em;}
+@media(max-width:800px){
+  .education-grid{grid-template-columns:repeat(3,minmax(0,1fr)) !important;gap:12px !important;}
+  .education-grid .education-card{padding:18px 17px !important;}
+}
+@media(max-width:620px){
+  .education-grid{grid-template-columns:minmax(0,1fr) !important;gap:12px !important;}
+  .education-grid .education-card{padding:20px 21px !important;}
+  .book-feature-text .book-price{min-width:0;width:100%;}
+}
+
+/* FIX v42 — Le guide restano SEMPRE in orizzontale con scorrimento laterale */
+.education-grid{
+  display:flex !important;
+  flex-direction:row !important;
+  flex-wrap:nowrap !important;
+  justify-content:flex-start !important;
+  align-items:stretch !important;
+  gap:16px !important;
+  width:100% !important;
+  max-width:100% !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  padding:4px 3px 14px !important;
+  scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+  scrollbar-color:#7f91b8 rgba(255,255,255,.12);
+}
+.education-grid::-webkit-scrollbar{height:9px}
+.education-grid::-webkit-scrollbar-track{background:rgba(255,255,255,.12);border-radius:99px}
+.education-grid::-webkit-scrollbar-thumb{background:#7f91b8;border-radius:99px}
+.education-grid .education-card{
+  flex:0 0 300px !important;
+  width:300px !important;
+  min-width:300px !important;
+  max-width:300px !important;
+  min-height:285px !important;
+  height:auto !important;
+  scroll-snap-align:start;
+}
+@media(max-width:760px){
+  .education-grid{gap:11px !important;padding:3px 2px 12px !important}
+  .education-grid .education-card{
+    flex:0 0 82% !important;
+    width:82% !important;
+    min-width:82% !important;
+    max-width:82% !important;
+    min-height:245px !important;
+    padding:18px 16px !important;
+  }
+}
+@media(max-width:430px){
+  .education-grid .education-card{
+    flex-basis:86% !important;
+    width:86% !important;
+    min-width:86% !important;
+    max-width:86% !important;
+  }
+}
+
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<nav>
+<div class="logo">
+Fix<span>Tude</span>
+</div>
+</nav>
+
+<div class="grid">
+
+<div class="card">
+
+<small>SERVIZIO FIXTUDE</small>
+
+<h1>
+Metti in ordine la tua situazione debitoria
+</h1>
+
+<p>
+Inserisci dati, entrate, spese e debiti.
+FixTude organizza la situazione e produce
+possibili scenari da approfondire.
+</p>
+
+<div class="home-price">
+  <strong>Analisi e documenti a partire da 1,99 €</strong>
+  <span>Analisi FixTude € 1,99 · Kit personalizzato € 9,99</span>
+</div>
+
+<div class="home-benefits">
+<strong>✓ Analisi automatica</strong>
+<strong>✓ Possibili scenari</strong>
+<strong>✓ Esperto FixTude</strong>
+<strong>✓ KIT PDF FixTude</strong>
+</div>
+
+<div class="home-access">
+<div class="access-buttons">
+<a class="button light" href="/privato/login">
+👤 Accesso cliente
+</a>
+
+<a class="button light" href="/risolutore/login">
+🔐 Area Riservata FixTude
+</a>
+</div>
+<a class="button primary register-home" href="/registrazione">
+Registrati
+</a>
+</div>
+
+</div>
+
+<div class="card dark">
+
+<small style="color:#bfc6d4">
+SERVIZIO GRATUITO
+</small>
+
+<h2 class="sic-title">
+Controlla autonomamente le banche dati
+</h2>
+
+<p>
+Puoi richiedere direttamente agli enti
+le informazioni che ti riguardano.
+</p>
+
+<div class="free">
+
+<a {% if session.get('user') and session.get('user', {}).get('role') == 'debtor' %}href="https://www.modulorichiesta.crif.com/" target="_blank" rel="noopener noreferrer"{% else %}href="#" aria-disabled="true" title="Registrati per attivare il collegamento" onclick="return false;"{% endif %}>
+<strong>CRIF</strong><br>
+Modulo ufficiale
+</a>
+
+<a {% if session.get('user') and session.get('user', {}).get('role') == 'debtor' %}href="https://www.experian.it/content/dam/noindex/emea/italy/Nuovo-modulo-SIC.pdf" target="_blank" rel="noopener noreferrer"{% else %}href="#" aria-disabled="true" title="Registrati per attivare il collegamento" onclick="return false;"{% endif %}>
+<strong>EXPERIAN</strong><br>
+Modulo ufficiale
+</a>
+
+<a {% if session.get('user') and session.get('user', {}).get('role') == 'debtor' %}href="https://consumatore.ctconline.it/sic/apri-istanza" target="_blank" rel="noopener noreferrer"{% else %}href="#" aria-disabled="true" title="Registrati per attivare il collegamento" onclick="return false;"{% endif %}>
+<strong>CTC</strong><br>
+Procedura ufficiale
+</a>
+
+<a {% if session.get('user') and session.get('user', {}).get('role') == 'debtor' %}href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/Modulo-di-richiesta-dei-dati-nominativi-CAI.pdf?force_download=1" target="_blank" rel="noopener noreferrer"{% else %}href="#" aria-disabled="true" title="Registrati per attivare il collegamento" onclick="return false;"{% endif %}>
+<strong>CAI</strong><br>
+Modulo ufficiale
+</a>
+
+</div>
+
+{% if not session.get('user') or session.get('user', {}).get('role') != 'debtor' %}
+<a class="button primary register-home sic-register" href="/registrazione-sic">
+Registrati
+</a>
+{% else %}
+<a class="button light sic-register" href="/privato">
+Accedi alla tua area cliente
+</a>
+{% endif %}
+
+</div>
+
+</div>
+
+<section class="education">
+  <div class="education-head">
+    <div>
+      <small>IMPARA A CAPIRE LA TUA SITUAZIONE</small>
+      <h2>Educazione finanziaria</h2>
+      <p>Informazioni semplici e concrete per orientarti tra debiti, rate, segnalazioni e possibilità da approfondire.</p>
+    </div>
+    <div class="education-badge">GUIDE GRATUITE</div>
+  </div>
+  <div class="education-grid">
+    <a href="{{ url_for('guide_situation') }}" class="education-card"><span>01</span><strong>Capire la propria situazione debitoria</strong><p>Da dove partire e quali dati raccogliere prima di prendere decisioni.</p><b>Leggi la guida →</b></a>
+    <a href="{{ url_for('guide_sic') }}" class="education-card"><span>02</span><strong>CRIF, Experian e CTC: cosa sono?</strong><p>Come funzionano i SIC e quali informazioni possono contenere.</p><b>Leggi la guida →</b></a>
+    <a href="{{ url_for('guide_rates') }}" class="education-card"><span>03</span><strong>Quando le rate diventano difficili da sostenere</strong><p>Come valutare entrate, spese, rate e disponibilità mensile.</p><b>Leggi la guida →</b></a>
+  </div>
+  <div class="education-cta"><strong>Prima di affrontare un problema, impara a leggerlo.</strong><span>Le guide FixTude sono gratuite e pensate per essere comprensibili a tutti.</span></div>
+</section>
+
+<footer style="margin-top:60px;padding:25px 0;border-top:1px solid #ddd">
+FixTude · <a href="mailto:info@fixtude.it">info@fixtude.it</a> · P. IVA: 15990471003<br>
+<a href="/termini">Termini e Condizioni</a> · <a href="/privacy">Privacy</a> · <a href="/cookie">Cookie Policy</a> · <a href="/recesso">Recesso e rimborsi</a> · <a href="/sicurezza">Sicurezza e contatti</a>
+</footer>
+
+</div>
+
+</body>
+</html>
+"""
+
+
+# ============================================================
+# DOCUMENTI LEGALI FIXTUDE - BOZZA DA COMPLETARE E VALIDARE
+# ============================================================
+
+LEGAL_PAGE_STYLE = """
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#172033;font-family:Arial,Helvetica,sans-serif;line-height:1.68}
+.wrap{max-width:900px;margin:30px auto;padding:0 18px 45px}.nav{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:22px}.brand{font-size:24px;font-weight:800;color:#183b9b}.brand span{color:#4f46e5}.nav a,.wrap a{color:#294fba}.paper{background:white;border:1px solid #e0e6f0;border-radius:16px;padding:30px;box-shadow:0 8px 26px rgba(20,35,70,.05)}h1{font-size:30px;line-height:1.2;margin:0 0 8px}h2{font-size:20px;margin:28px 0 8px}p,li{font-size:15px}.notice{padding:14px 16px;border:1px solid #e9b949;background:#fff8e5;border-radius:10px;color:#624d17;margin:18px 0}.muted{color:#667085;font-size:13px}.foot{margin-top:20px;font-size:12px;color:#667085}@media(max-width:600px){.wrap{padding:0 12px 30px;margin:15px auto}.paper{padding:21px 17px}h1{font-size:25px}h2{font-size:19px}}
+</style>
+"""
+
+
+def legal_page(title, body, show_draft_notice=True):
+    notice = """
+    <div class='notice'><strong>Documento in bozza:</strong> prima della pubblicazione commerciale devi completare nome, cognome e indirizzo del titolare e verificare che fornitori, trattamenti e cookie corrispondano a quelli realmente usati da FixTude. Questo testo è una base di lavoro e non certifica da solo la conformità legale.</div>
+    """ if show_draft_notice else ""
+    owner = f"{LEGAL_OWNER_NAME} · P. IVA {LEGAL_VAT_NUMBER} · {LEGAL_OWNER_ADDRESS} · {LEGAL_EMAIL}"
+    html = f"""<!doctype html><html lang='it'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{title} · FixTude</title>{LEGAL_PAGE_STYLE}</head><body><main class='wrap'><div class='nav'><div class='brand'>Fix<span>Tude</span></div><a href='/'>Torna a FixTude</a></div><article class='paper'><h1>{title}</h1><p class='muted'>Versione di lavoro: {LEGAL_VERSION}</p>{notice}{body}<div class='foot'><strong>Contatti:</strong> {owner}<br>Ultimo aggiornamento: 10 ottobre 2026</div></article></main></body></html>"""
+    return Response(html, mimetype="text/html")
+
+
+# ============================================================
+# COOKIE PREFERENCES BANNER - FIRST PARTY, NO EXTERNAL TRACKERS
+# ============================================================
+
+COOKIE_BANNER_HTML = r"""
+<style id="fixtude-cookie-style">
+#ft-cookie-banner{position:fixed;z-index:99999;left:16px;right:16px;bottom:16px;max-width:900px;margin:auto;background:#fff;color:#172033;border:1px solid #dce4f2;border-radius:16px;box-shadow:0 18px 55px rgba(14,30,70,.22);padding:20px;font:14px/1.55 Arial,Helvetica,sans-serif}
+#ft-cookie-banner[hidden],#ft-cookie-preferences[hidden]{display:none!important}
+#ft-cookie-banner h2{font-size:19px;line-height:1.25;margin:0 0 8px;color:#172033}#ft-cookie-banner p{margin:0 0 12px;color:#4b5565}#ft-cookie-banner a{color:#2457d6;text-decoration:underline}
+.ft-cookie-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}.ft-cookie-btn{border:1px solid #cbd5e1;border-radius:9px;padding:10px 14px;font-weight:700;font-size:14px;cursor:pointer;background:#fff;color:#172033}.ft-cookie-btn.primary{background:#2457d6;border-color:#2457d6;color:#fff}.ft-cookie-btn:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
+#ft-cookie-preferences{border-top:1px solid #e5eaf2;margin-top:14px;padding-top:12px}.ft-cookie-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #edf0f5}.ft-cookie-row label{font-weight:700}.ft-cookie-row small{display:block;font-weight:400;color:#667085}.ft-cookie-row input{width:19px;height:19px;accent-color:#2457d6}.ft-cookie-necessary{color:#667085;font-size:12px}
+@media(max-width:600px){#ft-cookie-banner{left:8px;right:8px;bottom:8px;padding:16px;max-height:82vh;overflow:auto;border-radius:13px}.ft-cookie-actions{display:grid;grid-template-columns:1fr}.ft-cookie-btn{width:100%;min-height:43px}}
+</style>
+<div id="ft-cookie-banner" role="dialog" aria-modal="false" aria-labelledby="ft-cookie-title" aria-describedby="ft-cookie-desc" hidden>
+  <h2 id="ft-cookie-title">La tua privacy conta</h2>
+  <p id="ft-cookie-desc">FixTude utilizza strumenti necessari al funzionamento del sito. Gli eventuali strumenti opzionali di analisi o pubblicità richiedono una scelta separata quando previsto. Puoi accettare, rifiutare o personalizzare le preferenze. <a href="/privacy">Privacy Policy</a> · <a href="/cookie">Cookie Policy</a>.</p>
+  <div class="ft-cookie-actions">
+    <button type="button" class="ft-cookie-btn primary" id="ft-cookie-accept">Accetta tutti</button>
+    <button type="button" class="ft-cookie-btn" id="ft-cookie-reject">Rifiuta</button>
+    <button type="button" class="ft-cookie-btn" id="ft-cookie-customize">Personalizza</button>
+  </div>
+  <div id="ft-cookie-preferences" hidden>
+    <div class="ft-cookie-row"><div><label>Cookie necessari</label><small>Essenziali per sicurezza e funzionamento.</small></div><div><input type="checkbox" checked disabled aria-label="Cookie necessari sempre attivi"></div></div>
+    <div class="ft-cookie-row"><div><label for="ft-cookie-analytics">Google Analytics e statistiche</label><small>Google Analytics non è attivo al momento; questa preferenza sarà utilizzata solo dopo una futura integrazione.</small></div><input type="checkbox" id="ft-cookie-analytics"></div>
+    <div class="ft-cookie-row"><div><label for="ft-cookie-marketing">Pubblicità e profilazione</label><small>Per eventuali pixel pubblicitari, se in futuro attivati.</small></div><input type="checkbox" id="ft-cookie-marketing"></div>
+    <p class="ft-cookie-necessary">Google Analytics e i pixel pubblicitari non sono attivi al momento. Salvare una preferenza non installa né attiva servizi esterni: prima di integrare strumenti futuri sarà necessario collegarli tecnicamente a queste preferenze e verificarne il blocco prima del consenso, quando richiesto.</p>
+    <div class="ft-cookie-actions"><button type="button" class="ft-cookie-btn primary" id="ft-cookie-save">Salva preferenze</button><button type="button" class="ft-cookie-btn" id="ft-cookie-cancel">Annulla</button></div>
+  </div>
+</div>
+<button type="button" id="ft-cookie-reopen" class="ft-cookie-btn" style="position:fixed;z-index:9998;left:12px;bottom:12px;font-size:12px;padding:7px 10px;box-shadow:0 2px 12px rgba(0,0,0,.12);display:none">Preferenze cookie</button>
+<script id="fixtude-cookie-script">
+(function(){
+  'use strict';
+  var banner=document.getElementById('ft-cookie-banner');
+  if(!banner || banner.dataset.initialized==='1') return;
+  banner.dataset.initialized='1';
+  var prefs=document.getElementById('ft-cookie-preferences');
+  var reopen=document.getElementById('ft-cookie-reopen');
+  var analytics=document.getElementById('ft-cookie-analytics');
+  var marketing=document.getElementById('ft-cookie-marketing');
+  function readCookie(name){var prefix=name+'=';var parts=document.cookie.split(';');for(var i=0;i<parts.length;i++){var c=parts[i].trim();if(c.indexOf(prefix)===0)return c.substring(prefix.length);}return '';}
+  function getChoice(){try{return JSON.parse(decodeURIComponent(readCookie('fixtude_cookie_consent')||''));}catch(e){return null;}}
+  function saveChoice(a,m){var value={version:1,necessary:true,analytics:!!a,marketing:!!m,updatedAt:new Date().toISOString()};var secure = location.protocol === 'https:' ? '; Secure' : '';document.cookie='fixtude_cookie_consent='+encodeURIComponent(JSON.stringify(value))+'; Max-Age=15552000; Path=/; SameSite=Lax'+secure;banner.hidden=true;reopen.style.display='block';}
+  function openBanner(showPrefs){banner.hidden=false;prefs.hidden=!showPrefs;reopen.style.display='none';if(showPrefs){var current=getChoice();analytics.checked=!!(current&&current.analytics);marketing.checked=!!(current&&current.marketing);}}
+  var current=getChoice();
+  if(current){banner.hidden=true;reopen.style.display='block';}else{openBanner(false);}
+  document.getElementById('ft-cookie-accept').addEventListener('click',function(){saveChoice(true,true);});
+  document.getElementById('ft-cookie-reject').addEventListener('click',function(){saveChoice(false,false);});
+  document.getElementById('ft-cookie-customize').addEventListener('click',function(){openBanner(true);});
+  document.getElementById('ft-cookie-save').addEventListener('click',function(){saveChoice(analytics.checked,marketing.checked);});
+  document.getElementById('ft-cookie-cancel').addEventListener('click',function(){var old=getChoice();if(old){banner.hidden=true;reopen.style.display='block';}else{openBanner(false);}});
+  reopen.addEventListener('click',function(){openBanner(true);});
+})();
+</script>
+"""
 
 @app.after_request
-def security_headers(response):
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["X-Frame-Options"] = "SAMEORIGIN"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+def add_cookie_banner(response):
+    """Adds first-party preference UI to HTML responses; no third-party tracking is loaded here."""
+    try:
+        content_type = response.headers.get("Content-Type", "")
+        if (response.status_code == 200 and "text/html" in content_type.lower()
+                and response.direct_passthrough is False):
+            html = response.get_data(as_text=True)
+            if "fixtude-cookie-script" not in html and "</body>" in html.lower():
+                pos = html.lower().rfind("</body>")
+                html = html[:pos] + COOKIE_BANNER_HTML + html[pos:]
+                response.set_data(html)
+    except Exception:
+        app.logger.exception("Impossibile aggiungere il banner cookie")
     return response
 
 
-def send_email(subject, body, reply_to=None):
-    """Invia una email direttamente dal server, senza aprire la posta."""
-    if not all([SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SMTP_FROM]):
-        raise RuntimeError("Configurazione SMTP incompleta")
-
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = SMTP_FROM
-    msg["To"] = EMAIL_DESTINATARIO
-
-    if reply_to:
-        msg["Reply-To"] = reply_to
-
-    msg.set_content(body)
-
-    context = ssl.create_default_context()
-
-    if SMTP_PORT == 465:
-        with smtplib.SMTP_SSL(
-            SMTP_HOST, SMTP_PORT, context=context, timeout=15
-        ) as server:
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.send_message(msg)
-    else:
-        with smtplib.SMTP(
-            SMTP_HOST, SMTP_PORT, timeout=15
-        ) as server:
-            server.ehlo()
-            server.starttls(context=context)
-            server.ehlo()
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.send_message(msg)
+@app.route("/termini")
+def legal_terms():
+    body = """
+    <p>Questi Termini e Condizioni disciplinano l'accesso al sito FixTude e l'acquisto dei servizi digitali offerti attraverso la piattaforma. Prima della pubblicazione devono essere verificati e completati in relazione all'effettiva organizzazione dell'attività.</p>
+    <h2>1. Identità del professionista</h2><p>Il servizio è offerto dal soggetto indicato nei dati di contatto in fondo alla pagina. La denominazione completa e la sede devono essere inserite in modo definitivo prima della vendita al pubblico. P. IVA attualmente indicata: 15990471003; email: info@fixtude.it.</p>
+    <h2>2. Descrizione del servizio</h2><p>FixTude offre strumenti digitali di organizzazione delle informazioni economiche e debitorie, guide informative e modelli documentali. Il contenuto esatto di ogni pacchetto, il formato, il prezzo totale e le modalità/tempi di consegna devono essere mostrati chiaramente prima dell'ordine.</p>
+    <h2>3. Natura informativa e limiti</h2><p>Le informazioni, le analisi e i modelli hanno finalità informative e organizzative. Non garantiscono l'accettazione di proposte da parte dei creditori, la riduzione del debito o un determinato esito. Non sostituiscono una consulenza legale, fiscale o finanziaria personalizzata né l'assistenza di un professionista abilitato quando necessaria. L'utente deve controllare accuratezza e completezza dei dati prima di usare o inviare i documenti.</p>
+    <h2>4. Account e sicurezza</h2><p>L'utente deve fornire dati corretti, custodire le credenziali e segnalare accessi non autorizzati. Non deve caricare dati di terzi senza una base legittima, né utilizzare la piattaforma per finalità illecite.</p>
+    <h2>5. Prezzi e pagamenti</h2><p>I prezzi visualizzati al momento dell'ordine sono quelli applicabili. Il pagamento è gestito tramite Stripe o altro fornitore indicato al checkout. Eventuali imposte, ricevute e fatture sono gestite secondo la normativa applicabile. Non inviare dati completi di carta a FixTude via email.</p>
+    <h2>6. Consegna e assistenza</h2><p>La pagina di acquisto deve indicare il contenuto effettivamente incluso e la modalità di consegna. Se è prevista revisione umana, questa deve essere descritta senza promettere tempi non garantiti. Per assistenza: info@fixtude.it.</p>
+    <h2>7. Recesso, contenuti digitali e rimborsi</h2><p>Il consumatore dispone dei diritti inderogabili previsti dal Codice del Consumo. Per l'avvio immediato di servizi o contenuti digitali durante il periodo di recesso, FixTude raccoglie le dichiarazioni espresse richieste dalla legge e fornisce la conferma su supporto durevole. L'eventuale perdita del diritto di recesso si applica solo quando ricorrono tutte le condizioni legali; per i servizi non integralmente eseguiti possono applicarsi regole differenti. Le istruzioni sono nella pagina Recesso e rimborsi.</p>
+    <h2>8. Reclami e controversie</h2><p>Per reclami, richieste di assistenza o contestazioni scrivere a info@fixtude.it, descrivendo l'ordine e il problema senza inviare documenti eccedenti. Restano fermi i diritti del consumatore e le competenze delle autorità previste dalla legge.</p>
+    <h2>9. Modifiche e disponibilità</h2><p>FixTude può aggiornare il servizio per motivi tecnici o normativi. Le modifiche sostanziali alle condizioni applicabili agli ordini già conclusi non pregiudicano i diritti acquisiti dal consumatore.</p>
+    <h2>10. Dati personali</h2><p>Il trattamento dei dati è descritto nell'Informativa Privacy. L'informativa non è sostituita dall'accettazione dei presenti Termini.</p>
+    """
+    return legal_page("Termini e Condizioni", body)
 
 
-def send_chat_email_async(chat_id, message):
-    """Invia una notifica email per ogni nuovo messaggio del visitatore."""
-    def worker():
-        try:
-            body = (
-                "È arrivato un nuovo messaggio nella chat FixTude.\n\n"
-                f"Conversazione: {chat_id[:8]}\n"
-                f"Orario: {ora_italiana()}\n\n"
-                "Messaggio ricevuto:\n"
-                f"{message}\n\n"
-                "Accedi all'area riservata per rispondere:\n"
-                "https://fixtude.it/chat-staff\n"
-            )
-            send_email(
-                subject="FixTude - nuovo messaggio in chat",
-                body=body
-            )
-            app.logger.info(
-                "Email notifica chat inviata per la conversazione %s",
-                chat_id[:8]
-            )
-        except Exception as exc:
-            app.logger.error(
-                "Invio email notifica chat fallito (%s): %s",
-                type(exc).__name__, str(exc)
-            )
-
-    threading.Thread(target=worker, daemon=True).start()
+@app.route("/privacy")
+def legal_privacy():
+    body = """
+    <p>Informativa in bozza operativa, da completare con i dati identificativi del titolare e verificare rispetto ai trattamenti effettivi prima della pubblicazione definitiva. FixTude dichiara attualmente di non utilizzare Google Analytics e di non inviare le pratiche a un’API AI. Eventuali cambiamenti dovranno essere valutati e descritti prima dell’attivazione.</p>
+    <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è la persona fisica che gestisce FixTude. Nome e cognome e indirizzo completo sono ancora da inserire prima della pubblicazione definitiva. Contatto per privacy: info@fixtude.it. Partita IVA indicata per il servizio: 15990471003; verificare che sia correttamente riferibile al titolare e che i dati fiscali esposti siano coerenti con la posizione effettiva.</p>
+    <h2>2. Dati trattati</h2><ul><li>dati account: email e credenziali memorizzate in forma di hash;</li><li>dati identificativi e di contatto inseriti dall'utente;</li><li>informazioni economiche, entrate, spese, debiti, creditori e documenti caricati;</li><li>informazioni relative a ordini, pagamenti, fatturazione e assistenza;</li><li>dati tecnici e log necessari alla sicurezza e al funzionamento del servizio.</li></ul><p>Non inserire dati particolari o documenti di terzi non necessari. L'utente deve oscurare le informazioni eccedenti quando possibile.</p>
+    <h2>3. Finalità e basi giuridiche</h2><ul><li>creazione e gestione dell'account, erogazione del servizio e consegna degli acquisti: esecuzione del contratto o misure precontrattuali;</li><li>adempimenti contabili e fiscali: obbligo legale;</li><li>sicurezza, prevenzione di abusi e difesa dei diritti: legittimo interesse, previa valutazione e nel rispetto dei diritti degli interessati;</li><li>eventuali comunicazioni promozionali: solo se attivate e sulla base giuridica appropriata, con consenso separato quando richiesto.</li></ul><p>La presa visione dell'informativa non viene trattata come consenso generale a tutti i trattamenti.</p>
+    <h2>4. Dati finanziari e documenti caricati</h2><p>Le informazioni debitorie sono trattate per fornire le funzionalità richieste dall'utente. L'accesso deve essere limitato al personale autorizzato e ai fornitori necessari. Prima del lancio occorre definire tempi di conservazione distinti per account, documenti, log e dati fiscali, oltre a procedure di cancellazione e backup.</p>
+    <h2>5. Destinatari e fornitori</h2><p>I fornitori da verificare prima della pubblicazione includono il servizio di hosting (Render, se confermato in produzione), il gestore dei pagamenti (Stripe, per le operazioni di pagamento) e il servizio email gestito tramite Register. Devono essere verificati i ruoli privacy, gli accordi sul trattamento, i subfornitori, le localizzazioni dei dati e gli eventuali trasferimenti fuori dallo SEE. Al momento non è configurato Google Analytics né un servizio di analisi AI delle pratiche secondo le informazioni fornite dal titolare. Google Analytics sarà valutato e integrato in una fase successiva, con preventiva verifica dei requisiti applicabili. Eventuali pixel pubblicitari futuri non devono essere attivati prima del consenso quando richiesto.</p>
+    <h2>6. Trasferimenti fuori dallo SEE</h2><p>Prima della pubblicazione definitiva occorre verificare per ogni fornitore se i dati siano trasferiti o accessibili da Paesi fuori dallo Spazio Economico Europeo e, in tal caso, indicare il meccanismo giuridico applicabile e le garanzie pertinenti.</p>
+    <h2>7. Conservazione</h2><p>I dati sono conservati per il tempo necessario alle finalità per cui sono raccolti e per gli eventuali termini imposti dalla legge. Questa bozza non stabilisce ancora periodi numerici: il titolare deve approvare una tabella di conservazione e configurare la cancellazione effettiva nei sistemi e nei backup.</p>
+    <h2>8. Diritti degli interessati</h2><p>Nei limiti previsti dal GDPR, l'interessato può chiedere accesso, rettifica, cancellazione, limitazione, opposizione e portabilità, nonché revocare i consensi eventualmente prestati. Le richieste possono essere inviate a info@fixtude.it. È possibile proporre reclamo al Garante per la protezione dei dati personali.</p>
+    <h2>9. Sicurezza e violazioni</h2><p>Sono previste misure tecniche e organizzative adeguate al rischio, come controllo degli accessi, protezione delle credenziali, aggiornamenti, backup e gestione degli incidenti. In caso di violazione dei dati il titolare valuta gli obblighi di notifica all'autorità e di comunicazione agli interessati previsti dal GDPR.</p>
+    <h2>10. Decisioni automatizzate</h2><p>Se vengono introdotti sistemi automatizzati che producono valutazioni o raccomandazioni sugli utenti, il titolare dovrà descriverne finalità, logica essenziale, conseguenze e garanzie. Questa pagina va aggiornata prima di attivare funzionalità nuove o fornitori AI non già descritti.</p>
+    <h2>11. Minori</h2><p>Il servizio non è progettato per minori. Se un minore utilizza il servizio, il titolare dovrà gestire la situazione secondo la normativa applicabile.</p>
+    """
+    return legal_page("Informativa Privacy", body)
 
 
-def valid_email(value):
-    return bool(
-        value
-        and len(value) <= 254
-        and re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value)
+@app.route("/cookie")
+def legal_cookie():
+    body = """
+    <p>Questa informativa descrive la gestione delle preferenze cookie predisposta per FixTude. L'elenco definitivo dei cookie e degli strumenti di terze parti deve comunque essere verificato con una scansione tecnica del sito in produzione, comprese le pagine di pagamento e gli eventuali contenuti incorporati.</p>
+    <h2>1. Strumenti strettamente necessari</h2><p>Il sito può utilizzare cookie tecnici necessari per sessione, autenticazione, sicurezza e funzionamento. La loro presenza, denominazione e durata devono essere confermate con una verifica tecnica. Gli strumenti strettamente necessari non sono attivati sulla base del consenso ai cookie opzionali.</p>
+    <h2>2. Analisi e pubblicità</h2><p>Secondo la configurazione comunicata dal titolare, Google Analytics non è installato e non sono attivi pixel pubblicitari. Eventuali strumenti di analisi non strettamente necessari, pubblicità o profilazione potranno essere attivati solo dopo aver valutato gli obblighi applicabili e raccolto il consenso preventivo quando richiesto. Il banner da solo non blocca automaticamente codici di tracciamento aggiunti in futuro: ogni nuovo strumento dovrà essere integrato in modo che rispetti le preferenze.</p>
+    <h2>3. Preferenze</h2><p>Il pannello consente di accettare tutti gli strumenti opzionali, rifiutarli o personalizzare le categorie disponibili. La preferenza viene memorizzata in un cookie di prima parte per ricordare la scelta. Le preferenze possono essere riaperte dal collegamento “Preferenze cookie” presente nel banner e nel footer/pagina cookie, ove visualizzato. La categoria tecnica necessaria non può essere disattivata dal pannello.</p>
+    <h2>4. Elenco dei cookie</h2><p>Nome, fornitore, finalità e durata di tutti i cookie e degli strumenti di memorizzazione saranno completati dopo la scansione tecnica del dominio fixtude.it e il controllo di ogni pagina, inclusi i flussi Stripe. Non si dichiara che il sito utilizzi esclusivamente cookie tecnici finché la verifica non è stata completata.</p>
+    <h2>5. Modificare o revocare la scelta</h2><p>È possibile riaprire le preferenze e modificare la scelta in qualsiasi momento tramite il comando “Preferenze cookie”. La revoca non pregiudica la liceità del trattamento basato sul consenso prima della revoca.</p>
+    """
+    return legal_page("Cookie Policy", body)
+
+
+@app.route("/recesso")
+def legal_withdrawal():
+    body = """
+    <p>Questa pagina descrive in termini generali i diritti del consumatore per acquisti a distanza. L'applicazione concreta dipende dal tipo di prestazione acquistata e dal momento in cui ne inizia l'esecuzione.</p>
+    <h2>1. Termine ordinario</h2><p>Per i contratti a distanza, il consumatore dispone normalmente di 14 giorni per esercitare il diritto di recesso, con decorrenza e modalità stabilite dal Codice del Consumo. Il professionista deve fornire prima dell'ordine le informazioni richieste e il modulo tipo, ove applicabile.</p>
+    <h2>2. Contenuti digitali non forniti su supporto materiale</h2><p>Quando il contenuto digitale è fornito senza supporto materiale e l'esecuzione inizia durante il periodo di recesso, la perdita del diritto può verificarsi soltanto se sono soddisfatte le condizioni previste dalla legge, tra cui il consenso previo espresso all'inizio dell'esecuzione, la presa d'atto della perdita del diritto e la conferma del professionista su supporto durevole. Il testo delle caselle di checkout e il flusso tecnico devono rispettare esattamente questi requisiti.</p>
+    <h2>3. Servizi digitali e servizi non ancora completati</h2><p>Per i servizi si applicano regole specifiche, anche in relazione alla richiesta di iniziare durante il periodo di recesso e all'eventuale pagamento proporzionale per quanto già eseguito. Non si deve applicare automaticamente la regola dei contenuti digitali a ogni servizio offerto da FixTude.</p>
+    <h2>4. Come inviare una richiesta</h2><p>Scrivere a info@fixtude.it indicando nome, email dell'account, riferimento dell'ordine e la dichiarazione inequivocabile di voler recedere. Conservare una copia della richiesta. Il titolare deve inviare conferma di ricezione su supporto durevole e rispettare i termini di rimborso previsti dalla legge.</p>
+    <h2>5. Modulo tipo</h2><p>Destinatario: soggetto gestore di FixTude, da completare con denominazione e indirizzo legale. Con la presente io/noi notifichiamo il recesso dal contratto relativo al seguente servizio/contenuto digitale: ____. Ordinato il: ____. Nome del consumatore: ____. Indirizzo: ____. Data: ____. Firma (solo se il modulo è notificato su carta): ____.</p>
+    <p><strong>Nota operativa:</strong> prima del lancio serve una procedura effettiva per ricevere, protocollare e gestire richieste di recesso e rimborsi. La sola presenza di questa pagina non basta.</p>
+    """
+    return legal_page("Recesso e rimborsi", body)
+
+
+@app.route("/sicurezza")
+def legal_security():
+    body = """
+    <p>FixTude tratta dati personali e informazioni economiche che richiedono protezioni adeguate. Questa pagina riassume le regole di uso sicuro; non sostituisce le misure tecniche interne e deve essere allineata alle misure realmente implementate.</p>
+    <h2>1. Obblighi dell'utente</h2><ul><li>usare una password robusta e non condividerla;</li><li>caricare soltanto documenti necessari e legittimamente detenuti;</li><li>oscurare dati di terzi non necessari;</li><li>segnalare subito accessi sospetti o invii errati a info@fixtude.it.</li></ul>
+    <h2>2. Misure del gestore</h2><p>Prima del lancio il gestore deve verificare HTTPS, cookie di sessione sicuri, protezione CSRF sui moduli che modificano dati, controllo degli accessi per ogni pratica e file, segreti fuori dal codice, backup protetti, aggiornamenti, log limitati e test contro accessi incrociati tra utenti. I documenti non devono essere pubblicati in cartelle statiche accessibili senza autenticazione.</p>
+    <h2>3. Gestione delle violazioni</h2><p>Il gestore deve avere una procedura interna per contenere gli incidenti, registrarli, valutarne il rischio e notificare il Garante entro i termini previsti quando richiesto; gli interessati vanno informati quando la legge lo impone.</p>
+    <h2>4. Contatto</h2><p>Per segnalazioni di sicurezza scrivere a info@fixtude.it, usando nell'oggetto “Segnalazione sicurezza FixTude” e senza allegare dati personali non necessari.</p>
+    """
+    return legal_page("Sicurezza e contatti", body)
+
+
+@app.route("/")
+def home():
+
+    return render_template_string(
+        HOME_HTML
     )
 
 
-def page(title, content, include_chat=True):
-    """Layout comune, responsive e con pulsante chat."""
+# ============================================================
+# REGISTRATION
+# ============================================================
+
+@app.route("/educazione-finanziaria/situazione-debitoria")
+def guide_situation():
+    return render_template_string('<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Come capire la tua situazione debitoria · FixTude</title><style>\n:root{--blue:#4f46e5;--ink:#18212f;--muted:#697586;--bg:#f6f8fb;--line:#e5e7eb}*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--ink)}.guide-wrap{max-width:900px;margin:auto;padding:22px}.guide-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:35px}.guide-nav .logo{font-size:28px;font-weight:800}.guide-nav .logo span{color:var(--blue)}.guide-nav a{color:var(--blue);text-decoration:none;font-weight:700}.hero{background:var(--ink);color:white;padding:42px;border-radius:22px;margin-bottom:22px}.hero small{color:#aeb7c6;font-weight:800;letter-spacing:.5px}.hero h1{font-size:42px;line-height:1.1;margin:12px 0}.hero p{font-size:18px;line-height:1.6;color:#d4dae3;margin:0}.article{background:white;border:1px solid var(--line);border-radius:20px;padding:38px;box-shadow:0 12px 35px rgba(0,0,0,.05)}.article h2{font-size:25px;margin:30px 0 10px}.article h2:first-child{margin-top:0}.article p,.article li{font-size:16px;line-height:1.7}.article ul{padding-left:23px}.tip{background:#f1f3ff;border-left:4px solid var(--blue);padding:17px 18px;border-radius:10px;margin:22px 0}.warning{background:#fff7ed;border-left:4px solid #f59e0b;padding:17px 18px;border-radius:10px;margin:22px 0}.links{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:18px 0}.links a{padding:14px;background:#f6f8fb;border:1px solid var(--line);border-radius:10px;color:var(--blue);text-decoration:none;font-weight:700}.cta{margin-top:28px;background:var(--ink);color:white;padding:25px;border-radius:16px}.cta h3{margin:0 0 8px}.cta p{color:#d4dae3}.cta a{display:inline-block;background:var(--blue);color:white;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:700}.back{display:inline-block;margin-bottom:18px;color:var(--blue);text-decoration:none;font-weight:700}footer{text-align:center;color:var(--muted);font-size:13px;padding:25px 0}@media(max-width:700px){.guide-wrap{padding:14px}.guide-nav{margin-bottom:20px}.guide-nav .logo{font-size:24px}.hero{padding:27px 20px;border-radius:16px}.hero h1{font-size:31px}.hero p{font-size:16px}.article{padding:22px 18px;border-radius:16px}.article h2{font-size:22px}.article p,.article li{font-size:15px}.links{grid-template-columns:1fr}.cta{padding:20px}.cta a{display:block;text-align:center}}\n</style></head><body><div class="guide-wrap"><div class="guide-nav"><div class="logo">Fix<span>Tude</span></div><a href="/privato">Area Personale</a></div><a class="back" href="/">← Torna a FixTude</a><section class="hero"><small>GUIDA GRATUITA · 01</small><h1>Come capire la tua situazione debitoria</h1><p>Prima di cercare una soluzione, metti in ordine i numeri che descrivono davvero la tua situazione.</p></section><article class="article"><h2>Da dove partire</h2><p>Quando si hanno più debiti, il primo errore è guardare soltanto il totale. Per capire davvero la situazione servono almeno quattro elementi: quanto entra ogni mese, quanto si spende, quanto si paga in rate e quanto resta disponibile.</p><div class="tip"><strong>Regola pratica:</strong> prima di cercare una soluzione, costruisci una fotografia aggiornata della situazione.</div><h2>1. Raccogli tutte le posizioni</h2><p>Prepara un elenco dei debiti e, per ciascuno, indica creditore, importo residuo, rata, scadenza, eventuali arretrati e tipo di finanziamento o posizione.</p><h2>2. Calcola le entrate reali</h2><p>Considera le entrate mensili effettivamente disponibili. Se variano, usa una media prudente invece di basarti sul mese migliore.</p><h2>3. Separa spese essenziali e spese variabili</h2><p>Affitto o mutuo, utenze, alimentazione, trasporti e altre spese necessarie vanno distinte dalle spese che possono variare. Questo aiuta a capire quale margine esiste realmente.</p><h2>4. Calcola la disponibilità mensile</h2><p>Un calcolo semplice è: <strong>entrate − spese necessarie = disponibilità prima delle rate</strong>. Da qui si può valutare il peso complessivo degli impegni finanziari.</p><h2>5. Controlla anche le informazioni esterne</h2><p>Se esistono dubbi su finanziamenti, ritardi o segnalazioni, è utile verificare i dati presenti nei sistemi di informazione creditizia e conservarne una copia.</p><div class="warning"><strong>Attenzione:</strong> una fotografia incompleta può portare a decisioni sbagliate. Non inserire un nuovo impegno finanziario solo perché la rata sembra sostenibile isolatamente.</div><h2>Una fotografia utile</h2><p>Alla fine dovresti poter rispondere con numeri aggiornati a cinque domande: quanto devo? a chi? quanto pago ogni mese? quanto mi costa vivere? quanto posso realisticamente destinare ai debiti?</p><div class="cta"><h3>Vuoi capire meglio la tua situazione?</h3><p>FixTude analizza dati, entrate, spese e debiti e costruisce possibili scenari da approfondire.</p><a href="/privato/situazione">Inizia con FixTude →</a></div></article><footer>FixTude · <a href="mailto:info@fixtude.it">info@fixtude.it</a> · P. IVA 15990471003<br><a href="/termini">Termini</a> · <a href="/privacy">Privacy</a> · <a href="/cookie">Cookie</a> · <a href="/recesso">Recesso</a></footer></div></body></html>')
+
+
+@app.route("/educazione-finanziaria/crif-experian-ctc")
+def guide_sic():
+    return render_template_string('<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CRIF, Experian e CTC: cosa sono? · FixTude</title><style>\n:root{--blue:#4f46e5;--ink:#18212f;--muted:#697586;--bg:#f6f8fb;--line:#e5e7eb}*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--ink)}.guide-wrap{max-width:900px;margin:auto;padding:22px}.guide-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:35px}.guide-nav .logo{font-size:28px;font-weight:800}.guide-nav .logo span{color:var(--blue)}.guide-nav a{color:var(--blue);text-decoration:none;font-weight:700}.hero{background:var(--ink);color:white;padding:42px;border-radius:22px;margin-bottom:22px}.hero small{color:#aeb7c6;font-weight:800;letter-spacing:.5px}.hero h1{font-size:42px;line-height:1.1;margin:12px 0}.hero p{font-size:18px;line-height:1.6;color:#d4dae3;margin:0}.article{background:white;border:1px solid var(--line);border-radius:20px;padding:38px;box-shadow:0 12px 35px rgba(0,0,0,.05)}.article h2{font-size:25px;margin:30px 0 10px}.article h2:first-child{margin-top:0}.article p,.article li{font-size:16px;line-height:1.7}.article ul{padding-left:23px}.tip{background:#f1f3ff;border-left:4px solid var(--blue);padding:17px 18px;border-radius:10px;margin:22px 0}.warning{background:#fff7ed;border-left:4px solid #f59e0b;padding:17px 18px;border-radius:10px;margin:22px 0}.links{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:18px 0}.links a{padding:14px;background:#f6f8fb;border:1px solid var(--line);border-radius:10px;color:var(--blue);text-decoration:none;font-weight:700}.cta{margin-top:28px;background:var(--ink);color:white;padding:25px;border-radius:16px}.cta h3{margin:0 0 8px}.cta p{color:#d4dae3}.cta a{display:inline-block;background:var(--blue);color:white;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:700}.back{display:inline-block;margin-bottom:18px;color:var(--blue);text-decoration:none;font-weight:700}footer{text-align:center;color:var(--muted);font-size:13px;padding:25px 0}@media(max-width:700px){.guide-wrap{padding:14px}.guide-nav{margin-bottom:20px}.guide-nav .logo{font-size:24px}.hero{padding:27px 20px;border-radius:16px}.hero h1{font-size:31px}.hero p{font-size:16px}.article{padding:22px 18px;border-radius:16px}.article h2{font-size:22px}.article p,.article li{font-size:15px}.links{grid-template-columns:1fr}.cta{padding:20px}.cta a{display:block;text-align:center}}\n</style></head><body><div class="guide-wrap"><div class="guide-nav"><div class="logo">Fix<span>Tude</span></div><a href="/privato">Area Personale</a></div><a class="back" href="/">← Torna a FixTude</a><section class="hero"><small>GUIDA GRATUITA · 02</small><h1>CRIF, Experian e CTC: cosa sono?</h1><p>Come controllare le principali banche dati creditizie e distinguere i SIC dalla CAI.</p></section><article class="article"><h2>Cosa sono i SIC</h2><p>I Sistemi di Informazioni Creditizie (SIC) sono banche dati gestite da soggetti privati che raccolgono e condividono, secondo le regole applicabili, informazioni sui rapporti di credito. Tra i sistemi conosciuti in Italia ci sono CRIF, Experian e CTC.</p><h2>Perché controllarli</h2><p>Prima di valutare una situazione debitoria può essere utile sapere quali rapporti risultano presenti e verificare che i dati siano corretti e aggiornati.</p><h2>CRIF</h2><p>Per chiedere l\'accesso ai propri dati è possibile utilizzare i canali ufficiali indicati da CRIF.</p><div class="links"><a target="_blank" rel="noopener" href="https://www.crif.it/consumatori/sistema-informazioni-creditizie-sic/accedi-ai-tuoi-dati-consumatori/">CRIF · Accesso ai dati</a><a target="_blank" rel="noopener" href="https://www.modulorichiesta.crif.com/">CRIF · Modulo richiesta</a></div><h2>Experian</h2><p>Experian mette a disposizione la documentazione per richiedere l\'accesso ai dati del SIC.</p><div class="links"><a target="_blank" rel="noopener" href="https://www.experian.it/content/dam/noindex/emea/italy/Nuovo-modulo-SIC.pdf">Experian · Modulo SIC</a></div><h2>CTC</h2><p>Per CTC è disponibile una procedura ufficiale dedicata al consumatore.</p><div class="links"><a target="_blank" rel="noopener" href="https://consumatore.ctconline.it/sic/apri-istanza">CTC · Accesso consumatore</a></div><h2>Non confondere SIC e CAI</h2><p>La Centrale d\'Allarme Interbancaria (CAI) è distinta dai SIC. Per informazioni e accesso ai dati CAI si può fare riferimento alla Banca d\'Italia.</p><div class="links"><a target="_blank" rel="noopener" href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/index.html">Banca d\'Italia · CAI</a><a target="_blank" rel="noopener" href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/Modulo-di-richiesta-dei-dati-nominativi-CAI.pdf?force_download=1">CAI · Modulo ufficiale</a></div><div class="warning"><strong>Importante:</strong> trovare un\'informazione in un SIC non significa automaticamente che un finanziamento verrà rifiutato o che una posizione sia irregolare. Il significato dipende dai dati presenti e dal contesto.</div><div class="cta"><h3>Vuoi capire meglio la tua situazione?</h3><p>FixTude analizza dati, entrate, spese e debiti e costruisce possibili scenari da approfondire.</p><a href="/privato/situazione">Inizia con FixTude →</a></div></article><footer>FixTude · <a href="mailto:info@fixtude.it">info@fixtude.it</a> · P. IVA 15990471003<br><a href="/termini">Termini</a> · <a href="/privacy">Privacy</a> · <a href="/cookie">Cookie</a> · <a href="/recesso">Recesso</a></footer></div></body></html>')
+
+
+@app.route("/educazione-finanziaria/rate-difficili")
+def guide_rates():
+    return render_template_string('<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Non riesci più a pagare le rate? Da dove cominciare · FixTude</title><style>\n:root{--blue:#4f46e5;--ink:#18212f;--muted:#697586;--bg:#f6f8fb;--line:#e5e7eb}*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--ink)}.guide-wrap{max-width:900px;margin:auto;padding:22px}.guide-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:35px}.guide-nav .logo{font-size:28px;font-weight:800}.guide-nav .logo span{color:var(--blue)}.guide-nav a{color:var(--blue);text-decoration:none;font-weight:700}.hero{background:var(--ink);color:white;padding:42px;border-radius:22px;margin-bottom:22px}.hero small{color:#aeb7c6;font-weight:800;letter-spacing:.5px}.hero h1{font-size:42px;line-height:1.1;margin:12px 0}.hero p{font-size:18px;line-height:1.6;color:#d4dae3;margin:0}.article{background:white;border:1px solid var(--line);border-radius:20px;padding:38px;box-shadow:0 12px 35px rgba(0,0,0,.05)}.article h2{font-size:25px;margin:30px 0 10px}.article h2:first-child{margin-top:0}.article p,.article li{font-size:16px;line-height:1.7}.article ul{padding-left:23px}.tip{background:#f1f3ff;border-left:4px solid var(--blue);padding:17px 18px;border-radius:10px;margin:22px 0}.warning{background:#fff7ed;border-left:4px solid #f59e0b;padding:17px 18px;border-radius:10px;margin:22px 0}.links{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:18px 0}.links a{padding:14px;background:#f6f8fb;border:1px solid var(--line);border-radius:10px;color:var(--blue);text-decoration:none;font-weight:700}.cta{margin-top:28px;background:var(--ink);color:white;padding:25px;border-radius:16px}.cta h3{margin:0 0 8px}.cta p{color:#d4dae3}.cta a{display:inline-block;background:var(--blue);color:white;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:700}.back{display:inline-block;margin-bottom:18px;color:var(--blue);text-decoration:none;font-weight:700}footer{text-align:center;color:var(--muted);font-size:13px;padding:25px 0}@media(max-width:700px){.guide-wrap{padding:14px}.guide-nav{margin-bottom:20px}.guide-nav .logo{font-size:24px}.hero{padding:27px 20px;border-radius:16px}.hero h1{font-size:31px}.hero p{font-size:16px}.article{padding:22px 18px;border-radius:16px}.article h2{font-size:22px}.article p,.article li{font-size:15px}.links{grid-template-columns:1fr}.cta{padding:20px}.cta a{display:block;text-align:center}}\n</style></head><body><div class="guide-wrap"><div class="guide-nav"><div class="logo">Fix<span>Tude</span></div><a href="/privato">Area Personale</a></div><a class="back" href="/">← Torna a FixTude</a><section class="hero"><small>GUIDA GRATUITA · 03</small><h1>Non riesci più a pagare le rate? Da dove cominciare</h1><p>Prima di cercare una soluzione, misura il peso reale delle rate sul tuo bilancio mensile.</p></section><article class="article"><h2>Quando una rata diventa un problema</h2><p>La difficoltà non nasce necessariamente quando una rata è molto alta. Può comparire quando, sommate tutte le rate e le spese necessarie, il reddito non lascia più un margine sufficiente.</p><h2>1. Somma tutte le rate</h2><p>Inserisci nello stesso calcolo finanziamenti, prestiti personali, carte revolving e altri impegni ricorrenti. Non guardare una rata alla volta.</p><h2>2. Calcola il reddito disponibile</h2><p>Parti dalle entrate mensili e sottrai le spese necessarie. Il risultato indica quanto rimane prima di considerare il peso complessivo delle rate.</p><h2>3. Guarda il rapporto tra rate e reddito</h2><p>Il rapporto tra rate mensili e reddito è un indicatore utile per descrivere il peso del debito, ma non è una soglia universale valida per tutti. Una stessa percentuale può avere effetti diversi in base a casa, famiglia, spese e stabilità del reddito.</p><div class="tip"><strong>Esempio:</strong> due persone possono avere la stessa rata totale, ma una può avere molte più spese essenziali dell\'altra. Per questo la rata da sola non racconta tutta la situazione.</div><h2>4. Individua i segnali di pressione</h2><ul><li>usi continuamente il credito per coprire spese ordinarie;</li><li>paghi una rata ricorrendo a un altro finanziamento;</li><li>rimandi spese essenziali;</li><li>hai già rate scadute o pagamenti in ritardo;</li><li>il reddito disponibile cambia molto da un mese all\'altro.</li></ul><h2>5. Non aspettare che il problema diventi urgente</h2><p>Se il bilancio mensile è già sotto pressione, conviene ricostruire subito la situazione completa e valutare quali informazioni mancano. Parlare tempestivamente con i soggetti interessati può essere più utile che attendere l\'accumulo di ulteriori arretrati.</p><div class="warning"><strong>Attenzione:</strong> non esiste una percentuale magica che stabilisca da sola se una situazione è sostenibile. Servono reddito, spese, composizione del debito e regolarità dei pagamenti.</div><h2>Il primo passo è misurare</h2><p>Con numeri aggiornati puoi capire se il problema riguarda una singola rata, l\'insieme degli impegni oppure l\'equilibrio generale tra entrate e uscite.</p><div class="cta"><h3>Vuoi capire meglio la tua situazione?</h3><p>FixTude analizza dati, entrate, spese e debiti e costruisce possibili scenari da approfondire.</p><a href="/privato/situazione">Inizia con FixTude →</a></div></article><footer>FixTude · <a href="mailto:info@fixtude.it">info@fixtude.it</a> · P. IVA 15990471003<br><a href="/termini">Termini</a> · <a href="/privacy">Privacy</a> · <a href="/cookie">Cookie</a> · <a href="/recesso">Recesso</a></footer></div></body></html>')
+
+
+
+
+REGISTRATION_HTML = """
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Registrazione FixTude</title>
+<style>
+*{box-sizing:border-box}
+body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f5f7fb;
+    color:#18212f;
+    min-height:100vh;
+}
+.page{
+    padding:28px 16px 50px;
+}
+.box{
+    width:100%;
+    max-width:460px;
+    margin:35px auto 0;
+    background:#fff;
+    padding:34px;
+    border:1px solid #e5e9f0;
+    border-radius:20px;
+    box-shadow:0 10px 30px rgba(24,33,47,.07);
+}
+.back{
+    color:#4f46e5;
+    text-decoration:none;
+    font-weight:600;
+    font-size:14px;
+}
+h1{
+    margin:22px 0 8px;
+    font-size:30px;
+    line-height:1.15;
+}
+.subtitle{
+    margin:0 0 26px;
+    color:#667085;
+    line-height:1.5;
+    font-size:15px;
+}
+label{
+    display:block;
+    margin:0 0 7px;
+    font-size:14px;
+    font-weight:700;
+    color:#344054;
+}
+.field{
+    margin-bottom:19px;
+}
+input{
+    width:100%;
+    height:48px;
+    padding:0 14px;
+    border:1px solid #d8dee8;
+    border-radius:10px;
+    background:#fff;
+    color:#18212f;
+    font-size:16px;
+    outline:none;
+    transition:border-color .15s,box-shadow .15s;
+}
+input:focus{
+    border-color:#4f46e5;
+    box-shadow:0 0 0 3px rgba(79,70,229,.10);
+}
+.password-wrap{
+    position:relative;
+}
+.password-wrap input{
+    padding-right:48px;
+}
+.toggle-password{
+    position:absolute;
+    right:10px;
+    top:50%;
+    transform:translateY(-50%);
+    width:32px;
+    height:32px;
+    padding:0;
+    margin:0;
+    background:transparent;
+    color:#667085;
+    border:0;
+    border-radius:7px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.toggle-password:hover{
+    background:#f2f4f7;
+    color:#344054;
+}
+.eye{
+    width:18px;
+    height:12px;
+    border:1.7px solid currentColor;
+    border-radius:70% 70% 70% 70% / 90% 90% 90% 90%;
+    position:relative;
+    display:block;
+}
+.eye:after{
+    content:"";
+    position:absolute;
+    width:5px;
+    height:5px;
+    border:1.5px solid currentColor;
+    border-radius:50%;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+}
+button.submit{
+    width:100%;
+    height:50px;
+    margin-top:3px;
+    padding:0 16px;
+    background:#4f46e5;
+    color:#fff;
+    border:0;
+    border-radius:10px;
+    font-size:16px;
+    font-weight:700;
+    cursor:pointer;
+}
+button.submit:hover{
+    background:#4338ca;
+}
+.email-note{
+    margin:-5px 0 21px;
+    padding:11px 13px;
+    background:#f5f7ff;
+    border:1px solid #e2e5ff;
+    border-radius:9px;
+    color:#555f73;
+    font-size:13px;
+    line-height:1.45;
+}
+.error{
+    background:#fff1f2;
+    color:#b42318;
+    border:1px solid #fecdd3;
+    padding:12px 13px;
+    margin-bottom:20px;
+    border-radius:9px;
+    font-size:14px;
+}
+@media(max-width:600px){
+    .page{
+        padding:15px 12px 35px;
+    }
+    .box{
+        margin:15px auto 0;
+        padding:24px 19px 22px;
+        border-radius:16px;
+    }
+    h1{
+        font-size:26px;
+    }
+    .subtitle{
+        font-size:14px;
+        margin-bottom:22px;
+    }
+    input{
+        height:48px;
+        font-size:16px;
+    }
+}
+</style>
+</head>
+<body>
+<div class="page">
+<div class="box">
+
+<a class="back" href="/">← FixTude</a>
+
+<h1>Crea il tuo account</h1>
+<p class="subtitle">
+Inserisci i tuoi dati per accedere alla tua Area Personale.
+</p>
+
+{% if error %}
+<div class="error">{{ error }}</div>
+{% endif %}
+
+<form method="post">
+
+<div class="field">
+<label for="email">Email</label>
+<input id="email" type="email" name="email" autocomplete="email" required>
+</div>
+
+<div class="email-note">
+La tua email sarà utilizzata per accedere a FixTude e per ricevere i documenti PDF acquistati.
+</div>
+
+<div class="field">
+<label for="reg-password">Password</label>
+<div class="password-wrap">
+<input id="reg-password" type="password" name="password"
+       autocomplete="new-password" required minlength="8">
+<button type="button" class="toggle-password"
+        aria-label="Mostra password"
+        onclick="togglePassword('reg-password', this)">
+<span class="eye"></span>
+</button>
+</div>
+</div>
+
+<div class="field">
+<label for="reg-confirm">Conferma password</label>
+<div class="password-wrap">
+<input id="reg-confirm" type="password" name="confirm_password"
+       autocomplete="new-password" required minlength="8">
+<button type="button" class="toggle-password"
+        aria-label="Mostra conferma password"
+        onclick="togglePassword('reg-confirm', this)">
+<span class="eye"></span>
+</button>
+</div>
+</div>
+
+<div class="legal-checks" style="margin:18px 0;font-size:13px;line-height:1.5;color:#4b5563">
+<label style="display:flex;gap:9px;align-items:flex-start;font-weight:400;margin:10px 0"><input style="width:auto;height:auto;margin-top:4px" type="checkbox" name="accept_terms" value="yes" required><span>Dichiaro di aver letto e accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label>
+<label style="display:flex;gap:9px;align-items:flex-start;font-weight:400;margin:10px 0"><input style="width:auto;height:auto;margin-top:4px" type="checkbox" name="ack_privacy" value="yes" required><span>Dichiaro di aver preso visione dell'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label>
+<p style="font-size:11px;color:#667085">Le comunicazioni promozionali, se attivate in futuro, richiederanno una scelta separata e facoltativa.</p>
+</div>
+<button class="submit" type="submit">Crea account</button>
+
+</form>
+</div>
+</div>
+
+<script>
+function togglePassword(id, button){
+    const input = document.getElementById(id);
+    const visible = input.type === "text";
+    input.type = visible ? "password" : "text";
+    button.setAttribute(
+        "aria-label",
+        visible ? "Mostra password" : "Nascondi password"
+    );
+}
+</script>
+</body>
+</html>
+"""
+
+
+@app.route(
+    "/registrazione",
+    methods=["GET", "POST"]
+)
+def registration():
+
+    error = None
+
+    if request.method == "POST":
+
+        email = (
+            request.form
+            .get("email", "")
+            .strip()
+            .lower()
+        )
+
+        password = request.form.get(
+            "password",
+            ""
+        )
+
+        confirm = request.form.get(
+            "confirm_password",
+            ""
+        )
+
+        if "@" not in email:
+
+            error = "Email non valida."
+
+        elif len(password) < 8:
+
+            error = (
+                "La password deve avere "
+                "almeno 8 caratteri."
+            )
+
+        elif password != confirm:
+
+            error = (
+                "Le password non coincidono."
+            )
+
+        elif request.form.get("accept_terms") != "yes" or request.form.get("ack_privacy") != "yes":
+            error = "Per creare l'account devi accettare i Termini e dichiarare di aver letto l'Informativa Privacy."
+
+        elif find_user(email):
+
+            error = (
+                "Email già registrata."
+            )
+
+        else:
+
+            conn = db_connect()
+
+            conn.execute(
+                """
+                INSERT INTO users
+                (email,password_hash,role,created_at)
+                VALUES (?,?,'debtor',?)
+                """,
+                (
+                    email,
+                    generate_password_hash(
+                        password
+                    ),
+                    now_iso()
+                )
+            )
+
+            conn.commit()
+            conn.close()
+            record_legal_acceptance(email, "terms_registration", "Accettazione esplicita Termini e Condizioni in registrazione")
+            record_legal_acceptance(email, "privacy_notice_registration", "Presa visione informativa privacy; non è consenso a finalità ulteriori")
+
+            session.clear()
+
+            session["user"] = {
+                "email": email,
+                "role": "debtor"
+            }
+
+            return redirect(
+                url_for("debtor_dashboard")
+            )
+
+    return render_template_string(
+        REGISTRATION_HTML,
+        error=error
+    )
+
+
+# ============================================================
+# REGISTRAZIONE SEMPLICE PER ACCESSO AI SIC
+# ============================================================
+
+SIC_REGISTRATION_HTML = """
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Registrazione gratuita · FixTude</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:20px;font-family:Arial,Helvetica,sans-serif;background:#f5f7fb;color:#18212f}
+.box{max-width:560px;margin:25px auto;background:#fff;padding:30px;border:1px solid #e5e9f0;border-radius:18px;box-shadow:0 10px 30px rgba(24,33,47,.07)}
+a{color:#4f46e5;text-decoration:none;font-weight:700}h1{font-size:28px;margin:22px 0 8px}.intro{color:#667085;line-height:1.5;margin:0 0 22px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{min-width:0}.full{grid-column:1/-1}label{display:block;font-size:14px;font-weight:700;margin:0 0 7px}
+input{width:100%;height:46px;padding:0 12px;border:1px solid #d8dee8;border-radius:9px;font-size:16px;background:#fff}input:focus{outline:2px solid #d9d7ff;border-color:#4f46e5}
+button{width:100%;height:49px;margin-top:20px;background:#4f46e5;color:white;border:0;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}.error{padding:12px;background:#fff1f2;border:1px solid #fecdd3;border-radius:9px;color:#b42318;margin:0 0 16px}.note{font-size:12px;color:#667085;line-height:1.5;margin-top:14px}
+@media(max-width:520px){body{padding:12px}.box{margin:10px auto;padding:22px 18px}h1{font-size:25px}.grid{grid-template-columns:1fr}.full{grid-column:auto}}
+</style>
+</head>
+<body><main class="box">
+<a href="/">← Torna alla homepage</a>
+<h1>Registrazione gratuita</h1>
+<p class="intro">Crea il tuo account FixTude con i soli dati anagrafici. La registrazione non avvia l'analisi della situazione debitoria e non richiede l'inserimento di entrate, spese o debiti.</p>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="post" autocomplete="on">
+<div class="grid">
+<div class="field"><label for="first_name">Nome</label><input id="first_name" name="first_name" autocomplete="given-name" required></div>
+<div class="field"><label for="last_name">Cognome</label><input id="last_name" name="last_name" autocomplete="family-name" required></div>
+<div class="field full"><label for="address">Indirizzo</label><input id="address" name="address" autocomplete="street-address" required></div>
+<div class="field full"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required></div>
+<div class="field"><label for="pec">PEC (facoltativa)</label><input id="pec" name="pec" type="email" autocomplete="off"></div>
+<div class="field"><label for="phone">Recapito telefonico</label><input id="phone" name="phone" type="tel" autocomplete="tel" required></div>
+<div class="field"><label for="password">Password (min. 8 caratteri)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required></div>
+<div class="field"><label for="confirm_password">Conferma password</label><input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" minlength="8" required></div>
+</div>
+<div style="margin-top:18px;font-size:13px;line-height:1.5;color:#4b5563">
+<label style="display:flex;gap:9px;align-items:flex-start;font-weight:400;margin:10px 0"><input style="width:auto;height:auto;margin-top:4px" type="checkbox" name="accept_terms" value="yes" required><span>Dichiaro di aver letto e accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label>
+<label style="display:flex;gap:9px;align-items:flex-start;font-weight:400;margin:10px 0"><input style="width:auto;height:auto;margin-top:4px" type="checkbox" name="ack_privacy" value="yes" required><span>Dichiaro di aver preso visione dell'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label>
+</div>
+<button type="submit">Crea account gratuito</button>
+<p class="note">Dopo la registrazione tornerai alla homepage: i pulsanti CRIF, Experian, CTC e CAI saranno attivi. Se hai già un account, <a href="/privato/login">accedi qui</a>.</p>
+</form></main></body></html>
+"""
+
+
+@app.route("/registrazione-sic", methods=["GET", "POST"])
+def registration_sic():
+    error = None
+    if request.method == "POST":
+        first_name = request.form.get("first_name", "").strip()
+        last_name = request.form.get("last_name", "").strip()
+        address = request.form.get("address", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        pec = request.form.get("pec", "").strip().lower()
+        phone = request.form.get("phone", "").strip()
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm_password", "")
+
+        if not all([first_name, last_name, address, phone]) or "@" not in email:
+            error = "Compila tutti i campi obbligatori con dati validi."
+        elif pec and "@" not in pec:
+            error = "L'indirizzo PEC non sembra valido."
+        elif len(password) < 8:
+            error = "La password deve contenere almeno 8 caratteri."
+        elif password != confirm:
+            error = "Le password non coincidono."
+        elif request.form.get("accept_terms") != "yes" or request.form.get("ack_privacy") != "yes":
+            error = "Per creare l'account devi accettare i Termini e dichiarare di aver letto l'Informativa Privacy."
+        elif find_user(email):
+            error = "Questa email è già registrata. Accedi con il tuo account oppure usa un'altra email."
+        else:
+            conn = db_connect()
+            conn.execute(
+                """INSERT INTO users
+                   (email,password_hash,role,created_at,first_name,last_name,address,pec,phone)
+                   VALUES (?,?, 'debtor', ?, ?, ?, ?, ?, ?)""",
+                (email, generate_password_hash(password), now_iso(), first_name,
+                 last_name, address, pec or None, phone)
+            )
+            conn.commit()
+            conn.close()
+            record_legal_acceptance(email, "terms_registration", "Accettazione esplicita Termini e Condizioni in registrazione gratuita SIC")
+            record_legal_acceptance(email, "privacy_notice_registration", "Presa visione informativa privacy; non è consenso a finalità ulteriori")
+            session.clear()
+            session["user"] = {"email": email, "role": "debtor"}
+            return redirect(url_for("home"))
+
+    return render_template_string(SIC_REGISTRATION_HTML, error=error)
+
+
+# ============================================================
+# DATI FISCALI CLIENTE
+# ============================================================
+
+FISCAL_DATA_HTML = """
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dati per la fattura · FixTude</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#f6f8fb;color:#18212f}
+.box{max-width:650px;margin:45px auto;background:white;padding:30px;border-radius:18px;box-shadow:0 12px 35px rgba(0,0,0,.06)}
+h1{margin:0 0 10px;font-size:28px}.intro{color:#667085;line-height:1.5}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}
+label{display:block;font-weight:700;font-size:13px;margin:7px 0 5px}input,select{width:100%;box-sizing:border-box;padding:12px;border:1px solid #d9dee8;border-radius:9px;font-size:14px;background:white}
+button{width:100%;padding:13px;background:#4f46e5;color:white;border:0;border-radius:9px;font-weight:700;cursor:pointer;margin-top:16px}.error{background:#fee2e2;color:#991b1b;padding:12px;border-radius:9px;margin:15px 0}.note{background:#f1f3ff;padding:13px;border-radius:10px;font-size:13px;color:#4b5563;margin:18px 0}.back{display:inline-block;margin-bottom:18px;color:#4f46e5;text-decoration:none;font-weight:700}
+@media(max-width:650px){.box{margin:15px;padding:21px;border-radius:15px}.grid{grid-template-columns:1fr}.full{grid-column:auto}h1{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="box">
+<a class="back" href="{{ url_for('payments') }}">← Torna ai pagamenti</a>
+<h1>Dati per la fattura</h1>
+<p class="intro">Inserisci i dati fiscali una sola volta. FixTude li conserverà nel tuo account per predisporre correttamente la documentazione fiscale relativa ai tuoi acquisti.</p>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<div class="note"><strong>Per un privato:</strong> sono necessari nome, cognome, codice fiscale e indirizzo. Se hai una PEC puoi indicarla; altrimenti la fattura elettronica potrà essere recapitata con codice destinatario 0000000.</div>
+<form method="post">
+<div class="grid">
+<div><label>Nome *</label><input name="first_name" value="{{ data.first_name or '' }}" required></div>
+<div><label>Cognome *</label><input name="last_name" value="{{ data.last_name or '' }}" required></div>
+<div><label>Codice fiscale *</label><input name="fiscal_code" maxlength="16" value="{{ data.fiscal_code or '' }}" required></div>
+<div><label>P. IVA (se presente)</label><input name="vat_number" maxlength="11" value="{{ data.vat_number or '' }}"></div>
+<div class="full"><label>Indirizzo *</label><input name="billing_address" value="{{ data.billing_address or '' }}" required></div>
+<div><label>CAP *</label><input name="billing_cap" maxlength="5" value="{{ data.billing_cap or '' }}" required></div>
+<div><label>Comune *</label><input name="billing_city" value="{{ data.billing_city or '' }}" required></div>
+<div><label>Provincia *</label><input name="billing_province" maxlength="2" value="{{ data.billing_province or '' }}" required></div>
+<div><label>Codice destinatario</label><input name="recipient_code" maxlength="7" value="{{ data.recipient_code or '' }}" placeholder="0000000"></div>
+<div><label>PEC</label><input type="email" name="pec" value="{{ data.pec or '' }}" placeholder="nome@pec.it"></div>
+</div>
+<button>Salva e continua al pagamento</button>
+</form>
+</div>
+</body>
+</html>
+"""
+
+@app.route("/dati-fiscali", methods=["GET", "POST"])
+def fiscal_data():
+    user = require_login("debtor")
+    if not user:
+        return redirect(url_for("debtor_login"))
+
+    data = get_fiscal_data(user["email"])
+    error = None
+
+    if request.method == "POST":
+        fields = {
+            "first_name": request.form.get("first_name", "").strip(),
+            "last_name": request.form.get("last_name", "").strip(),
+            "fiscal_code": request.form.get("fiscal_code", "").strip().upper(),
+            "billing_address": request.form.get("billing_address", "").strip(),
+            "billing_cap": request.form.get("billing_cap", "").strip(),
+            "billing_city": request.form.get("billing_city", "").strip(),
+            "billing_province": request.form.get("billing_province", "").strip().upper(),
+            "vat_number": request.form.get("vat_number", "").strip(),
+            "recipient_code": request.form.get("recipient_code", "").strip().upper(),
+            "pec": request.form.get("pec", "").strip().lower()
+        }
+
+        if any(not fields[k] for k in ("first_name","last_name","fiscal_code","billing_address","billing_cap","billing_city","billing_province")):
+            error = "Compila tutti i campi obbligatori contrassegnati con *."
+        elif not re.fullmatch(r"[A-Z0-9]{16}", fields["fiscal_code"]):
+            error = "Il codice fiscale deve contenere 16 caratteri alfanumerici."
+        elif not re.fullmatch(r"\d{5}", fields["billing_cap"]):
+            error = "Il CAP deve contenere 5 cifre."
+        elif not re.fullmatch(r"[A-Z]{2}", fields["billing_province"]):
+            error = "La provincia deve essere indicata con due lettere."
+        elif fields["vat_number"] and not re.fullmatch(r"\d{11}", fields["vat_number"]):
+            error = "La Partita IVA deve contenere 11 cifre."
+        elif fields["recipient_code"] and fields["recipient_code"] != "0000000" and not re.fullmatch(r"[A-Z0-9]{7}", fields["recipient_code"]):
+            error = "Il codice destinatario deve contenere 7 caratteri."
+        elif fields["pec"] and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", fields["pec"]):
+            error = "L'indirizzo PEC non è valido."
+        else:
+            conn = db_connect()
+            conn.execute("""
+                UPDATE users SET first_name=?, last_name=?, fiscal_code=?,
+                billing_address=?, billing_cap=?, billing_city=?, billing_province=?,
+                vat_number=?, recipient_code=?, pec=? WHERE email=?
+            """, (fields["first_name"],fields["last_name"],fields["fiscal_code"],fields["billing_address"],fields["billing_cap"],fields["billing_city"],fields["billing_province"],fields["vat_number"],fields["recipient_code"],fields["pec"],user["email"]))
+            conn.commit(); conn.close()
+            return redirect(url_for("payments"))
+
+        data = {**data, **fields}
+
+    return render_template_string(FISCAL_DATA_HTML, data=data, error=error)
+
+
+# ============================================================
+# LOGIN
+# ============================================================
+
+LOGIN_HTML = """
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login FixTude</title>
+<style>
+body{font-family:Arial;background:#f6f8fb}.box{max-width:430px;margin:80px auto;background:white;padding:35px;border-radius:18px;box-sizing:border-box}input{width:100%;box-sizing:border-box;padding:13px;margin:8px 0 15px}.password-wrap{position:relative}.password-wrap input{padding-right:48px}.toggle-password{position:absolute;right:10px;top:8px;width:38px;height:38px;padding:0;background:transparent;color:#4f46e5;border:0;font-size:19px;cursor:pointer}.button{width:100%;padding:13px;background:#4f46e5;color:white;border:0;border-radius:8px;cursor:pointer}.error{background:#fee2e2;padding:12px;margin-bottom:15px;border-radius:8px}.links{margin-top:18px;text-align:center}.links a{color:#4f46e5;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="box">
+<a href="/">← FixTude</a>
+<h1>{% if role == "debtor" %}Accesso area privata{% else %}Area Riservata FixTude{% endif %}</h1>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="post">
+<label>Email</label>
+<input type="email" name="email" required>
+<label>Password</label>
+<div class="password-wrap">
+<input id="login-password" type="password" name="password" required>
+<button class="toggle-password" type="button" onclick="togglePassword('login-password', this)" aria-label="Mostra password">👁</button>
+</div>
+<button class="button">Accedi</button>
+</form>
+<div class="links"><a href="{{ url_for('password_forgot') }}">Password dimenticata?</a></div>
+</div>
+<script>
+function togglePassword(id, button){const input=document.getElementById(id); if(input.type==='password'){input.type='text';button.textContent='🙈';button.setAttribute('aria-label','Nascondi password')}else{input.type='password';button.textContent='👁';button.setAttribute('aria-label','Mostra password')}}
+</script>
+</body>
+</html>
+"""
+
+@app.route("/password-dimenticata", methods=["GET", "POST"])
+def password_forgot():
+    message = None
+    error = None
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user = find_user(email)
+        if user:
+            try:
+                token = create_password_reset_token(user["id"])
+                base_url = os.environ.get("APP_BASE_URL", request.url_root.rstrip("/"))
+                reset_url = f"{base_url}{url_for('password_reset', token=token)}"
+                sent = send_password_reset_email(email, reset_url)
+                if sent:
+                    message = "Se l'indirizzo è registrato, abbiamo inviato le istruzioni per recuperare la password."
+                else:
+                    error = "Il recupero è predisposto, ma l'invio email non è ancora configurato sul server."
+            except Exception:
+                error = "Non è stato possibile inviare l'email di recupero. Riprova più tardi."
+        else:
+            message = "Se l'indirizzo è registrato, abbiamo inviato le istruzioni per recuperare la password."
+    return render_template_string("""
+    <!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Password dimenticata - FixTude</title>
+    <style>body{font-family:Arial;background:#f6f8fb}.box{max-width:430px;margin:80px auto;background:white;padding:35px;border-radius:18px;box-sizing:border-box}input{width:100%;box-sizing:border-box;padding:13px;margin:8px 0 15px}button{width:100%;padding:13px;background:#4f46e5;color:white;border:0;border-radius:8px}.msg{background:#e8f7ed;padding:12px;border-radius:8px}.err{background:#fee2e2;padding:12px;border-radius:8px}</style></head><body><div class="box"><a href="/privato/login">← Accesso</a><h1>Recupera password</h1><p>Inserisci l'email con cui hai creato l'account.</p>{% if message %}<div class="msg">{{ message }}</div>{% endif %}{% if error %}<div class="err">{{ error }}</div>{% endif %}<form method="post"><label>Email</label><input type="email" name="email" required><button>Invia istruzioni</button></form></div></body></html>
+    """, message=message, error=error)
+
+
+@app.route("/password-reset/<token>", methods=["GET", "POST"])
+def password_reset(token):
+    reset_user = get_valid_reset_user(token)
+    if not reset_user:
+        return render_template_string("""<!doctype html><html lang='it'><body style='font-family:Arial;background:#f6f8fb'><div style='max-width:500px;margin:80px auto;background:white;padding:35px;border-radius:18px'><h1>Link non valido</h1><p>Il collegamento di recupero password è scaduto o non è più valido.</p><a href='{{ url_for("password_forgot") }}'>Richiedi un nuovo link</a></div></body></html>""")
+    error = None
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm_password", "")
+        if len(password) < 8:
+            error = "La password deve avere almeno 8 caratteri."
+        elif password != confirm:
+            error = "Le password non coincidono."
+        else:
+            conn = db_connect()
+            conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (generate_password_hash(password), reset_user["id"]))
+            conn.execute("UPDATE password_reset_tokens SET used = 1 WHERE id = ?", (reset_user["reset_id"],))
+            conn.commit()
+            conn.close()
+            return redirect(url_for("debtor_login" if reset_user["role"] == "debtor" else "resolver_login"))
+    return render_template_string("""
+    <!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nuova password - FixTude</title><style>body{font-family:Arial;background:#f6f8fb}.box{max-width:430px;margin:80px auto;background:white;padding:35px;border-radius:18px;box-sizing:border-box}input{width:100%;box-sizing:border-box;padding:13px;margin:8px 0 15px}.password-wrap{position:relative}.password-wrap input{padding-right:48px}.toggle-password{position:absolute;right:10px;top:8px;width:38px;height:38px;padding:0;background:transparent;color:#4f46e5;border:0;font-size:19px;cursor:pointer}.button{width:100%;padding:13px;background:#4f46e5;color:white;border:0;border-radius:8px}.error{background:#fee2e2;padding:12px;border-radius:8px;margin-bottom:15px}</style></head><body><div class="box"><h1>Imposta nuova password</h1>{% if error %}<div class="error">{{ error }}</div>{% endif %}<form method="post"><label>Nuova password</label><div class="password-wrap"><input id="newpw" type="password" name="password" minlength="8" required><button type="button" class="toggle-password" onclick="togglePassword('newpw',this)">👁</button></div><label>Conferma password</label><div class="password-wrap"><input id="newpw2" type="password" name="confirm_password" minlength="8" required><button type="button" class="toggle-password" onclick="togglePassword('newpw2',this)">👁</button></div><button class="button">Salva nuova password</button></form></div><script>function togglePassword(id,b){const i=document.getElementById(id);if(i.type==='password'){i.type='text';b.textContent='🙈'}else{i.type='password';b.textContent='👁'}}</script></body></html>
+    """, error=error)
+
+
+@app.route(
+    "/privato/login",
+    methods=["GET", "POST"]
+)
+def debtor_login():
+
+    error = None
+
+    if request.method == "POST":
+
+        email = (
+            request.form
+            .get("email", "")
+            .strip()
+            .lower()
+        )
+
+        password = request.form.get(
+            "password",
+            ""
+        )
+
+        # Se le credenziali demo del Risolutore vengono inserite nella login
+        # generale, accompagniamo automaticamente l'utente alla login corretta.
+        # Questo evita l'errore "Email o password non corretti" quando si parte
+        # dal pulsante Accedi della home page. Il blocco di login del Risolutore
+        # resta invariato.
+        if email == "pro@fixtude.it" and password == "1234":
+            return redirect(url_for("resolver_login"))
+
+        user = find_user(email)
+
+        valid = bool(
+            user
+            and user["role"] == "debtor"
+            and check_password_hash(
+                user["password_hash"],
+                password
+            )
+        )
+
+        if valid:
+
+            session.clear()
+
+            session["user"] = {
+                "email": email,
+                "role": "debtor"
+            }
+
+            return redirect(
+                url_for("debtor_dashboard")
+            )
+
+        error = (
+            "Email o password non corretti."
+        )
+
+    return render_template_string(
+        LOGIN_HTML,
+        role="debtor",
+        error=error
+    )
+
+
+@app.route(
+    "/risolutore/login",
+    methods=["GET", "POST"]
+)
+def resolver_login():
+
+    error = None
+
+    if request.method == "POST":
+
+        email = (
+            request.form
+            .get("email", "")
+            .strip()
+            .lower()
+        )
+
+        password = request.form.get(
+            "password",
+            ""
+        )
+
+        user = find_user(email)
+
+        # Accesso demo Risolutore: le credenziali pubblicate sono sempre valide.
+        # Se il database di Render è vecchio, ricrea/aggiorna comunque l'utente.
+        demo_resolver = (
+            email == "pro@fixtude.it"
+            and password == "1234"
+        )
+
+        if demo_resolver:
+            try:
+                conn = db_connect()
+                existing = conn.execute(
+                    "SELECT id FROM users WHERE email = ?",
+                    ("pro@fixtude.it",)
+                ).fetchone()
+                password_hash = generate_password_hash("1234")
+                if existing:
+                    conn.execute(
+                        "UPDATE users SET password_hash = ?, role = 'resolver' WHERE email = ?",
+                        (password_hash, "pro@fixtude.it")
+                    )
+                else:
+                    conn.execute(
+                        "INSERT INTO users (email, password_hash, role, created_at) VALUES (?, ?, 'resolver', ?)",
+                        ("pro@fixtude.it", password_hash, now_iso())
+                    )
+                conn.commit()
+                conn.close()
+                user = find_user(email)
+            except Exception:
+                app.logger.exception("Impossibile sincronizzare l'account demo Risolutore.")
+
+        valid = bool(
+            demo_resolver
+            or (
+                user
+                and user["role"] == "resolver"
+                and check_password_hash(
+                    user["password_hash"],
+                    password
+                )
+            )
+        )
+
+        if valid:
+
+            session.clear()
+
+            session["user"] = {
+                "email": email,
+                "role": "resolver"
+            }
+
+            return redirect(
+                url_for("resolver_dashboard")
+            )
+
+        error = (
+            "Email o password non corretti."
+        )
+
+    return render_template_string(
+        LOGIN_HTML,
+        role="resolver",
+        error=error
+    )
+
+
+# ============================================================
+# DEBTOR DASHBOARD
+# ============================================================
+
+@app.route("/privato")
+def debtor_dashboard():
+
+    user = require_login("debtor")
+    if not user:
+        return redirect(url_for("debtor_login"))
+
+    case = get_case_for_email(user["email"])
+    case_data = get_case_data(case["id"]) if case else {}
+
+    analysis_payment = None
+    pdf_payment = None
+    solutions = []
+    latest_solution = None
+    notifications = []
+    unread_count = 0
+
+    if case:
+        analysis_payment = get_paid_payment(user["email"], case["id"], "analysis")
+        pdf_payment = get_paid_payment(user["email"], case["id"], "pdf")
+        solutions = get_solutions(case["id"])
+        latest_solution = solutions[0] if solutions else None
+
+        conn = db_connect()
+        notifications = conn.execute(
+            """SELECT * FROM notifications WHERE email = ? ORDER BY id DESC LIMIT 5""",
+            (user["email"],)
+        ).fetchall()
+        unread_count = conn.execute(
+            """SELECT COUNT(*) FROM notifications WHERE email = ? AND read = 0""",
+            (user["email"],)
+        ).fetchone()[0]
+        conn.close()
+
+    pdf_ready = bool(
+        pdf_payment and latest_solution and latest_solution["status"] == "sent"
+        and latest_solution["pdf_path"] and Path(latest_solution["pdf_path"]).exists()
+    )
+
+    pdf_in_review = bool(pdf_payment and not pdf_ready)
+
     return render_template_string(
         """
         <!doctype html>
         <html lang="it">
         <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <meta name="theme-color" content="#123a72">
-          <title>{{ title }} | FixTude</title>
-          <meta name="description"
-                content="FixTude: fai chiarezza sulla tua situazione debitoria.">
-          <style>
-            :root {
-              --blue:#174b91;
-              --blue2:#2468b8;
-              --ink:#203047;
-              --muted:#65758b;
-              --bg:#f5f8fc;
-              --line:#dce5ef;
-              --white:#fff;
-              --green:#16794b;
-              --red:#a62929;
-            }
-            * {box-sizing:border-box}
-            html {scroll-behavior:smooth}
-            body {
-              margin:0;
-              font-family:Arial,Helvetica,sans-serif;
-              color:var(--ink);
-              background:var(--bg);
-              line-height:1.55;
-            }
-            a {color:var(--blue)}
-            header {
-              background:var(--white);
-              border-bottom:1px solid var(--line);
-            }
-            .nav {
-              max-width:1080px;
-              margin:auto;
-              padding:15px 22px;
-              display:flex;
-              align-items:center;
-              justify-content:space-between;
-              gap:20px;
-            }
-            .brand {
-              color:var(--blue);
-              font-size:25px;
-              font-weight:800;
-              letter-spacing:-.8px;
-              text-decoration:none;
-            }
-            nav {display:flex;gap:20px;flex-wrap:wrap}
-            nav a {
-              text-decoration:none;
-              color:var(--ink);
-              font-size:14px;
-              font-weight:700;
-            }
-            nav a:hover {color:var(--blue2)}
-            main {
-              width:min(100% - 36px,960px);
-              margin:36px auto 65px;
-              min-height:55vh;
-            }
-            .hero {
-              background:linear-gradient(135deg,#123a72,#2873bf);
-              color:#fff;
-              padding:clamp(26px,5vw,54px);
-              border-radius:20px;
-            }
-            .hero h1 {
-              font-size:clamp(30px,5vw,47px);
-              line-height:1.12;
-              letter-spacing:-1px;
-              margin:0 0 18px;
-              max-width:720px;
-            }
-            .hero p {font-size:18px;max-width:660px;margin:0 0 24px}
-            h1,h2,h3 {line-height:1.25}
-            h1 {font-size:clamp(27px,4vw,37px);margin-top:0}
-            h2 {font-size:23px}
-            .muted {color:var(--muted)}
-            .card {
-              background:#fff;
-              border:1px solid var(--line);
-              border-radius:16px;
-              padding:24px;
-              margin:20px 0;
-              box-shadow:0 4px 18px rgba(20,48,85,.035);
-            }
-            .grid {
-              display:grid;
-              grid-template-columns:repeat(2,minmax(0,1fr));
-              gap:18px;
-            }
-            .btn {
-              display:inline-flex;
-              justify-content:center;
-              align-items:center;
-              border:0;
-              border-radius:10px;
-              background:var(--blue);
-              color:white;
-              padding:13px 19px;
-              min-height:46px;
-              font-size:15px;
-              font-weight:700;
-              text-decoration:none;
-              cursor:pointer;
-              transition:transform .2s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease, border-color .2s ease;
-              will-change:transform;
-            }
-            button, nav a, .chat-launcher {
-              transition:transform .2s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease;
-            }
-            .btn:hover {background:var(--blue2)}
-            @media (hover:hover) and (pointer:fine) {
-              .btn:hover, button:hover, .chat-launcher:hover {
-                transform:translateY(-2px);
-                box-shadow:0 7px 18px rgba(18,58,114,.20);
-              }
-              nav a:hover {transform:translateY(-1px)}
-            }
-            .btn:active, button:active, .chat-launcher:active {transform:scale(.98)}
-            @media (prefers-reduced-motion:reduce) {
-              *, *::before, *::after {scroll-behavior:auto !important;transition:none !important;animation:none !important}
-            }
-            .btn.light {background:white;color:var(--blue)}
-            .btn.outline {
-              background:white;
-              border:1px solid var(--line);
-              color:var(--blue);
-            }
-            .actions {display:flex;gap:10px;flex-wrap:wrap}
-            label {
-              display:block;
-              font-weight:700;
-              font-size:14px;
-              margin:0 0 7px;
-            }
-            input,select,textarea {
-              width:100%;
-              min-width:0;
-              border:1px solid #cbd7e5;
-              border-radius:9px;
-              padding:12px;
-              background:#fff;
-              color:var(--ink);
-              font:inherit;
-            }
-            input:focus,select:focus,textarea:focus {
-              outline:2px solid #9cc7f4;
-              border-color:var(--blue2);
-            }
-            textarea {min-height:120px;resize:vertical}
-            .field {min-width:0;margin-bottom:16px}
-            .check {
-              display:flex;
-              align-items:flex-start;
-              gap:10px;
-              font-size:14px;
-              font-weight:400;
-            }
-            .check input {width:auto;margin-top:5px}
-            .notice {
-              border-radius:10px;
-              padding:13px 15px;
-              background:#eef5ff;
-              border:1px solid #d4e5fb;
-              margin:16px 0;
-            }
-            .success {color:var(--green);font-weight:700}
-            .error {color:var(--red);font-weight:700}
-            .entry-row {
-              display:grid;
-              grid-template-columns:minmax(0,1.25fr) minmax(110px,1fr) minmax(110px,1fr) auto;
-              gap:10px;
-              align-items:end;
-              padding:12px 0;
-              border-bottom:1px solid var(--line);
-            }
-            .entry-row .field {margin:0}
-            .traffic-light {
-              display:flex;
-              align-items:center;
-              gap:12px;
-              border-radius:12px;
-              border:1px solid var(--line);
-              padding:14px 16px;
-              margin:16px 0;
-              background:#fff;
-            }
-            .traffic-light .signal {
-              width:24px;
-              height:24px;
-              min-width:24px;
-              border-radius:50%;
-              background:#9ca3af;
-              border:3px solid rgba(0,0,0,.08);
-            }
-            .traffic-light.red {background:#fff1f1;border-color:#f3b4b4}
-            .traffic-light.red .signal {background:#dc2626}
-            .traffic-light.yellow {background:#fff9e8;border-color:#f3d58b}
-            .traffic-light.yellow .signal {background:#eab308}
-            .traffic-light.green {background:#effaf2;border-color:#a8dfb5}
-            .traffic-light.green .signal {background:#16a34a}
-            .remove-button {
-              border:1px solid var(--line);
-              background:#fff;
-              border-radius:8px;
-              padding:10px 12px;
-              cursor:pointer;
-            }
-            .total-grid {
-              display:grid;
-              grid-template-columns:repeat(2,minmax(0,1fr));
-              gap:12px;
-              margin:18px 0;
-            }
-            .total {
-              border:1px solid var(--line);
-              border-radius:12px;
-              padding:16px;
-              background:#fff;
-              overflow-wrap:anywhere;
-            }
-            .total strong {display:block;font-size:25px;margin-top:4px}
-            footer {
-              border-top:1px solid var(--line);
-              background:#fff;
-              padding:24px 18px;
-              text-align:center;
-              font-size:13px;
-              color:var(--muted);
-            }
-            .chat-launcher {
-              position:fixed;
-              right:20px;
-              bottom:20px;
-              z-index:1000;
-              border:0;
-              border-radius:30px;
-              background:var(--blue);
-              color:#fff;
-              box-shadow:0 5px 22px #0002;
-              padding:14px 20px;
-              font-weight:700;
-              cursor:pointer;
-            }
-            .chat-panel {
-              position:fixed;
-              z-index:1001;
-              right:20px;
-              bottom:82px;
-              width:min(365px,calc(100vw - 28px));
-              height:min(500px,calc(100dvh - 115px));
-              background:#fff;
-              border:1px solid var(--line);
-              border-radius:16px;
-              box-shadow:0 12px 45px #0003;
-              display:none;
-              flex-direction:column;
-              overflow:hidden;
-            }
-            .chat-panel.open {display:flex}
-            .chat-head {
-              background:var(--blue);
-              color:#fff;
-              padding:15px;
-              display:flex;
-              align-items:center;
-              justify-content:space-between;
-              gap:10px;
-            }
-            .chat-head button {
-              color:#fff;
-              background:transparent;
-              border:0;
-              font-size:24px;
-              cursor:pointer;
-            }
-            .chat-status {font-size:12px;opacity:.9}
-            .chat-messages {
-              flex:1;
-              overflow:auto;
-              padding:13px;
-              background:#f6f8fb;
-            }
-            .chat-msg {
-              max-width:88%;
-              padding:10px 12px;
-              border-radius:12px;
-              margin:8px 0;
-              overflow-wrap:anywhere;
-              white-space:pre-wrap;
-              font-size:14px;
-            }
-            .chat-msg.visitor {
-              background:#dceaff;
-              margin-left:auto;
-            }
-            .chat-msg.staff {
-              background:#fff;
-              border:1px solid var(--line);
-            }
-            .chat-time {font-size:10px;color:var(--muted);margin-top:4px}
-            .chat-form {
-              padding:10px;
-              border-top:1px solid var(--line);
-              display:flex;
-              gap:8px;
-            }
-            .chat-form input {flex:1;min-width:0;padding:10px}
-            .chat-form button {padding:10px 13px}
-            .chat-hint {font-size:11px;color:var(--muted);padding:0 12px 10px}
-            .product-card {display:grid;grid-template-columns:minmax(190px, .7fr) minmax(0,1.3fr);gap:28px;align-items:center}
-            .shop-book-cover {display:flex;justify-content:center;align-items:center;padding:8px}
-            .shop-book-cover img {display:block;width:min(100%,300px);height:auto;max-height:440px;object-fit:contain;border-radius:5px;box-shadow:0 14px 30px rgba(20,48,85,.18)}
-            .shop-book-description {min-width:0}
-            .shop-book-description form {margin-top:14px}
-            .price {font-size:30px;font-weight:800;color:var(--blue);white-space:nowrap;margin:12px 0}
-            .resource-list {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-            .back-row {display:flex;justify-content:flex-start;margin:0 0 16px}
-            .back-button {display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:9px 15px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--blue);font:inherit;font-weight:700;cursor:pointer;transition:background .18s ease,transform .18s ease}
-            .back-button:hover {background:#edf4fc;transform:translateX(-2px)}
-            .back-button:focus-visible {outline:3px solid #8ab8ef;outline-offset:2px}
-            .resource-link {display:block;padding:17px;border:1px solid var(--line);border-radius:12px;background:#fff;text-decoration:none;font-weight:700}
-            .resource-link span {display:block;font-weight:400;color:var(--muted);font-size:14px;margin-top:5px}
-            @media(max-width:650px) {
-              nav {width:100%;gap:9px 13px}
-              nav a {font-size:13px}
-              .product-card {grid-template-columns:minmax(0,1fr);gap:12px}
-              .shop-book-cover img {width:min(72%,250px);max-height:360px}
-              .resource-list {grid-template-columns:1fr}
-              .nav {align-items:flex-start;flex-direction:column;gap:9px}
-              nav {gap:10px 16px}
-              main {width:calc(100% - 24px);margin:20px auto 45px}
-              .grid {grid-template-columns:1fr}
-              .card {padding:18px}
-              .entry-row {grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-              .entry-row .name-field {grid-column:1 / -1}
-              .entry-row .remove-button {grid-column:2;justify-self:end}
-              .hero {border-radius:14px}
-              .hero p {font-size:16px}
-              .chat-launcher {right:13px;bottom:13px}
-              .chat-panel {right:8px;bottom:70px;width:calc(100vw - 16px)}
-            }
-            /* Home: spazi più equilibrati e comandi comodi su schermi piccoli */
-            .hero {display:flex;flex-direction:column;gap:0;padding:clamp(24px,4vw,42px)}
-            .hero h1 {margin-bottom:12px}
-            .hero p {margin-bottom:20px}
-            .hero .actions {margin-top:2px;gap:12px}
-            .hero .actions .btn {min-height:48px}
-            .start-card .grid {row-gap:10px;column-gap:24px}
-            .start-card .grid > div {min-width:0;padding:4px 0}
-            .start-card .grid p {margin:7px 0 0}
-            @media(max-width:650px) {
-              main {width:calc(100% - 24px);margin:18px auto 42px}
-              .hero {padding:24px 19px;border-radius:15px}
-              .hero h1 {font-size:clamp(28px,8vw,35px);line-height:1.12;letter-spacing:-.5px;margin-bottom:12px}
-              .hero p {font-size:16px;line-height:1.5;margin-bottom:18px}
-              .hero .actions {display:grid;grid-template-columns:1fr;gap:10px;width:100%}
-              .hero .actions .btn {width:100%;padding:12px 14px;text-align:center;white-space:normal}
-              .start-card {padding:18px 17px}
-              .start-card h2 {margin-top:0;font-size:21px}
-              .start-card .grid {grid-template-columns:1fr;gap:14px}
-              .start-card .grid > div {padding:0 0 12px;border-bottom:1px solid var(--line)}
-              .start-card .grid > div:last-child {padding-bottom:0;border-bottom:0}
-            }
-          </style>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Area Personale - FixTude</title>
+        <style>
+        *{box-sizing:border-box}
+        body{font-family:Arial,sans-serif;background:#f5f7fb;color:#172033;margin:0}
+        .wrap{max-width:1050px;margin:auto;padding:28px 20px 50px}
+        .top{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:24px}
+        .top h1{margin:0 0 6px;font-size:30px}.muted{color:#667085}
+        .actions{display:flex;gap:14px;align-items:center}.actions a{text-decoration:none}
+        .back{color:#4f46e5}.logout{color:#b42318}
+        .hero{background:white;border-radius:18px;padding:25px;margin-bottom:18px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+        .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+        .card{background:white;border-radius:16px;padding:22px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+        .card h2{margin-top:0;font-size:20px}.card p{line-height:1.5}
+        .link{display:inline-block;margin-top:10px;color:#4f46e5;text-decoration:none;font-weight:600}
+        .status{display:inline-block;padding:7px 11px;border-radius:999px;font-size:13px;font-weight:700;margin:8px 0}
+        .green{background:#e8f7ed;color:#176b3a}.orange{background:#fff4d6;color:#8a5a00}.gray{background:#eef1f5;color:#596273}
+        .row{display:flex;justify-content:space-between;gap:15px;border-top:1px solid #edf0f4;padding:12px 0}.row:first-of-type{border-top:0}
+        .notice{background:#fff8e6;border:1px solid #f2df9a;padding:14px;border-radius:12px;margin-top:12px}
+        .mini{font-size:14px;color:#667085}
+        @media(max-width:700px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}.actions{width:100%;justify-content:space-between}}
+        </style>
         </head>
         <body>
-          <header>
-            <div class="nav">
-              <a class="brand" href="/">FixTude</a>
-              <nav>
-                <a href="/misuratore">Calcolatore</a>
-                <a href="/consulenza">Contatta un esperto</a>
-                <a href="/moduli">Moduli gratuiti</a>
-                <a href="/educazione-finanziaria">Educazione finanziaria</a>
-                <a href="/sic">Banche dati SIC</a>
-                <a href="/shop">Shop</a>
-                <a href="/privacy">Privacy</a>
-              </nav>
-            </div>
-          </header>
-          <main>
-            {% if request.path != '/' %}
-            <div class="back-row">
-              <button class="back-button" type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='/'; }" aria-label="Torna alla pagina precedente">← Indietro</button>
-            </div>
+        <div class="wrap">
+
+        <div class="top">
+          <div>
+            <h1>Area Personale FixTude</h1>
+            <div class="muted">{{ case_data.get('name','') }} {{ case_data.get('surname','') }} · {{ user.email }}</div>
+          </div>
+          <div class="actions">
+            <a class="back" href="javascript:history.back()">← Indietro</a>
+            <a class="logout" href="{{ url_for('logout') }}">Esci</a>
+          </div>
+        </div>
+
+        {% if not case %}
+        <div class="hero">
+          <h2>Inizia da qui</h2>
+          <p>Inserisci i tuoi dati per creare la tua pratica FixTude.</p>
+          <a class="link" href="{{ url_for('debtor_situation') }}">Inserisci i tuoi dati →</a>
+        </div>
+        {% else %}
+
+        <div class="hero">
+          <h2>La mia situazione</h2>
+          <p>La tua pratica è attiva. Da questa area puoi gestire dati, analisi, documenti e pagamenti.</p>
+          <a class="link" href="{{ url_for('case_summary') }}">Visualizza riepilogo →</a>
+          &nbsp;&nbsp;
+          <a class="link" href="{{ url_for('debtor_situation') }}">Modifica dati →</a>
+        </div>
+
+        <div class="grid">
+
+          <div class="card">
+            <h2>La mia analisi</h2>
+            {% if analysis_payment %}
+              <span class="status green">PAGAMENTO EFFETTUATO</span>
+              <p class="mini">Analisi FixTude · € 1,99</p>
+              <a class="link" href="{{ url_for('case_analysis') }}">Apri l'analisi →</a>
+            {% else %}
+              <span class="status gray">NON ACQUISTATA</span>
+              <p class="mini">Analisi FixTude · € 1,99</p>
+              <a class="link" href="{{ url_for('payments') }}">Acquista analisi →</a>
             {% endif %}
-            {{ content|safe }}
-          </main>
-          <footer>
-            FixTude · Informazione orientativa, senza impegno.
-            <br>Partita IVA 15990471003 ·
-            <a href="/privacy">Informativa privacy</a>
-          </footer>
-          {% if include_chat %}
-          <button class="chat-launcher" id="chatLauncher"
-                  type="button" aria-expanded="false">
-            💬 Chat con un esperto
-          </button>
-          <section class="chat-panel" id="chatPanel"
-                   aria-label="Chat con un esperto FixTude">
-            <div class="chat-head">
-              <div>
-                <strong>Chat con un esperto FixTude</strong>
-                <div class="chat-status" id="chatStatus">
-                  Scrivi un messaggio
-                </div>
-              </div>
-              <button id="chatClose" type="button"
-                      aria-label="Chiudi chat">×</button>
-            </div>
-            <div class="chat-messages" id="chatMessages"
-                 aria-live="polite">
-              <p class="muted">Connessione alla chat in corso…</p>
-            </div>
-            <form class="chat-form" id="chatForm">
-              <input id="chatInput" maxlength="1000"
-                     placeholder="Scrivi qui…" autocomplete="off"
-                     aria-label="Messaggio" required>
-              <button class="btn" type="submit">Invia</button>
-            </form>
-            <div class="chat-hint">
-              Non inserire dati bancari o documenti personali.
-              I messaggi sono temporanei e non costituiscono
-              un servizio di emergenza.
-            </div>
-          </section>
-          <script>
-          (() => {
-            const panel = document.getElementById("chatPanel");
-            const launcher = document.getElementById("chatLauncher");
-            const close = document.getElementById("chatClose");
-            const messages = document.getElementById("chatMessages");
-            const form = document.getElementById("chatForm");
-            const input = document.getElementById("chatInput");
-            const status = document.getElementById("chatStatus");
+          </div>
 
-            let chatId = "";
-            let polling = false;
-            let lastCount = -1;
+          <div class="card">
+            <h2>Il mio documento</h2>
+            {% if pdf_ready %}
+              <span class="status green">DOCUMENTO DISPONIBILE</span>
+              <p class="mini">Documento FixTude · € 9,99</p>
+              <a class="link" href="{{ url_for('download_solution', solution_id=latest_solution.id) }}">Scarica il PDF →</a>
+            {% elif pdf_in_review %}
+              <span class="status orange">IN REVISIONE</span>
+              <p class="mini">Pagamento ricevuto · € 9,99</p>
+              <div class="notice">Il documento è stato pagato in anticipo ed è ora in revisione completa da parte dell'Esperto. Riceverai una email quando il PDF sarà approvato.</div>
+            {% else %}
+              <span class="status gray">NON ACQUISTATO</span>
+              <p class="mini">Documento FixTude · € 9,99</p>
+              <p>Puoi acquistare subito il documento. Il pagamento viene effettuato ora; il PDF definitivo sarà disponibile dopo la revisione e validazione dell'Esperto.</p>
+              <form method="post" action="{{ url_for('create_checkout') }}" style="margin-top:14px">
+                <input type="hidden" name="service" value="pdf">
+                <button type="submit" style="padding:13px 22px;background:#4f46e5;color:white;border:0;border-radius:9px;font-weight:700;cursor:pointer">Paga € 9,99 con Stripe</button>
+              </form>
+              <p class="mini" style="margin-top:10px">Pagamento sicuro tramite Stripe. Dopo il pagamento la pratica passerà in revisione.</p>
+            {% endif %}
+          </div>
 
-            function newId() {
-              if (window.crypto && crypto.randomUUID) {
-                return crypto.randomUUID().replaceAll("-", "");
-              }
-              return Array.from(crypto.getRandomValues(new Uint8Array(24)))
-                .map(n => n.toString(16).padStart(2, "0")).join("");
-            }
+          <div class="card">
+            <h2>Pagamenti e documenti fiscali</h2>
+            <p>Consulta pagamenti, ricevute e documenti riepilogativi.</p>
+            <a class="link" href="{{ url_for('payments') }}">Apri pagamenti →</a>
+          </div>
 
-            async function ensureChat() {
-              try {
-                chatId = localStorage.getItem("fixtude_chat_id") || "";
-              } catch (_) {
-                chatId = "";
-              }
+          <div class="card">
+            <h2>Documenti caricati</h2>
+            <p>Gestisci i documenti che hai fornito a FixTude per l'analisi della tua situazione.</p>
+            <a class="link" href="{{ url_for('debtor_situation') }}">Gestisci la situazione →</a>
+          </div>
 
-              if (!/^[a-f0-9-]{32,36}$/i.test(chatId)) {
-                chatId = newId();
-                try {
-                  localStorage.setItem("fixtude_chat_id", chatId);
-                } catch (_) {}
-              }
+          <div class="card">
+            <h2>Notifiche</h2>
+            {% if unread_count %}
+              <span class="status orange">{{ unread_count }} NUOVE</span>
+            {% else %}
+              <span class="status gray">NESSUNA NUOVA</span>
+            {% endif %}
+            {% for n in notifications[:3] %}
+              <div class="row"><span>{{ n.title }}</span><span class="mini">{{ n.created_at }}</span></div>
+            {% endfor %}
+            <a class="link" href="{{ url_for('debtor_notifications') }}">Vedi notifiche →</a>
+          </div>
 
-              const r = await fetch("/api/chat/start", {
-                method:"POST",
-                headers:{"Content-Type":"application/json"},
-                body:JSON.stringify({chat_id:chatId})
-              });
+          <div class="card">
+            <h2>Profilo e sicurezza</h2>
+            <p>Email: <strong>{{ user.email }}</strong></p>
+            <a class="link" href="{{ url_for('password_forgot') }}">Recupera / modifica password →</a>
+          </div>
 
-              if (!r.ok) throw new Error("Chat non disponibile");
-              const data = await r.json();
-              status.textContent = data.status || "Scrivi un messaggio";
-            }
-
-            function addMessage(m) {
-              const wrap = document.createElement("div");
-              wrap.className = "chat-msg " +
-                (m.sender === "staff" ? "staff" : "visitor");
-
-              const body = document.createElement("div");
-              body.textContent = m.text;
-              wrap.appendChild(body);
-
-              const time = document.createElement("div");
-              time.className = "chat-time";
-              time.textContent = m.time || "";
-              wrap.appendChild(time);
-              messages.appendChild(wrap);
-            }
-
-            async function refreshMessages() {
-              if (!chatId || polling) return;
-              polling = true;
-
-              try {
-                const r = await fetch(
-                  "/api/chat/" + encodeURIComponent(chatId) + "/messages",
-                  {cache:"no-store"}
-                );
-                if (!r.ok) throw new Error("Chat temporaneamente non disponibile");
-                const data = await r.json();
-
-                if (data.messages.length !== lastCount) {
-                  messages.replaceChildren();
-                  if (data.messages.length === 0) {
-                    const p = document.createElement("p");
-                    p.className = "muted";
-                    p.textContent =
-                      "Ciao! Scrivi qui la tua domanda. Ti risponderemo quando saremo disponibili.";
-                    messages.appendChild(p);
-                  } else {
-                    data.messages.forEach(addMessage);
-                  }
-                  lastCount = data.messages.length;
-                  messages.scrollTop = messages.scrollHeight;
-                }
-
-                status.textContent = data.status ||
-                  "Messaggi temporanei";
-              } catch (_) {
-                status.textContent = "Connessione in attesa";
-              } finally {
-                polling = false;
-              }
-            }
-
-            launcher.addEventListener("click", async () => {
-              panel.classList.toggle("open");
-              launcher.setAttribute(
-                "aria-expanded", panel.classList.contains("open")
-              );
-              if (panel.classList.contains("open")) {
-                try {
-                  await ensureChat();
-                  await refreshMessages();
-                  input.focus();
-                } catch (_) {
-                  status.textContent = "Chat momentaneamente non disponibile";
-                }
-              }
-            });
-
-            close.addEventListener("click", () => {
-              panel.classList.remove("open");
-              launcher.setAttribute("aria-expanded", "false");
-            });
-
-            form.addEventListener("submit", async e => {
-              e.preventDefault();
-              const text = input.value.trim();
-              if (!text || text.length > 1000) return;
-
-              const button = form.querySelector("button");
-              button.disabled = true;
-
-              try {
-                if (!chatId) await ensureChat();
-
-                const r = await fetch("/api/chat/send", {
-                  method:"POST",
-                  headers:{"Content-Type":"application/json"},
-                  body:JSON.stringify({chat_id:chatId,text})
-                });
-                const data = await r.json();
-
-                if (!r.ok) throw new Error(data.error || "Invio non riuscito");
-
-                // La notifica email viene inviata dal browser via HTTPS,
-                // evitando SMTP in uscita da Render.
-                try {
-                  const notification = await fetch("https://api.web3forms.com/submit", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "Accept": "application/json"
-                    },
-                    body: JSON.stringify({
-                      access_key: "6cfd757e-6b16-49e0-96b5-e055a159f403",
-                      subject: "FixTude - nuovo messaggio in chat",
-                      from_name: "FixTude - chat cliente",
-                      message: "È arrivato un nuovo messaggio nella chat FixTude.\\n\\n" +
-                        "Conversazione: " + chatId.slice(0, 8) + "\\n" +
-                        "Orario: " + new Date().toLocaleString("it-IT") + "\\n\\n" +
-                        "Messaggio ricevuto:\\n" + text + "\\n\\n" +
-                        "Rispondi dall'area staff: https://fixtude.it/chat-staff"
-                    })
-                  });
-                  const notificationData = await notification.json();
-                  if (!notification.ok || notificationData.success !== true) {
-                    console.error("Notifica email chat non confermata:", notificationData.message || notification.status);
-                    status.textContent = "Messaggio inviato, ma la notifica email non è stata confermata.";
-                  }
-                } catch (notificationError) {
-                  console.error("Errore notifica email chat:", notificationError);
-                  status.textContent = "Messaggio inviato, ma non è stato possibile confermare la notifica email.";
-                }
-
-                input.value = "";
-                await refreshMessages();
-              } catch (err) {
-                status.textContent = err.message ||
-                  "Invio non riuscito. Riprova.";
-              } finally {
-                button.disabled = false;
-              }
-            });
-
-            setInterval(() => {
-              if (panel.classList.contains("open")) refreshMessages();
-            }, 2500);
-          })();
-          </script>
-          {% endif %}
+        </div>
+        {% endif %}
+        </div>
         </body>
         </html>
         """,
-        title=title,
-        content=content,
-        include_chat=include_chat
+        user=user,
+        case=case,
+        case_data=case_data,
+        analysis_payment=analysis_payment,
+        pdf_payment=pdf_payment,
+        latest_solution=latest_solution,
+        pdf_ready=pdf_ready,
+        pdf_in_review=pdf_in_review,
+        notifications=notifications,
+        unread_count=unread_count
     )
 
 
-# =========================================================
-# HOME
-# =========================================================
+# ============================================================
+# SITUATION
+# ============================================================
 
-@app.route("/")
-def home():
-    content = """
-    <section class="hero">
-      <h1>Fai chiarezza sulla tua situazione debitoria.</h1>
-      <p>Inserisci entrate, uscite e rate per capire quanto ti rimane ogni mese e valutare in modo indicativo la sostenibilità dei tuoi impegni.</p>
-      <div class="actions"><a class="btn light" href="/misuratore">Prova il calcolatore gratuito</a><a class="btn outline contact-cta" href="/consulenza">Richiedi di essere contattato</a></div>
-    </section>
-    <section class="card start-card"><h2>Da dove cominciare</h2><div class="grid">
-      <div><strong>1. Fai il calcolo</strong><p class="muted">Usa gratuitamente il calcolatore. I dati inseriti restano nel browser e non serve registrarsi.</p></div>
-      <div><strong>2. Valuta il risultato</strong><p class="muted">Ottieni una stima orientativa del margine mensile e del peso delle rate.</p></div>
-      <div><strong>3. Se vuoi, chiedi di parlare con un esperto</strong><p class="muted">Lascia i tuoi recapiti e una breve descrizione della situazione per chiedere il contatto di un esperto FixTude. Il contatto è facoltativo e non comporta obblighi.</p></div>
-      <div><strong>4. Hai una domanda?</strong><p class="muted">Apri la chat con un esperto FixTude in basso a destra per inviare un messaggio allo staff. La chat è disponibile senza registrazione.</p></div>
-    </div></section>
-    <p class="muted">Il calcolatore e i materiali hanno finalità informative e orientative. Non costituiscono consulenza legale o finanziaria personalizzata e non garantiscono l'accettazione di proposte da parte dei creditori.</p>
-    """
-    return page("Fai chiarezza", content)
+@app.route(
+    "/privato/situazione",
+    methods=["GET", "POST"]
+)
+def debtor_situation():
 
-
-# =========================================================
-# CALCOLATORE
-# =========================================================
-
-@app.route("/misuratore")
-def misuratore():
-    content = """
-    <h1>Calcola quanto ti rimane ogni mese</h1>
-    <p class="muted">
-      Inserisci importi mensili netti. Puoi aggiungere o rimuovere
-      voci. I calcoli avvengono nel browser e non vengono inviati
-      al server.
-    </p>
-
-    <section class="card">
-      <h2>Entrate mensili</h2>
-      <div id="incomeRows"></div>
-      <button class="btn outline" type="button" id="addIncome">
-        + Aggiungi entrata
-      </button>
-    </section>
-
-    <section class="card">
-      <h2>Spese mensili</h2>
-      <div id="expenseRows"></div>
-      <button class="btn outline" type="button" id="addExpense">
-        + Aggiungi spesa
-      </button>
-    </section>
-
-    <section class="card">
-      <h2>Debiti e rate in corso</h2>
-      <p class="muted">
-        Per ciascun debito indica l'importo complessivo ancora dovuto
-        e l'eventuale rata mensile che stai già pagando. Se non hai una
-        rata in corso, lascia il campo della rata a zero.
-      </p>
-      <div id="debtRows"></div>
-      <button class="btn outline" type="button" id="addDebt">
-        + Aggiungi debito
-      </button>
-    </section>
-
-    <section class="card">
-      <h2>Il tuo risultato</h2>
-      <div class="total-grid">
-        <div class="total">
-          <span class="muted">Entrate totali</span>
-          <strong id="totalIncome">€ 0,00</strong>
-        </div>
-        <div class="total">
-          <span class="muted">Spese totali</span>
-          <strong id="totalExpenses">€ 0,00</strong>
-        </div>
-        <div class="total">
-          <span class="muted">Debito complessivo</span>
-          <strong id="totalDebt">€ 0,00</strong>
-        </div>
-        <div class="total">
-          <span class="muted">Rate mensili in corso</span>
-          <strong id="totalPayments">€ 0,00</strong>
-        </div>
-        <div class="total">
-          <span class="muted">Residuo mensile</span>
-          <strong id="residual">€ 0,00</strong>
-        </div>
-      </div>
-      <div class="notice" id="assessment">
-        Inserisci i tuoi importi per ottenere una valutazione indicativa.
-      </div>
-      <div class="traffic-light" id="trafficLight" role="status" aria-live="polite">
-        <span class="signal" aria-hidden="true"></span>
-        <div><strong id="trafficTitle">Semaforo non ancora disponibile</strong><div class="muted" id="trafficDescription">Completa almeno le entrate mensili per visualizzare il livello indicativo.</div></div>
-      </div>
-      <button class="btn" type="button" id="resetCalculator">
-        Azzera i campi
-      </button>
-    </section>
-
-    <section class="card">
-      <h2>Vuoi approfondire con un esperto?</h2>
-      <p>
-        Se lo desideri, puoi chiedere di essere ricontattato
-        senza impegno.
-      </p>
-      <a class="btn" href="/consulenza">Richiedi il contatto di un esperto</a>
-    </section>
-
-    <script>
-    (() => {
-      const definitions = {
-        income: [["Stipendio o pensione", 0], ["Altre entrate", 0]],
-        expense: [["Casa e utenze", 0], ["Alimentari e necessità", 0], ["Trasporti", 0], ["Altre spese", 0]],
-        debt: [["Nuovo debito", 0, 0]]
-      };
-      const labels = {income:"Entrata", expense:"Spesa", debt:"Debito"};
-
-      function money(n) {
-        return n.toLocaleString("it-IT", {style:"currency", currency:"EUR"});
-      }
-
-      function addRow(type, label="", amount=0, payment=0) {
-        const container = document.getElementById(
-          type === "income" ? "incomeRows" : type === "expense" ? "expenseRows" : "debtRows"
-        );
-        const row = document.createElement("div");
-        row.className = "entry-row";
-
-        const nameField = document.createElement("div");
-        nameField.className = "field name-field";
-        const nameLabel = document.createElement("label");
-        nameLabel.textContent = type === "debt" ? "Nome del debito (facoltativo)" : "Voce";
-        nameField.appendChild(nameLabel);
-        const nameInput = document.createElement("input");
-        nameInput.type = "text";
-        nameInput.maxLength = 80;
-        nameInput.value = label;
-        nameInput.placeholder = labels[type];
-        nameInput.setAttribute("aria-label", "Descrizione");
-        nameField.appendChild(nameInput);
-
-        function makeAmountField(labelText, value, ariaLabel) {
-          const field = document.createElement("div");
-          field.className = "field";
-          const fieldLabel = document.createElement("label");
-          fieldLabel.textContent = labelText;
-          field.appendChild(fieldLabel);
-          const input = document.createElement("input");
-          input.type = "number";
-          input.min = "0";
-          input.max = "100000000";
-          input.step = "0.01";
-          input.inputMode = "decimal";
-          input.value = value;
-          input.setAttribute("aria-label", ariaLabel);
-          field.appendChild(input);
-          input.addEventListener("input", calculate);
-          return {field, input};
-        }
-
-        const primary = makeAmountField(
-          type === "debt" ? "Debito complessivo residuo (€)" : "Importo mensile (€)",
-          amount,
-          type === "debt" ? "Importo complessivo del debito in euro" : "Importo in euro"
-        );
-        row.append(nameField, primary.field);
-        if (type === "debt") {
-          const installment = makeAmountField("Rata mensile in corso (€)", payment, "Rata mensile in euro");
-          row.appendChild(installment.field);
-        }
-
-        const remove = document.createElement("button");
-        remove.type = "button";
-        remove.className = "remove-button";
-        remove.textContent = "Rimuovi";
-        remove.setAttribute("aria-label", "Rimuovi voce");
-        remove.addEventListener("click", () => { row.remove(); calculate(); });
-        row.appendChild(remove);
-        container.appendChild(row);
-        nameInput.addEventListener("input", calculate);
-        calculate();
-      }
-
-      function sumRows(id, inputIndex=0) {
-        let total = 0;
-        document.querySelectorAll("#" + id + " .entry-row").forEach(row => {
-          const inputs = row.querySelectorAll('input[type="number"]');
-          const input = inputs[inputIndex];
-          if (!input) return;
-          const value = Number(input.value);
-          if (Number.isFinite(value) && value > 0) total += Math.min(value, 100000000);
-        });
-        return total;
-      }
-
-      function setTrafficLight(level, title, description) {
-        const light = document.getElementById("trafficLight");
-        light.classList.remove("red", "yellow", "green");
-        if (level) light.classList.add(level);
-        document.getElementById("trafficTitle").textContent = title;
-        document.getElementById("trafficDescription").textContent = description;
-      }
-
-      function calculate() {
-        const income = sumRows("incomeRows");
-        const expenses = sumRows("expenseRows");
-        const totalDebt = sumRows("debtRows", 0);
-        const payments = sumRows("debtRows", 1);
-        const residual = income - expenses - payments;
-        const ratio = income > 0 ? payments / income : null;
-
-        document.getElementById("totalIncome").textContent = money(income);
-        document.getElementById("totalExpenses").textContent = money(expenses);
-        document.getElementById("totalDebt").textContent = money(totalDebt);
-        document.getElementById("totalPayments").textContent = money(payments);
-        document.getElementById("residual").textContent = money(residual);
-
-        const result = document.getElementById("assessment");
-        if (income <= 0) {
-          result.textContent = "Inserisci almeno un'entrata mensile positiva per ottenere una valutazione.";
-          setTrafficLight(null, "Semaforo non ancora disponibile", "Completa almeno le entrate mensili per visualizzare il livello indicativo.");
-          return;
-        }
-
-        if (residual < 0 || ratio >= 0.40) {
-          result.textContent = "Situazione di criticità: il margine mensile è negativo oppure le rate assorbono una quota elevata delle entrate.";
-          setTrafficLight("red", "ROSSO — Situazione di criticità", "Il bilancio appare sotto forte pressione. Valuta un approfondimento prima di assumere nuovi impegni.");
-        } else if (residual < income * 0.10 || ratio >= 0.25) {
-          result.textContent = "Attenzione: il margine mensile è ridotto oppure le rate impegnano una parte significativa delle entrate.";
-          setTrafficLight("yellow", "GIALLO — Attenzione", "Il margine disponibile potrebbe essere limitato. Controlla con attenzione spese, rate e imprevisti.");
-        } else {
-          result.textContent = "In base agli importi inseriti, il margine mensile appare relativamente più equilibrato.";
-          setTrafficLight("green", "VERDE — Situazione indicativamente sostenibile", "Il bilancio appare meno sotto pressione in base ai dati inseriti. Mantieni un margine per imprevisti.");
-        }
-        result.textContent += " Il semaforo è una stima orientativa basata solo sui dati inseriti: non è una certificazione della sostenibilità del debito né una consulenza legale o finanziaria.";
-      }
-
-      document.getElementById("addIncome").addEventListener("click", () => addRow("income", "Nuova entrata", 0));
-      document.getElementById("addExpense").addEventListener("click", () => addRow("expense", "Nuova spesa", 0));
-      document.getElementById("addDebt").addEventListener("click", () => addRow("debt", "Nuovo debito", 0, 0));
-      document.getElementById("resetCalculator").addEventListener("click", () => {
-        document.getElementById("incomeRows").replaceChildren();
-        document.getElementById("expenseRows").replaceChildren();
-        document.getElementById("debtRows").replaceChildren();
-        definitions.income.forEach(([label, value]) => addRow("income", label, value));
-        definitions.expense.forEach(([label, value]) => addRow("expense", label, value));
-        definitions.debt.forEach(([label, value, payment]) => addRow("debt", label, value, payment));
-      });
-      document.getElementById("resetCalculator").click();
-    })();
-    </script>
-    """
-    return page("Calcolatore", content)
-
-
-# =========================================================
-# RICONTATTO
-# =========================================================
-
-@app.route("/consulenza")
-def consulenza():
-    content = """
-    <h1>Richiedi di essere contattato da un esperto FixTude</h1>
-    <p class="muted">
-      Compila il modulo soltanto se desideri ricevere un contatto.
-      La richiesta è gratuita e non ti obbliga a proseguire.
-    </p>
-
-    <section class="card">
-      <form id="contactForm">
-        <div class="field">
-          <label for="name">Nome</label>
-          <input id="name" name="name" maxlength="100"
-                 autocomplete="name" required>
-        </div>
-        <div class="grid">
-          <div class="field">
-            <label for="email">Email</label>
-            <input id="email" name="email" type="email"
-                   maxlength="254" autocomplete="email" required>
-          </div>
-          <div class="field">
-            <label for="phone">Telefono (facoltativo)</label>
-            <input id="phone" name="phone" type="tel"
-                   maxlength="40" autocomplete="tel">
-          </div>
-        </div>
-        <div class="field">
-          <label for="message">Messaggio (facoltativo)</label>
-          <textarea id="message" name="message" maxlength="2000"
-                    placeholder="Scrivi qui come preferisci essere ricontattato. Non inserire dati bancari o documenti."></textarea>
-        </div>
-
-        <div style="position:absolute;left:-10000px" aria-hidden="true">
-          <label for="website">Non compilare questo campo</label>
-          <input id="website" name="website" tabindex="-1"
-                 autocomplete="off">
-        </div>
-        <input type="checkbox" name="botcheck" tabindex="-1"
-               autocomplete="off" style="display:none" aria-hidden="true">
-
-        <label class="check">
-          <input type="checkbox" name="privacy" required>
-          <span>
-            Dichiaro di aver letto l'
-            <a href="/privacy" target="_blank" rel="noopener">
-              informativa privacy
-            </a>
-            e chiedo di essere ricontattato.
-          </span>
-        </label>
-
-        <p class="muted" style="font-size:13px">
-          I dati del modulo vengono inviati via email per gestire
-          la tua richiesta. L'applicazione non conserva una copia
-          in un database.
-        </p>
-
-        <div id="contactResult" role="status" aria-live="polite"></div>
-        <button class="btn" id="contactSubmit" type="submit">
-          Invia richiesta
-        </button>
-      </form>
-    </section>
-
-    <script>
-    (() => {
-      const form = document.getElementById("contactForm");
-      const result = document.getElementById("contactResult");
-      const button = document.getElementById("contactSubmit");
-      const accessKey = "6cfd757e-6b16-49e0-96b5-e055a159f403";
-
-      form.addEventListener("submit", async e => {
-        e.preventDefault();
-        result.className = "";
-        result.textContent = "";
-
-        if (!form.reportValidity()) return;
-
-        const values = Object.fromEntries(new FormData(form).entries());
-
-        // Honeypot: se compilato da un bot, mostra un esito neutro senza inviare.
-        if (String(values.website || "").trim()) {
-          result.className = "notice success";
-          result.textContent =
-            "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
-          form.reset();
-          return;
-        }
-
-        values.access_key = accessKey;
-        values.subject = "FixTude - nuova richiesta di ricontatto";
-        values.from_name = "FixTude - modulo di ricontatto";
-        values.botcheck = values.botcheck || "";
-        delete values.website;
-
-        button.disabled = true;
-        button.textContent = "Invio in corso…";
-
-        try {
-          const response = await fetch("https://api.web3forms.com/submit", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "application/json"
-            },
-            body: JSON.stringify(values)
-          });
-
-          const data = await response.json();
-          if (!response.ok || data.success !== true) {
-            throw new Error(data.message || "Non è stato possibile inviare la richiesta.");
-          }
-
-          result.className = "notice success";
-          result.textContent =
-            "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
-          form.reset();
-        } catch (err) {
-          result.className = "notice error";
-          result.textContent = err.message ||
-            "Errore di connessione. Riprova più tardi.";
-        } finally {
-          button.disabled = false;
-          button.textContent = "Invia richiesta";
-        }
-      });
-    })();
-    </script>
-    """
-    return page("Ricontatto", content)
-
-
-@app.route("/api/contact", methods=["POST"])
-def contact_send():
-    if rate_limited("contact", 4, 600):
-        return jsonify(error="Hai effettuato troppe richieste. Riprova più tardi."), 429
-
-    data = request.get_json(silent=True) or {}
-
-    # Campo trappola per bot.
-    if str(data.get("website", "")).strip():
-        return jsonify(ok=True), 200
-
-    name = str(data.get("name", "")).strip()
-    email = str(data.get("email", "")).strip()
-    phone = str(data.get("phone", "")).strip()
-    message = str(data.get("message", "")).strip()
-    privacy = data.get("privacy")
-
-    if not name or len(name) > 100:
-        return jsonify(error="Inserisci un nome valido."), 400
-
-    if not valid_email(email):
-        return jsonify(error="Inserisci un indirizzo email valido."), 400
-
-    if len(phone) > 40 or len(message) > 2000:
-        return jsonify(error="Uno dei campi supera la lunghezza consentita."), 400
-
-    if privacy not in (True, "on", "true", "1"):
-        return jsonify(error="Per inviare la richiesta devi confermare di aver letto l'informativa."), 400
-
-    # Evita header email controllati dall'utente.
-    if "\r" in email or "\n" in email:
-        return jsonify(error="Indirizzo email non valido."), 400
-
-    body = (
-        "Nuova richiesta di ricontatto dal sito FixTude\n\n"
-        f"Nome: {name}\n"
-        f"Email: {email}\n"
-        f"Telefono: {phone or 'Non indicato'}\n\n"
-        "Messaggio:\n"
-        f"{message or 'Nessun messaggio aggiuntivo'}\n"
+    user = require_login(
+        "debtor"
     )
 
-    try:
-        send_email(
-            subject="FixTude - nuova richiesta di ricontatto",
-            body=body,
-            reply_to=email
+    if not user:
+        return redirect(
+            url_for("debtor_login")
         )
-    except Exception as exc:
-        # Registriamo solo il tipo e il messaggio tecnico dell'errore SMTP,
-        # senza riportare nei log i dati personali inseriti nel modulo.
-        app.logger.error(
-            "Invio email di ricontatto fallito: %s: %s",
-            type(exc).__name__,
-            str(exc)
-        )
-        return jsonify(
-            error="Al momento non è possibile inviare la richiesta. Riprova più tardi."
-        ), 503
 
-    # Nessun salvataggio dei campi nel database o in un file.
-    return jsonify(ok=True), 200
-
-
-# =========================================================
-# NOTIFICHE PUSH PER L'AREA STAFF
-# =========================================================
-
-def send_push_notification(title, body, url="/chat-staff"):
-    """Invia una notifica a tutte le sottoscrizioni attive in memoria."""
-    if not (webpush and VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY):
-        app.logger.warning("Notifiche push non inviate: configurazione o dipendenza mancante.")
-        return
-
-    payload = {"title": title, "body": body, "url": url}
-    with push_lock:
-        subscriptions = list(push_subscriptions)
-
-    expired = []
-    for subscription in subscriptions:
-        try:
-            webpush(
-                subscription_info=subscription,
-                data=json.dumps(payload, ensure_ascii=False),
-                vapid_private_key=VAPID_PRIVATE_KEY,
-                vapid_claims={"sub": VAPID_CLAIMS_EMAIL or "mailto:info@fixtude.it"},
-                timeout=8
-            )
-        except Exception as exc:
-            status_code = getattr(getattr(exc, "response", None), "status_code", None)
-            if status_code in (404, 410):
-                expired.append(subscription)
-            app.logger.warning("Invio push non riuscito (%s).", type(exc).__name__)
-
-    if expired:
-        with push_lock:
-            push_subscriptions[:] = [s for s in push_subscriptions if s not in expired]
-
-
-@app.route("/service-worker.js", methods=["GET"])
-def service_worker():
-    javascript = r'''
-self.addEventListener("push", event => {
-  let data = {title: "FixTude", body: "Hai un nuovo messaggio.", url: "/chat-staff"};
-  try { if (event.data) data = {...data, ...event.data.json()}; } catch (_) {}
-  event.waitUntil(self.registration.showNotification(data.title || "FixTude", {
-    body: data.body || "Hai un nuovo messaggio.",
-    icon: "/favicon.ico",
-    badge: "/favicon.ico",
-    data: {url: data.url || "/chat-staff"}
-  }));
-});
-self.addEventListener("notificationclick", event => {
-  event.notification.close();
-  const target = new URL(event.notification.data?.url || "/chat-staff", self.location.origin).href;
-  event.waitUntil(clients.matchAll({type: "window", includeUncontrolled: true}).then(windows => {
-    for (const client of windows) {
-      if (client.url.startsWith(self.location.origin) && "focus" in client) {
-        client.navigate(target);
-        return client.focus();
-      }
-    }
-    return clients.openWindow(target);
-  }));
-});
-'''
-    return Response(javascript, mimetype="application/javascript", headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"})
-
-
-@app.route("/api/push/public-key", methods=["GET"])
-def push_public_key():
-    if not staff_required():
-        return jsonify(error="Accesso non autorizzato."), 401
-    if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
-        return jsonify(error="Chiavi VAPID mancanti nelle variabili d'ambiente."), 503
-    return jsonify(publicKey=VAPID_PUBLIC_KEY)
-
-
-@app.route("/api/push/subscribe", methods=["POST"])
-def push_subscribe():
-    if not staff_required():
-        return jsonify(error="Accesso non autorizzato."), 401
-    if not (VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY and webpush):
-        return jsonify(error="Notifiche push non configurate correttamente."), 503
-    subscription = request.get_json(silent=True)
-    if not isinstance(subscription, dict) or not isinstance(subscription.get("endpoint"), str) or not subscription.get("endpoint", "").startswith("https://"):
-        return jsonify(error="Sottoscrizione push non valida."), 400
-    keys = subscription.get("keys")
-    if not isinstance(keys, dict) or not keys.get("p256dh") or not keys.get("auth"):
-        return jsonify(error="Chiavi della sottoscrizione mancanti."), 400
-    with push_lock:
-        if not any(s.get("endpoint") == subscription["endpoint"] for s in push_subscriptions):
-            if len(push_subscriptions) >= 10:
-                return jsonify(error="Limite dispositivi notifiche raggiunto."), 429
-            push_subscriptions.append(subscription)
-        else:
-            push_subscriptions[:] = [subscription if s.get("endpoint") == subscription["endpoint"] else s for s in push_subscriptions]
-    return jsonify(ok=True)
-
-
-# =========================================================
-# CHAT LIVE - VISITATORE
-# =========================================================
-
-@app.route("/api/chat/start", methods=["POST"])
-def chat_start():
-    if rate_limited("chat_start", 15, 60):
-        return jsonify(error="Riprova tra qualche minuto."), 429
-
-    data = request.get_json(silent=True) or {}
-    chat_id = str(data.get("chat_id", ""))
-
-    if not re.fullmatch(r"[a-fA-F0-9-]{32,36}", chat_id):
-        return jsonify(error="Sessione chat non valida."), 400
-
-    with chat_lock:
-        if chat_id not in chats:
-            if len(chats) >= MAX_ACTIVE_CHATS:
-                return jsonify(error="Chat momentaneamente non disponibile."), 503
-
-            chats[chat_id] = {
-                "created": time.time(),
-                "updated": time.time(),
-                "messages": []
-            }
-
-        chats[chat_id]["updated"] = time.time()
-
-    return jsonify(ok=True, status="Puoi scrivere. Risponderemo quando disponibili.")
-
-
-@app.route("/api/chat/<chat_id>/messages", methods=["GET"])
-def chat_messages(chat_id):
-    if not re.fullmatch(r"[a-fA-F0-9-]{32,36}", chat_id):
-        return jsonify(error="Sessione non valida."), 400
-
-    with chat_lock:
-        chat = chats.get(chat_id)
-        if not chat:
-            return jsonify(messages=[], status="Chat nuova o scaduta.")
-
-        chat["updated"] = time.time()
-        messages = list(chat["messages"])
-
-    return jsonify(
-        messages=messages,
-        status="Chat attiva. Risponderemo quando disponibili."
+    case = get_case_for_email(
+        user["email"]
     )
 
-
-@app.route("/api/chat/send", methods=["POST"])
-def chat_send():
-    if rate_limited("chat_send", 40, 60):
-        return jsonify(error="Hai inviato troppi messaggi. Attendi un momento."), 429
-
-    data = request.get_json(silent=True) or {}
-    chat_id = str(data.get("chat_id", ""))
-    message = str(data.get("text", "")).strip()
-
-    if not re.fullmatch(r"[a-fA-F0-9-]{32,36}", chat_id):
-        return jsonify(error="Sessione chat non valida."), 400
-
-    if not message or len(message) > 1000:
-        return jsonify(error="Il messaggio deve contenere da 1 a 1000 caratteri."), 400
-
-    with chat_lock:
-        chat = chats.get(chat_id)
-        if not chat:
-            return jsonify(error="La chat è scaduta. Riapri la chat e riprova."), 410
-
-        if len(chat["messages"]) >= MAX_CHAT_MESSAGES:
-            return jsonify(error="Questa conversazione ha raggiunto il limite di messaggi."), 429
-
-        chat["messages"].append({
-            "sender": "visitor",
-            "text": message,
-            "time": ora_italiana()
-        })
-        chat["updated"] = time.time()
-
-    send_push_notification(
-        title="Nuovo messaggio su FixTude",
-        body="Un visitatore ha scritto nella chat. Apri l’Area Riservata per rispondere.",
-        url="/chat-staff"
+    existing = (
+        get_case_data(case["id"])
+        if case else {}
     )
-    # La notifica email viene inviata dal browser via Web3Forms HTTPS.
-    # Non usare SMTP da Render per questa notifica.
-    return jsonify(ok=True)
 
-
-# =========================================================
-# CHAT LIVE - AREA RISERVATA DEL GESTORE
-# =========================================================
-
-def staff_required():
-    return bool(session.get("chat_staff") is True)
-
-
-@app.route("/chat-staff", methods=["GET", "POST"])
-def chat_staff():
-    if not CHAT_ADMIN_PASSWORD:
-        content = """
-        <section class="card">
-          <h1>Chat riservata all’esperto FixTude</h1>
-          <p class="error">
-            Accesso non configurato. Imposta CHAT_ADMIN_PASSWORD
-            nelle variabili d'ambiente di Render.
-          </p>
-        </section>
-        """
-        return page("Chat Staff", content, include_chat=False), 503
+    existing_debts = (
+        get_debts(case["id"])
+        if case else []
+    )
 
     if request.method == "POST":
-        password = request.form.get("password", "")
-        if password and password == CHAT_ADMIN_PASSWORD:
-            session["chat_staff"] = True
-            session.permanent = False
-            return redirect(url_for("chat_staff"))
 
-        content = """
-        <section class="card">
-          <h1>Accesso non riuscito</h1>
-          <p class="error">Password non corretta.</p>
-          <a class="btn" href="/chat-staff">Riprova</a>
-        </section>
+        data = {
+            "name": request.form.get(
+                "name",
+                ""
+            ).strip(),
+
+            "surname": request.form.get(
+                "surname",
+                ""
+            ).strip(),
+
+            "tax_code": request.form.get(
+                "tax_code",
+                ""
+            ).strip().upper(),
+
+            "employment": request.form.get(
+                "employment",
+                ""
+            ).strip(),
+
+            "phone": request.form.get(
+                "phone",
+                ""
+            ).strip(),
+
+            "address": request.form.get(
+                "address",
+                ""
+            ).strip(),
+
+            "incomes": [],
+
+            "expenses": []
+        }
+
+        income_labels = request.form.getlist(
+            "income_label"
+        )
+
+        income_amounts = request.form.getlist(
+            "income_amount"
+        )
+
+        for label, amount in zip(
+            income_labels,
+            income_amounts
+        ):
+
+            if label.strip() or amount.strip():
+
+                data["incomes"].append({
+                    "label": label.strip()
+                    or "Entrata",
+
+                    "amount": parse_float(
+                        amount
+                    )
+                })
+
+        expense_labels = request.form.getlist(
+            "expense_label"
+        )
+
+        expense_amounts = request.form.getlist(
+            "expense_amount"
+        )
+
+        for label, amount in zip(
+            expense_labels,
+            expense_amounts
+        ):
+
+            if label.strip() or amount.strip():
+
+                data["expenses"].append({
+                    "label": label.strip()
+                    or "Spesa",
+
+                    "amount": parse_float(
+                        amount
+                    )
+                })
+
+        creditors = request.form.getlist(
+            "creditor"
+        )
+
+        debt_types = request.form.getlist(
+            "debt_type"
+        )
+
+        debt_amounts = request.form.getlist(
+            "debt_amount"
+        )
+
+        debt_payments = request.form.getlist(
+            "debt_payment"
+        )
+
+        timestamp = now_iso()
+
+        conn = db_connect()
+
+        if case:
+
+            case_id = case["id"]
+
+            conn.execute(
+                """
+                UPDATE cases
+                SET data = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    json.dumps(
+                        data,
+                        ensure_ascii=False
+                    ),
+                    timestamp,
+                    case_id
+                )
+            )
+
+            conn.execute(
+                """
+                DELETE FROM debts
+                WHERE case_id = ?
+                """,
+                (case_id,)
+            )
+
+        else:
+
+            cur = conn.execute(
+                """
+                INSERT INTO cases
+                (email,data,created_at,updated_at)
+                VALUES (?,?,?,?)
+                """,
+                (
+                    user["email"],
+                    json.dumps(
+                        data,
+                        ensure_ascii=False
+                    ),
+                    timestamp,
+                    timestamp
+                )
+            )
+
+            case_id = cur.lastrowid
+
+        for (
+            creditor,
+            debt_type,
+            amount,
+            payment
+        ) in zip(
+            creditors,
+            debt_types,
+            debt_amounts,
+            debt_payments
+        ):
+
+            if creditor.strip() or amount.strip():
+
+                conn.execute(
+                    """
+                    INSERT INTO debts
+                    (
+                        case_id,
+                        creditor,
+                        debt_type,
+                        current_amount,
+                        monthly_payment,
+                        notes,
+                        created_at
+                    )
+                    VALUES (?,?,?,?,?,?,?)
+                    """,
+                    (
+                        case_id,
+                        creditor.strip()
+                        or "Creditore non indicato",
+
+                        debt_type.strip(),
+
+                        parse_float(
+                            amount
+                        ),
+
+                        parse_float(
+                            payment
+                        ),
+
+                        "",
+
+                        timestamp
+                    )
+                )
+
+        conn.commit()
+        conn.close()
+
+        return redirect(
+            url_for("case_summary")
+        )
+
+    return render_template_string(
         """
-        return page("Chat Staff", content, include_chat=False), 401
+        <!doctype html>
+        <html lang="it">
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>FixTude - Situazione</title>
+        <style>
+        body{font-family:Arial;background:#f6f8fb}
+        .wrap{max-width:850px;margin:auto;padding:30px}
+        .card{background:white;padding:25px;border-radius:15px;margin:15px 0}
+        input{width:100%;box-sizing:border-box;padding:11px;margin:5px 0 12px}
+        .row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+        button{padding:13px 20px;background:#4f46e5;color:white;border:0;border-radius:8px}
+        @media(max-width:650px){.row{grid-template-columns:1fr}}
+        </style>
+        </head>
+        <body>
+        <div class="wrap">
 
-    if not staff_required():
-        content = """
-        <section class="card" style="max-width:460px;margin:auto">
-          <h1>Chat FixTude</h1>
-          <p class="muted">Area riservata all’esperto FixTude.</p>
-          <form method="post">
-            <div class="field">
-              <label for="password">Password di accesso</label>
-              <input id="password" name="password" type="password"
-                     autocomplete="current-password" required>
-            </div>
-            <button class="btn" type="submit">Accedi alla chat</button>
-          </form>
-        </section>
-        """
-        return page("Accesso chat", content, include_chat=False)
+        <a href="javascript:history.back()" style="text-decoration:none;color:#4f46e5">
+        ← Indietro
+        </a>
 
-    content = """
-    <h1>Area riservata · Chat esperto FixTude</h1>
-    <p class="muted">
-      Seleziona una conversazione per leggere e inviare risposte.
-      Le conversazioni esistono soltanto nella memoria temporanea del server.
-    </p>
-    <div class="actions">
-      <button class="btn" id="enablePush" type="button">
-        Attiva notifiche su questo dispositivo
-      </button>
-      <button class="btn outline" id="refreshChats" type="button">
-        Aggiorna conversazioni
-      </button>
-      <form method="post" action="/chat-staff/logout">
-        <button class="btn outline" type="submit">Esci</button>
-      </form>
-    </div>
-    <div class="grid" style="margin-top:20px">
-      <section class="card">
-        <h2>Conversazioni attive</h2>
-        <div id="chatList">Caricamento…</div>
-      </section>
-      <section class="card">
-        <h2 id="selectedTitle">Seleziona una chat</h2>
-        <div id="staffMessages"
-             style="height:300px;overflow:auto;background:#f5f8fc;padding:10px;border-radius:10px">
-          <p class="muted">Le conversazioni appariranno qui.</p>
+        <h1>La tua situazione</h1>
+
+        <form method="post">
+
+        <div class="card">
+
+        <h2>Dati personali</h2>
+
+        <div class="row">
+
+        <div>
+        <label>Nome</label>
+        <input name="name"
+        value="{{ data.get('name','') }}"
+        required>
         </div>
-        <form id="staffForm" style="margin-top:12px">
-          <div class="field">
-            <label for="staffReply">La tua risposta</label>
-            <textarea id="staffReply" maxlength="1000"
-                      style="min-height:90px" required></textarea>
-          </div>
-          <button class="btn" type="submit">Invia risposta</button>
-          <div id="staffStatus" role="status" aria-live="polite"></div>
+
+        <div>
+        <label>Cognome</label>
+        <input name="surname"
+        value="{{ data.get('surname','') }}"
+        required>
+        </div>
+
+        </div>
+
+        <label>Codice fiscale</label>
+        <input name="tax_code"
+        value="{{ data.get('tax_code','') }}"
+        maxlength="16"
+        style="text-transform:uppercase">
+
+        <label>Posizione lavorativa</label>
+        <select name="employment">
+        <option value="">Seleziona</option>
+        <option value="Dipendente" {% if data.get('employment') == 'Dipendente' %}selected{% endif %}>Dipendente</option>
+        <option value="Autonomo" {% if data.get('employment') == 'Autonomo' %}selected{% endif %}>Autonomo</option>
+        <option value="Imprenditore" {% if data.get('employment') == 'Imprenditore' %}selected{% endif %}>Imprenditore</option>
+        <option value="Pensionato" {% if data.get('employment') == 'Pensionato' %}selected{% endif %}>Pensionato</option>
+        <option value="Disoccupato" {% if data.get('employment') == 'Disoccupato' %}selected{% endif %}>Disoccupato</option>
+        <option value="Studente" {% if data.get('employment') == 'Studente' %}selected{% endif %}>Studente</option>
+        <option value="Altro" {% if data.get('employment') == 'Altro' %}selected{% endif %}>Altro</option>
+        </select>
+
+        <label>Telefono</label>
+        <input name="phone"
+        value="{{ data.get('phone','') }}">
+
+        <label>Indirizzo</label>
+        <input name="address"
+        value="{{ data.get('address','') }}">
+
+        </div>
+
+
+        <div class="card">
+
+        <h2>Entrate mensili</h2>
+
+        {% for i in range(4) %}
+
+        <div class="row">
+
+        <div>
+        <label>Tipo di entrata</label>
+        <select name="income_label">
+        <option value="">Seleziona</option>
+        <option value="Stipendio">Stipendio</option>
+        <option value="Pensione">Pensione</option>
+        <option value="Reddito da lavoro autonomo">Reddito da lavoro autonomo</option>
+        <option value="Reddito da impresa">Reddito da impresa</option>
+        <option value="Assegno">Assegno</option>
+        <option value="Affitto percepito">Affitto percepito</option>
+        <option value="Altro">Altro</option>
+        </select>
+        </div>
+
+        <div>
+        <label>Importo</label>
+        <input name="income_amount"
+        type="number"
+        step="0.01"
+        min="0">
+        </div>
+
+        </div>
+
+        {% endfor %}
+
+        </div>
+
+
+        <div class="card">
+
+        <h2>Spese mensili</h2>
+
+        {% for i in range(6) %}
+
+        <div class="row">
+
+        <div>
+        <label>Tipo di spesa</label>
+        <select name="expense_label">
+        <option value="">Seleziona</option>
+        <option value="Affitto">Affitto</option>
+        <option value="Mutuo">Mutuo</option>
+        <option value="Utenze">Utenze</option>
+        <option value="Alimentari">Alimentari</option>
+        <option value="Trasporti">Trasporti</option>
+        <option value="Spese mediche">Spese mediche</option>
+        <option value="Spese familiari">Spese familiari</option>
+        <option value="Altro">Altro</option>
+        </select>
+        </div>
+
+        <div>
+        <label>Importo</label>
+        <input name="expense_amount"
+        type="number"
+        step="0.01"
+        min="0">
+        </div>
+
+        </div>
+
+        {% endfor %}
+
+        </div>
+
+
+        <div class="card">
+
+        <h2>Debiti</h2>
+
+        {% for i in range(5) %}
+
+        <div style="border-top:1px solid #ddd;padding-top:15px">
+
+        <label>Creditore</label>
+        <input name="creditor"
+        placeholder="Banca / finanziaria">
+
+        <label>Tipo</label>
+        <select name="debt_type">
+        <option value="">Seleziona</option>
+        <option value="Prestito personale">Prestito personale</option>
+        <option value="Finanziamento">Finanziamento</option>
+        <option value="Carta di credito">Carta di credito</option>
+        <option value="Mutuo">Mutuo</option>
+        <option value="Fido / scoperto">Fido / scoperto</option>
+        <option value="Debito fiscale">Debito fiscale</option>
+        <option value="Debito previdenziale">Debito previdenziale</option>
+        <option value="Utenze">Utenze</option>
+        <option value="Altro">Altro</option>
+        </select>
+
+        <label>Debito residuo</label>
+        <input name="debt_amount"
+        type="number"
+        step="0.01"
+        min="0">
+
+        <label>Rata mensile</label>
+        <input name="debt_payment"
+        type="number"
+        step="0.01"
+        min="0">
+
+        </div>
+
+        {% endfor %}
+
+        </div>
+
+        <button>
+        Salva situazione →
+        </button>
+
         </form>
-      </section>
-    </div>
 
-    <script>
-    (() => {
-      let selected = "";
-      let chats = [];
-
-      const list = document.getElementById("chatList");
-      const messages = document.getElementById("staffMessages");
-      const title = document.getElementById("selectedTitle");
-      const form = document.getElementById("staffForm");
-      const reply = document.getElementById("staffReply");
-      const status = document.getElementById("staffStatus");
-      const enablePushButton = document.getElementById("enablePush");
-
-      function urlBase64ToUint8Array(base64String) {
-        const padding = "=".repeat((4 - base64String.length % 4) % 4);
-        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-        const raw = atob(base64);
-        return Uint8Array.from([...raw].map(ch => ch.charCodeAt(0)));
-      }
-
-      async function enablePush() {
-        enablePushButton.disabled = true;
-        status.textContent = "Configurazione notifiche in corso…";
-        try {
-          if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
-            throw new Error("Questo browser non supporta le notifiche push.");
-          }
-          const keyData = await api("/api/push/public-key");
-          if (!keyData.publicKey) throw new Error("Chiavi push non configurate su Render.");
-          const permission = await Notification.requestPermission();
-          if (permission !== "granted") throw new Error("Permesso notifiche non concesso.");
-          const registration = await navigator.serviceWorker.register("/service-worker.js");
-          await navigator.serviceWorker.ready;
-          let subscription = await registration.pushManager.getSubscription();
-          if (!subscription) {
-            subscription = await registration.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
-            });
-          }
-          await api("/api/push/subscribe", {method:"POST", body:JSON.stringify(subscription)});
-          status.textContent = "Notifiche attivate su questo dispositivo.";
-        } catch (err) {
-          status.textContent = err.message || "Impossibile attivare le notifiche.";
-        } finally {
-          enablePushButton.disabled = false;
-        }
-      }
-      enablePushButton.addEventListener("click", enablePush);
-
-      async function api(url, options={}) {
-        const r = await fetch(url, {
-          cache:"no-store",
-          ...options,
-          headers:{
-            "Content-Type":"application/json",
-            ...(options.headers || {})
-          }
-        });
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.error || "Errore di comunicazione");
-        return data;
-      }
-
-      async function loadChats() {
-        try {
-          const data = await api("/api/staff/chats");
-          chats = data.chats;
-          list.replaceChildren();
-
-          if (!chats.length) {
-            list.textContent = "Nessuna conversazione attiva al momento.";
-            return;
-          }
-
-          chats.forEach(chat => {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.className = "btn outline";
-            button.style.cssText =
-              "width:100%;margin:5px 0;justify-content:flex-start;overflow-wrap:anywhere";
-            button.textContent =
-              "Chat " + chat.id.slice(0, 8) +
-              " · " + chat.count + " messaggi · " + chat.last;
-            button.addEventListener("click", () => {
-              selected = chat.id;
-              title.textContent = "Chat " + selected.slice(0, 8);
-              loadMessages();
-            });
-            list.appendChild(button);
-          });
-
-          if (!selected && chats.length) {
-            selected = chats[0].id;
-            title.textContent = "Chat " + selected.slice(0, 8);
-            loadMessages();
-          }
-        } catch (err) {
-          list.textContent = err.message;
-        }
-      }
-
-      async function loadMessages() {
-        if (!selected) return;
-
-        try {
-          const data = await api(
-            "/api/staff/" + encodeURIComponent(selected) + "/messages"
-          );
-          messages.replaceChildren();
-
-          data.messages.forEach(m => {
-            const wrap = document.createElement("div");
-            wrap.style.cssText =
-              "background:#fff;border:1px solid #dce5ef;border-radius:10px;padding:10px;margin:8px 0;overflow-wrap:anywhere";
-
-            const who = document.createElement("strong");
-            who.textContent = m.sender === "staff" ? "Tu" : "Visitatore";
-            wrap.appendChild(who);
-
-            const body = document.createElement("div");
-            body.style.whiteSpace = "pre-wrap";
-            body.textContent = m.text;
-            wrap.appendChild(body);
-
-            const when = document.createElement("small");
-            when.className = "muted";
-            when.textContent = m.time || "";
-            wrap.appendChild(when);
-
-            messages.appendChild(wrap);
-          });
-
-          messages.scrollTop = messages.scrollHeight;
-        } catch (err) {
-          status.textContent = err.message;
-        }
-      }
-
-      form.addEventListener("submit", async e => {
-        e.preventDefault();
-        if (!selected || !reply.value.trim()) return;
-
-        const button = form.querySelector("button");
-        button.disabled = true;
-        status.textContent = "";
-
-        try {
-          await api("/api/staff/send", {
-            method:"POST",
-            body:JSON.stringify({
-              chat_id:selected,
-              text:reply.value.trim()
-            })
-          });
-          reply.value = "";
-          status.textContent = "Risposta inviata.";
-          await loadMessages();
-          await loadChats();
-        } catch (err) {
-          status.textContent = err.message;
-        } finally {
-          button.disabled = false;
-        }
-      });
-
-      document.getElementById("refreshChats")
-        .addEventListener("click", loadChats);
-
-      loadChats();
-      setInterval(loadChats, 5000);
-      setInterval(loadMessages, 2500);
-    })();
-    </script>
-    """
-    return page("Chat Staff", content, include_chat=False)
+        </div>
+        </body>
+        </html>
+        """,
+        data=existing,
+        debts=existing_debts
+    )
 
 
-@app.route("/api/staff/chats", methods=["GET"])
-def staff_list_chats():
-    if not staff_required():
-        return jsonify(error="Accesso non autorizzato."), 401
+# ============================================================
+# SUMMARY
+# ============================================================
 
-    with chat_lock:
-        result = []
-        for chat_id, chat in chats.items():
-            if time.time() - chat["updated"] > CHAT_TTL_SECONDS:
-                continue
+@app.route("/privato/riepilogo")
+def case_summary():
 
-            last = chat["messages"][-1]["time"] if chat["messages"] else "Nuova"
-            result.append({
-                "id": chat_id,
-                "count": len(chat["messages"]),
-                "last": last,
-                "updated": chat["updated"]
-            })
+    user = require_login(
+        "debtor"
+    )
 
-    result.sort(key=lambda x: x["updated"], reverse=True)
-    return jsonify(chats=result)
+    if not user:
+        return redirect(
+            url_for("debtor_login")
+        )
+
+    case = get_case_for_email(
+        user["email"]
+    )
+
+    if not case:
+        return redirect(
+            url_for("debtor_situation")
+        )
+
+    calc = calculate_case(
+        case["id"]
+    )
+
+    return render_template_string(
+        """
+        <!doctype html>
+        <html lang="it">
+        <body style="font-family:Arial;background:#f6f8fb">
+
+        <div style="max-width:900px;margin:auto;padding:30px">
+
+        <a href="javascript:history.back()" style="text-decoration:none;color:#4f46e5">
+        ← Indietro
+        </a>
+
+        <h1>Riepilogo</h1>
+
+        <div style="background:white;padding:25px;border-radius:15px">
+
+        <h2>Entrate</h2>
+        € {{ "%.2f"|format(total_income) }}
+
+        <h2>Spese</h2>
+        € {{ "%.2f"|format(total_expenses) }}
+
+        <h2>Disponibilità</h2>
+        € {{ "%.2f"|format(monthly_capacity) }}
+
+        <h2>Debito complessivo</h2>
+        € {{ "%.2f"|format(total_debt) }}
+
+        <h2>Rate</h2>
+        € {{ "%.2f"|format(total_payments) }}
+
+        </div>
+
+        <br>
+
+        <a href="{{ url_for('case_analysis') }}">
+        Analizza la situazione →
+        </a>
+
+        </div>
+        </body>
+        </html>
+        """,
+        total_income=calc["total_income"],
+        total_expenses=calc["total_expenses"],
+        monthly_capacity=calc["monthly_capacity"],
+        total_debt=calc["total_debt"],
+        total_payments=calc["total_payments"]
+    )
 
 
-@app.route("/api/staff/<chat_id>/messages", methods=["GET"])
-def staff_get_messages(chat_id):
-    if not staff_required():
-        return jsonify(error="Accesso non autorizzato."), 401
+# ============================================================
+# PAYMENT AREA
+# ============================================================
 
-    with chat_lock:
-        chat = chats.get(chat_id)
-        if not chat:
-            return jsonify(error="Conversazione scaduta o non disponibile."), 404
-        chat["updated"] = time.time()
-        messages = list(chat["messages"])
+@app.route("/pagamenti")
+def payments():
 
-    return jsonify(messages=messages)
+    user = require_login(
+        "debtor"
+    )
+
+    if not user:
+        return redirect(
+            url_for("debtor_login")
+        )
+
+    case = get_case_for_email(
+        user["email"]
+    )
+
+    if not case:
+
+        return render_template_string(
+            """
+            <h1>Pagamenti FixTude</h1>
+            <p>Prima devi creare la tua pratica.</p>
+            <a href="{{ url_for('debtor_situation') }}">
+            Inserisci la situazione
+            </a>
+            """
+        )
+
+    analysis_paid = bool(
+        get_paid_payment(
+            user["email"],
+            case["id"],
+            "analysis"
+        )
+    )
+
+    pdf_paid = bool(
+        get_paid_payment(
+            user["email"],
+            case["id"],
+            "pdf"
+        )
+    )
+
+    analysis_payment = get_paid_payment(user["email"], case["id"], "analysis")
+    pdf_payment = get_paid_payment(user["email"], case["id"], "pdf")
+
+    solutions = get_solutions(
+        case["id"]
+    )
+
+    has_document = any(
+        s["status"] == "sent"
+        for s in solutions
+    )
+    latest_solution = solutions[0] if solutions else None
+
+    return render_template_string(
+        """
+        <!doctype html>
+        <html lang="it">
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport"
+        content="width=device-width,initial-scale=1">
+        <title>Pagamenti FixTude</title>
+        <style>
+        body{font-family:Arial;background:#f6f8fb}
+        .wrap{max-width:800px;margin:auto;padding:30px}
+        .card{background:white;padding:25px;border-radius:15px;margin:15px 0}
+        .price{font-size:30px;font-weight:bold}
+        button{padding:13px 20px;background:#4f46e5;color:white;border:0;border-radius:8px;font-weight:700;cursor:pointer}
+        .paid{background:#e8f7ed;padding:12px;border-radius:8px}
+        .review{background:#fff4d6;padding:12px;border-radius:8px}
+        .small{color:#667085;font-size:14px}
+        </style>
+        </head>
+        <body>
+
+        <div class="wrap">
+
+        <a href="{{ url_for('debtor_dashboard') }}" style="text-decoration:none;color:#4f46e5">
+        ← Indietro
+        </a>
+
+        <h1>Pagamenti</h1>
+
+        <div class="card">
+          <h2>Selezione documenti FixTude</h2>
+          <p>Prima di avviare un pagamento, conferma la selezione dei documenti e del KIT.</p>
+          <a href="{{ url_for('selezione_documenti_standby') }}" style="display:inline-block;padding:11px 15px;background:#eef2ff;color:#3730a3;border-radius:8px;text-decoration:none;font-weight:700">Apri selezione documenti →</a>
+          {% if session.get('document_selection_confirmed') %}
+          <p class="small" style="margin-top:10px">Selezione confermata: {{ 'KIT completo da 9,99 €' if session.get('document_selection_package') == 'complete' else 'Pacchetto essenziale da 1,99 €' }}. Il collegamento puntuale tra selezione e consegna dei file sarà completato successivamente.</p>
+          {% endif %}
+        </div>
+
+        <div class="card">
+        <h2>Dati per la fattura</h2>
+        {% if fiscal_complete %}
+        <div class="paid">✓ Dati fiscali presenti</div>
+        <p class="small">Puoi modificarli prima di un nuovo acquisto.</p>
+        {% else %}
+        <div class="review">⚠ Completa i dati fiscali prima del pagamento.</div>
+        {% endif %}
+        <a href="{{ url_for('fiscal_data') }}">{{ 'Modifica dati fiscali' if fiscal_complete else 'Inserisci dati fiscali →' }}</a>
+        </div>
+
+        <div class="card">
+
+        <h2>Analisi FixTude</h2>
+
+        <p>
+        Analisi automatica della tua situazione
+        e individuazione di possibili scenari.
+        </p>
+
+        <div class="price">€ 1,99</div>
+
+        {% if analysis_paid %}
+
+        <div class="paid">
+        ✓ Analisi già acquistata.
+        </div>
+        <p><a href="{{ url_for('download_payment_document', payment_id=analysis_payment.id, document_type='receipt') }}">Scarica ricevuta</a> · <a href="{{ url_for('download_payment_document', payment_id=analysis_payment.id, document_type='fiscal') }}">Scarica documento riepilogativo</a></p>
+        <br>
+
+        <a href="{{ url_for('case_analysis') }}">
+        Apri l'analisi →
+        </a>
+
+        {% else %}
+
+        <form method="post"
+        action="{{ url_for('create_checkout') }}">
+
+        <input type="hidden"
+        name="service"
+        value="analysis">
+        <div style="font-size:12px;line-height:1.5;margin:12px 0;color:#4b5563">
+          <label style="display:flex;gap:8px;align-items:flex-start;margin:8px 0"><input type="checkbox" name="accept_terms" value="yes" required style="width:auto;margin-top:3px"><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label>
+          <label style="display:flex;gap:8px;align-items:flex-start;margin:8px 0"><input type="checkbox" name="digital_start" value="yes" required style="width:auto;margin-top:3px"><span>Chiedo che l'esecuzione del servizio digitale inizi subito, durante il periodo di recesso, e riconosco che, nei casi e alle condizioni previsti dalla legge per il contenuto digitale, potrei perdere il diritto di recesso una volta iniziata l'esecuzione. <a href="/recesso" target="_blank" rel="noopener">Dettagli</a>.</span></label>
+        </div>
+
+        <button>
+        Paga € 1,99 con Stripe
+        </button>
+
+        </form>
+
+        {% endif %}
+
+        </div>
 
 
-@app.route("/api/staff/send", methods=["POST"])
-def staff_send():
-    if not staff_required():
-        return jsonify(error="Accesso non autorizzato."), 401
+        <div class="card">
 
-    data = request.get_json(silent=True) or {}
-    chat_id = str(data.get("chat_id", ""))
-    message = str(data.get("text", "")).strip()
+        <h2>Documento PDF</h2>
 
-    if not message or len(message) > 1000:
-        return jsonify(error="La risposta deve contenere da 1 a 1000 caratteri."), 400
+        <p>
+        Documento PDF definitivo dopo
+        la validazione dell'Esperto.
+        </p>
 
-    with chat_lock:
-        chat = chats.get(chat_id)
-        if not chat:
-            return jsonify(error="Conversazione scaduta o non disponibile."), 404
+        <div class="price">€ 9,99</div>
 
-        if len(chat["messages"]) >= MAX_CHAT_MESSAGES:
-            return jsonify(error="Limite di messaggi raggiunto."), 429
+        {% if pdf_paid %}
 
-        chat["messages"].append({
-            "sender": "staff",
-            "text": message,
-            "time": ora_italiana()
-        })
-        chat["updated"] = time.time()
+        <div class="paid">
+        ✓ Pagamento ricevuto: € 9,99
+        </div>
+        <p><a href="{{ url_for('download_payment_document', payment_id=pdf_payment.id, document_type='receipt') }}">Scarica ricevuta</a> · <a href="{{ url_for('download_payment_document', payment_id=pdf_payment.id, document_type='fiscal') }}">Scarica documento riepilogativo</a></p>
 
-    return jsonify(ok=True)
+        {% if has_document %}
+        <p><strong>✓ Documento definitivo disponibile.</strong></p>
+        <p><a href="{{ url_for('download_solution', solution_id=latest_solution.id) }}">Scarica PDF definitivo →</a></p>
+        {% else %}
+        <p><strong>🕐 Documento in revisione.</strong></p>
+        <p>Il pagamento è stato ricevuto. L'Esperto sta completando la revisione. Riceverai una email quando il PDF definitivo sarà disponibile.</p>
+        {% endif %}
+
+        {% else %}
+
+        <p class="small">Paghi ora € 9,99. L'Esperto completerà la revisione dopo il pagamento e il PDF definitivo verrà reso disponibile nell'Area Personale e inviato via email.</p>
+
+        <form method="post"
+        action="{{ url_for('create_checkout') }}">
+
+        <input type="hidden"
+        name="service"
+        value="pdf">
+        <div style="font-size:12px;line-height:1.5;margin:12px 0;color:#4b5563">
+          <label style="display:flex;gap:8px;align-items:flex-start;margin:8px 0"><input type="checkbox" name="accept_terms" value="yes" required style="width:auto;margin-top:3px"><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label>
+          <label style="display:flex;gap:8px;align-items:flex-start;margin:8px 0"><input type="checkbox" name="digital_start" value="yes" required style="width:auto;margin-top:3px"><span>Chiedo che l'esecuzione del servizio digitale inizi subito, durante il periodo di recesso, e riconosco che, nei casi e alle condizioni previsti dalla legge per il contenuto digitale, potrei perdere il diritto di recesso una volta iniziata l'esecuzione. <a href="/recesso" target="_blank" rel="noopener">Dettagli</a>.</span></label>
+        </div>
+
+        <button type="submit">
+        Paga € 9,99 con Stripe
+        </button>
+
+        </form>
+
+        {% endif %}
+
+        </div>
+
+        </div>
+
+        </body>
+        </html>
+        """,
+        analysis_paid=analysis_paid,
+        pdf_paid=pdf_paid,
+        fiscal_complete=fiscal_data_complete(user["email"]),
+        has_document=has_document,
+        latest_solution=latest_solution,
+        analysis_payment=analysis_payment,
+        pdf_payment=pdf_payment
+    )
 
 
-@app.route("/chat-staff/logout", methods=["POST"])
-def chat_staff_logout():
-    session.pop("chat_staff", None)
-    return redirect(url_for("chat_staff"))
+# ============================================================
+# CREATE STRIPE CHECKOUT
+# ============================================================
+
+@app.route(
+    "/pagamenti/checkout",
+    methods=["POST"]
+)
+def create_checkout():
+
+    user = require_login("debtor")
+
+    if not user:
+        return redirect(url_for("debtor_login"))
+
+    # La selezione documenti deve precedere ogni avvio di pagamento.
+    # In questa fase la scelta viene conservata in sessione; il collegamento
+    # tra singoli PDF/libro e consegna resta volutamente in standby.
+    if not session.get("document_selection_confirmed"):
+        return redirect(url_for("selezione_documenti_standby"))
+
+    service_key = request.form.get("service", "").strip()
+
+    if request.form.get("accept_terms") != "yes" or request.form.get("digital_start") != "yes":
+        return Response("""<!doctype html><html lang='it'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Conferme necessarie · FixTude</title><body style='font-family:Arial,sans-serif;max-width:680px;margin:50px auto;padding:20px'><h1>Conferme necessarie</h1><p>Per proseguire al pagamento devi accettare i Termini e Condizioni e indicare la tua richiesta di avvio immediato del servizio digitale. Consulta la <a href='/recesso'>pagina sul diritto di recesso</a>.</p><p><a href='/pagamenti'>Torna ai pagamenti</a></p></body></html>""", status=400, mimetype="text/html")
+
+    record_legal_acceptance(user["email"], "terms_checkout", "Accettazione Termini prima del checkout; servizio=" + service_key)
+    record_legal_acceptance(user["email"], "digital_service_start_request", "Richiesta avvio immediato servizio digitale; servizio=" + service_key)
+
+    if service_key not in PAYMENT_SERVICES:
+        return "Servizio non valido.", 400
+
+    # Prima del pagamento raccogliamo i dati necessari alla successiva predisposizione
+    # della fattura elettronica. La trasmissione allo SdI resta separata e manuale
+    # tramite Agenzia delle Entrate in questa fase di lancio.
+    if not fiscal_data_complete(user["email"]):
+        return redirect(url_for("fiscal_data", next="pagamenti"))
+
+    service = PAYMENT_SERVICES[service_key]
+
+    if not STRIPE_SECRET_KEY:
+        app.logger.error(
+            "STRIPE_SECRET_KEY assente nelle variabili d'ambiente."
+        )
+        return (
+            "Errore di configurazione Stripe. "
+            "STRIPE_SECRET_KEY non è configurata su Render.",
+            500
+        )
+
+    try:
+        case = get_case_for_email(user["email"])
+    except Exception:
+        app.logger.exception(
+            "Errore nel recupero della pratica per %s",
+            user["email"]
+        )
+        return "Errore nel recupero della pratica.", 500
+
+    if not case:
+        return redirect(url_for("debtor_situation"))
+
+    case_id = case["id"]
+
+    try:
+        if get_paid_payment(user["email"], case_id, service_key):
+            return redirect(url_for("payments"))
+    except Exception:
+        app.logger.exception("Errore nel controllo del pagamento esistente.")
+        return "Errore nel controllo del pagamento.", 500
+
+    payment_id = None
+
+    try:
+        conn = db_connect()
+        cursor = conn.execute(
+            """
+            INSERT INTO payments
+            (
+                user_email,
+                case_id,
+                service,
+                amount,
+                currency,
+                status,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, 'pending', ?)
+            """,
+            (
+                user["email"],
+                case_id,
+                service_key,
+                service["amount"],
+                service["currency"],
+                now_iso()
+            )
+        )
+        payment_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+    except Exception:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        app.logger.exception(
+            "Errore SQLite durante la creazione del pagamento."
+        )
+        return "Errore nella registrazione del pagamento.", 500
+
+    try:
+        app.logger.info(
+            "Creazione Checkout Stripe: payment_id=%s case_id=%s service=%s amount=%s",
+            payment_id,
+            case_id,
+            service_key,
+            service["amount"]
+        )
+
+        stripe.api_key = STRIPE_SECRET_KEY
+
+        checkout = stripe.checkout.Session.create(
+            mode="payment",
+            customer_email=user["email"],
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": service["currency"],
+                        "product_data": {
+                            "name": service["name"],
+                            "description": service["description"]
+                        },
+                        "unit_amount": service["amount"]
+                    },
+                    "quantity": 1
+                }
+            ],
+            metadata={
+                "payment_id": str(payment_id),
+                "case_id": str(case_id),
+                "service": service_key,
+                "user_email": user["email"],
+                "fiscal_code": get_fiscal_data(user["email"]).get("fiscal_code", ""),
+                "vat_number": get_fiscal_data(user["email"]).get("vat_number", "")
+            },
+            success_url=(
+                url_for("payment_success", _external=True)
+                + "?session_id={CHECKOUT_SESSION_ID}"
+            ),
+            cancel_url=url_for(
+                "payments",
+                _external=True
+            )
+        )
+
+        conn = db_connect()
+        conn.execute(
+            """
+            UPDATE payments
+            SET stripe_session_id = ?
+            WHERE id = ?
+            """,
+            (checkout.id, payment_id)
+        )
+        conn.commit()
+        conn.close()
+
+        app.logger.info(
+            "Checkout Stripe creato correttamente: %s",
+            checkout.id
+        )
+
+        session.pop("document_selection_confirmed", None)
+        return redirect(checkout.url)
+
+    except Exception as exc:
+        app.logger.exception(
+            "ERRORE STRIPE CHECKOUT: %s",
+            exc
+        )
+
+        try:
+            conn = db_connect()
+            conn.execute(
+                """
+                UPDATE payments
+                SET status = 'failed'
+                WHERE id = ?
+                """,
+                (payment_id,)
+            )
+            conn.commit()
+            conn.close()
+        except Exception:
+            app.logger.exception(
+                "Impossibile aggiornare il pagamento come failed."
+            )
+
+        return (
+            "Errore nella creazione del pagamento Stripe. "
+            "Controllare i log di FixTude.",
+            500
+        )
 
 
-# =========================================================
-# MODULI PDF GRATUITI, EDUCAZIONE FINANZIARIA, SIC E SHOP
-# =========================================================
+# ============================================================
+# PAYMENT DOCUMENT DOWNLOAD
+# ============================================================
 
-from pathlib import Path
+@app.route("/pagamenti/documento/<int:payment_id>/<document_type>")
+def download_payment_document(payment_id, document_type):
+    user = require_login("debtor")
+    if not user or document_type not in ("receipt", "fiscal"):
+        abort(403)
+    payment = get_payment(payment_id)
+    if not payment or payment["user_email"] != user["email"] or payment["status"] != "paid":
+        abort(403)
+    path = generate_payment_pdf(payment_id, document_type)
+    return send_file(path, as_attachment=True, download_name=Path(path).name)
 
-BASE_DIR = Path(__file__).resolve().parent
 
-# I quattro moduli gratuiti sono direttamente nella cartella static/.
-MODULE_DIR = BASE_DIR / "static"
+# ============================================================
+# PAYMENT SUCCESS
+# ============================================================
 
-# Il libro dello Shop mantiene il percorso originale in static/pdf/.
-PDF_DIR = BASE_DIR / "static" / "pdf"
-BOOK_FILE = PDF_DIR / "NIENTE_PANICO.pdf"
+@app.route(
+    "/pagamenti/success"
+)
+def payment_success():
 
-MODULE_FILES = {
-    "saldo-stralcio": (
-        "FixTude_Modulo_Saldo_e_Stralcio_2_pagine.pdf",
-        "Proposta di saldo e stralcio",
-    ),
-    "dilazione": (
-        "FixTude_Modulo_Dilazione_Pagamento_2_pagine.pdf",
-        "Richiesta di dilazione del pagamento",
-    ),
-    "piano-rientro": (
-        "FixTude_Modulo_Piano_Rientro_con_Titoli_2_pagine.pdf",
-        "Richiesta di piano di rientro",
-    ),
-    "raccolta": (
-        "FixTude_Libreria_Moduli_Richieste_Debitorie_6_pagine_v2.pdf",
-        "Raccolta completa di moduli di richiesta",
-    ),
+    user = require_login("debtor")
+    if not user:
+        return redirect(url_for("debtor_login"))
+
+    session_id = request.args.get("session_id", "").strip()
+    payment = None
+    if session_id:
+        conn = db_connect()
+        payment = conn.execute(
+            "SELECT * FROM payments WHERE stripe_session_id = ? AND user_email = ?",
+            (session_id, user["email"])
+        ).fetchone()
+        conn.close()
+
+    status = payment["status"] if payment else "pending"
+    if payment and status == "paid":
+        # I documenti vengono preparati dal webhook. Qui non si richiama Stripe
+        # e non si avvia una seconda elaborazione del pagamento.
+        pass
+
+    return render_template_string(
+        """
+        <!doctype html><html lang="it"><head>
+        <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Pagamento FixTude</title>
+        <style>body{font-family:Arial;background:#f6f8fb}.box{max-width:650px;margin:80px auto;background:white;padding:35px;border-radius:18px;text-align:center}.ok{background:#e8f7ed;padding:15px;border-radius:10px}.wait{background:#fff7df;padding:15px;border-radius:10px}a{display:inline-block;margin-top:20px}</style>
+        </head><body><div class="box">
+        {% if status == "paid" %}
+        <h1>Pagamento completato</h1><div class="ok">Il pagamento è stato registrato. Ricevuta e documento riepilogativo sono disponibili nell'Area Privata.</div>
+        {% else %}
+        <h1>Pagamento in verifica</h1><div class="wait">Il pagamento è stato ricevuto da Stripe e verrà confermato automaticamente. Non effettuare un secondo pagamento.</div>
+        {% endif %}
+        <a href="{{ url_for('payments') }}">Torna ai pagamenti</a>
+        </div></body></html>
+        """, status=status
+    )
+
+
+# ============================================================
+# PAYMENT CANCEL
+# ============================================================
+
+@app.route(
+    "/pagamenti/cancel/<int:payment_id>"
+)
+def payment_cancel(payment_id):
+
+    user = require_login(
+        "debtor"
+    )
+
+    if not user:
+        return redirect(
+            url_for("debtor_login")
+        )
+
+    payment = get_payment(
+        payment_id
+    )
+
+    if payment and payment["user_email"] == user["email"]:
+
+        conn = db_connect()
+
+        conn.execute(
+            """
+            UPDATE payments
+            SET status = 'cancelled'
+            WHERE id = ?
+              AND status = 'pending'
+            """,
+            (payment_id,)
+        )
+
+        conn.commit()
+        conn.close()
+
+    return redirect(
+        url_for("payments")
+    )
+
+
+# ============================================================
+# STRIPE WEBHOOK
+# ============================================================
+
+@app.route(
+    "/stripe/webhook",
+    methods=["POST"]
+)
+def stripe_webhook():
+
+    payload = request.get_data()
+
+    signature = request.headers.get(
+        "Stripe-Signature",
+        ""
+    )
+
+    if not STRIPE_WEBHOOK_SECRET:
+
+        return (
+            "STRIPE_WEBHOOK_SECRET non configurato.",
+            500
+        )
+
+    try:
+
+        event = stripe.Webhook.construct_event(
+            payload,
+            signature,
+            STRIPE_WEBHOOK_SECRET
+        )
+
+    except ValueError:
+
+        return (
+            "Payload non valido.",
+            400
+        )
+
+    except stripe.error.SignatureVerificationError:
+
+        return (
+            "Firma Stripe non valida.",
+            400
+        )
+
+    event_type = event["type"]
+
+    if event_type in (
+        "checkout.session.completed",
+        "checkout.session.async_payment_succeeded"
+    ):
+
+        checkout = event["data"]["object"]
+
+        metadata = (
+            checkout.get("metadata")
+            or {}
+        )
+
+        payment_id = metadata.get(
+            "payment_id"
+        )
+
+        if payment_id:
+
+            if checkout.get(
+                "payment_status"
+            ) == "paid":
+
+                mark_payment_paid(
+                    int(payment_id),
+                    checkout.get(
+                        "payment_intent"
+                    )
+                )
+
+    elif event_type == "checkout.session.expired":
+
+        checkout = event["data"]["object"]
+
+        metadata = (
+            checkout.get("metadata")
+            or {}
+        )
+
+        payment_id = metadata.get(
+            "payment_id"
+        )
+
+        if payment_id:
+
+            conn = db_connect()
+
+            conn.execute(
+                """
+                UPDATE payments
+                SET status = 'cancelled'
+                WHERE id = ?
+                  AND status = 'pending'
+                """,
+                (int(payment_id),)
+            )
+
+            conn.commit()
+            conn.close()
+
+    return "", 200
+
+
+# ============================================================
+# DEBTOR ANALYSIS
+# ============================================================
+
+@app.route("/privato/analisi")
+def case_analysis():
+
+    user = require_login(
+        "debtor"
+    )
+
+    if not user:
+        return redirect(
+            url_for("debtor_login")
+        )
+
+    case = get_case_for_email(
+        user["email"]
+    )
+
+    if not case:
+
+        return redirect(
+            url_for("debtor_situation")
+        )
+
+    # ========================================================
+    # IL PAGAMENTO DA €1,99 È OBBLIGATORIO
+    # ========================================================
+
+    paid = get_paid_payment(
+        user["email"],
+        case["id"],
+        "analysis"
+    )
+
+    if not paid:
+
+        return redirect(
+            url_for(
+                "payments"
+            )
+        )
+
+    analysis = latest_analysis(
+        case["id"]
+    )
+
+    solutions = get_solutions(
+        case["id"]
+    )
+
+    if not analysis or not solutions:
+
+        analysis = run_local_agent(
+            case["id"]
+        )
+
+        solutions = get_solutions(
+            case["id"]
+        )
+
+    calc = calculate_case(
+        case["id"]
+    )
+
+    return render_template_string(
+        """
+        <!doctype html>
+        <html lang="it">
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport"
+        content="width=device-width,initial-scale=1">
+        <title>Analisi FixTude</title>
+        <style>
+        body{font-family:Arial;background:#f6f8fb}
+        .wrap{max-width:900px;margin:auto;padding:30px}
+        .card{background:white;padding:25px;border-radius:15px;margin:15px 0}
+        .metric{display:inline-block;padding:18px;background:#f3f4f6;border-radius:10px;margin:5px}
+        .solution{border-top:1px solid #ddd;padding:20px 0}
+        </style>
+        </head>
+        <body>
+        <div class="wrap">
+
+        <a href="javascript:history.back()" style="text-decoration:none;color:#4f46e5">
+        ← Indietro
+        </a>
+
+        <h1>Analisi FixTude</h1>
+
+        <div class="card">
+
+        <div class="metric">
+        Entrate<br>
+        <strong>€ {{ "%.2f"|format(calc.total_income) }}</strong>
+        </div>
+
+        <div class="metric">
+        Spese<br>
+        <strong>€ {{ "%.2f"|format(calc.total_expenses) }}</strong>
+        </div>
+
+        <div class="metric">
+        Disponibilità<br>
+        <strong>€ {{ "%.2f"|format(calc.monthly_capacity) }}</strong>
+        </div>
+
+        <div class="metric">
+        Debiti<br>
+        <strong>€ {{ "%.2f"|format(calc.total_debt) }}</strong>
+        </div>
+
+        </div>
+
+        <div class="card">
+
+        <h2>Valutazione</h2>
+
+        <p>
+        {{ analysis.summary }}
+        </p>
+
+        {% for warning in analysis.warnings %}
+
+        <p style="background:#fff4d6;padding:12px">
+        {{ warning }}
+        </p>
+
+        {% endfor %}
+
+        </div>
+
+
+        <div class="card">
+
+        <h2>Possibili scenari</h2>
+
+        {% for solution in solutions %}
+
+        <div class="solution">
+
+        <h3>
+        {{ solution.title }}
+        </h3>
+
+        <p>
+        {{ solution.content }}
+        </p>
+
+        <strong>
+        Stato:
+        {{ solution.status }}
+        </strong>
+
+        {% if solution.status == "sent" %}
+
+        <p>
+        <a href="{{ url_for('download_solution', solution_id=solution.id) }}">
+        Scarica documento
+        </a>
+        </p>
+
+        {% endif %}
+
+        </div>
+
+        {% endfor %}
+
+        </div>
+
+        <p>
+        <a href="{{ url_for('payments') }}">
+        Area pagamenti
+        </a>
+        </p>
+
+        </div>
+        </body>
+        </html>
+        """,
+        calc=calc,
+        analysis=analysis,
+        solutions=solutions
+    )
+
+
+# ============================================================
+# RESOLVER DASHBOARD
+# ============================================================
+
+# ============================================================
+# STAFF / ESPERTO DASHBOARD
+# ============================================================
+
+def get_case_payment_state(case_id, email):
+    return {"analysis": get_paid_payment(email, case_id, "analysis"), "kit": get_paid_payment(email, case_id, "pdf")}
+
+def get_library_files(active_only=True):
+    conn=db_connect(); sql="SELECT * FROM kit_library" + (" WHERE active=1" if active_only else "") + " ORDER BY category,title"; rows=conn.execute(sql).fetchall(); conn.close(); return rows
+
+def get_solution_attachments(solution_id):
+    conn=db_connect(); rows=conn.execute("SELECT kl.* FROM solution_attachments sa JOIN kit_library kl ON kl.id=sa.library_id WHERE sa.solution_id=? ORDER BY kl.category,kl.title",(solution_id,)).fetchall(); conn.close(); return rows
+
+def save_solution_attachments(solution_id, library_ids):
+    conn=db_connect(); conn.execute("DELETE FROM solution_attachments WHERE solution_id=?",(solution_id,))
+    for raw in library_ids:
+        try: lid=int(raw)
+        except (TypeError,ValueError): continue
+        conn.execute("INSERT OR IGNORE INTO solution_attachments(solution_id,library_id,created_at) VALUES(?,?,?)",(solution_id,lid,now_iso()))
+    conn.commit(); conn.close()
+
+def get_paid_service_label(case_id,email):
+    state=get_case_payment_state(case_id,email)
+    if state["kit"]: return "KIT FIXTUDE — €9,99","kit"
+    if state["analysis"]: return "ANALISI FIXTUDE — €1,99","analysis"
+    return "NESSUN SERVIZIO PAGATO","none"
+
+def build_paid_response_content(case_id):
+    calc=calculate_case(case_id); data=get_case_data(case_id); analysis=latest_analysis(case_id)
+    name=((data.get("name","")+" "+data.get("surname","")).strip() or "Cliente FixTude")
+    scenarios=(analysis or {}).get("scenarios",[]) if analysis else []; warnings=calc.get("warnings",[])
+    lines=[
+      "RISPOSTA FIXTUDE — ANALISI DELLA SITUAZIONE","",f"Cliente: {name}",f"Data elaborazione: {datetime.now().strftime('%d/%m/%Y')}","",
+      "1. OGGETTO E FINALITÀ","La presente risposta riepiloga i dati forniti dal cliente e restituisce una lettura organizzata della situazione economica e debitoria. L'obiettivo è aiutare il cliente a comprendere i principali elementi di pressione finanziaria e a individuare possibili percorsi da approfondire. Le valutazioni sono indicative e non costituiscono parere legale, finanziario o garanzia di accettazione da parte dei creditori.","",
+      "2. QUADRO ECONOMICO RILEVATO",f"Entrate mensili dichiarate: € {calc['total_income']:.2f}",f"Spese mensili dichiarate: € {calc['total_expenses']:.2f}",f"Disponibilità teorica residua: € {calc['monthly_capacity']:.2f}",f"Debito complessivo dichiarato: € {calc['total_debt']:.2f}",f"Rate mensili dichiarate: € {calc['total_payments']:.2f}",f"Incidenza delle rate sulle entrate: {(calc['total_payments']/calc['total_income']*100 if calc['total_income'] else 0):.1f}%",f"Valutazione sintetica di sostenibilità: {calc['sustainability']}","",
+      "3. LETTURA DELLA SITUAZIONE","I dati inseriti devono essere letti nel loro insieme. La differenza tra entrate e spese rappresenta una disponibilità teorica e non equivale automaticamente alla somma che un creditore accetterà come rata. La sostenibilità di un eventuale piano dipende inoltre dalla regolarità dei redditi, dalle spese non ricorrenti, dal numero e dalla natura delle posizioni e dalle condizioni richieste dalle singole controparti.","",
+      "4. ELEMENTI DI ATTENZIONE"]
+    lines += [f"• {w}" for w in warnings] if warnings else ["Non sono emersi avvisi automatici particolari sulla base dei dati inseriti."]
+    lines += ["","5. POSSIBILI PERCORSI DA APPROFONDIRE"]
+    if scenarios:
+        for sc in scenarios:
+            lines.append(f"• {sc.get('title','Scenario')} — {sc.get('description','')}")
+            if sc.get("estimated_monthly"): lines.append(f"  Rata simulata: € {sc['estimated_monthly']:.2f}; durata indicativa: {sc.get('months','n.d.')} mesi.")
+            if sc.get("estimated_amount"): lines.append(f"  Importo transattivo simulato: € {sc['estimated_amount']:.2f}.")
+    else: lines.append("È opportuno completare l'analisi prima di formulare una simulazione economica.")
+    lines += ["","6. INDICAZIONI OPERATIVE","Prima di assumere impegni è consigliabile verificare ogni posizione con la documentazione disponibile: contratto, estratto della posizione, comunicazioni ricevute, importi richiesti e scadenze. Eventuali richieste di rateizzazione, rinegoziazione o definizione transattiva devono essere rivolte al creditore competente e diventano efficaci solo se accettate dalla controparte secondo le modalità previste.","","7. CONCLUSIONE","Sulla base dei dati forniti, FixTude ha organizzato la situazione e individuato le principali aree sulle quali concentrare l'attenzione. Le simulazioni contenute nella presente risposta servono esclusivamente come supporto informativo. Se la situazione presenta elementi complessi, contestazioni, procedure giudiziarie o importi rilevanti, è opportuno sottoporre la documentazione a un professionista qualificato prima di assumere decisioni.","","NOTA FIXTUDE","Questo documento è stato preparato sulla base delle informazioni inserite nel servizio. FixTude non garantisce l'esito di richieste, trattative o procedure e non sostituisce un professionista abilitato."]
+    return "\n\n".join(lines)
+
+def generate_staff_response_pdf(solution_id):
+    conn=db_connect(); solution=conn.execute("SELECT * FROM solution_documents WHERE id=?",(solution_id,)).fetchone(); conn.close()
+    if not solution: raise FileNotFoundError("Documento non trovato.")
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+    from reportlab.lib.units import mm
+    path=PDF_DIR/f"fixtude_risposta_{solution_id}.pdf"; styles=getSampleStyleSheet()
+    body=ParagraphStyle("FixBody",parent=styles["BodyText"],fontName="Helvetica",fontSize=10.5,leading=15,spaceAfter=7)
+    h=ParagraphStyle("FixH",parent=styles["Heading2"],fontName="Helvetica-Bold",fontSize=15,leading=19,spaceBefore=5,spaceAfter=10)
+    title=ParagraphStyle("FixTitle",parent=styles["Title"],fontName="Helvetica-Bold",fontSize=22,leading=26,alignment=1,spaceAfter=15)
+    story=[Paragraph("FixTude",title),Paragraph(_safe_pdf_text(solution["title"]),h),Spacer(1,5*mm)]
+    paragraphs=[x.strip() for x in solution["content"].split("\n\n") if x.strip()]
+    # Tre pagine minime: separazione strutturale, senza ripetere artificialmente il contenuto.
+    cut1=max(1,len(paragraphs)//3); cut2=max(cut1+1,(len(paragraphs)*2)//3)
+    for idx,block in enumerate(paragraphs):
+        if idx==cut1 or idx==cut2: story.append(PageBreak())
+        safe=_safe_pdf_text(block).replace("\n","<br/>")
+        story.append(Paragraph(safe,h if re.match(r"^[0-9]+\.",block) or block in ("RISPOSTA FIXTUDE — ANALISI DELLA SITUAZIONE","NOTA FIXTUDE") else body))
+    story.append(Spacer(1,8*mm)); story.append(Paragraph("Documento informativo FixTude. Non costituisce parere legale o finanziario.",body))
+    SimpleDocTemplate(str(path),pagesize=A4,rightMargin=19*mm,leftMargin=19*mm,topMargin=18*mm,bottomMargin=18*mm).build(story)
+    return str(path)
+
+@app.route("/risolutore")
+def resolver_dashboard():
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    conn=db_connect(); cases=conn.execute("SELECT * FROM cases ORDER BY id DESC").fetchall(); conn.close()
+    rows=[]
+    for case in cases:
+        label,service=get_paid_service_label(case["id"],case["email"]); rows.append({"case":case,"data":get_case_data(case["id"]),"service_label":label,"service":service,"solutions":get_solutions(case["id"])})
+    return render_template_string('''<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Area Riservata FixTude</title><style>*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#18212f;font-family:Arial}.wrap{max-width:1180px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;align-items:center}.brand{font-size:27px;font-weight:800}.muted{color:#687385}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}.stat,.card{background:#fff;border:1px solid #e2e7ef;border-radius:15px;padding:18px;box-shadow:0 4px 16px rgba(20,30,50,.04)}.stat b{font-size:25px;display:block;margin-top:5px}.tabs{display:flex;gap:8px;margin:15px 0}.tab{background:#eef1f7;border-radius:9px;padding:8px 12px;font-weight:700}.case{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center}.badge{display:inline-block;padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800;background:#eef0f6}.paid{background:#e8f8f0;color:#166b46}.pending{background:#fff4d9;color:#745500}.btn{display:inline-block;border:0;border-radius:9px;padding:10px 14px;text-decoration:none;font-weight:700;background:#4f46e5;color:white}.library-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}@media(max-width:800px){.grid{grid-template-columns:1fr 1fr}.library-grid{grid-template-columns:1fr}.case{grid-template-columns:1fr}}@media(max-width:500px){.grid{grid-template-columns:1fr}}</style></head><body><div class="wrap"><div class="top"><div><div class="brand">Area Riservata FixTude</div><div class="muted">Pratiche, risposte, PDF e KIT da validare</div></div><a href="{{url_for('logout')}}">Esci</a></div><div class="grid"><div class="stat">Pratiche<b>{{rows|length}}</b></div><div class="stat">Analisi €1,99<b>{{rows|selectattr('service','equalto','analysis')|list|length}}</b></div><div class="stat">Kit €9,99<b>{{rows|selectattr('service','equalto','kit')|list|length}}</b></div><div class="stat">Libreria PDF<b>{{library|length}}</b></div></div><div class="tabs"><span class="tab">📂 Tutte le pratiche</span><a class="tab" href="{{url_for('kit_library')}}">📚 Libreria PDF</a></div>{% for row in rows %}<div class="card" style="margin-bottom:12px"><div class="case"><div><strong>Pratica #{{row.case.id}}</strong> · {{row.data.get('name','Cliente')}} {{row.data.get('surname','')}}</div><div><div class="muted">{{row.case.email}}</div><span class="badge {{'paid' if row.service!='none' else 'pending'}}">{{row.service_label}}</span> <span class="badge">{{row.solutions|length}} documenti</span></div><a class="btn" href="{{url_for('resolver_case',case_id=row.case.id)}}">Apri pratica →</a></div></div>{% else %}<div class="card">Nessuna pratica.</div>{% endfor %}<div id="libreria" class="card"><h2>Libreria PDF FixTude</h2><p class="muted">Carica i PDF che lo Staff potrà selezionare, validare e inviare ai clienti del KIT.</p><form method="post" action="{{url_for('kit_library_upload')}}" enctype="multipart/form-data"><input name="title" required placeholder="Titolo" style="padding:10px;width:28%"><input name="category" placeholder="Categoria" style="padding:10px;width:18%"><input name="file" required type="file" accept="application/pdf"><button class="btn">Carica PDF</button></form><div class="library-grid" style="margin-top:14px">{% for f in library %}<div class="stat"><strong>{{f.title}}</strong><div class="muted">{{f.category}} · {{'VALIDATO' if f.validated else 'DA VALIDARE'}}</div><div>{{f.original_filename}}</div>{% if not f.validated %}<form method="post" action="{{url_for('kit_library_validate',library_id=f.id)}}"><button class="btn" style="margin-top:8px">Valida PDF</button></form>{% endif %}<a href="{{url_for('kit_library_download',library_id=f.id)}}">Scarica / verifica</a></div>{% endfor %}</div></div></div></body></html>''',rows=rows,library=get_library_files())
+
+@app.route("/risolutore/libreria")
+def kit_library():
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    library=get_library_files()
+    return render_template_string('''<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Libreria PDF — FixTude</title><style>*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#18212f;font-family:Arial}.wrap{max-width:1180px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;align-items:center}.card{background:#fff;border:1px solid #e2e7ef;border-radius:15px;padding:20px;margin:14px 0;box-shadow:0 4px 16px rgba(20,30,50,.04)}.btn{display:inline-block;border:0;border-radius:9px;padding:10px 14px;text-decoration:none;font-weight:700;background:#4f46e5;color:white;cursor:pointer}.muted{color:#687385}.library-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.item{border:1px solid #e2e7ef;border-radius:12px;padding:15px;background:#fafbfd}.ok{color:#166b46;font-weight:800}.wait{color:#745500;font-weight:800}input{padding:10px;border:1px solid #d9e0ea;border-radius:8px}@media(max-width:800px){.library-grid{grid-template-columns:1fr}.upload{display:grid;gap:10px}}</style></head><body><div class="wrap"><div class="top"><div><h1 style="margin-bottom:4px">📚 Libreria PDF FixTude</h1><div class="muted">Gestisci, verifica e valida i documenti che potranno essere inseriti nei KIT.</div></div><a href="{{url_for('resolver_dashboard')}}">← Dashboard Staff</a></div><div class="card"><h2>Carica nuovo PDF</h2><p class="muted">Il documento viene caricato come <b>DA VALIDARE</b>. Dopo la verifica potrà essere selezionato nei KIT.</p><form class="upload" method="post" action="{{url_for('kit_library_upload')}}" enctype="multipart/form-data"><input name="title" required placeholder="Titolo del documento"><input name="category" placeholder="Categoria"><input name="file" required type="file" accept="application/pdf"><button class="btn">Carica PDF</button></form></div><div class="card"><h2>Documenti in libreria ({{library|length}})</h2><div class="library-grid">{% for f in library %}<div class="item"><h3>{{f.title}}</h3><div class="muted">{{f.category}}</div><p>{{f.original_filename}}</p><div class="{{'ok' if f.validated else 'wait'}}">{{'✓ VALIDATO' if f.validated else '⚠ DA VALIDARE'}}</div>{% if not f.validated %}<form method="post" action="{{url_for('kit_library_validate',library_id=f.id)}}"><button class="btn" style="margin-top:10px">Valida PDF</button></form>{% endif %}<a style="display:block;margin-top:10px" href="{{url_for('kit_library_download',library_id=f.id)}}">Scarica / verifica PDF</a></div>{% else %}<p class="muted">Nessun PDF presente nella libreria.</p>{% endfor %}</div></div></div></body></html>''',library=library)
+
+@app.route("/risolutore/libreria/upload",methods=["POST"])
+def kit_library_upload():
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    uploaded=request.files.get("file"); title=request.form.get("title","").strip(); category=request.form.get("category","Generale").strip() or "Generale"
+    if not uploaded or not uploaded.filename.lower().endswith(".pdf") or not title: return redirect(url_for("resolver_dashboard"))
+    filename=secure_filename(uploaded.filename); path=KIT_LIBRARY_DIR/f"{uuid.uuid4().hex}_{filename}"; uploaded.save(path)
+    conn=db_connect(); conn.execute("INSERT INTO kit_library(title,category,description,file_path,original_filename,validated,active,created_at,updated_at) VALUES(?,?,?,?,?,0,1,?,?)",(title,category,"",str(path),filename,now_iso(),now_iso())); conn.commit(); conn.close()
+    return redirect(url_for("resolver_dashboard")+"#libreria")
+
+@app.route("/risolutore/libreria/<int:library_id>/valida",methods=["POST"])
+def kit_library_validate(library_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    conn=db_connect(); conn.execute("UPDATE kit_library SET validated=1,updated_at=? WHERE id=?",(now_iso(),library_id)); conn.commit(); conn.close(); return redirect(url_for("resolver_dashboard")+"#libreria")
+
+@app.route("/risolutore/libreria/<int:library_id>/download")
+def kit_library_download(library_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    conn=db_connect(); row=conn.execute("SELECT * FROM kit_library WHERE id=?",(library_id,)).fetchone(); conn.close()
+    if not row or not Path(row["file_path"]).exists(): abort(404)
+    return send_file(row["file_path"],as_attachment=True,download_name=row["original_filename"])
+
+@app.route("/risolutore/pratica/<int:case_id>")
+def resolver_case(case_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    case=get_case(case_id)
+    if not case: abort(404)
+    calc=calculate_case(case_id); analysis=latest_analysis(case_id); solutions=get_solutions(case_id); service_label,service=get_paid_service_label(case_id,case["email"]); library=get_library_files()
+    response_solution=next((x for x in solutions if x["solution_type"] in ("paid_response","kit_report")),None); response_attachments=get_solution_attachments(response_solution["id"]) if response_solution else []
+    payment_ratio=round(calc["total_payments"]/calc["total_income"]*100,1) if calc["total_income"] else 0; situation_label="DA APPROFONDIRE" if calc["monthly_capacity"]<=0 else ("SOTTO PRESSIONE" if calc["total_payments"]>calc["monthly_capacity"] else "DA VALUTARE")
+    return render_template_string('''<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pratica #{{case.id}} — Staff FixTude</title><style>*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#18212f;font-family:Arial}.wrap{max-width:1180px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between}.hero{background:#18212f;color:#fff;border-radius:18px;padding:22px;margin:15px 0}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:#fff;border:1px solid #e3e8ef;border-radius:15px;padding:20px;margin:12px 0}.metric{font-size:23px;font-weight:800}.muted{color:#6b7482}.badge{display:inline-block;padding:7px 10px;border-radius:999px;background:#e8f8f0;color:#176945;font-size:12px;font-weight:800}.warning{background:#fff6df;border:1px solid #eed69a;padding:12px;border-radius:10px;margin:8px 0}.lib{display:grid;grid-template-columns:1fr 1fr;gap:8px}.lib label{display:block;padding:10px;border:1px solid #dfe5ed;border-radius:9px;background:#fafbfd}.btn{display:inline-block;border:0;border-radius:9px;padding:10px 14px;font-weight:700;text-decoration:none;cursor:pointer;background:#4f46e5;color:#fff}.sec{background:#edf0f6;color:#253047}textarea{width:100%;min-height:330px;padding:13px;border:1px solid #d9e0ea;border-radius:10px;font-family:Arial;line-height:1.5}@media(max-width:800px){.grid{grid-template-columns:1fr 1fr}.lib{grid-template-columns:1fr}}@media(max-width:500px){.grid{grid-template-columns:1fr}}
+/* v41 — Educazione finanziaria professionale: tre guide uniformi, senza sezione libro */
+.education-grid{
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  grid-auto-rows:1fr !important;
+  align-items:stretch !important;
+  gap:18px !important;
+}
+.education-grid .education-card{
+  box-sizing:border-box !important;
+  width:100% !important;
+  min-width:0 !important;
+  min-height:285px !important;
+  height:100% !important;
+  margin:0 !important;
+  padding:26px 25px 24px !important;
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:flex-start !important;
+  text-align:left !important;
+  border:1px solid rgba(255,255,255,.12) !important;
+  border-radius:16px !important;
+  background:linear-gradient(145deg,#2c3748 0%,#263142 100%) !important;
+  box-shadow:0 7px 18px rgba(0,0,0,.12);
+  overflow-wrap:anywhere;
+  transition:transform .22s ease, box-shadow .22s ease, border-color .22s ease, background .22s ease !important;
+}
+.education-grid .education-card:hover,
+.education-grid .education-card:focus-visible{
+  transform:translateY(-6px) !important;
+  background:linear-gradient(145deg,#354258 0%,#2a374b 100%) !important;
+  border-color:rgba(174,190,255,.48) !important;
+  box-shadow:0 16px 30px rgba(0,0,0,.25) !important;
+  outline:none;
+}
+.education-grid .education-card span{
+  display:block !important;
+  margin:0 0 19px !important;
+  font-size:12px !important;
+  line-height:1.2 !important;
+  letter-spacing:.06em;
+  color:#b9c5da !important;
+}
+.education-grid .education-card strong{
+  display:block !important;
+  width:100%;
+  margin:0 0 13px !important;
+  font-size:18px !important;
+  line-height:1.35 !important;
+  letter-spacing:0;
+}
+.education-grid .education-card p{
+  display:block !important;
+  width:100%;
+  margin:0 0 22px !important;
+  color:#d1d8e3 !important;
+  font-size:14px !important;
+  line-height:1.6 !important;
+}
+.education-grid .education-card b{
+  display:block !important;
+  margin-top:auto !important;
+  padding-top:14px !important;
+  font-size:13px !important;
+  line-height:1.4 !important;
+  font-weight:700;
+}
+@media(max-width:900px){
+  .education-grid{gap:13px !important;}
+  .education-grid .education-card{padding:22px 19px 21px !important;min-height:300px !important;}
+  .education-grid .education-card strong{font-size:16px !important;}
+  .education-grid .education-card p{font-size:13px !important;}
+}
+@media(max-width:650px){
+  .education{padding:22px 17px !important;}
+  .education-grid{grid-template-columns:minmax(0,1fr) !important;gap:13px !important;}
+  .education-grid .education-card{min-height:0 !important;padding:23px 22px 21px !important;}
+  .education-grid .education-card span{margin-bottom:13px !important;}
+  .education-grid .education-card strong{font-size:18px !important;}
+  .education-grid .education-card p{font-size:14px !important;margin-bottom:15px !important;}
+  .education-grid .education-card b{padding-top:8px !important;}
+}
+@media(prefers-reduced-motion:reduce){
+  .education-grid .education-card{transition:none !important;}
+  .education-grid .education-card:hover,.education-grid .education-card:focus-visible{transform:none !important;}
 }
 
+</style></head><body><div class="wrap"><div class="top"><a href="{{url_for('resolver_dashboard')}}">← Dashboard Staff</a><a href="{{url_for('logout')}}">Esci</a></div><div class="hero"><div style="color:#b9c2d0">PRATICA #{{case.id}} · {{service_label}}</div><h1>{{calc.data.get('name','Cliente')}} {{calc.data.get('surname','')}}</h1><div>{{case.email}}</div><p><span class="badge">{{situation_label}}</span></p></div><div class="grid"><div class="card"><div class="muted">Entrate</div><div class="metric">€ {{'%.2f'|format(calc.total_income)}}</div></div><div class="card"><div class="muted">Spese</div><div class="metric">€ {{'%.2f'|format(calc.total_expenses)}}</div></div><div class="card"><div class="muted">Debito</div><div class="metric">€ {{'%.2f'|format(calc.total_debt)}}</div></div><div class="card"><div class="muted">Rate / reddito</div><div class="metric">{{payment_ratio}}%</div></div></div><div class="card"><h2>Dati cliente e posizioni</h2><p><b>Email:</b> {{case.email}}</p><p><b>Telefono:</b> {{calc.data.get('phone','—')}}</p><p><b>Indirizzo:</b> {{calc.data.get('address','—')}}</p>{% for d in calc.debts %}<div style="padding:10px;border-top:1px solid #edf0f4"><b>{{d.creditor}}</b> · {{d.debt_type or 'Posizione'}} · € {{'%.2f'|format(d.current_amount)}} · rata € {{'%.2f'|format(d.monthly_payment)}}</div>{% endfor %}</div><div class="card"><h2>Analisi e generatore di risposte</h2><form method="post" action="{{url_for('resolver_run_analysis',case_id=case.id)}}"><button class="btn">Genera / rigenera analisi</button></form>{% if analysis %}<div style="margin-top:15px;white-space:pre-line;line-height:1.55">{{analysis.summary}}</div>{% for w in calc.warnings %}<div class="warning">⚠ {{w}}</div>{% endfor %}{% endif %}</div>{% if service=='analysis' %}<div class="card"><h2>Risposta cliente — €1,99</h2><p class="muted">La risposta deve essere articolata e il PDF deve avere almeno 3 pagine. Il testo è modificabile prima dell'invio.</p>{% if response_solution %}<form method="post" action="{{url_for('save_paid_response',solution_id=response_solution.id)}}"><textarea name="content">{{response_solution.content}}</textarea><p><button class="btn sec">Salva e rigenera PDF</button> <a class="btn" href="{{url_for('download_solution',solution_id=response_solution.id)}}">Anteprima PDF</a></p></form><form method="post" action="{{url_for('send_paid_response',solution_id=response_solution.id)}}"><button class="btn">✓ Valida e invia al cliente da info@fixtude.it</button></form>{% else %}<form method="post" action="{{url_for('generate_paid_response',case_id=case.id)}}"><button class="btn">Genera risposta articolata + PDF</button></form>{% endif %}</div>{% endif %}{% if service=='kit' %}<div class="card"><h2>Kit FixTude — €9,99</h2><p class="muted">Seleziona i PDF della libreria, verifica il contenuto e inviali insieme al rapporto personalizzato.</p><form method="post" action="{{url_for('prepare_kit',case_id=case.id)}}"><div class="lib">{% for f in library %}<label><input type="checkbox" name="library_ids" value="{{f.id}}" {% if f.id in response_attachments|map(attribute='id')|list %}checked{% endif %}> <b>{{f.title}}</b><br><span class="muted">{{f.category}} · {{'VALIDATO' if f.validated else 'DA VALIDARE'}}</span></label>{% endfor %}</div><p><button class="btn">Salva selezione KIT</button></p></form>{% if response_solution %}<a class="btn" href="{{url_for('download_solution',solution_id=response_solution.id)}}">Scarica rapporto personalizzato</a>{% endif %}<form method="post" action="{{url_for('send_kit',case_id=case.id)}}" style="margin-top:10px"><button class="btn">✓ Valida e invia KIT al cliente da info@fixtude.it</button></form></div>{% endif %}<div class="card"><h2>Documenti</h2>{% for s in solutions %}<div style="border-top:1px solid #edf0f4;padding:12px 0"><b>{{s.title}}</b> · {{s.status}} {% if s.final_email_sent_at %}· Email inviata{% endif %}{% if s.pdf_path %} · <a href="{{url_for('download_solution',solution_id=s.id)}}">PDF</a>{% endif %}</div>{% else %}<p class="muted">Nessun documento.</p>{% endfor %}</div></div></body></html>''',case=case,calc=calc,analysis=analysis,solutions=solutions,service=service,service_label=service_label,library=library,response_solution=response_solution,response_attachments=response_attachments,payment_ratio=payment_ratio,situation_label=situation_label)
 
-@app.route("/moduli")
-def moduli_gratuiti():
-    cards = []
+@app.route("/risolutore/pratica/<int:case_id>/genera-risposta",methods=["POST"])
+def generate_paid_response(case_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    case=get_case(case_id)
+    if not case: abort(404)
+    if not get_paid_payment(case["email"],case_id,"analysis") and not get_paid_payment(case["email"],case_id,"pdf"): abort(403)
+    content=build_paid_response_content(case_id); conn=db_connect(); existing=conn.execute("SELECT * FROM solution_documents WHERE case_id=? AND solution_type='paid_response' ORDER BY id DESC LIMIT 1",(case_id,)).fetchone(); ts=now_iso()
+    if existing: conn.execute("UPDATE solution_documents SET title=?,content=?,status='pending_review',updated_at=?,approved_at=NULL,sent_at=NULL WHERE id=?",("Risposta FixTude",content,ts,existing["id"])); sid=existing["id"]
+    else: sid=conn.execute("INSERT INTO solution_documents(case_id,title,solution_type,content,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",(case_id,"Risposta FixTude","paid_response",content,"pending_review",ts,ts)).lastrowid
+    conn.commit(); conn.close(); path=generate_staff_response_pdf(sid); conn=db_connect(); conn.execute("UPDATE solution_documents SET pdf_path=?,updated_at=? WHERE id=?",(path,now_iso(),sid)); conn.commit(); conn.close(); return redirect(url_for("resolver_case",case_id=case_id))
 
-    for slug, (filename, label) in MODULE_FILES.items():
-        cards.append(f'''
-        <section class="card">
-            <h2>{escape(label)}</h2>
-            <p class="muted">
-                Documento PDF gratuito, consultabile e scaricabile
-                senza registrazione.
-            </p>
-            <div class="actions">
-                <a class="btn outline"
-                   href="/static/{filename}"
-                   target="_blank"
-                   rel="noopener">
-                    Visualizza PDF
-                </a>
-                <a class="btn" href="/download/modulo/{slug}">
-                    Scarica PDF
-                </a>
-            </div>
-        </section>
-        ''')
+@app.route("/risolutore/soluzione/<int:solution_id>/salva-risposta",methods=["POST"])
+def save_paid_response(solution_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    content=request.form.get("content","").strip(); conn=db_connect(); sol=conn.execute("SELECT * FROM solution_documents WHERE id=?",(solution_id,)).fetchone()
+    if not sol: conn.close(); abort(404)
+    conn.execute("UPDATE solution_documents SET content=?,status='pending_review',approved_at=NULL,sent_at=NULL,updated_at=? WHERE id=?",(content,now_iso(),solution_id)); case_id=sol["case_id"]; conn.commit(); conn.close(); path=generate_staff_response_pdf(solution_id); conn=db_connect(); conn.execute("UPDATE solution_documents SET pdf_path=?,updated_at=? WHERE id=?",(path,now_iso(),solution_id)); conn.commit(); conn.close(); return redirect(url_for("resolver_case",case_id=case_id))
 
-    content = '''
-    <h1>Moduli FixTude gratuiti</h1>
-    <p class="muted">
-        Consulta e scarica gratuitamente i modelli per preparare
-        richieste ai creditori. Adatta ogni documento alla tua
-        situazione, controlla gli importi e allega soltanto
-        documenti pertinenti. L'invio di una richiesta non garantisce
-        che il creditore accetti la proposta.
-    </p>
-    <div class="grid">
-    ''' + "".join(cards) + '''
-    </div>
-    <div class="notice">
-        Tutti e quattro i documenti sono gratuiti e non richiedono
-        registrazione o pagamento.
-    </div>
-    '''
+@app.route("/risolutore/pratica/<int:case_id>/kit",methods=["POST"])
+def prepare_kit(case_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    case=get_case(case_id)
+    if not case: abort(404)
+    ids=request.form.getlist("library_ids"); solutions=get_solutions(case_id); solution=next((x for x in solutions if x["solution_type"] in ("paid_response","kit_report")),None)
+    if not solution:
+        content=build_paid_response_content(case_id); conn=db_connect(); ts=now_iso(); sid=conn.execute("INSERT INTO solution_documents(case_id,title,solution_type,content,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",(case_id,"Rapporto Kit FixTude","kit_report",content,"pending_review",ts,ts)).lastrowid; conn.commit(); conn.close(); path=generate_staff_response_pdf(sid); conn=db_connect(); conn.execute("UPDATE solution_documents SET pdf_path=? WHERE id=?",(path,sid)); conn.commit(); conn.close(); solution=get_solutions(case_id)[-1]
+    save_solution_attachments(solution["id"],ids); return redirect(url_for("resolver_case",case_id=case_id))
 
-    return page("Moduli gratuiti", content)
+def _smtp_sender():
+    host=os.environ.get("SMTP_HOST","").strip(); port=int(os.environ.get("SMTP_PORT","587") or 587); username=os.environ.get("SMTP_USERNAME","").strip(); password=os.environ.get("SMTP_PASSWORD","").strip(); sender="info@fixtude.it"; sender_name=os.environ.get("SMTP_FROM_NAME","FixTude").strip(); return host,port,username,password,sender,sender_name
+
+def _send_staff_email(to_email,subject,body,attachments):
+    host,port,username,password,sender,sender_name=_smtp_sender()
+    if not host: return False
+    msg=EmailMessage(); msg["Subject"]=subject; msg["From"]=f"{sender_name} <info@fixtude.it>"; msg["To"]=to_email; msg.set_content(body)
+    for path,filename in attachments:
+        if path and Path(path).exists():
+            with open(path,"rb") as f: msg.add_attachment(f.read(),maintype="application",subtype="pdf",filename=filename)
+    with smtplib.SMTP(host,port,timeout=20) as smtp:
+        smtp.starttls()
+        if username and password: smtp.login(username,password)
+        smtp.send_message(msg)
+    return True
+
+@app.route("/risolutore/soluzione/<int:solution_id>/invia",methods=["POST"])
+def send_paid_response(solution_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    conn=db_connect(); sol=conn.execute("SELECT * FROM solution_documents WHERE id=?",(solution_id,)).fetchone(); conn.close()
+    if not sol: abort(404)
+    case=get_case(sol["case_id"])
+    if not case: abort(404)
+    path=generate_staff_response_pdf(solution_id); conn=db_connect(); conn.execute("UPDATE solution_documents SET pdf_path=?,status='sent',approved_at=?,sent_at=?,updated_at=? WHERE id=?",(path,now_iso(),now_iso(),now_iso(),solution_id)); conn.commit(); conn.close()
+    data=get_case_data(sol["case_id"]); name=((data.get("name","")+" "+data.get("surname","")).strip() or "Cliente")
+    ok=_send_staff_email(case["email"],"FixTude - la tua risposta è disponibile",f"Gentile {name},\n\nabbiamo completato la revisione della tua richiesta. In allegato trovi la risposta FixTude.\n\nCordiali saluti,\nFixTude",[(path,"Risposta_FixTude.pdf")])
+    conn=db_connect(); conn.execute("UPDATE solution_documents SET final_email_sent_at=? WHERE id=?",(now_iso() if ok else None,solution_id)); conn.commit(); conn.close(); return redirect(url_for("resolver_case",case_id=sol["case_id"]))
+
+@app.route("/risolutore/pratica/<int:case_id>/invia-kit",methods=["POST"])
+def send_kit(case_id):
+    user=require_login("resolver")
+    if not user: return redirect(url_for("resolver_login"))
+    case=get_case(case_id)
+    if not case: abort(404)
+    solutions=get_solutions(case_id); report=next((x for x in solutions if x["solution_type"] in ("paid_response","kit_report")),None); attachments=[]
+    if report and report["pdf_path"] and Path(report["pdf_path"]).exists(): attachments.append((report["pdf_path"],"Rapporto_FixTude.pdf"))
+    for f in get_solution_attachments(report["id"]) if report else []:
+        if f["validated"] and Path(f["file_path"]).exists(): attachments.append((f["file_path"],f["original_filename"]))
+    if not attachments: return redirect(url_for("resolver_case",case_id=case_id))
+    data=get_case_data(case_id); name=((data.get("name","")+" "+data.get("surname","")).strip() or "Cliente")
+    ok=_send_staff_email(case["email"],"FixTude - il tuo KIT è disponibile",f"Gentile {name},\n\nabbiamo completato la preparazione del tuo KIT FixTude. In allegato trovi il rapporto e i documenti selezionati e verificati.\n\nCordiali saluti,\nFixTude",attachments)
+    if report:
+        conn=db_connect(); conn.execute("UPDATE solution_documents SET status='sent',approved_at=?,sent_at=?,final_email_sent_at=?,updated_at=? WHERE id=?",(now_iso(),now_iso(),now_iso() if ok else None,now_iso(),report["id"])); conn.commit(); conn.close()
+    return redirect(url_for("resolver_case",case_id=case_id))
 
 
-@app.route("/download/modulo/<slug>")
-def download_modulo(slug):
-    item = MODULE_FILES.get(slug)
+@app.route(
+    "/risolutore/pratica/<int:case_id>/analizza",
+    methods=["POST"]
+)
+def resolver_run_analysis(case_id):
 
-    if not item:
-        return "Modulo non trovato", 404
+    user = require_login(
+        "resolver"
+    )
 
-    filename = item[0]
-    path = MODULE_DIR / filename
+    if not user:
+        return redirect(
+            url_for("resolver_login")
+        )
 
-    if not path.is_file():
-        app.logger.error("PDF modulo non trovato: %s", path)
-        return page(
-            "Modulo non disponibile",
-            '''
-            <h1>Modulo temporaneamente non disponibile</h1>
-            <p>
-                Il documento non è al momento disponibile.
-                Riprova più tardi.
-            </p>
-            <a class="btn" href="/moduli">
-                Torna ai moduli gratuiti
-            </a>
-            ''',
-        ), 404
+    if not get_case(case_id):
+        abort(404)
+
+    run_local_agent(
+        case_id
+    )
+
+    return redirect(
+        url_for(
+            "resolver_case",
+            case_id=case_id
+        )
+    )
+
+
+# ============================================================
+# CORRECTION
+# ============================================================
+
+@app.route(
+    "/risolutore/soluzione/<int:solution_id>/correggi",
+    methods=["POST"]
+)
+def correct_solution(solution_id):
+
+    user = require_login(
+        "resolver"
+    )
+
+    if not user:
+        return redirect(
+            url_for("resolver_login")
+        )
+
+    corrected = request.form.get(
+        "content",
+        ""
+    ).strip()
+
+    note = request.form.get(
+        "note",
+        ""
+    ).strip()
+
+    conn = db_connect()
+
+    solution = conn.execute(
+        """
+        SELECT *
+        FROM solution_documents
+        WHERE id = ?
+        """,
+        (solution_id,)
+    ).fetchone()
+
+    if not solution:
+
+        conn.close()
+        abort(404)
+
+    conn.execute(
+        """
+        INSERT INTO supervision
+        (
+            solution_id,
+            original_content,
+            corrected_content,
+            correction_note,
+            created_at
+        )
+        VALUES (?,?,?,?,?)
+        """,
+        (
+            solution_id,
+            solution["content"],
+            corrected,
+            note,
+            now_iso()
+        )
+    )
+
+    conn.execute(
+        """
+        UPDATE solution_documents
+        SET content = ?,
+            supervisor_note = ?,
+            status = 'pending_review',
+            updated_at = ?,
+            approved_at = NULL,
+            sent_at = NULL
+        WHERE id = ?
+        """,
+        (
+            corrected,
+            note,
+            now_iso(),
+            solution_id
+        )
+    )
+
+    conn.commit()
+
+    case_id = solution["case_id"]
+
+    conn.close()
+
+    try:
+        generate_pdf(
+            solution_id
+        )
+    except Exception:
+        pass
+
+    return redirect(
+        url_for(
+            "resolver_case",
+            case_id=case_id
+        )
+    )
+
+
+# ============================================================
+# FINAL SOLUTION EMAIL
+# ============================================================
+
+def send_final_solution_email(solution_id):
+    """Invia al cliente il PDF definitivo dopo l'approvazione dell'Esperto."""
+    conn = db_connect()
+    solution = conn.execute(
+        "SELECT * FROM solution_documents WHERE id = ?",
+        (solution_id,)
+    ).fetchone()
+    conn.close()
+
+    if not solution or solution["status"] != "sent":
+        return False
+
+    if solution["final_email_sent_at"]:
+        return True
+
+    if not solution["pdf_path"] or not Path(solution["pdf_path"]).exists():
+        return False
+
+    case = get_case(solution["case_id"])
+    if not case:
+        return False
+
+    host = os.environ.get("SMTP_HOST", "").strip()
+    port = int(os.environ.get("SMTP_PORT", "587") or 587)
+    username = os.environ.get("SMTP_USERNAME", "").strip()
+    password = os.environ.get("SMTP_PASSWORD", "").strip()
+    sender = os.environ.get("SMTP_FROM_EMAIL", "").strip() or username
+    sender_name = os.environ.get("SMTP_FROM_NAME", "FixTude").strip()
+    if not host or not sender:
+        return False
+
+    data = get_case_data(solution["case_id"])
+    customer_name = (data.get("name", "") + " " + data.get("surname", "")).strip() or "Cliente FixTude"
+
+    msg = EmailMessage()
+    msg["Subject"] = "FixTude - il tuo documento è disponibile"
+    msg["From"] = f"{sender_name} <{sender}>"
+    msg["To"] = case["email"]
+    msg.set_content(
+        f"Gentile {customer_name},\n\n"
+        "la revisione completa del tuo documento FixTude è stata conclusa dall'Esperto.\n\n"
+        "Il documento PDF definitivo è ora disponibile nella tua Area Personale FixTude. "
+        "Lo trovi anche in allegato a questa email.\n\n"
+        "Cordiali saluti,\nFixTude"
+    )
+    with open(solution["pdf_path"], "rb") as f:
+        msg.add_attachment(
+            f.read(),
+            maintype="application",
+            subtype="pdf",
+            filename=Path(solution["pdf_path"]).name
+        )
+
+    with smtplib.SMTP(host, port, timeout=15) as smtp:
+        smtp.starttls()
+        if username and password:
+            smtp.login(username, password)
+        smtp.send_message(msg)
+
+    conn = db_connect()
+    conn.execute(
+        "UPDATE solution_documents SET final_email_sent_at = ? WHERE id = ?",
+        (now_iso(), solution_id)
+    )
+    conn.commit()
+    conn.close()
+    return True
+
+
+def _safe_send_final_solution_email(solution_id):
+    try:
+        send_final_solution_email(solution_id)
+    except Exception:
+        app.logger.exception("Errore invio PDF finale per solution_id=%s", solution_id)
+
+
+# ============================================================
+# APPROVE
+# ============================================================
+
+@app.route(
+    "/risolutore/soluzione/<int:solution_id>/approva",
+    methods=["POST"]
+)
+def approve_solution(solution_id):
+
+    user = require_login(
+        "resolver"
+    )
+
+    if not user:
+        return redirect(
+            url_for("resolver_login")
+        )
+
+    conn = db_connect()
+
+    solution = conn.execute(
+        """
+        SELECT *
+        FROM solution_documents
+        WHERE id = ?
+        """,
+        (solution_id,)
+    ).fetchone()
+
+    if not solution:
+
+        conn.close()
+        abort(404)
+
+    pdf_path = solution["pdf_path"]
+
+    if not pdf_path or not Path(pdf_path).exists():
+
+        try:
+            pdf_path = generate_pdf(
+                solution_id
+            )
+        except Exception:
+            pdf_path = None
+
+    timestamp = now_iso()
+
+    conn.execute(
+        """
+        UPDATE solution_documents
+        SET status = 'sent',
+            pdf_path = ?,
+            approved_at = ?,
+            sent_at = ?,
+            updated_at = ?
+        WHERE id = ?
+        """,
+        (
+            pdf_path,
+            timestamp,
+            timestamp,
+            timestamp,
+            solution_id
+        )
+    )
+
+    case = conn.execute(
+        """
+        SELECT *
+        FROM cases
+        WHERE id = ?
+        """,
+        (solution["case_id"],)
+    ).fetchone()
+
+    if case:
+
+        conn.execute(
+            """
+            INSERT INTO notifications
+            (
+                case_id,
+                email,
+                title,
+                message,
+                notification_type,
+                read,
+                created_at
+            )
+            VALUES (?,?,?,?,?,?,?)
+            """,
+            (
+                case["id"],
+                case["email"],
+                "Nuovo documento disponibile",
+                (
+                    "L'Esperto ha validato "
+                    "il documento: "
+                    + solution["title"]
+                ),
+                "in_app",
+                0,
+                timestamp
+            )
+        )
+
+    conn.commit()
+    conn.close()
+
+    # Il PDF viene inviato solo dopo l'approvazione definitiva.
+    threading.Thread(
+        target=lambda: _safe_send_final_solution_email(solution_id),
+        daemon=True
+    ).start()
+
+    return redirect(
+        url_for(
+            "resolver_case",
+            case_id=solution["case_id"]
+        )
+    )
+
+
+# ============================================================
+# DOWNLOAD SOLUTION
+# ============================================================
+
+@app.route(
+    "/soluzioni/<int:solution_id>/download"
+)
+def download_solution(solution_id):
+
+    user = current_user()
+
+    if not user:
+        return redirect(
+            url_for("home")
+        )
+
+    conn = db_connect()
+
+    solution = conn.execute(
+        """
+        SELECT *
+        FROM solution_documents
+        WHERE id = ?
+        """,
+        (solution_id,)
+    ).fetchone()
+
+    if not solution:
+
+        conn.close()
+        abort(404)
+
+    case = conn.execute(
+        """
+        SELECT *
+        FROM cases
+        WHERE id = ?
+        """,
+        (solution["case_id"],)
+    ).fetchone()
+
+    conn.close()
+
+    if not case:
+        abort(404)
+
+    if (
+        user["role"] == "debtor"
+        and case["email"] != user["email"]
+    ):
+
+        abort(403)
+
+    # ========================================================
+    # IL PDF DEL DEBITORE È A PAGAMENTO
+    # ========================================================
+
+    if user["role"] == "debtor":
+
+        if solution["status"] != "sent":
+
+            abort(403)
+
+        paid = get_paid_payment(
+            user["email"],
+            case["id"],
+            "pdf"
+        )
+
+        if not paid:
+
+            return redirect(
+                url_for("payments")
+            )
+
+    path = solution["pdf_path"]
+
+    if not path or not Path(path).exists():
+
+        try:
+
+            path = generate_pdf(
+                solution_id
+            )
+
+        except Exception as exc:
+
+            return (
+                "PDF non disponibile: "
+                + str(exc),
+                500
+            )
 
     return send_file(
         path,
         as_attachment=True,
-        download_name=filename,
-        mimetype="application/pdf",
+        download_name=Path(path).name
     )
 
 
-@app.route("/educazione-finanziaria")
-def educazione_finanziaria():
-    content = '''<h1>Educazione finanziaria</h1>
-    <p class="muted">Guide introduttive gratuite per comprendere meglio il bilancio personale e affrontare le comunicazioni con i creditori.</p>
-    <section class="card" id="bilancio"><h2>1. Organizzare il bilancio familiare</h2><p>Annota le entrate nette effettivamente disponibili e separa le spese essenziali (casa, utenze, alimentazione, salute e trasporti) dalle spese flessibili. Inserisci poi rate, arretrati e scadenze. Il margine mensile è una stima: lascia un cuscinetto per gli imprevisti e non considerare sostenibile una rata che mette a rischio le necessità di base.</p><ul><li>Usa importi mensili omogenei.</li><li>Evita di contare entrate incerte come se fossero garantite.</li><li>Aggiorna il prospetto quando cambiano reddito o spese.</li></ul></section>
-    <section class="card" id="priorita"><h2>2. Dare priorità ai pagamenti</h2><p>Prima di distribuire il denaro tra i debiti, proteggi le necessità essenziali e valuta le scadenze concrete. Non esiste una priorità universale valida per ogni situazione: atti giudiziari, garanzie, utenze e debiti fiscali possono avere conseguenze differenti. Se hai ricevuto un atto con termini, chiedi tempestivamente una valutazione qualificata.</p><ul><li>Apri e conserva le comunicazioni ricevute.</li><li>Segna importo, creditore, scadenza e riferimento della pratica.</li><li>Non ignorare raccomandate, PEC o atti notificati.</li></ul></section>
-    <section class="card" id="creditori"><h2>3. Parlare con i creditori</h2><p>Una richiesta efficace è chiara, documentata e realistica. Indica il riferimento del rapporto, spiega brevemente la difficoltà, proponi un importo compatibile con il bilancio e chiedi conferma scritta delle condizioni. Non promettere pagamenti che non puoi sostenere e non considerare accettata una proposta finché non hai ricevuto una conferma verificabile.</p><p>Puoi partire dai <a href="/moduli">moduli gratuiti FixTude</a> e personalizzarli.</p></section>
-    <section class="card" id="errori"><h2>4. Errori da evitare</h2><ul><li>Pagare intermediari che promettono cancellazioni o risultati garantiti.</li><li>Firmare accordi senza aver letto importi, scadenze e conseguenze.</li><li>Inviare documenti personali a destinatari non verificati.</li><li>Contrarre nuovo debito senza valutare il costo totale e la sostenibilità.</li><li>Rimandare la richiesta di aiuto quando arrivano atti con termini precisi.</li></ul><p>Le informazioni di questa pagina sono generali e non sostituiscono una consulenza professionale.</p></section>'''
-    return page("Educazione finanziaria", content)
+# ============================================================
+# NOTIFICATIONS
+# ============================================================
 
-@app.route("/sic")
-def sic_banche_dati():
-    content = '''<h1>Accesso gratuito alle banche dati SIC</h1>
-    <p>Puoi esercitare direttamente presso i gestori il diritto di accesso ai dati personali che ti riguardano. Le richieste di accesso ai dati sono distinte da eventuali servizi a pagamento. Segui le istruzioni aggiornate del gestore e usa esclusivamente i suoi canali ufficiali.</p>
-    <div class="grid">
-      <div class="card"><h2>CRIF – EURISC</h2><p>Informazioni per consumatori e accesso ai dati registrati.</p><a class="btn" href="https://www.crif.it/consumatori/" target="_blank" rel="noopener">Sito ufficiale CRIF</a></div>
-      <div class="card"><h2>Experian</h2><p>Informazioni sui dati personali e sui sistemi di informazione creditizia.</p><a class="btn" href="https://www.experian.it/" target="_blank" rel="noopener">Sito ufficiale Experian</a></div>
-      <div class="card"><h2>CTC</h2><p>Consorzio per la tutela del credito: informazioni e procedure per i consumatori.</p><a class="btn" href="https://www.ctconline.it/" target="_blank" rel="noopener">Sito ufficiale CTC</a></div>
-      <div class="card"><h2>CAI – Banca d'Italia</h2><p>Consulta le informazioni ufficiali della Banca d'Italia sulla Centrale d'allarme interbancaria.</p><a class="btn" href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/index.html" target="_blank" rel="noopener">Accesso CAI</a></div>
-    </div>
-    <div class="notice">FixTude non accede alle banche dati per conto dell'utente e non garantisce tempi o risultati. Verifica sempre le istruzioni, l'identificazione richiesta e gli eventuali costi di servizi diversi dall'accesso ai dati personali.</div>'''
-    return page("Banche dati SIC", content)
+@app.route(
+    "/privato/notifiche"
+)
+def debtor_notifications():
 
-@app.route("/shop")
-def shop():
-    content = '''<h1>Shop FixTude</h1>
-    <section class="card product-card">
-      <div class="shop-book-cover"><img src="/static/niente_panico_cover.png" alt="Copertina del libro Niente Panico di FixTude"></div>
-      <div class="shop-book-description"><h2>NIENTE PANICO</h2><p>Una guida pratica per mettere ordine nella situazione debitoria, leggere meglio le proprie possibilità e prepararsi ad affrontare i creditori con maggiore lucidità.</p><p><strong>Formato:</strong> libro digitale PDF.</p><p class="muted">Dopo la conferma del pagamento potrai scaricare il PDF dalla pagina di conferma. Non è necessaria la registrazione.</p><div class="price">€ 6,99</div><form method="post" action="/shop/acquista"><button class="btn" type="submit">Acquista il libro</button></form></div>
-    </section>
-    <p class="muted">I moduli di richiesta debitoria restano gratuiti e sono disponibili nella sezione <a href="/moduli">Moduli gratuiti</a>.</p>'''
-    return page("Shop", content)
+    user = require_login(
+        "debtor"
+    )
 
-@app.route("/shop/acquista", methods=["POST"])
-def shop_acquista():
-    secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
-    if stripe is None or not secret_key:
-        return page("Acquisto temporaneamente non disponibile", '<h1>Acquisto non ancora attivo</h1><p>Il pagamento online non è configurato al momento. Non è stato effettuato alcun addebito.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 503
-    stripe.api_key = secret_key
-    try:
-        checkout = stripe.checkout.Session.create(
-            mode="payment",
-            line_items=[{"price_data": {"currency": "eur", "unit_amount": 699, "product_data": {"name": "NIENTE PANICO - libro digitale FixTude", "description": "Libro digitale in formato PDF"}}, "quantity": 1}],
-            success_url=request.host_url.rstrip("/") + "/shop/conferma?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url=request.host_url.rstrip("/") + "/shop?annullato=1",
-            metadata={"fixtude_product": "niente_panico_pdf"},
+    if not user:
+        return redirect(
+            url_for("debtor_login")
         )
-        return redirect(checkout.url, code=303)
-    except Exception:
-        app.logger.exception("Creazione sessione Stripe non riuscita")
-        return page("Acquisto non disponibile", '<h1>Non è stato possibile avviare il pagamento</h1><p>Nessun pagamento è stato confermato. Riprova più tardi.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 502
 
-@app.route("/shop/conferma")
-def shop_conferma():
-    session_id = request.args.get("session_id", "").strip()
-    secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
-    if not session_id or stripe is None or not secret_key:
-        return page("Verifica acquisto", '<h1>Non possiamo verificare il pagamento</h1><p>Contatta info@fixtude.it per assistenza.</p>'), 400
-    try:
-        stripe.api_key = secret_key
-        checkout = stripe.checkout.Session.retrieve(session_id)
-        paid = checkout.get("payment_status") == "paid"
-        product = (checkout.get("metadata") or {}).get("fixtude_product") == "niente_panico_pdf"
-        if not paid or not product:
-            return page("Pagamento da verificare", '<h1>Pagamento non ancora confermato</h1><p>Il libro sarà disponibile dopo la conferma del pagamento.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 402
-        if not BOOK_FILE.is_file():
-            return page("PDF in preparazione", '<h1>Pagamento confermato</h1><p>Il pagamento risulta confermato, ma il file del libro non è presente sul server. Contatta info@fixtude.it per ricevere assistenza.</p>'), 500
-        content = '''<h1>Grazie per il tuo acquisto!</h1><section class="card"><p>Il pagamento è stato confermato.</p><p><strong>NIENTE PANICO</strong> è pronto per il download.</p><a class="btn" href="/shop/scarica?session_id=''' + escape(session_id) + '''">Scarica il libro PDF</a></section><p class="muted">Conserva questa pagina finché non hai scaricato il file.</p>'''
-        return page("Acquisto confermato", content)
-    except Exception:
-        app.logger.exception("Verifica sessione Stripe non riuscita")
-        return page("Verifica non riuscita", '<h1>Non è stato possibile verificare il pagamento</h1><p>Riprova più tardi o scrivi a info@fixtude.it.</p>'), 502
+    conn = db_connect()
 
-@app.route("/shop/scarica")
-def shop_scarica():
-    session_id = request.args.get("session_id", "").strip()
-    secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
-    if not session_id or stripe is None or not secret_key:
-        return "Accesso non autorizzato", 403
-    try:
-        stripe.api_key = secret_key
-        checkout = stripe.checkout.Session.retrieve(session_id)
-        paid = checkout.get("payment_status") == "paid"
-        product = (checkout.get("metadata") or {}).get("fixtude_product") == "niente_panico_pdf"
-        if not paid or not product or not BOOK_FILE.is_file():
-            return "Accesso non autorizzato o file non disponibile", 403
-        return send_file(BOOK_FILE, as_attachment=True, download_name="FixTude_NIENTE_PANICO.pdf", mimetype="application/pdf")
-    except Exception:
-        app.logger.exception("Download libro non riuscito")
-        return "Non è stato possibile verificare l'acquisto", 502
+    rows = conn.execute(
+        """
+        SELECT *
+        FROM notifications
+        WHERE email = ?
+        ORDER BY id DESC
+        """,
+        (user["email"],)
+    ).fetchall()
 
+    conn.execute(
+        """
+        UPDATE notifications
+        SET read = 1
+        WHERE email = ?
+        """,
+        (user["email"],)
+    )
 
-# =========================================================
-# PRIVACY - BOZZA DA COMPLETARE PRIMA DEL LANCIO
-# =========================================================
+    conn.commit()
+    conn.close()
 
-@app.route("/privacy")
-def privacy():
-    content = """
-    <h1>Informativa privacy</h1>
+    return render_template_string(
+        """
+        <!doctype html>
+        <html lang="it">
+        <body style="font-family:Arial;background:#f6f8fb">
 
-    <section class="card">
-      <p>
-        <strong>Questa pagina è una bozza tecnica e deve essere completata
-        e verificata prima della pubblicazione del sito.</strong>
-      </p>
+        <div style="max-width:800px;margin:auto;padding:30px">
 
-      <h2>Calcolatore</h2>
-      <p>
-        Gli importi inseriti nel calcolatore sono elaborati dal browser
-        dell'utente. Il codice del calcolatore non invia tali importi
-        agli endpoint applicativi.
-      </p>
+        <a href="javascript:history.back()" style="text-decoration:none;color:#4f46e5">
+        ← Indietro
+        </a>
 
-      <h2>Modulo di ricontatto</h2>
-      <p>
-        Se invii il modulo, nome, indirizzo email, eventuale telefono
-        e messaggio vengono trasmessi tramite connessione HTTPS al
-        servizio Web3Forms, che gestisce l'invio della richiesta alla
-        casella email associata alla chiave del modulo. L'applicazione
-        FixTude non conserva una copia di questi dati in un proprio
-        database. Web3Forms dichiara di conservare i dati delle richieste
-        secondo la propria informativa e le impostazioni del servizio;
-        prima del lancio occorre verificare le condizioni aggiornate,
-        i tempi di conservazione e gli eventuali trasferimenti di dati.
-        La richiesta può inoltre rimanere nella casella email del
-        destinatario secondo le relative impostazioni.
-      </p>
+        <h1>Notifiche</h1>
 
-      <h2>Chat</h2>
-      <p>
-        I messaggi della chat sono conservati temporaneamente nella
-        memoria del processo server per consentire lo scambio in tempo
-        reale. Non vengono inseriti in un database applicativo.
-        Le conversazioni inattive vengono eliminate dopo circa due ore;
-        un riavvio del processo può eliminarle prima.
-      </p>
+        {% for n in notifications %}
 
-      <h2>Dati tecnici e hosting</h2>
-      <p>
-        Il server e il fornitore di hosting possono trattare dati tecnici
-        necessari al funzionamento, alla sicurezza e alla prevenzione
-        degli abusi, secondo la loro configurazione e le rispettive
-        condizioni.
-      </p>
+        <div style="background:white;padding:20px;border-radius:12px;margin:12px 0">
 
-      <h2>Informazioni da completare</h2>
-      <p>
-        Prima del lancio occorre indicare in modo definitivo il titolare
-        del trattamento, i recapiti per esercitare i diritti, la base
-        giuridica, i tempi di conservazione, i fornitori coinvolti,
-        gli eventuali trasferimenti di dati e le modalità per presentare
-        reclamo all'autorità competente.
-      </p>
-    </section>
-    """
-    return page("Privacy", content)
+        <strong>
+        {{ n.title }}
+        </strong>
+
+        <p>
+        {{ n.message }}
+        </p>
+
+        </div>
+
+        {% else %}
+
+        <p>Nessuna notifica.</p>
+
+        {% endfor %}
+
+        </div>
+        </body>
+        </html>
+        """,
+        notifications=rows
+    )
 
 
-@app.route("/health")
-def health():
-    return jsonify(status="ok", service="FixTude")
+# ============================================================
+# LOGOUT
+# ============================================================
 
+
+
+# ============================================================
+# SELEZIONE DOCUMENTI — MODALITÀ STANDBY
+# Pagina integrata, non collegata ai pagamenti né ai download.
+# ============================================================
+@app.route("/selezione-documenti", methods=["GET", "POST"])
+def selezione_documenti_standby():
+    user = require_login("debtor")
+    if not user:
+        return redirect(url_for("debtor_login"))
+
+    if request.method == "POST":
+        package = request.form.get("pacchetto", "basic").strip()
+        if package not in ("basic", "complete"):
+            package = "basic"
+        selected_ids = (
+            ["rateizzazione", "saldo", "piano", "altri", "libro"]
+            if package == "complete"
+            else ["rateizzazione", "saldo", "piano"]
+        )
+        session["document_selection_confirmed"] = True
+        session["document_selection_package"] = package
+        session["document_selection_ids"] = selected_ids
+        return redirect(url_for("payments"))
+
+    pagina_html = '<!DOCTYPE html>\n<html lang="it">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>Seleziona i documenti | FixTude</title>\n<style>\n:root{--blue:#2457d6;--blue-dark:#173b9b;--ink:#17233d;--muted:#64718a;--line:#dce4f2;--bg:#f4f7fc;--white:#fff;--green:#16845b;--shadow:0 12px 32px rgba(29,55,105,.09)}\n*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}\n.topbar{background:linear-gradient(115deg,#183b9b,#3577ee);color:#fff;padding:22px 20px}.topinner{max-width:1080px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:18px}.brand{font-size:25px;font-weight:850;letter-spacing:-.6px}.brand span{font-weight:400}.step{font-size:13px;border:1px solid rgba(255,255,255,.35);padding:7px 12px;border-radius:999px;white-space:nowrap}\nmain{max-width:1080px;margin:34px auto 60px;padding:0 20px}.intro{text-align:center;max-width:760px;margin:0 auto 28px}.eyebrow{font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue)}h1{font-size:clamp(28px,4vw,39px);line-height:1.15;letter-spacing:-1px;margin:9px 0 13px}.intro p{margin:0;color:var(--muted);font-size:16px}\n.layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(270px,.8fr);gap:22px;align-items:start}.panel{background:var(--white);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}.panelhead{padding:20px 22px;border-bottom:1px solid var(--line)}.panelhead h2{font-size:19px;margin:0 0 4px}.panelhead p{font-size:13px;color:var(--muted);margin:0}.doclist{padding:8px 18px 18px}.doc{display:flex;gap:13px;align-items:flex-start;padding:16px 5px;border-bottom:1px solid #edf1f8;cursor:pointer}.doc:last-child{border-bottom:0}.doc input{appearance:none;flex:0 0 21px;width:21px;height:21px;border:2px solid #b8c5dc;border-radius:6px;margin:2px 0 0;cursor:pointer;background:#fff;position:relative}.doc input:checked{background:var(--blue);border-color:var(--blue)}.doc input:checked:after{content:"✓";position:absolute;color:white;font-size:15px;font-weight:900;left:3px;top:-1px}.docbody{min-width:0;flex:1}.doctitle{font-weight:750;font-size:15px;display:block}.docdesc{display:block;color:var(--muted);font-size:13px;margin-top:3px}.tag{display:inline-block;margin-top:7px;border-radius:6px;background:#edf3ff;color:#2853b6;font-size:11px;font-weight:750;padding:3px 7px}.tag.book{background:#fff3df;color:#94570b}.locknote{padding:12px 15px;margin:0 18px 18px;border-radius:10px;background:#f7f9fd;color:var(--muted);font-size:12px}\n.summary{padding:22px;position:sticky;top:18px}.summary h2{margin:0 0 7px;font-size:20px}.summaryintro{font-size:13px;color:var(--muted);margin:0 0 17px}.pricebox{border:1px solid var(--line);border-radius:13px;padding:16px;margin-bottom:12px;cursor:pointer;transition:border-color .18s,box-shadow .18s,transform .18s}.pricebox:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(29,55,105,.08)}.pricebox.active{border:2px solid var(--blue);padding:15px;background:#f6f8ff}.pricehead{display:flex;align-items:flex-start;gap:10px}.pricehead input{accent-color:var(--blue);width:18px;height:18px;margin:3px 0 0}.pricetext{flex:1}.pricetitle{font-weight:800;font-size:15px}.price{font-size:25px;font-weight:850;white-space:nowrap;color:var(--blue);line-height:1.1}.price small{font-size:12px;font-weight:650}.pricedesc{font-size:12px;color:var(--muted);margin:7px 0 0 28px}.summaryline{height:1px;background:var(--line);margin:18px 0}.selectionlabel{font-size:12px;color:var(--muted);font-weight:750;text-transform:uppercase;letter-spacing:.7px}.selectedlist{padding:0;margin:9px 0 0;list-style:none;font-size:13px}.selectedlist li{padding:5px 0;display:flex;gap:7px}.selectedlist li:before{content:"✓";font-weight:900;color:var(--green)}.totalrow{display:flex;align-items:center;justify-content:space-between;margin:18px 0 15px;font-weight:800}.total{font-size:29px;color:var(--blue)}.continue{display:block;width:100%;border:0;border-radius:11px;background:var(--blue);color:white;padding:14px 16px;font-size:15px;font-weight:800;cursor:pointer;transition:background .2s}.continue:hover{background:var(--blue-dark)}.continue:disabled{background:#aab6cd;cursor:not-allowed}.disclaimer{font-size:11px;color:var(--muted);margin:11px 0 0;text-align:center}.status{margin-top:13px;padding:10px 12px;background:#eef8f3;border-radius:9px;color:#176b4d;font-size:12px;display:none}.footer{text-align:center;font-size:12px;color:#77839a;padding:0 20px 30px}\n@media(max-width:760px){main{margin-top:24px;padding:0 13px}.topbar{padding:17px 15px}.brand{font-size:22px}.step{font-size:11px;padding:6px 9px}.layout{grid-template-columns:1fr}.summary{position:static}.intro{margin-bottom:21px}.panelhead{padding:18px}.doclist{padding:5px 14px 13px}.doc{padding:15px 3px}.pricebox{padding:14px}.pricebox.active{padding:13px}}\n</style>\n</head>\n<body>\n<header class="topbar"><div class="topinner"><div class="brand">Fix<span>Tude</span></div><div class="step">La tua pratica · Selezione documenti</div></div></header>\n<main>\n<section class="intro"><div class="eyebrow">Un passo alla volta</div><h1>Scegli i documenti che ti servono</h1><p>Seleziona i modelli PDF da includere nella tua richiesta. Puoi scegliere il pacchetto essenziale da 1,99 € oppure il KIT completo da 9,99 €, con tutti i documenti e la guida <strong>NIENTE PANICO</strong>.</p></section>\n<div class="layout">\n<section class="panel" aria-labelledby="documents-title"><div class="panelhead"><h2 id="documents-title">Documenti disponibili</h2><p>Spunta le caselle per vedere il riepilogo della tua selezione.</p></div>\n<div class="doclist">\n<label class="doc"><input type="checkbox" class="doccheck" data-id="rateizzazione" data-name="Richiesta di rateizzazione" data-tier="basic" checked><span class="docbody"><span class="doctitle">Richiesta di rateizzazione</span><span class="docdesc">Modello per chiedere il pagamento del debito in più rate.</span><span class="tag">Pacchetto essenziale</span></span></label>\n<label class="doc"><input type="checkbox" class="doccheck" data-id="saldo" data-name="Richiesta di saldo e stralcio" data-tier="basic" checked><span class="docbody"><span class="doctitle">Richiesta di saldo e stralcio</span><span class="docdesc">Modello per proporre la definizione del debito con un importo concordato.</span><span class="tag">Pacchetto essenziale</span></span></label>\n<label class="doc"><input type="checkbox" class="doccheck" data-id="piano" data-name="Richiesta di piano di rientro con titoli" data-tier="basic" checked><span class="docbody"><span class="doctitle">Richiesta di piano di rientro con titoli</span><span class="docdesc">Modello per proporre un piano di pagamento e riepilogare gli impegni richiesti.</span><span class="tag">Pacchetto essenziale</span></span></label>\n<label class="doc"><input type="checkbox" class="doccheck" data-id="altri" data-name="Tutti gli altri modelli PDF FixTude" data-tier="complete"><span class="docbody"><span class="doctitle">Tutti gli altri modelli PDF FixTude</span><span class="docdesc">Accesso agli altri modelli previsti nel KIT completo.</span><span class="tag">Solo KIT completo</span></span></label>\n<label class="doc"><input type="checkbox" class="doccheck" data-id="libro" data-name="Guida NIENTE PANICO" data-tier="complete"><span class="docbody"><span class="doctitle">Guida / libro “NIENTE PANICO”</span><span class="docdesc">La guida FixTude per affrontare con più consapevolezza le difficoltà legate ai debiti.</span><span class="tag book">Inclusa nel KIT completo</span></span></label>\n</div><div class="locknote">Questa è la pagina di selezione: i file PDF e il libro non sono ancora collegati al download. Saranno inseriti in una fase successiva.</div></section>\n<aside class="panel summary" aria-labelledby="summary-title"><h2 id="summary-title">Il tuo pacchetto</h2><p class="summaryintro">Scegli il livello di contenuti da includere.</p>\n<label class="pricebox active" id="basicCard"><div class="pricehead"><input type="radio" name="package" value="basic" checked><span class="pricetext"><span class="pricetitle">Pacchetto essenziale</span></span><span class="price">1,99 €</span></div><p class="pricedesc">I tre modelli PDF principali.</p></label>\n<label class="pricebox" id="completeCard"><div class="pricehead"><input type="radio" name="package" value="complete"><span class="pricetext"><span class="pricetitle">KIT completo FixTude</span></span><span class="price">9,99 €</span></div><p class="pricedesc">Tutti i modelli PDF più la guida “NIENTE PANICO”.</p></label>\n<div class="summaryline"></div><div class="selectionlabel">Contenuti inclusi</div><ul class="selectedlist" id="selectedList"><li>Richiesta di rateizzazione</li><li>Richiesta di saldo e stralcio</li><li>Richiesta di piano di rientro con titoli</li></ul><div class="totalrow"><span>Totale</span><span class="total" id="total">1,99 €</span></div>\n<button type="button" class="continue" id="continueBtn">Conferma selezione</button><p class="disclaimer">Conferma la selezione per proseguire all\'area pagamenti. I file effettivi saranno collegati in una fase successiva.</p><div class="status" id="status" role="status"></div>\n</aside>\n</div>\n</main>\n<footer class="footer">FixTude · Metti in ordine la tua situazione debitoria.<br><a href="/termini">Termini</a> · <a href="/privacy">Privacy</a> · <a href="/cookie">Cookie</a> · <a href="/recesso">Recesso</a></footer>\n<script>\nconst checks=[...document.querySelectorAll(\'.doccheck\')];const basicRadio=document.querySelector(\'input[name="package"][value="basic"]\');const completeRadio=document.querySelector(\'input[name="package"][value="complete"]\');const basicCard=document.getElementById(\'basicCard\');const completeCard=document.getElementById(\'completeCard\');const list=document.getElementById(\'selectedList\');const total=document.getElementById(\'total\');const status=document.getElementById(\'status\');const continueBtn=document.getElementById(\'continueBtn\');\nconst basicIds=[\'rateizzazione\',\'saldo\',\'piano\'];const completeIds=[\'rateizzazione\',\'saldo\',\'piano\',\'altri\',\'libro\'];\nfunction choosePackage(kind){const ids=kind===\'complete\'?completeIds:basicIds;checks.forEach(c=>{c.checked=ids.includes(c.dataset.id)});basicRadio.checked=kind===\'basic\';completeRadio.checked=kind===\'complete\';basicCard.classList.toggle(\'active\',kind===\'basic\');completeCard.classList.toggle(\'active\',kind===\'complete\');render()}\nfunction render(){const selected=checks.filter(c=>c.checked);const hasComplete=selected.some(c=>c.dataset.tier===\'complete\');if(hasComplete){completeRadio.checked=true;basicRadio.checked=false;completeCard.classList.add(\'active\');basicCard.classList.remove(\'active\')}else{basicRadio.checked=true;completeRadio.checked=false;basicCard.classList.add(\'active\');completeCard.classList.remove(\'active\')}\nconst names=selected.map(c=>c.dataset.name);list.innerHTML=\'\';names.forEach(name=>{const li=document.createElement(\'li\');li.textContent=name;list.appendChild(li)});if(!names.length){const li=document.createElement(\'li\');li.textContent=\'Nessun documento selezionato\';li.style.color=\'#b42318\';li.style.listStyle=\'none\';list.appendChild(li)}total.textContent=hasComplete?\'9,99 €\':\'1,99 €\';continueBtn.disabled=names.length===0;status.style.display=\'none\'}\nbasicRadio.addEventListener(\'change\',()=>choosePackage(\'basic\'));completeRadio.addEventListener(\'change\',()=>choosePackage(\'complete\'));basicCard.addEventListener(\'click\',e=>{if(e.target.tagName!==\'INPUT\')choosePackage(\'basic\')});completeCard.addEventListener(\'click\',e=>{if(e.target.tagName!==\'INPUT\')choosePackage(\'complete\')});checks.forEach(c=>c.addEventListener(\'change\',()=>{if(c.dataset.tier===\'complete\'&&c.checked){completeRadio.checked=true;basicRadio.checked=false}else if(!c.checked&&c.dataset.tier===\'complete\'&&!checks.some(x=>x.dataset.tier===\'complete\'&&x.checked)){basicRadio.checked=true;completeRadio.checked=false}render()}));continueBtn.addEventListener(\'click\',()=>{const form=document.createElement(\'form\');form.method=\'POST\';form.action=\'/selezione-documenti\';const packageInput=document.createElement(\'input\');packageInput.type=\'hidden\';packageInput.name=\'pacchetto\';packageInput.value=completeRadio.checked?\'complete\':\'basic\';form.appendChild(packageInput);document.body.appendChild(form);form.submit()});render();\n</script>\n</body>\n</html>\n'
+    return Response(pagina_html, mimetype="text/html")
+
+
+@app.route("/logout")
+def logout():
+
+    session.clear()
+
+    return redirect(
+        url_for("home")
+    )
+
+
+# ============================================================
+# START
+# ============================================================
 
 if __name__ == "__main__":
+
     app.run(
         host="0.0.0.0",
-        port=int(os.environ.get("PORT", "5000")),
+        port=int(
+            os.environ.get(
+                "PORT",
+                5000
+            )
+        ),
         debug=False
     )
-
