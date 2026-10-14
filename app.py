@@ -2105,8 +2105,10 @@ def shop_conferma():
     try:
         stripe.api_key = secret_key
         checkout = stripe.checkout.Session.retrieve(session_id)
-        paid = checkout.get("payment_status") == "paid"
-        product = (checkout.get("metadata") or {}).get("fixtude_product") == "niente_panico_pdf"
+        # Converti l'oggetto Stripe in un dizionario Python prima di usare .get().
+        checkout_data = checkout.to_dict_recursive()
+        paid = checkout_data.get("payment_status") == "paid"
+        product = (checkout_data.get("metadata") or {}).get("fixtude_product") == "niente_panico_pdf"
         if not paid or not product:
             return page("Pagamento da verificare", '<h1>Pagamento non ancora confermato</h1><p>Il libro sarà disponibile dopo la conferma del pagamento.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 402
         if not BOOK_FILE.is_file():
@@ -2126,8 +2128,10 @@ def shop_scarica():
     try:
         stripe.api_key = secret_key
         checkout = stripe.checkout.Session.retrieve(session_id)
-        paid = checkout.get("payment_status") == "paid"
-        product = (checkout.get("metadata") or {}).get("fixtude_product") == "niente_panico_pdf"
+        # Converti l'oggetto Stripe in un dizionario Python prima di usare .get().
+        checkout_data = checkout.to_dict_recursive()
+        paid = checkout_data.get("payment_status") == "paid"
+        product = (checkout_data.get("metadata") or {}).get("fixtude_product") == "niente_panico_pdf"
         if not paid or not product or not BOOK_FILE.is_file():
             return "Accesso non autorizzato o file non disponibile", 403
         return send_file(BOOK_FILE, as_attachment=True, download_name="FixTude_NIENTE_PANICO.pdf", mimetype="application/pdf")
