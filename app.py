@@ -2106,7 +2106,7 @@ def shop_conferma():
         stripe.api_key = secret_key
         checkout = stripe.checkout.Session.retrieve(session_id)
         # Converti l'oggetto Stripe in un dizionario Python prima di usare .get().
-        checkout_data = checkout.to_dict_recursive()
+        checkout_data = checkout.checkout_data = checkout.to_dict()
         paid = checkout_data.get("payment_status") == "paid"
         product = (checkout_data.get("metadata") or {}).get("fixtude_product") == "niente_panico_pdf"
         if not paid or not product:
@@ -2129,7 +2129,7 @@ def shop_scarica():
         stripe.api_key = secret_key
         checkout = stripe.checkout.Session.retrieve(session_id)
         # Converti l'oggetto Stripe in un dizionario Python prima di usare .get().
-        checkout_data = checkout.to_dict_recursive()
+        checkout_data = checkout.checkout_data = checkout.to_dict()
         paid = checkout_data.get("payment_status") == "paid"
         product = (checkout_data.get("metadata") or {}).get("fixtude_product") == "niente_panico_pdf"
         if not paid or not product or not BOOK_FILE.is_file():
