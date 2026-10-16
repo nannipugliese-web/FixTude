@@ -218,19 +218,106 @@ def valid_email(value):
     )
 
 
+SEO_BASE_URL = "https://www.fixtude.it"
+SEO_DEFAULT_DESCRIPTION = (
+    "FixTude ti aiuta a fare chiarezza sulla situazione debitoria con un "
+    "calcolatore gratuito di sostenibilità, materiali informativi e la "
+    "possibilità di chiedere un ricontatto."
+)
+SEO_PAGES = {
+    "/": {
+        "title": "FixTude | Calcolatore gratuito di sostenibilità dei debiti",
+        "description": SEO_DEFAULT_DESCRIPTION,
+    },
+    "/misuratore": {
+        "title": "Calcolatore gratuito di sostenibilità del debito | FixTude",
+        "description": "Calcola gratuitamente il margine mensile e valuta in modo orientativo il peso delle rate rispetto a entrate e spese.",
+    },
+    "/consulenza": {
+        "title": "Richiedi un ricontatto per la tua situazione debitoria | FixTude",
+        "description": "Contatta FixTude per chiedere un ricontatto e descrivere la tua situazione debitoria. La richiesta è facoltativa e non comporta obblighi.",
+    },
+    "/moduli": {
+        "title": "Moduli gratuiti per la gestione dei debiti | FixTude",
+        "description": "Consulta e scarica i moduli informativi gratuiti FixTude per organizzare le comunicazioni e affrontare le questioni debitorie.",
+    },
+    "/educazione-finanziaria": {
+        "title": "Educazione finanziaria e gestione del bilancio | FixTude",
+        "description": "Informazioni pratiche per leggere il bilancio familiare, valutare le spese e gestire gli impegni economici con maggiore consapevolezza.",
+    },
+    "/sic": {
+        "title": "Sistemi di informazione creditizia (SIC) | FixTude",
+        "description": "Informazioni orientative sui sistemi di informazione creditizia e sulla consultazione dei dati relativi alla propria posizione.",
+    },
+    "/shop": {
+        "title": "Shop digitale e guide FixTude",
+        "description": "Scopri i materiali digitali FixTude dedicati all'organizzazione del bilancio e alla gestione delle situazioni debitorie.",
+    },
+}
+
+
 def page(title, content, include_chat=True):
-    """Layout comune, responsive e con pulsante chat."""
+    """Layout comune, responsive, con metadati SEO e pulsante chat."""
+    path = request.path or "/"
+    seo = SEO_PAGES.get(path, {})
+    seo_title = seo.get("title", f"{title} | FixTude")
+    seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
+    canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
+    noindex_paths = ("/chat-staff", "/shop/conferma", "/shop/scarica", "/shop/anteprima")
+    robots = "noindex, nofollow" if path in noindex_paths or path.startswith("/api/") else "index, follow, max-image-preview:large"
+    structured_data = None
+    if path == "/":
+        structured_data = {
+            "@context": "https://schema.org",
+            "@graph": [
+                {
+                    "@type": "WebSite",
+                    "@id": SEO_BASE_URL + "/#website",
+                    "url": SEO_BASE_URL + "/",
+                    "name": "FixTude",
+                    "inLanguage": "it-IT",
+                    "description": SEO_DEFAULT_DESCRIPTION,
+                },
+                {
+                    "@type": "Organization",
+                    "@id": SEO_BASE_URL + "/#organization",
+                    "name": "FixTude",
+                    "url": SEO_BASE_URL + "/",
+                    "email": "info@fixtude.it",
+                    "vatID": "IT15990471003",
+                },
+            ],
+        }
     return render_template_string(
         """
         <!doctype html>
-        <html lang="it">
+        <html lang="it-IT">
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <meta name="theme-color" content="#123a72">
-          <title>{{ title }} | FixTude</title>
-          <meta name="description"
-                content="FixTude: fai chiarezza sulla tua situazione debitoria.">
+          <meta name="color-scheme" content="light">
+          <title>{{ seo_title }}</title>
+          <meta name="description" content="{{ seo_description }}">
+          <meta name="robots" content="{{ robots }}">
+          <link rel="canonical" href="{{ canonical_url }}">
+          <link rel="icon" type="image/png" sizes="16x16" href="/static/fixtude-16.png">
+          <link rel="icon" type="image/png" sizes="48x48" href="/static/fixtude-48.png">
+          <link rel="apple-touch-icon" sizes="180x180" href="/static/fixtude-180.png">
+          <link rel="icon" type="image/png" sizes="512x512" href="/static/fixtude-512.png">
+          <meta property="og:locale" content="it_IT">
+          <meta property="og:type" content="website">
+          <meta property="og:site_name" content="FixTude">
+          <meta property="og:title" content="{{ seo_title }}">
+          <meta property="og:description" content="{{ seo_description }}">
+          <meta property="og:url" content="{{ canonical_url }}">
+          <meta property="og:image" content="{{ seo_base_url }}/static/fixtude-512.png">
+          <meta property="og:image:alt" content="Logo FixTude">
+          <meta name="twitter:card" content="summary">
+          <meta name="twitter:title" content="{{ seo_title }}">
+          <meta name="twitter:description" content="{{ seo_description }}">
+          <meta name="twitter:image" content="{{ seo_base_url }}/static/fixtude-512.png">
+          {% if structured_data %}<script type="application/ld+json">{{ structured_data|tojson }}</script>{% endif %}
           <style>
             :root {
               --blue:#174b91;
@@ -973,6 +1060,12 @@ def page(title, content, include_chat=True):
         </html>
         """,
         title=title,
+        seo_title=seo_title,
+        seo_description=seo_description,
+        canonical_url=canonical_url,
+        seo_base_url=SEO_BASE_URL,
+        robots=robots,
+        structured_data=structured_data,
         content=content,
         include_chat=include_chat
     )
@@ -2420,6 +2513,47 @@ def inject_cookie_banner_on_legal_pages(response):
     return response
 
 
+@app.route("/favicon.svg", methods=["GET"])
+def favicon_svg():
+    """Compatibilità: rimanda alla favicon ufficiale PNG di FixTude."""
+    return redirect("/static/fixtude-48.png", code=302)
+
+
+@app.route("/favicon.ico", methods=["GET"])
+def favicon_ico():
+    """Fallback per browser che richiedono il percorso /favicon.ico."""
+    return redirect("/static/fixtude-48.png", code=302)
+
+
+@app.route("/robots.txt", methods=["GET"])
+def robots_txt():
+    """Istruzioni essenziali per i crawler dei motori di ricerca."""
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /chat-staff\n"
+        "Disallow: /api/\n"
+        f"Sitemap: {SEO_BASE_URL}/sitemap.xml\n"
+    )
+    return Response(body, mimetype="text/plain; charset=utf-8")
+
+
+@app.route("/sitemap.xml", methods=["GET"])
+def sitemap_xml():
+    """Sitemap XML delle pagine pubbliche principali di FixTude."""
+    paths = [
+        "/", "/misuratore", "/consulenza", "/moduli",
+        "/educazione-finanziaria", "/sic", "/shop",
+        "/disclaimer", "/termini", "/privacy", "/cookie",
+    ]
+    urls = "".join(
+        "<url><loc>" + escape(SEO_BASE_URL + ("" if path == "/" else path)) + "</loc></url>"
+        for path in paths
+    )
+    xml = '<?xml version="1.0" encoding="UTF-8"?>' + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + urls + '</urlset>'
+    return Response(xml, mimetype="application/xml; charset=utf-8")
+
+
 @app.route("/health")
 def health():
     return jsonify(status="ok", service="FixTude")
@@ -2431,4 +2565,5 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5000")),
         debug=False
     )
+
 
