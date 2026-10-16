@@ -2072,6 +2072,11 @@ MODULE_DIR = BASE_DIR / "static"
 PRIVATE_DIR = BASE_DIR / "private"
 BOOK_FILE = PRIVATE_DIR / "NIENTE_PANICO.pdf"
 
+# L'anteprima gratuita del primo capitolo è separata dal libro completo.
+# Il file deve essere presente in static/pdf/NIENTE_PANICO_ANTEPRIMA.pdf.
+PDF_DIR = BASE_DIR / "static" / "pdf"
+PREVIEW_FILE = PDF_DIR / "NIENTE_PANICO_ANTEPRIMA.pdf"
+
 MODULE_FILES = {
     "saldo-stralcio": (
         "FixTude_Modulo_Saldo_e_Stralcio_2_pagine.pdf",
@@ -2201,7 +2206,7 @@ def shop():
     content = '''<h1>Shop FixTude</h1>
     <section class="card product-card">
       <div class="shop-book-cover"><img src="/static/niente_panico_cover.png" alt="Copertina del libro Niente Panico di FixTude"></div>
-      <div class="shop-book-description"><h2>NIENTE PANICO</h2><p>Una guida pratica per mettere ordine nella situazione debitoria, leggere meglio le proprie possibilità e prepararsi ad affrontare i creditori con maggiore lucidità.</p><p><strong>Formato:</strong> libro digitale PDF.</p><p class="muted">Dopo la conferma del pagamento potrai scaricare il PDF dalla pagina di conferma. Non è necessaria la registrazione.</p><div class="price">€ 6,99</div><form method="post" action="/shop/acquista"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">Acquista il libro digitale</button></form></div>
+      <div class="shop-book-description"><h2>NIENTE PANICO</h2><p>Una guida pratica per mettere ordine nella situazione debitoria, leggere meglio le proprie possibilità e prepararsi ad affrontare i creditori con maggiore lucidità.</p><p><strong>Formato:</strong> libro digitale PDF.</p><p class="muted">Prima di acquistare, puoi leggere gratuitamente il primo capitolo. Il libro completo sarà disponibile dopo la conferma del pagamento.</p><p><a class="btn outline" href="/shop/anteprima" target="_blank" rel="noopener">Leggi il primo capitolo gratuitamente</a></p><p class="muted">Dopo la conferma del pagamento potrai scaricare il PDF completo dalla pagina di conferma. Non è necessaria la registrazione.</p><div class="price">€ 6,99</div><form method="post" action="/shop/acquista"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">Acquista il libro digitale</button></form></div>
     </section>
     <section class="card product-card print-coming-soon" aria-labelledby="print-book-title">
       <div class="shop-book-cover"><img src="/static/niente_panico_cover.png" alt="Copertina prevista per l'edizione cartacea di Niente Panico"></div>
@@ -2232,6 +2237,23 @@ def shop():
       @media(max-width:640px){.quantity-selector{align-items:flex-start;flex-direction:column}.coming-soon-button{max-width:none}}
     </style>'''
     return page("Shop", content)
+
+@app.route("/shop/anteprima")
+def shop_anteprima():
+    """Mostra solo il primo capitolo gratuito, senza esporre il PDF completo."""
+    if not PREVIEW_FILE.is_file():
+        return page("Anteprima non disponibile", '<h1>Anteprima temporaneamente non disponibile</h1><p>Il primo capitolo gratuito non è al momento disponibile. Riprova più tardi.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 404
+    response = send_file(
+        PREVIEW_FILE,
+        mimetype="application/pdf",
+        as_attachment=False,
+        download_name="FixTude_NIENTE_PANICO_Anteprima.pdf",
+        conditional=True,
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Content-Disposition"] = 'inline; filename="FixTude_NIENTE_PANICO_Anteprima.pdf"'
+    return response
+
 
 @app.route("/shop/acquista", methods=["POST"])
 def shop_acquista():
