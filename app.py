@@ -2525,6 +2525,19 @@ def favicon_ico():
     return redirect("/static/fixtude-48.png", code=302)
 
 
+@app.route("/googleb1ecc40825d3122d.html", methods=["GET"])
+def google_search_console_verification():
+    """Pubblica il file originale di verifica Google dalla cartella principale."""
+    verification_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "googleb1ecc40825d3122d.html",
+    )
+    if not os.path.isfile(verification_path):
+        app.logger.error("File di verifica Google non trovato: %s", verification_path)
+        return Response("File di verifica Google non trovato sul server.", status=404, mimetype="text/plain")
+    return send_file(verification_path, mimetype="text/html", conditional=True)
+
+
 @app.route("/robots.txt", methods=["GET"])
 def robots_txt():
     """Istruzioni essenziali per i crawler dei motori di ricerca."""
