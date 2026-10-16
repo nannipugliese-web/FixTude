@@ -253,6 +253,22 @@ SEO_PAGES = {
         "title": "Shop digitale e guide FixTude",
         "description": "Scopri i materiali digitali FixTude dedicati all'organizzazione del bilancio e alla gestione delle situazioni debitorie.",
     },
+    "/disclaimer": {
+        "title": "Disclaimer: limiti del calcolatore e dei contenuti | FixTude",
+        "description": "Leggi finalità, limiti e criteri orientativi del calcolatore di sostenibilità del debito e dei materiali informativi FixTude.",
+    },
+    "/termini": {
+        "title": "Termini e condizioni di utilizzo | FixTude",
+        "description": "Consulta i termini che regolano l'utilizzo del sito FixTude, del calcolatore, dei materiali informativi e degli eventuali acquisti digitali.",
+    },
+    "/privacy": {
+        "title": "Informativa Privacy | FixTude",
+        "description": "Informazioni sul trattamento dei dati personali, sui contatti, sulla chat e sui diritti degli utenti di FixTude.",
+    },
+    "/cookie": {
+        "title": "Cookie Policy e preferenze | FixTude",
+        "description": "Consulta le informazioni sui cookie e sulle preferenze relative alle statistiche e agli strumenti utilizzati da FixTude.",
+    },
 }
 
 
@@ -285,6 +301,10 @@ def page(title, content, include_chat=True):
                     "url": SEO_BASE_URL + "/",
                     "email": "info@fixtude.it",
                     "vatID": "IT15990471003",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": SEO_BASE_URL + "/static/fixtude-512.png",
+                    },
                 },
             ],
         }
@@ -313,7 +333,7 @@ def page(title, content, include_chat=True):
           <meta property="og:url" content="{{ canonical_url }}">
           <meta property="og:image" content="{{ seo_base_url }}/static/fixtude-512.png">
           <meta property="og:image:alt" content="Logo FixTude">
-          <meta name="twitter:card" content="summary">
+          <meta name="twitter:card" content="summary_large_image">
           <meta name="twitter:title" content="{{ seo_title }}">
           <meta name="twitter:description" content="{{ seo_description }}">
           <meta name="twitter:image" content="{{ seo_base_url }}/static/fixtude-512.png">
@@ -1068,20 +1088,6 @@ def page(title, content, include_chat=True):
         structured_data=structured_data,
         content=content,
         include_chat=include_chat
-    )
-
-
-# =========================================================
-# VERIFICA GOOGLE SEARCH CONSOLE
-# Serve il contenuto esatto del file di verifica all'URL richiesto.
-# =========================================================
-
-@app.route("/googleb1ecc40825d3122d.html", methods=["GET"])
-def google_site_verification():
-    return Response(
-        "google-site-verification: googleb1ecc40825d3122d.html\n",
-        mimetype="text/html",
-        headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
     )
 
 
@@ -2439,8 +2445,13 @@ LEGAL_EMAIL = "info@fixtude.it"
 
 
 def legal_page(title, body):
+    path = request.path or "/"
+    seo = SEO_PAGES.get(path, {})
+    seo_title = seo.get("title", f"{title} | FixTude")
+    seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
+    canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
     owner_line = f"{escape(LEGAL_OWNER_NAME)} · P. IVA {escape(LEGAL_VAT_NUMBER)} · {escape(LEGAL_OWNER_ADDRESS)} · {LEGAL_EMAIL}"
-    return Response(f"""<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123a72"><title>{escape(title)} | FixTude</title><style>body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.65 Arial,sans-serif}}main{{width:min(920px,calc(100% - 28px));margin:28px auto 50px}}.paper{{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:clamp(20px,4vw,38px)}}h1,h2{{line-height:1.25}}h1{{color:#174b91}}h2{{font-size:21px;margin-top:28px}}a{{color:#174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}footer{{border-top:1px solid #dce5ef;margin-top:28px;padding-top:16px;font-size:13px;color:#65758b}}.top{{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}}.brand{{font-size:24px;font-weight:800;color:#174b91;text-decoration:none}}</style></head><body><main><div class="top"><a class="brand" href="/">FixTude</a><a href="/">Torna al sito</a></div><article class="paper"><h1>{escape(title)}</h1><p class="muted">Versione {LEGAL_VERSION}</p><div class="notice"><strong>Denominazione del servizio:</strong> FixTude · <strong>Titolare:</strong> {escape(LEGAL_OWNER_NAME)} · <strong>P. IVA:</strong> {escape(LEGAL_VAT_NUMBER)}</div>{body}<footer><strong>Contatti:</strong> {owner_line}<br>Ultimo aggiornamento: 16 ottobre 2026<br><button type="button" id="ft-cookie-reopen-footer" style="border:0;background:transparent;color:#174b91;text-decoration:underline;cursor:pointer;font:inherit">Preferenze cookie</button></footer></article></main></body></html>""", mimetype="text/html")
+    return Response(f"""<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123a72"><meta name="description" content="{escape(seo_description, quote=True)}"><meta name="robots" content="index, follow, max-image-preview:large"><link rel="canonical" href="{escape(canonical_url, quote=True)}"><link rel="icon" type="image/png" sizes="16x16" href="/static/fixtude-16.png"><link rel="icon" type="image/png" sizes="48x48" href="/static/fixtude-48.png"><link rel="apple-touch-icon" sizes="180x180" href="/static/fixtude-180.png"><link rel="icon" type="image/png" sizes="512x512" href="/static/fixtude-512.png"><meta property="og:locale" content="it_IT"><meta property="og:type" content="website"><meta property="og:site_name" content="FixTude"><meta property="og:title" content="{escape(seo_title, quote=True)}"><meta property="og:description" content="{escape(seo_description, quote=True)}"><meta property="og:url" content="{escape(canonical_url, quote=True)}"><meta property="og:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><meta property="og:image:alt" content="Logo FixTude"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{escape(seo_title, quote=True)}"><meta name="twitter:description" content="{escape(seo_description, quote=True)}"><meta name="twitter:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><title>{escape(seo_title)}</title><style>body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.65 Arial,sans-serif}}main{{width:min(920px,calc(100% - 28px));margin:28px auto 50px}}.paper{{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:clamp(20px,4vw,38px)}}h1,h2{{line-height:1.25}}h1{{color:#174b91}}h2{{font-size:21px;margin-top:28px}}a{{color:#174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}footer{{border-top:1px solid #dce5ef;margin-top:28px;padding-top:16px;font-size:13px;color:#65758b}}.top{{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}}.brand{{font-size:24px;font-weight:800;color:#174b91;text-decoration:none}}</style></head><body><main><div class="top"><a class="brand" href="/">FixTude</a><a href="/">Torna al sito</a></div><article class="paper"><h1>{escape(title)}</h1><p class="muted">Versione {LEGAL_VERSION}</p><div class="notice"><strong>Denominazione del servizio:</strong> FixTude · <strong>Titolare:</strong> {escape(LEGAL_OWNER_NAME)} · <strong>P. IVA:</strong> {escape(LEGAL_VAT_NUMBER)}</div>{body}<footer><strong>Contatti:</strong> {owner_line}<br>Ultimo aggiornamento: 16 ottobre 2026<br><button type="button" id="ft-cookie-reopen-footer" style="border:0;background:transparent;color:#174b91;text-decoration:underline;cursor:pointer;font:inherit">Preferenze cookie</button></footer></article></main></body></html>""", mimetype="text/html")
 
 
 @app.route("/disclaimer")
