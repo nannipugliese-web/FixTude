@@ -218,10 +218,7 @@ def valid_email(value):
     )
 
 
-DEFAULT_DESCRIPTION = "FixTude: fai chiarezza sulla tua situazione debitoria."
-
-
-def page(title, content, include_chat=True, description=None):
+def page(title, content, include_chat=True):
     """Layout comune, responsive e con pulsante chat."""
     return render_template_string(
         """
@@ -233,14 +230,7 @@ def page(title, content, include_chat=True, description=None):
           <meta name="theme-color" content="#123a72">
           <title>{{ title }} | FixTude</title>
           <meta name="description"
-                content="{{ description }}">
-          <link rel="canonical" href="https://fixtude.it{{ request.path }}">
-          <meta property="og:type" content="website">
-          <meta property="og:site_name" content="FixTude">
-          <meta property="og:locale" content="it_IT">
-          <meta property="og:title" content="{{ title }} | FixTude">
-          <meta property="og:description" content="{{ description }}">
-          <meta property="og:url" content="https://fixtude.it{{ request.path }}">
+                content="FixTude: fai chiarezza sulla tua situazione debitoria.">
           <style>
             :root {
               --blue:#174b91;
@@ -629,8 +619,8 @@ def page(title, content, include_chat=True, description=None):
           <footer>
             FixTude · Informazione orientativa, senza impegno.
             <br>Partita IVA 15990471003 ·
-            <a href="/chi-siamo">Chi siamo</a> ·
             <a href="/termini">Termini e Condizioni</a> ·
+            <a href="/disclaimer">Disclaimer</a> ·
             <a href="/privacy">Privacy</a> ·
             <a href="/cookie">Cookie Policy</a> ·
             <button type="button" id="ft-cookie-reopen-footer" class="cookie-footer-link">Preferenze cookie</button>
@@ -984,8 +974,7 @@ def page(title, content, include_chat=True, description=None):
         """,
         title=title,
         content=content,
-        include_chat=include_chat,
-        description=description or DEFAULT_DESCRIPTION
+        include_chat=include_chat
     )
 
 
@@ -998,7 +987,7 @@ def home():
     content = """
     <section class="hero">
       <h1>Fai chiarezza sulla tua situazione debitoria.</h1>
-      <p>In circa tre minuti scopri quanto ti resta ogni mese, quanto pesano le rate e qual è il prossimo passo concreto per la tua situazione. Gratis, senza registrazione, con i dati nel tuo browser.</p>
+      <p>Inserisci entrate, uscite e rate per capire quanto ti rimane ogni mese e valutare in modo indicativo la sostenibilità dei tuoi impegni.</p>
       <div class="actions"><a class="btn light" href="/misuratore">Prova il calcolatore gratuito</a><a class="btn outline contact-cta" href="/consulenza">Richiedi di essere contattato</a></div>
     </section>
     <section class="card start-card"><h2>Da dove cominciare</h2><div class="grid">
@@ -1007,20 +996,9 @@ def home():
       <div><strong>3. Se vuoi, chiedi di parlare con un esperto</strong><p class="muted">Lascia i tuoi recapiti e una breve descrizione della situazione per chiedere il contatto di un esperto FixTude. Il contatto è facoltativo e non comporta obblighi.</p></div>
       <div><strong>4. Hai una domanda?</strong><p class="muted">Apri la chat con un esperto FixTude in basso a destra per inviare un messaggio allo staff. La chat è disponibile senza registrazione.</p></div>
     </div></section>
-    <section class="card"><h2>Cosa ottieni dal calcolatore</h2><div class="grid">
-      <div><strong>Un verdetto chiaro</strong><p class="muted">Quattro livelli, dal verde al rosso scuro, con le ragioni spiegate.</p></div>
-      <div><strong>Quando potresti uscirne</strong><p class="muted">Una stima dei tempi con le rate attuali e con un rimborso maggiore.</p></div>
-      <div><strong>Simulatore di saldo e stralcio</strong><p class="muted">Quanto risparmieresti e se potresti permetterti l'offerta.</p></div>
-      <div><strong>Il passo successivo</strong><p class="muted">Moduli, guide e, se serve, un esperto: scelti in base al tuo risultato.</p></div>
-    </div></section>
-    <section class="card"><h2>Guide per capire cosa fare</h2><ul>
-      <li><a href="/guide/saldo-e-stralcio-come-funziona">Saldo e stralcio: come funziona</a></li>
-      <li><a href="/guide/piano-di-rientro-come-proporlo">Piano di rientro: come proporlo</a></li>
-      <li><a href="/guide/atto-ricevuto-cosa-fare">Hai ricevuto un atto: cosa fare</a></li>
-    </ul><p class="muted">FixTude è gestito da una persona identificata e dichiarata: <a href="/chi-siamo">scopri chi siamo</a>.</p></section>
     <p class="muted">Il calcolatore e i materiali hanno finalità informative e orientative. Non costituiscono consulenza legale o finanziaria personalizzata e non garantiscono l'accettazione di proposte da parte dei creditori.</p>
     """
-    return page("Fai chiarezza sui tuoi debiti: calcolatore e moduli gratuiti", content, description="Calcola quanto ti resta ogni mese, scopri il peso delle rate e il prossimo passo. Calcolatore, moduli per i creditori e guide gratuite.")
+    return page("Fai chiarezza", content)
 
 
 # =========================================================
@@ -1029,763 +1007,309 @@ def home():
 
 @app.route("/misuratore")
 def misuratore():
-    content = r"""
-    <style>
-      [hidden]{display:none!important}
-      .calc-progress{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:18px 0 6px}
-      .calc-pill{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 8px;text-align:center;font-size:13px;font-weight:700;color:var(--muted)}
-      .calc-pill.active{background:var(--blue);border-color:var(--blue);color:#fff}
-      .calc-pill.done{background:#eaf2fb;color:var(--blue)}
-      .calc-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end;padding:12px 0;border-bottom:1px solid var(--line)}
-      .calc-row .field{margin:0}
-      .calc-row .name-field{grid-column:span 2}
-      .calc-row .inline-check{display:flex;align-items:center;gap:8px;font-weight:400;font-size:13px;margin:0;min-height:44px}
-      .calc-row .inline-check input{width:auto}
-      .calc-nav{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:18px}
-      .calc-msg{margin-top:12px}
-      .traffic-light.dark{background:#fbeaea;border-color:#d99a9a}
-      .traffic-light.dark .signal{background:#7f1d1d}
-      .calc-slider{width:100%;padding:0}
-      .calc-big{font-size:24px;font-weight:800;color:var(--blue);margin:6px 0}
-      .calc-list{margin:8px 0 0;padding-left:20px}
-      .calc-list li{margin:6px 0}
-      .urgent{background:#fff1f1;border:1px solid #f3b4b4;border-radius:10px;padding:13px 15px;margin:14px 0}
-      .print-only{display:none}
-      .step-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:10px}
-      .calc-sub{font-size:14px;color:var(--muted);margin:2px 0 10px}
-      .range-row{display:flex;align-items:center;gap:12px}
-      .range-row output{min-width:78px;white-space:nowrap;font-weight:800;text-align:right}
-      .sol-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 8px}
-      .sol-tabs .btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
-      .sol-tag{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;margin-left:6px;background:#eef2f7;color:var(--muted)}
-      .sol-tag.ok{background:#e3f5ea;color:var(--green)}
-      .sol-tag.mid{background:#fff4d6;color:#8a6200}
-      .sol-tag.no{background:#fde8e8;color:var(--red)}
-      .sol-table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0}
-      .sol-table th,.sol-table td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
-      .sol-table td:last-child,.sol-table th:last-child{text-align:right}
-      @media(max-width:650px){.calc-row .name-field{grid-column:1/-1}.step-links{grid-template-columns:1fr}}
-      @media print{
-        header,footer,.chat-launcher,.chat-panel,#ft-cookie-banner,.back-row,.calc-progress,.calc-nav,.no-print,.calc-step[hidden]{display:none!important}
-        body{background:#fff}
-        .print-only{display:block;margin-bottom:12px}
-        .card{box-shadow:none;break-inside:avoid}
-      }
-    </style>
+    content = """
+    <h1>Calcolatore di sostenibilità del debito</h1>
+    <p class="muted">
+      Una prima analisi orientativa del bilancio: saldo mensile, margine prudenziale,
+      quota indicativa destinabile al debito e possibili scenari di rientro.
+      Tutti i calcoli sono eseguiti nel browser: gli importi non vengono inviati al server.
+    </p>
 
-    <div class="no-print">
-      <h1>Calcola la tua situazione debitoria</h1>
-      <p class="muted">Quattro passaggi, circa tre minuti. Ottieni margine mensile, peso delle rate, un verdetto indicativo e il prossimo passo concreto. Gratis, senza registrazione: i dati restano nel tuo browser e non vengono inviati a nessun server, a meno che tu scelga di allegarli a una richiesta di contatto.</p>
-      <div class="notice" id="savedBox" hidden>
-        Hai uno scenario salvato su questo dispositivo.
-        <div class="actions" style="margin-top:10px">
-          <button class="btn" type="button" id="loadSaved">Carica scenario</button>
-          <button class="btn outline" type="button" id="deleteSaved">Eliminalo</button>
-        </div>
+    <section class="card">
+      <h2>1. Entrate nette mensili</h2>
+      <p class="muted">Inserisci entrate effettivamente disponibili e ragionevolmente stabili. Evita di conteggiare somme occasionali o incerte come reddito ricorrente.</p>
+      <div id="incomeRows"></div>
+      <button class="btn outline" type="button" id="addIncome">+ Aggiungi entrata</button>
+    </section>
+
+    <section class="card">
+      <h2>2. Spese mensili</h2>
+      <p class="muted">Inserisci le spese reali, incluse casa, utenze, alimentari, trasporti, salute e altre necessità. Non inserire qui le rate dei debiti che registrerai nella sezione successiva, per evitare un doppio conteggio.</p>
+      <div id="expenseRows"></div>
+      <button class="btn outline" type="button" id="addExpense">+ Aggiungi spesa</button>
+    </section>
+
+    <section class="card">
+      <h2>3. Debiti e rate già in corso</h2>
+      <p class="muted">Per ogni posizione indica il debito residuo e la rata mensile attualmente pagata. Le rate in corso vengono sottratte dal saldo mensile, oltre alle spese indicate sopra.</p>
+      <div id="debtRows"></div>
+      <button class="btn outline" type="button" id="addDebt">+ Aggiungi debito</button>
+      <div class="field" style="margin-top:18px">
+        <label for="lumpSum">Somma una tantum effettivamente disponibile per un eventuale saldo e stralcio (€)</label>
+        <input id="lumpSum" type="number" min="0" max="100000000" step="0.01" inputmode="decimal" value="0">
+        <small class="muted">Indica soltanto risorse già disponibili, non somme ipotetiche o nuovo credito da ottenere.</small>
       </div>
-    </div>
+    </section>
 
-    <div class="calc-progress" id="calcProgress" aria-label="Avanzamento">
-      <div class="calc-pill" data-step="1">1 · Entrate</div>
-      <div class="calc-pill" data-step="2">2 · Spese</div>
-      <div class="calc-pill" data-step="3">3 · Debiti</div>
-      <div class="calc-pill" data-step="4">4 · Risposta</div>
-    </div>
+    <section class="card">
+      <h2>4. Esito della valutazione preliminare</h2>
+      <div class="total-grid">
+        <div class="total"><span class="muted">Entrate mensili</span><strong id="totalIncome">€ 0,00</strong></div>
+        <div class="total"><span class="muted">Spese dichiarate</span><strong id="totalExpenses">€ 0,00</strong></div>
+        <div class="total"><span class="muted">Rate già in corso</span><strong id="totalPayments">€ 0,00</strong></div>
+        <div class="total"><span class="muted">Debito complessivo inserito</span><strong id="totalDebt">€ 0,00</strong></div>
+        <div class="total"><span class="muted">Saldo mensile</span><strong id="residual">€ 0,00</strong></div>
+        <div class="total"><span class="muted">Margine prudenziale</span><strong id="prudentialMargin">€ 0,00</strong></div>
+        <div class="total"><span class="muted">Quota mensile iniziale suggerita</span><strong id="suggestedQuota">€ 0,00</strong></div>
+        <div class="total"><span class="muted">Riserva imprevisti applicata</span><strong>€ 200,00</strong></div>
+      </div>
+      <div class="traffic-light" id="trafficLight" role="status" aria-live="polite">
+        <span class="signal" aria-hidden="true"></span>
+        <div><strong id="trafficTitle">Valutazione non ancora disponibile</strong><div class="muted" id="trafficDescription">Inserisci i dati necessari per ottenere un esito orientativo.</div></div>
+      </div>
+      <div class="notice" id="assessment">Completa i dati per visualizzare l'analisi.</div>
+      <p class="muted" id="dataQuality"></p>
+    </section>
 
-    <div class="calc-step" data-step="1">
-      <section class="card">
-        <h2>1 · Chi sei e quanto entra</h2>
-        <div class="grid">
-          <div class="field">
-            <label for="incomeType">Tipo di reddito principale</label>
-            <select id="incomeType">
-              <option value="dipendente">Lavoro dipendente</option>
-              <option value="autonomo">Lavoro autonomo / partita IVA</option>
-              <option value="pensione">Pensione</option>
-              <option value="altro">Altro / senza reddito fisso</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="household">Persone nel nucleo (te compreso)</label>
-            <input id="household" type="number" min="1" max="12" step="1" value="1" inputmode="numeric">
-          </div>
-        </div>
-        <h3>Entrate mensili nette</h3>
-        <p class="calc-sub">Quello che ti arriva davvero ogni mese. Segna come "non fissa" le entrate che non sono garantite.</p>
-        <div id="incomeRows"></div>
-        <button class="btn outline" type="button" id="addIncome" style="margin-top:12px">+ Aggiungi entrata</button>
-        <div id="msg1" class="calc-msg" role="status" aria-live="polite"></div>
-        <div class="calc-nav"><span></span><button class="btn" type="button" data-go="2">Avanti: le spese</button></div>
-      </section>
-    </div>
+    <section class="card">
+      <h2>5. Simulazioni di piano di rientro</h2>
+      <p class="muted">Il confronto considera il debito complessivo dichiarato e non include eventuali interessi, spese, penali o condizioni contrattuali. La compatibilità matematica non significa che il creditore accetterà il piano.</p>
+      <div class="table-wrap">
+        <table class="result-table">
+          <thead><tr><th>Durata</th><th>Rata mensile teorica</th><th>Confronto con la quota suggerita</th></tr></thead>
+          <tbody id="planRows"><tr><td colspan="3">Inserisci un debito residuo per calcolare gli scenari.</td></tr></tbody>
+        </table>
+      </div>
+      <div class="notice" id="planSummary">Le simulazioni appariranno dopo l'inserimento dei dati.</div>
+    </section>
 
-    <div class="calc-step" data-step="2" hidden>
-      <section class="card">
-        <h2>2 · Quanto spendi</h2>
-        <p class="calc-sub">Importi mensili medi degli ultimi mesi. Se hai un mutuo o un prestito, inserisci la rata nel passo 3, non qui, per non contarla due volte.</p>
-        <h3>Spese essenziali</h3>
-        <p class="calc-sub">Quelle che non puoi tagliare: casa, cibo, trasporti per lavoro, salute, scuola.</p>
-        <div id="essentialRows"></div>
-        <button class="btn outline" type="button" id="addEssential" style="margin-top:12px">+ Aggiungi spesa essenziale</button>
-        <h3 style="margin-top:26px">Altre spese</h3>
-        <p class="calc-sub">Svago, abbonamenti, ristoranti, acquisti non necessari.</p>
-        <div id="flexRows"></div>
-        <button class="btn outline" type="button" id="addFlex" style="margin-top:12px">+ Aggiungi altra spesa</button>
-        <div class="calc-nav"><button class="btn outline" type="button" data-go="1">Indietro</button><button class="btn" type="button" data-go="3">Avanti: i debiti</button></div>
-      </section>
-    </div>
+    <section class="card">
+      <h2>6. Simulazione separata: saldo e stralcio</h2>
+      <p class="muted">Esempio teorico basato su un'offerta pari al 60% del debito inserito. È soltanto uno scenario negoziale: non è una percentuale garantita né una previsione di accettazione.</p>
+      <div class="total-grid">
+        <div class="total"><span class="muted">Offerta teorica al 60%</span><strong id="settlementAmount">—</strong></div>
+        <div class="total"><span class="muted">Somma una tantum disponibile</span><strong id="availableLumpSum">€ 0,00</strong></div>
+      </div>
+      <div class="notice" id="settlementSummary">Inserisci il debito e l'eventuale somma una tantum disponibile per valutare questo scenario.</div>
+    </section>
 
-    <div class="calc-step" data-step="3" hidden>
-      <section class="card">
-        <h2>3 · Debiti e rate</h2>
-        <p class="calc-sub">Per ogni debito indica quanto ti resta da pagare e la rata mensile (zero se non stai pagando nulla). Se non hai debiti, vai avanti lasciando vuoto.</p>
-        <div id="debtRows"></div>
-        <button class="btn outline" type="button" id="addDebt" style="margin-top:12px">+ Aggiungi debito</button>
-        <div class="calc-nav"><button class="btn outline" type="button" data-go="2">Indietro</button><button class="btn" type="button" data-go="4">Vedi la mia risposta</button></div>
-      </section>
-    </div>
+    <section class="card">
+      <h2>7. Cosa fare dopo</h2>
+      <p id="nextStep">Il risultato è preliminare e dipende dalla completezza e accuratezza dei dati inseriti.</p>
+      <a class="btn" href="/consulenza">Richiedi di essere contattato</a>
+      <button class="btn outline" type="button" id="resetCalculator" style="margin-left:8px">Azzera tutti i campi</button>
+      <p class="muted" style="margin-top:16px">Questo strumento fornisce una simulazione informativa, non una certificazione di solvibilità, una consulenza legale, fiscale o finanziaria personalizzata, né una garanzia di accordo con i creditori. Leggi il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
+    </section>
 
-    <div class="calc-step" data-step="4" hidden>
-      <div class="print-only"><strong>FixTude · Riepilogo indicativo</strong> <span id="printDate"></span></div>
-      <section class="card">
-        <h2>La tua risposta</h2>
-        <div class="traffic-light" id="verdict" role="status" aria-live="polite">
-          <span class="signal" aria-hidden="true"></span>
-          <div><strong id="verdictTitle"></strong><div id="verdictText"></div></div>
-        </div>
-        <div class="urgent" id="urgentBox" hidden>
-          <strong>Hai indicato di aver ricevuto un atto, un'ingiunzione o una diffida.</strong>
-          <p style="margin:6px 0 0">I termini per reagire possono essere molto brevi (per un decreto ingiuntivo, ad esempio, 40 giorni dalla notifica per opporsi). Non aspettare: fatti valutare al più presto da un avvocato o da un professionista abilitato. <a href="/guide/atto-ricevuto-cosa-fare">Leggi cosa fare subito</a>.</p>
-        </div>
-        <div class="total-grid" id="tiles"></div>
-        <h3>Perché questo risultato</h3>
-        <ul class="calc-list" id="reasons"></ul>
-      </section>
-
-      <section class="card" id="timelineCard">
-        <h2>Quando potresti uscirne</h2>
-        <p id="timelineNow"></p>
-        <div class="field" style="margin-top:14px">
-          <label for="shareSlider">Quanta parte del tuo margine mensile puoi destinare a rimborsare di più?</label>
-          <div class="range-row"><input class="calc-slider" id="shareSlider" type="range" min="0" max="100" step="5" value="50"><output id="shareOut">50%</output></div>
-        </div>
-        <p id="timelineScenario"></p>
-        <p class="calc-sub">Stima semplificata: non include interessi, more o spese. Serve a capire l'ordine di grandezza.</p>
-      </section>
-
-      <section class="card" id="solCard">
-        <h2>Quale soluzione proporre al creditore</h2>
-        <p class="calc-sub">Confronta le tre strade più comuni: dilazione, piano di rientro e saldo e stralcio. Scegli il debito su cui vuoi ragionare.</p>
-        <div class="field" style="max-width:460px">
-          <label for="solDebt">Debito da considerare</label>
-          <select id="solDebt"></select>
-        </div>
-        <div class="notice" id="solReco"></div>
-        <ul class="calc-list" id="solTags"></ul>
-        <p class="calc-sub" id="solCapNote"></p>
-
-        <div class="sol-tabs" role="tablist">
-          <button class="btn outline" type="button" data-tab="dilazione">Dilazione</button>
-          <button class="btn outline" type="button" data-tab="rientro">Piano di rientro</button>
-          <button class="btn outline" type="button" data-tab="stralcio">Saldo e stralcio</button>
-        </div>
-
-        <div class="sol-panel" data-panel="dilazione">
-          <p class="calc-sub">La dilazione sposta in avanti il pagamento senza ridurre la somma dovuta. Di solito è adatta a difficoltà temporanee e a tempi brevi.</p>
-          <div class="field">
-            <label for="dilMonths">In quanti mesi proporresti di pagare?</label>
-            <div class="range-row"><input class="calc-slider" id="dilMonths" type="range" min="1" max="12" step="1" value="6"><output id="dilOut">6 mesi</output></div>
-          </div>
-          <div class="total-grid" id="dilTiles"></div>
-          <p id="dilText"></p>
-          <p class="calc-sub"><a href="/download/modulo/dilazione">Scarica il modulo di dilazione</a> · <a href="/guide/dilazione-pagamento-creditore">Come funziona</a></p>
-        </div>
-
-        <div class="sol-panel" data-panel="rientro" hidden>
-          <p class="calc-sub">Il piano di rientro distribuisce il debito in rate concordate, di solito su tempi più lunghi. Funziona se la rata è davvero sostenibile.</p>
-          <div class="field">
-            <label for="rieMonths">Durata del piano</label>
-            <div class="range-row"><input class="calc-slider" id="rieMonths" type="range" min="6" max="120" step="6" value="36"><output id="rieOut">36 mesi</output></div>
-          </div>
-          <label class="check" style="margin:8px 0 12px"><input type="checkbox" id="rieTitoli"><span>Proponi le rate con titoli: una scadenza per ogni titolo, da concordare con il creditore.</span></label>
-          <div class="total-grid" id="rieTiles"></div>
-          <p id="rieText"></p>
-          <div id="rieSchedule"></div>
-          <p class="calc-sub" id="rieWarn" hidden>I titoli (ad esempio cambiali o assegni) possono avere conseguenze più rapide in caso di mancato pagamento rispetto a una semplice rata. Fatti spiegare bene gli effetti da un professionista prima di firmare.</p>
-          <p class="calc-sub"><a href="/download/modulo/piano-rientro">Scarica il modulo di piano di rientro</a></p>
-        </div>
-
-        <div class="sol-panel" data-panel="stralcio" hidden>
-          <p class="calc-sub">Il saldo e stralcio è un accordo in cui il creditore accetta una somma inferiore a chiusura del debito. La percentuale dipende da ogni creditore e dalla tua situazione: qui puoi solo simulare cosa ti converrebbe e se potresti permettertelo.</p>
-          <div class="field">
-            <label for="stralcioPct">Percentuale del debito che proporresti di pagare</label>
-            <div class="range-row"><input class="calc-slider" id="stralcioPct" type="range" min="10" max="100" step="5" value="50"><output id="stralcioOut">50%</output></div>
-          </div>
-          <div class="field" style="max-width:320px">
-            <label for="stralcioSavings">Somma che potresti mettere subito (€)</label>
-            <input id="stralcioSavings" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0">
-          </div>
-          <div class="total-grid" id="stralcioTiles"></div>
-          <p id="stralcioText"></p>
-          <p class="calc-sub">Nessuna garanzia di accettazione. Chiedi sempre conferma scritta, la quietanza liberatoria e come verrà registrata la posizione nelle banche dati. <a href="/guide/saldo-e-stralcio-come-funziona">Come funziona</a> · <a href="/download/modulo/saldo-stralcio">Scarica il modulo</a>.</p>
-        </div>
-        <p class="calc-sub">Simulazioni indicative: non includono interessi, spese o condizioni che il creditore potrebbe applicare. L'accettazione dipende sempre dal creditore.</p>
-      </section>
-
-      <section class="card">
-        <h2>Cosa fare adesso</h2>
-        <div class="step-links" id="nextSteps"></div>
-        <h3 style="margin-top:22px">Da guardare per primi</h3>
-        <p class="calc-sub">Ordinati per urgenza di situazione, non per importo.</p>
-        <ul class="calc-list" id="debtOrder"></ul>
-      </section>
-
-      <section class="card no-print">
-        <h2>Salva o condividi il risultato</h2>
-        <div class="actions">
-          <button class="btn" type="button" id="contactBtn">Chiedi un contatto allegando il riepilogo</button>
-          <button class="btn outline" type="button" id="printBtn">Stampa o salva in PDF</button>
-          <button class="btn outline" type="button" id="saveBtn">Salva su questo dispositivo</button>
-          <button class="btn outline" type="button" data-go="1">Modifica i dati</button>
-        </div>
-        <div id="actionMsg" class="calc-msg" role="status" aria-live="polite"></div>
-        <p class="calc-sub">Il riepilogo viene inviato solo se lo alleghi tu al modulo di contatto, dopo averlo letto. Il salvataggio sul dispositivo usa solo la memoria del tuo browser: non farlo su computer condivisi.</p>
-      </section>
-
-      <p class="muted" style="font-size:13px">Stima indicativa basata solo sui dati inseriti. Non è consulenza legale o finanziaria personalizzata, non certifica la sostenibilità del debito e non garantisce l'esito di alcuna trattativa con i creditori.</p>
-    </div>
+    <style>
+      .traffic-light{display:flex;gap:14px;align-items:flex-start;padding:16px;margin:16px 0;border:1px solid var(--line);border-radius:12px;background:#f7f9fc}
+      .traffic-light .signal{width:18px;height:18px;min-width:18px;border-radius:50%;background:#94a3b8;margin-top:4px;box-shadow:0 0 0 5px #e2e8f0}
+      .traffic-light.green{background:#effaf2;border-color:#b6e3c1}.traffic-light.green .signal{background:#188448;box-shadow:0 0 0 5px #d5f0dd}
+      .traffic-light.yellow{background:#fff9e9;border-color:#f0d68b}.traffic-light.yellow .signal{background:#b77900;box-shadow:0 0 0 5px #ffedbd}
+      .traffic-light.red{background:#fff1f1;border-color:#efb8b8}.traffic-light.red .signal{background:#b42318;box-shadow:0 0 0 5px #fbd8d8}
+      .table-wrap{width:100%;overflow-x:auto}.result-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}.result-table th,.result-table td{text-align:left;padding:11px 9px;border-bottom:1px solid var(--line);vertical-align:top}.result-table th{background:#f1f5fa}
+      .status-good{color:#18753a;font-weight:700}.status-caution{color:#8a5a00;font-weight:700}.status-bad{color:#b42318;font-weight:700}
+      @media(max-width:640px){.result-table{font-size:13px}.result-table th,.result-table td{padding:9px 7px}.table-wrap{margin-left:-2px;width:calc(100% + 4px)}}
+    </style>
 
     <script>
     (() => {
-      "use strict";
-      const $ = id => document.getElementById(id);
-      const STORE = "fixtude_calc_v2";
-      let uid = 0;
-      let last = null;
-
-      const eur = n => (Number.isFinite(n) ? n : 0).toLocaleString("it-IT", {style: "currency", currency: "EUR"});
-      const pct = n => Math.round(n * 100) + "%";
-      const num = v => { const x = Number(v); return Number.isFinite(x) && x > 0 ? Math.min(x, 100000000) : 0; };
-      const el = (tag, cls, text) => {
-        const e = document.createElement(tag);
-        if (cls) e.className = cls;
-        if (text != null) e.textContent = text;
-        return e;
+      const definitions = {
+        income: [["Stipendio o pensione", 0], ["Altre entrate ricorrenti", 0]],
+        expense: [["Casa e utenze", 0], ["Alimentari e necessità", 0], ["Trasporti", 0], ["Salute", 0], ["Altre spese", 0]],
+        debt: [["Debito", 0, 0]]
+      };
+      const labels = {income:"Entrata", expense:"Spesa", debt:"Debito"};
+      const RESERVE = 200;
+      const QUOTA_FACTOR = 0.50;
+      const money = n => Number(n || 0).toLocaleString("it-IT", {style:"currency", currency:"EUR"});
+      const safeNumber = input => {
+        const n = Number(input.value);
+        return Number.isFinite(n) && n > 0 ? Math.min(n, 100000000) : 0;
       };
 
-      const DEBT_TYPES = [["prestito", "Prestito o finanziaria"], ["carta", "Carta o revolving"], ["mutuo", "Mutuo / casa"], ["fisco", "Fisco / cartelle"], ["altro", "Altro (utenze, privati…)"]];
-      const DEBT_STATUS = [["regolare", "Pago regolarmente"], ["ritardo", "Sono in ritardo con alcune rate"], ["atto", "Ho ricevuto un atto, ingiunzione o diffida"]];
-      const label = (list, v) => { const f = list.find(x => x[0] === v); return f ? f[1] : v; };
+      function addRow(type, label="", amount=0, payment=0) {
+        const container = document.getElementById(type === "income" ? "incomeRows" : type === "expense" ? "expenseRows" : "debtRows");
+        const row = document.createElement("div");
+        row.className = "entry-row";
+        const nameField = document.createElement("div");
+        nameField.className = "field name-field";
+        const nameLabel = document.createElement("label");
+        nameLabel.textContent = type === "debt" ? "Nome del debito (facoltativo)" : "Voce";
+        nameField.appendChild(nameLabel);
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.maxLength = 80;
+        nameInput.value = label;
+        nameInput.placeholder = labels[type];
+        nameInput.setAttribute("aria-label", "Descrizione");
+        nameField.appendChild(nameInput);
 
-      /* ---------- righe dinamiche ---------- */
-      function mkField(text, control, cls) {
-        const wrap = el("div", "field" + (cls ? " " + cls : ""));
-        const id = "cf" + (++uid);
-        control.id = id;
-        const l = el("label", null, text);
-        l.htmlFor = id;
-        wrap.append(l, control);
-        return wrap;
-      }
-      function mkText(value, ph) {
-        const i = el("input");
-        i.type = "text"; i.maxLength = 80; i.value = value || ""; i.placeholder = ph || ""; i.dataset.role = "name";
-        return i;
-      }
-      function mkNum(role, value) {
-        const i = el("input");
-        i.type = "number"; i.min = "0"; i.max = "100000000"; i.step = "0.01"; i.inputMode = "decimal";
-        i.value = value ? String(value) : ""; i.placeholder = "0"; i.dataset.role = role;
-        return i;
-      }
-      function mkSelect(role, options, value) {
-        const s = el("select");
-        s.dataset.role = role;
-        options.forEach(o => { const opt = el("option", null, o[1]); opt.value = o[0]; s.appendChild(opt); });
-        s.value = value || options[0][0];
-        return s;
+        function makeAmountField(labelText, value, ariaLabel) {
+          const field = document.createElement("div");
+          field.className = "field";
+          const fieldLabel = document.createElement("label");
+          fieldLabel.textContent = labelText;
+          field.appendChild(fieldLabel);
+          const input = document.createElement("input");
+          input.type = "number"; input.min = "0"; input.max = "100000000"; input.step = "0.01";
+          input.inputMode = "decimal"; input.value = value; input.setAttribute("aria-label", ariaLabel);
+          field.appendChild(input); input.addEventListener("input", calculate);
+          return {field, input};
+        }
+        const primary = makeAmountField(type === "debt" ? "Debito residuo (€)" : "Importo mensile (€)", amount, type === "debt" ? "Importo residuo del debito in euro" : "Importo mensile in euro");
+        row.append(nameField, primary.field);
+        if (type === "debt") {
+          const installment = makeAmountField("Rata mensile già in corso (€)", payment, "Rata mensile già in corso in euro");
+          row.appendChild(installment.field);
+        }
+        const remove = document.createElement("button");
+        remove.type = "button"; remove.className = "remove-button"; remove.textContent = "Rimuovi";
+        remove.setAttribute("aria-label", "Rimuovi voce");
+        remove.addEventListener("click", () => { row.remove(); calculate(); });
+        row.appendChild(remove); container.appendChild(row);
+        nameInput.addEventListener("input", calculate);
+        calculate();
       }
 
-      const BOXES = {income: "incomeRows", essential: "essentialRows", flex: "flexRows", debt: "debtRows"};
-      function addRow(kind, d) {
-        d = d || {};
-        const row = el("div", "calc-row");
-        row.dataset.kind = kind;
-        row.appendChild(mkField(kind === "debt" ? "Nome (facoltativo)" : "Voce", mkText(d.name, kind === "debt" ? "Es. finanziaria, carta, cartella" : "Voce"), "name-field"));
-        if (kind === "debt") {
-          row.appendChild(mkField("Tipo", mkSelect("type", DEBT_TYPES, d.type)));
-          row.appendChild(mkField("Debito residuo (€)", mkNum("amount", d.amount)));
-          row.appendChild(mkField("Rata mensile (€)", mkNum("rate", d.rate)));
-          row.appendChild(mkField("Situazione", mkSelect("status", DEBT_STATUS, d.status), "name-field"));
+      function sumRows(id, inputIndex=0) {
+        let total = 0;
+        document.querySelectorAll("#" + id + " .entry-row").forEach(row => {
+          const input = row.querySelectorAll('input[type="number"]')[inputIndex];
+          if (input) total += safeNumber(input);
+        });
+        return total;
+      }
+      function setTrafficLight(level, title, description) {
+        const light = document.getElementById("trafficLight");
+        light.classList.remove("red", "yellow", "green");
+        if (level) light.classList.add(level);
+        document.getElementById("trafficTitle").textContent = title;
+        document.getElementById("trafficDescription").textContent = description;
+      }
+      function setText(id, value) { document.getElementById(id).textContent = value; }
+
+      function calculate() {
+        const income = sumRows("incomeRows");
+        const expenses = sumRows("expenseRows");
+        const debt = sumRows("debtRows", 0);
+        const payments = sumRows("debtRows", 1);
+        const lumpSum = safeNumber(document.getElementById("lumpSum"));
+        const balance = income - expenses - payments;
+        const margin = Math.max(0, balance - RESERVE);
+        const quota = margin * QUOTA_FACTOR;
+        const expenseRowsPresent = document.querySelectorAll("#expenseRows .entry-row").length > 0;
+        const hasExpenseAmount = expenses > 0;
+        const debtRowsPresent = document.querySelectorAll("#debtRows .entry-row").length > 0;
+
+        setText("totalIncome", money(income));
+        setText("totalExpenses", money(expenses));
+        setText("totalPayments", money(payments));
+        setText("totalDebt", money(debt));
+        setText("residual", money(balance));
+        setText("prudentialMargin", money(margin));
+        setText("suggestedQuota", money(quota));
+        setText("availableLumpSum", money(lumpSum));
+
+        const assessment = document.getElementById("assessment");
+        const dataQuality = document.getElementById("dataQuality");
+        const nextStep = document.getElementById("nextStep");
+
+        if (income <= 0) {
+          setTrafficLight(null, "Valutazione sospesa — dati insufficienti", "Inserisci almeno un'entrata netta mensile positiva.");
+          assessment.textContent = "Non è possibile stimare la sostenibilità senza un valore positivo delle entrate.";
+          dataQuality.textContent = "Controllo completezza: manca un'entrata mensile positiva.";
+          nextStep.textContent = "Completa le entrate e verifica che gli importi siano mensili e realistici.";
+          renderPlans(debt, quota, false);
+          renderSettlement(debt, lumpSum);
+          return;
+        }
+
+        if (!expenseRowsPresent || !hasExpenseAmount) {
+          setTrafficLight("yellow", "GIALLO — Verifica la completezza dei dati", "Non risultano spese mensili valorizzate. Prima di valutare una rata, verifica che tutte le spese essenziali siano state inserite.");
+          assessment.textContent = "Il saldo provvisorio non è affidabile finché le spese non sono state inserite o confermate. Non interpretare un saldo elevato come denaro liberamente disponibile.";
+          dataQuality.textContent = "Controllo completezza: inserisci le spese mensili oppure verifica che l'assenza di importi sia corretta.";
+          nextStep.textContent = "Rivedi le spese essenziali, le rate già in corso e le eventuali uscite periodiche prima di considerare una proposta.";
+          renderPlans(debt, quota, false);
+          renderSettlement(debt, lumpSum);
+          return;
+        }
+
+        dataQuality.textContent = "Controllo completezza: ricontrolla che le spese siano mensili, che le rate inserite non siano già comprese nelle spese e che il debito indicato sia aggiornato.";
+        if (balance <= 0) {
+          setTrafficLight("red", "ROSSO — Disavanzo mensile", "Le uscite e le rate in corso assorbono tutte le entrate o le superano. Non viene suggerita una nuova rata.");
+          assessment.textContent = "Il bilancio presenta un disavanzo di " + money(Math.abs(balance)) + " al mese. La priorità è verificare le spese, le entrate e le urgenze; non è prudente ipotizzare un nuovo impegno mensile sulla base di questi dati.";
+          nextStep.textContent = "È opportuno un approfondimento prima di formulare proposte ai creditori. Verifica anche eventuali spese straordinarie, entrate variabili e scadenze urgenti.";
+        } else if (balance < 400 || quota < 100) {
+          setTrafficLight("yellow", "GIALLO — Margine limitato", "Il saldo è positivo, ma la quota prudenziale è contenuta. Una rata va valutata con cautela.");
+          assessment.textContent = "Dopo le spese e le rate già in corso restano " + money(balance) + " al mese. Applicando la riserva di " + money(RESERVE) + ", il margine prudenziale è " + money(margin) + " e la quota iniziale suggerita è " + money(quota) + ". Un importo inferiore a 100 € non viene presentato come rata automaticamente sostenibile.";
+          nextStep.textContent = "Controlla la stabilità del reddito e le spese non mensili. Se il quadro resta incerto, richiedi un approfondimento prima di impegnarti.";
         } else {
-          row.appendChild(mkField("Importo mensile (€)", mkNum("amount", d.amount)));
-          if (kind === "income") {
-            const lab = el("label", "inline-check");
-            const cb = el("input");
-            cb.type = "checkbox"; cb.dataset.role = "uncertain"; cb.checked = !!d.uncertain;
-            lab.append(cb, el("span", null, "Non è fissa"));
-            row.appendChild(lab);
-          }
+          setTrafficLight("green", "VERDE — Margine potenzialmente compatibile", "I dati inseriti mostrano un margine compatibile con una possibile valutazione di rientro, senza garanzia di accettazione.");
+          assessment.textContent = "Il saldo mensile è " + money(balance) + ". Sottraendo la riserva di " + money(RESERVE) + ", il margine prudenziale è " + money(margin) + "; il 50% di tale margine, pari a " + money(quota) + ", è la quota iniziale da confrontare con le rate teoriche. Non è una certificazione di solvibilità.";
+          nextStep.textContent = "Confronta gli scenari di durata con la quota suggerita. Prima di inviare una proposta, verifica il saldo aggiornato del debito e tutte le condizioni del creditore.";
         }
-        const rm = el("button", "remove-button", "Rimuovi");
-        rm.type = "button";
-        rm.addEventListener("click", () => row.remove());
-        row.appendChild(rm);
-        $(BOXES[kind]).appendChild(row);
+        renderPlans(debt, quota, true);
+        renderSettlement(debt, lumpSum);
       }
 
-      function defaults() {
-        Object.values(BOXES).forEach(id => $(id).replaceChildren());
-        addRow("income", {name: "Stipendio / pensione"});
-        addRow("income", {name: "Altre entrate"});
-        ["Casa: affitto e utenze", "Alimentari e igiene", "Trasporti", "Salute e farmaci"].forEach(n => addRow("essential", {name: n}));
-        addRow("flex", {name: "Svago, abbonamenti, altro"});
-        addRow("debt", {});
-      }
-
-      /* ---------- lettura e calcolo ---------- */
-      function read() {
-        const rows = kind => Array.from(document.querySelectorAll("#" + BOXES[kind] + " .calc-row")).map(r => {
-          const g = role => r.querySelector('[data-role="' + role + '"]');
-          return {
-            name: g("name") ? g("name").value.trim() : "",
-            amount: g("amount") ? num(g("amount").value) : 0,
-            rate: g("rate") ? num(g("rate").value) : 0,
-            type: g("type") ? g("type").value : "",
-            status: g("status") ? g("status").value : "regolare",
-            uncertain: g("uncertain") ? g("uncertain").checked : false
-          };
+      function renderPlans(debt, quota, dataComplete) {
+        const body = document.getElementById("planRows");
+        const summary = document.getElementById("planSummary");
+        if (debt <= 0) {
+          body.innerHTML = '<tr><td colspan="3">Inserisci un debito residuo maggiore di zero per simulare un piano.</td></tr>';
+          summary.textContent = "Senza un importo di debito non è possibile calcolare le rate teoriche.";
+          return;
+        }
+        const durations = [6, 12, 24];
+        body.replaceChildren();
+        let anyFit = false;
+        durations.forEach(months => {
+          const installment = debt / months;
+          const fit = dataComplete && quota >= 100 && installment <= quota;
+          anyFit = anyFit || fit;
+          const tr = document.createElement("tr");
+          const tdMonths = document.createElement("td"); tdMonths.textContent = months + " mesi";
+          const tdRate = document.createElement("td"); tdRate.textContent = money(installment);
+          const tdStatus = document.createElement("td");
+          if (!dataComplete) { tdStatus.textContent = "Completa prima i dati del bilancio"; tdStatus.className = "status-caution"; }
+          else if (fit) { tdStatus.textContent = "Compatibile in via teorica"; tdStatus.className = "status-good"; }
+          else if (quota < 100) { tdStatus.textContent = "Margine insufficiente per una proposta automatica"; tdStatus.className = "status-caution"; }
+          else { tdStatus.textContent = "Supera la quota prudenziale"; tdStatus.className = "status-bad"; }
+          tr.append(tdMonths, tdRate, tdStatus); body.appendChild(tr);
         });
-        return {
-          incomeType: $("incomeType").value,
-          household: Math.max(1, Math.min(12, parseInt($("household").value, 10) || 1)),
-          income: rows("income"), essential: rows("essential"), flex: rows("flex"), debt: rows("debt")
-        };
+        if (!dataComplete) summary.textContent = "Le rate sono soltanto matematiche: completa e verifica il bilancio prima di interpretare la compatibilità.";
+        else if (anyFit) summary.textContent = "Almeno uno scenario rientra nella quota prudenziale calcolata. Restano da verificare interessi, costi, scadenze e accettazione del creditore.";
+        else summary.textContent = "Nessuno degli scenari standard rientra nella quota prudenziale, oppure la quota è troppo contenuta per suggerire una rata. Non aumentare l'impegno per forzare il risultato.";
       }
 
-      function compute(s) {
-        const sum = (list, key) => list.reduce((a, x) => a + (x[key] || 0), 0);
-        const debts = s.debt.filter(d => d.amount > 0 || d.rate > 0);
-        const income = sum(s.income, "amount");
-        const uncertain = s.income.filter(x => x.uncertain).reduce((a, x) => a + x.amount, 0);
-        const essential = sum(s.essential, "amount");
-        const flex = sum(s.flex, "amount");
-        const debt = sum(debts, "amount");
-        const payments = sum(debts, "rate");
-        const margin = income - essential - flex - payments;
-        const marginCore = income - essential - payments;
-        const ratio = income > 0 ? payments / income : 0;
-        const hasAtto = debts.some(d => d.status === "atto");
-        const hasLate = debts.some(d => d.status === "ritardo");
-        let level;
-        if (debts.length === 0) level = margin >= 0 ? 1 : 3;
-        else if (marginCore < -income * 0.1 || (ratio >= 0.5 && margin < 0)) level = 4;
-        else if (margin < 0 || ratio >= 0.4) level = 3;
-        else if (margin < income * 0.1 || ratio >= 0.3) level = 2;
-        else level = 1;
-        if ((hasAtto || hasLate) && level < 2) level = 2;
-        return {income, uncertain, essential, flex, debt, payments, margin, marginCore, ratio, hasAtto, hasLate, level, debts};
-      }
-
-      const LEVELS = {
-        1: {cls: "green", title: "VERDE · Situazione gestibile", text: "In base ai dati inseriti riesci a coprire spese e rate e ti resta un margine. L'obiettivo è mantenerlo e tenere un cuscinetto per gli imprevisti."},
-        2: {cls: "yellow", title: "GIALLO · Sotto pressione", text: "Rate o arretrati pesano in modo significativo e il margine è ridotto: un imprevisto potrebbe metterti in difficoltà. Conviene muoversi ora, prima che la situazione peggiori."},
-        3: {cls: "red", title: "ROSSO · Situazione critica", text: "Il bilancio mensile è in disavanzo oppure le rate assorbono una quota molto alta delle entrate. Serve un piano concreto, da concordare con i creditori."},
-        4: {cls: "dark", title: "ROSSO SCURO · Squilibrio strutturale", text: "Anche eliminando le spese non essenziali, entrate e rate non tornano. Con questi numeri una semplice dilazione potrebbe non bastare: è il caso di farsi valutare da un professionista qualificato."}
-      };
-
-      const fmtM = m => {
-        if (m == null) return "non estinguibile con questi importi";
-        if (m > 600) return "oltre 50 anni";
-        const y = Math.floor(m / 12), r = m % 12, p = [];
-        if (y) p.push(y + (y === 1 ? " anno" : " anni"));
-        if (r || !y) p.push(r + (r === 1 ? " mese" : " mesi"));
-        return p.join(" e ");
-      };
-
-      function reasons(c) {
-        const r = [];
-        r.push("Entrate " + eur(c.income) + ", spese essenziali " + eur(c.essential) + ", altre spese " + eur(c.flex) + ", rate " + eur(c.payments) + ": " + (c.margin >= 0 ? "ti restano " : "ti mancano ") + eur(Math.abs(c.margin)) + " al mese.");
-        if (c.debts.length) r.push("Le rate assorbono il " + pct(c.ratio) + " delle entrate (attenzione dal 30%, criticità dal 40%).");
-        if (c.debts.length && c.marginCore <= 0) r.push("Senza le altre spese resteresti comunque a " + eur(c.marginCore) + ": non c'è spazio per imprevisti o per rimborsare di più.");
-        if (c.income > 0 && c.uncertain / c.income >= 0.3) r.push("Il " + pct(c.uncertain / c.income) + " delle entrate non è fisso: in uno scenario prudente, senza quelle entrate, il margine sarebbe " + eur(c.margin - c.uncertain) + ".");
-        if (c.hasLate) r.push("Hai indicato rate in ritardo: gli arretrati possono generare interessi, more e solleciti.");
-        if (c.debt > 0 && c.income > 0) r.push("Il debito totale equivale a circa " + (Math.round(c.debt / c.income * 10) / 10).toString().replace(".", ",") + " mesi di entrate.");
-        return r;
-      }
-
-      const LINK = {
-        bilancio: {href: "/educazione-finanziaria#bilancio", t: "Organizza il bilancio familiare", d: "Come tenere il margine sotto controllo."},
-        priorita: {href: "/educazione-finanziaria#priorita", t: "Dai priorità ai pagamenti", d: "Cosa guardare prima di distribuire il denaro."},
-        sic: {href: "/sic", t: "Controlla cosa risulta di te", d: "Accesso gratuito alle banche dati SIC e CAI."},
-        dilazione: {href: "/download/modulo/dilazione", t: "Scarica il modulo di dilazione", d: "Per chiedere più tempo al creditore."},
-        rientro: {href: "/download/modulo/piano-rientro", t: "Scarica il modulo di piano di rientro", d: "Una proposta di rate compatibile con il tuo margine."},
-        stralcio: {href: "/guide/saldo-e-stralcio-come-funziona", t: "Saldo e stralcio: come funziona", d: "Quando ha senso e cosa chiedere per iscritto."},
-        atto: {href: "/guide/atto-ricevuto-cosa-fare", t: "Hai ricevuto un atto: cosa fare", d: "I primi passi da fare subito."},
-        sovra: {href: "/guide/sovraindebitamento-cosa-significa", t: "Sovraindebitamento: cosa significa", d: "Gli strumenti di legge e a chi rivolgersi."},
-        consulenza: {href: "/consulenza?da=calcolatore", t: "Parla con un esperto FixTude", d: "Richiesta gratuita, senza obbligo."}
-      };
-      const NEXT = {
-        1: ["bilancio", "sic", "dilazione"],
-        2: ["priorita", "dilazione", "rientro"],
-        3: ["rientro", "stralcio", "priorita"],
-        4: ["sovra", "stralcio", "rientro"]
-      };
-
-      /* ---------- rendering ---------- */
-      function renderTimeline(c) {
-        const rated = c.debts.filter(d => d.rate > 0 && d.amount > 0);
-        const noRate = c.debts.filter(d => d.amount > 0 && d.rate <= 0).length;
-        let t1;
-        if (c.debt <= 0) t1 = "Non hai indicato debiti: non c'è nulla da estinguere.";
-        else if (rated.length) {
-          const m = Math.max.apply(null, rated.map(d => Math.ceil(d.amount / d.rate)));
-          t1 = "Con le rate attuali, il debito con la scadenza più lontana si estinguerebbe in circa " + fmtM(m) + ".";
-          if (noRate) t1 += " " + noRate + (noRate === 1 ? " debito senza rata non è incluso." : " debiti senza rata non sono inclusi.");
-        } else t1 = "Non hai indicato rate in corso: al momento non stai riducendo il debito.";
-        $("timelineNow").textContent = t1;
-
-        const share = Number($("shareSlider").value);
-        $("shareOut").textContent = share + "%";
-        let t2;
-        if (c.debt <= 0) t2 = "";
-        else if (c.margin <= 0) t2 = "Oggi non c'è margine disponibile per rimborsare di più: prima di tutto serve riequilibrare entrate, spese o rate.";
-        else {
-          const extra = c.margin * share / 100;
-          const cap = c.payments + extra;
-          const months = cap > 0 ? Math.ceil(c.debt / cap) : null;
-          t2 = "Destinando ogni mese anche " + eur(extra) + " oltre alle rate attuali (in tutto " + eur(cap) + "), il debito complessivo si estinguerebbe in circa " + fmtM(months) + ".";
+      function renderSettlement(debt, lumpSum) {
+        const amountEl = document.getElementById("settlementAmount");
+        const summary = document.getElementById("settlementSummary");
+        if (debt <= 0) {
+          amountEl.textContent = "—";
+          summary.textContent = "Inserisci il debito residuo complessivo per calcolare l'esempio al 60%.";
+          return;
         }
-        $("timelineScenario").textContent = t2;
-      }
-
-      function selection() {
-        const c = last.c, v = $("solDebt").value;
-        if (v !== "all" && c.debts[Number(v)]) {
-          const d = c.debts[Number(v)];
-          return {amount: d.amount, rate: d.rate, name: d.name || "questo debito"};
-        }
-        return {amount: c.debt, rate: c.payments, name: "tutti i debiti"};
-      }
-      // Rata massima proponibile: il 70% del margine (lasciando un cuscinetto) più la rata già pagata su quel debito,
-      // che verrebbe sostituita. Se il margine è negativo, solo la parte della rata che riporta il bilancio in pareggio.
-      function capacityFor(c, sel) {
-        return c.margin >= 0 ? c.margin * 0.7 + sel.rate : Math.max(sel.rate + c.margin, 0);
-      }
-      function tile(box, items) {
-        box.replaceChildren();
-        items.forEach(x => {
-          const t = el("div", "total");
-          const v = el("strong", null, x[1]);
-          if (x[2]) v.style.color = x[2];
-          t.append(el("span", "muted", x[0]), v);
-          box.appendChild(t);
-        });
-      }
-      function monthsLabel(m) { return m + (m === 1 ? " mese" : " mesi"); }
-
-      function renderDilazione(sel, cap) {
-        const months = Number($("dilMonths").value);
-        $("dilOut").textContent = monthsLabel(months);
-        const rata = sel.amount / months;
-        const ok = cap > 0 && rata <= cap + 0.005;
-        tile($("dilTiles"), [["Rata mensile necessaria", eur(rata)], ["Rata massima sostenibile", eur(cap), cap > 0 ? "var(--green)" : "var(--red)"]]);
-        let t;
-        if (cap <= 0) t = "Oggi non c'è margine per sostenere una rata: prima di chiedere tempo al creditore serve riequilibrare il bilancio.";
-        else if (ok) t = "In " + monthsLabel(months) + " pagheresti " + eur(rata) + " al mese: è compatibile con il tuo margine.";
-        else t = "Servirebbero " + eur(rata) + " al mese, " + eur(rata - cap) + " più di quanto potresti sostenere. Prova con più mesi" + (months >= 12 ? ": oltre l'anno conviene un piano di rientro." : ".");
-        $("dilText").textContent = t;
-      }
-
-      function renderRientro(sel, cap) {
-        const months = Number($("rieMonths").value);
-        $("rieOut").textContent = monthsLabel(months);
-        const titoli = $("rieTitoli").checked;
-        $("rieWarn").hidden = !titoli;
-        const rata = sel.amount / months;
-        const ok = cap > 0 && rata <= cap + 0.005;
-        tile($("rieTiles"), [[titoli ? "Importo per titolo" : "Rata mensile", eur(rata)], ["Rata massima sostenibile", eur(cap), cap > 0 ? "var(--green)" : "var(--red)"]]);
-        let t;
-        if (cap <= 0) t = "Oggi non c'è margine per sostenere una rata: un piano di rientro non reggerebbe.";
-        else if (ok) t = (titoli ? months + " titoli da " : months + " rate da ") + eur(rata) + ": compatibile con il tuo margine.";
-        else t = "Servirebbero " + eur(rata) + " al mese, " + eur(rata - cap) + " più della rata sostenibile. Allunga la durata o riduci altre spese.";
-        $("rieText").textContent = t;
-
-        const box = $("rieSchedule");
-        box.replaceChildren();
-        if (!titoli) return;
-        const fmtDate = i => {
-          const d = new Date();
-          d.setDate(1);
-          d.setMonth(d.getMonth() + i);
-          return d.toLocaleDateString("it-IT", {month: "short", year: "numeric"});
-        };
-        const table = el("table", "sol-table");
-        const head = el("tr");
-        ["N.", "Scadenza (indicativa)", "Importo"].forEach(h => head.appendChild(el("th", null, h)));
-        table.appendChild(head);
-        const addRow = i => {
-          const r = el("tr");
-          [String(i), fmtDate(i), eur(rata)].forEach(x => r.appendChild(el("td", null, x)));
-          table.appendChild(r);
-        };
-        const shown = Math.min(months, 6);
-        for (let i = 1; i <= shown; i++) addRow(i);
-        if (months > shown + 1) {
-          const gap = el("tr");
-          const td = el("td", null, "…");
-          td.colSpan = 3;
-          gap.appendChild(td);
-          table.appendChild(gap);
-        }
-        if (months > shown) addRow(months);
-        box.appendChild(table);
-      }
-
-      function renderStralcio(c, sel, cap) {
-        const p = Number($("stralcioPct").value) / 100;
-        $("stralcioOut").textContent = Math.round(p * 100) + "%";
-        const savings = num($("stralcioSavings").value);
-        const offer = sel.amount * p, saved = sel.amount - offer;
-        tile($("stralcioTiles"), [["Somma da offrire", eur(offer)], ["Risparmio rispetto al dovuto", eur(saved)]]);
-        const monthly = Math.max(c.margin, 0) * 0.5;
-        let txt;
-        if (savings >= offer) txt = "La somma che hai indicato coprirebbe l'offerta in un'unica soluzione.";
-        else {
-          const rest = offer - savings;
-          if (monthly > 0) txt = "Ti mancherebbero " + eur(rest) + ". Mettendo da parte metà del tuo margine (" + eur(monthly) + " al mese) servirebbero circa " + fmtM(Math.ceil(rest / monthly)) + ".";
-          else txt = "Ti mancherebbero " + eur(rest) + " e con il margine attuale non riusciresti a metterli da parte.";
-        }
-        $("stralcioText").textContent = txt;
-      }
-
-      function setTab(name) {
-        document.querySelectorAll(".sol-tabs .btn").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
-        document.querySelectorAll(".sol-panel").forEach(pn => { pn.hidden = pn.dataset.panel !== name; });
-      }
-
-      function fillDebtSelect(c) {
-        const sel = $("solDebt");
-        const prev = sel.value;
-        sel.replaceChildren();
-        const all = el("option", null, "Tutti i debiti insieme (" + eur(c.debt) + ")");
-        all.value = "all";
-        sel.appendChild(all);
-        c.debts.forEach((d, i) => {
-          const o = el("option", null, (d.name || "Debito") + " · " + label(DEBT_TYPES, d.type) + " · " + eur(d.amount));
-          o.value = String(i);
-          sel.appendChild(o);
-        });
-        sel.value = Array.from(sel.options).some(o => o.value === prev) ? prev : "all";
-      }
-
-      // reset = true quando cambia il debito scelto: riporta gli slider ai valori suggeriti
-      function renderSolutions(c, reset) {
-        $("solCard").hidden = c.debt <= 0;
-        if (c.debt <= 0) { last.reco = ""; return; }
-        const sel = selection();
-        const cap = capacityFor(c, sel);
-        const m = cap > 0 && sel.amount > 0 ? Math.ceil(sel.amount / cap) : null;
-        if (reset) {
-          $("dilMonths").value = String(m ? Math.min(12, Math.max(1, m)) : 6);
-          $("rieMonths").value = String(m ? Math.min(120, Math.max(6, Math.ceil(m / 6) * 6)) : 36);
-        }
-
-        let key, txt;
-        if (m === null) {
-          key = "stralcio";
-          txt = "Con questi numeri non c'è una rata sostenibile: né una dilazione né un piano di rientro reggerebbero. Prima serve riequilibrare entrate, spese o rate. Un saldo e stralcio richiede una somma disponibile subito.";
-        } else if (m <= 12) {
-          key = "dilazione";
-          txt = "Per " + sel.name + " la soluzione che sembra più adatta è la dilazione: con una rata di circa " + eur(cap) + " potresti estinguere in circa " + fmtM(m) + ", senza chiedere sconti.";
-        } else if (m <= 60) {
-          key = "rientro";
-          txt = "Per " + sel.name + " la soluzione che sembra più adatta è il piano di rientro: con una rata sostenibile di circa " + eur(cap) + " il debito si estinguerebbe in circa " + fmtM(m) + ".";
+        const offer = debt * 0.60;
+        amountEl.textContent = money(offer);
+        if (lumpSum <= 0) {
+          summary.textContent = "Per un debito di " + money(debt) + ", il 60% corrisponde a " + money(offer) + ". Non è stata indicata una somma una tantum disponibile, quindi la fattibilità finanziaria non è verificata.";
+        } else if (lumpSum >= offer) {
+          summary.textContent = "La somma indicata copre matematicamente l'offerta ipotetica di " + money(offer) + ". Ciò non implica che il creditore accetti il 60%: occorre un accordo espresso e scritto che definisca gli effetti del pagamento.";
         } else {
-          key = "stralcio";
-          txt = "Per " + sel.name + " un piano di rientro durerebbe circa " + fmtM(m) + ": molto lungo e fragile. Se riesci a mettere insieme una somma, valuta il saldo e stralcio; altrimenti parlane con un esperto.";
+          summary.textContent = "La somma indicata (" + money(lumpSum) + ") è inferiore all'offerta teorica di " + money(offer) + ". La differenza è " + money(offer - lumpSum) + ". Non è possibile concludere che il creditore accetterà una cifra inferiore.";
         }
-        $("solReco").textContent = txt;
-        last.reco = txt;
-
-        const tags = [];
-        const tag = (nome, cls, testo) => tags.push([nome, cls, testo]);
-        if (m === null) { tag("Dilazione", "no", "non sostenibile"); tag("Piano di rientro", "no", "non sostenibile"); tag("Saldo e stralcio", "mid", "serve una somma subito"); }
-        else {
-          tag("Dilazione", m <= 12 ? "ok" : "no", m <= 12 ? "adatta" : "servirebbero oltre 12 mesi");
-          tag("Piano di rientro", m <= 60 ? "ok" : (m <= 120 ? "mid" : "no"), m <= 60 ? "adatto" : (m <= 120 ? "possibile ma lungo" : "poco realistico"));
-          tag("Saldo e stralcio", m > 60 ? "ok" : "mid", m > 60 ? "da valutare con attenzione" : "possibile se hai una somma pronta");
-        }
-        const ul = $("solTags");
-        ul.replaceChildren();
-        tags.forEach(x => {
-          const li = el("li", null, x[0]);
-          li.appendChild(el("span", "sol-tag " + x[1], x[2]));
-          ul.appendChild(li);
-        });
-        $("solCapNote").textContent = "Rata massima stimata: " + eur(cap) + " al mese (70% del tuo margine, per lasciare un cuscinetto, più la rata che già paghi su questo debito e che verrebbe sostituita).";
-
-        renderDilazione(sel, cap);
-        renderRientro(sel, cap);
-        renderStralcio(c, sel, cap);
-        if (reset) setTab(key);
-        last.summary = buildSummary(last.s, c) + "\nSoluzione indicata dal calcolatore: " + last.reco;
       }
 
-      function buildSummary(s, c) {
-        const L = [];
-        L.push("Livello indicativo: " + LEVELS[c.level].title);
-        L.push("Reddito principale: " + label([["dipendente", "lavoro dipendente"], ["autonomo", "lavoro autonomo"], ["pensione", "pensione"], ["altro", "altro"]], s.incomeType) + " · Persone nel nucleo: " + s.household);
-        L.push("Entrate mensili: " + eur(c.income) + " (non fisse: " + eur(c.uncertain) + ")");
-        L.push("Spese essenziali: " + eur(c.essential) + " · Altre spese: " + eur(c.flex));
-        L.push("Rate mensili: " + eur(c.payments) + " (" + pct(c.ratio) + " delle entrate)");
-        L.push("Margine mensile: " + eur(c.margin));
-        L.push("Debito totale: " + eur(c.debt));
-        c.debts.forEach(d => L.push("- " + (d.name || "Debito") + " [" + label(DEBT_TYPES, d.type) + "]: residuo " + eur(d.amount) + ", rata " + eur(d.rate) + ", " + label(DEBT_STATUS, d.status)));
-        L.push("Stima generata dal calcolatore FixTude: indicativa, non è consulenza.");
-        return L.join("\n");
-      }
-
-      function renderResult() {
-        const s = read(), c = compute(s), lv = LEVELS[c.level];
-        last = {s, c};
-        $("verdict").className = "traffic-light " + lv.cls;
-        $("verdictTitle").textContent = lv.title;
-        $("verdictText").textContent = lv.text;
-        $("urgentBox").hidden = !c.hasAtto;
-
-        const tiles = $("tiles");
-        tiles.replaceChildren();
-        [
-          ["Entrate mensili", eur(c.income)],
-          ["Spese totali", eur(c.essential + c.flex)],
-          ["Rate mensili", eur(c.payments)],
-          ["Debito complessivo", eur(c.debt)],
-          ["Margine mensile", eur(c.margin), c.margin < 0 ? "var(--red)" : "var(--green)"],
-          ["Peso delle rate sulle entrate", pct(c.ratio)]
-        ].forEach(x => {
-          const t = el("div", "total");
-          const v = el("strong", null, x[1]);
-          if (x[2]) v.style.color = x[2];
-          t.append(el("span", "muted", x[0]), v);
-          tiles.appendChild(t);
-        });
-
-        const ul = $("reasons");
-        ul.replaceChildren();
-        reasons(c).forEach(r => ul.appendChild(el("li", null, r)));
-
-        renderTimeline(c);
-        fillDebtSelect(c);
-        renderSolutions(c, true);
-
-        const links = NEXT[c.level].slice();
-        if (c.hasAtto) links.unshift("atto");
-        links.push("consulenza");
-        const box = $("nextSteps");
-        box.replaceChildren();
-        links.slice(0, 5).forEach(k => {
-          const l = LINK[k];
-          const a = el("a", "resource-link", l.t);
-          a.href = l.href;
-          a.appendChild(el("span", null, l.d));
-          if (k === "consulenza" && c.level >= 3) a.appendChild(el("span", null, "Consigliato nella tua situazione."));
-          box.appendChild(a);
-        });
-
-        const weight = {atto: 0, ritardo: 1, regolare: 2};
-        const order = c.debts.slice().sort((a, b) => (weight[a.status] - weight[b.status]) || (b.amount - a.amount));
-        const dl = $("debtOrder");
-        dl.replaceChildren();
-        if (!order.length) dl.appendChild(el("li", null, "Nessun debito inserito."));
-        order.forEach(d => dl.appendChild(el("li", null, (d.name || "Debito") + " · " + label(DEBT_TYPES, d.type) + " · " + label(DEBT_STATUS, d.status) + " · residuo " + eur(d.amount))));
-
-        last.summary = buildSummary(s, c) + (last.reco ? "\nSoluzione indicata dal calcolatore: " + last.reco : "");
-        $("printDate").textContent = new Date().toLocaleDateString("it-IT");
-        if (typeof window.gtag === "function") window.gtag("event", "calculator_result", {level: c.level});
-      }
-
-      /* ---------- navigazione ---------- */
-      function show(n) {
-        document.querySelectorAll(".calc-step").forEach(sec => { sec.hidden = Number(sec.dataset.step) !== n; });
-        document.querySelectorAll(".calc-pill").forEach(p => {
-          const k = Number(p.dataset.step);
-          p.classList.toggle("active", k === n);
-          p.classList.toggle("done", k < n);
-        });
-        $("calcProgress").scrollIntoView({behavior: "smooth", block: "start"});
-      }
-      function go(n) {
-        if (n > 1) {
-          const s = read();
-          if (!s.income.some(x => x.amount > 0)) {
-            show(1);
-            const m = $("msg1");
-            m.className = "calc-msg notice error";
-            m.textContent = "Inserisci almeno un'entrata mensile maggiore di zero per continuare.";
-            return;
-          }
-          $("msg1").textContent = ""; $("msg1").className = "calc-msg";
-        }
-        if (n === 4) renderResult();
-        show(n);
-      }
-      document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go(Number(b.dataset.go))));
-
-      $("addIncome").addEventListener("click", () => addRow("income", {name: "Nuova entrata"}));
-      $("addEssential").addEventListener("click", () => addRow("essential", {name: "Nuova spesa"}));
-      $("addFlex").addEventListener("click", () => addRow("flex", {name: "Nuova spesa"}));
-      $("addDebt").addEventListener("click", () => addRow("debt", {}));
-      $("shareSlider").addEventListener("input", () => last && renderTimeline(last.c));
-      ["dilMonths", "rieMonths", "rieTitoli", "stralcioPct", "stralcioSavings"].forEach(id => {
-        $(id).addEventListener(id === "rieTitoli" ? "change" : "input", () => last && renderSolutions(last.c, false));
+      document.getElementById("addIncome").addEventListener("click", () => addRow("income", "Nuova entrata", 0));
+      document.getElementById("addExpense").addEventListener("click", () => addRow("expense", "Nuova spesa", 0));
+      document.getElementById("addDebt").addEventListener("click", () => addRow("debt", "Nuovo debito", 0, 0));
+      document.getElementById("lumpSum").addEventListener("input", calculate);
+      document.getElementById("resetCalculator").addEventListener("click", () => {
+        document.getElementById("incomeRows").replaceChildren();
+        document.getElementById("expenseRows").replaceChildren();
+        document.getElementById("debtRows").replaceChildren();
+        document.getElementById("lumpSum").value = "0";
+        definitions.income.forEach(([label, value]) => addRow("income", label, value));
+        definitions.expense.forEach(([label, value]) => addRow("expense", label, value));
+        definitions.debt.forEach(([label, value, payment]) => addRow("debt", label, value, payment));
       });
-      $("solDebt").addEventListener("change", () => last && renderSolutions(last.c, true));
-      document.querySelectorAll(".sol-tabs .btn").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
-
-      /* ---------- azioni ---------- */
-      function actionMsg(text) { $("actionMsg").textContent = text; }
-      $("contactBtn").addEventListener("click", () => {
-        if (!last) return;
-        try { sessionStorage.setItem("fixtude_summary", last.summary); } catch (_) {}
-        window.location.href = "/consulenza?da=calcolatore";
-      });
-      $("printBtn").addEventListener("click", () => window.print());
-      $("saveBtn").addEventListener("click", () => {
-        try { localStorage.setItem(STORE, JSON.stringify(read())); actionMsg("Scenario salvato su questo dispositivo."); }
-        catch (_) { actionMsg("Non è stato possibile salvare: il browser blocca la memoria locale."); }
-      });
-
-      function applyState(st) {
-        Object.values(BOXES).forEach(id => $(id).replaceChildren());
-        $("incomeType").value = st.incomeType || "dipendente";
-        $("household").value = st.household || 1;
-        ["income", "essential", "flex", "debt"].forEach(k => {
-          const arr = Array.isArray(st[k]) ? st[k] : [];
-          if (!arr.length) addRow(k, {});
-          arr.forEach(d => addRow(k, d));
-        });
-      }
-      let saved = null;
-      try { saved = JSON.parse(localStorage.getItem(STORE) || "null"); } catch (_) { saved = null; }
-      if (saved && typeof saved === "object") $("savedBox").hidden = false;
-      $("loadSaved").addEventListener("click", () => { applyState(saved); $("savedBox").hidden = true; });
-      $("deleteSaved").addEventListener("click", () => {
-        try { localStorage.removeItem(STORE); } catch (_) {}
-        $("savedBox").hidden = true;
-      });
-
-      defaults();
-      show(1);
-      window.scrollTo(0, 0);
+      document.getElementById("resetCalculator").click();
     })();
     </script>
     """
-    return page(
-        "Calcolatore debiti gratuito: quanto ti resta ogni mese",
-        content,
-        description="Calcolatore gratuito: inserisci entrate, spese e debiti e scopri margine mensile, peso delle rate, tempi di estinzione e prossimo passo. Dati nel tuo browser.",
-    )
+    return page("Calcolatore di sostenibilità del debito", content)
 
 
 # =========================================================
@@ -1824,14 +1348,6 @@ def consulenza():
           <label for="message">Messaggio (facoltativo)</label>
           <textarea id="message" name="message" maxlength="2000"
                     placeholder="Scrivi qui come preferisci essere ricontattato. Non inserire dati bancari o documenti."></textarea>
-        </div>
-
-        <div class="field" id="summaryBox" hidden>
-          <label class="check">
-            <input type="checkbox" id="attachSummary">
-            <span>Allega il riepilogo del calcolatore alla mia richiesta. Puoi leggere qui sotto tutto ciò che verrebbe inviato.</span>
-          </label>
-          <textarea id="summaryPreview" readonly style="min-height:150px;margin-top:8px;font-size:13px"></textarea>
         </div>
 
         <div style="position:absolute;left:-10000px" aria-hidden="true">
@@ -1877,16 +1393,6 @@ def consulenza():
       const result = document.getElementById("contactResult");
       const button = document.getElementById("contactSubmit");
       const accessKey = "6cfd757e-6b16-49e0-96b5-e055a159f403";
-      const NL = String.fromCharCode(10);
-      let summaryText = "";
-      try { summaryText = sessionStorage.getItem("fixtude_summary") || ""; } catch (_) {}
-      const summaryBox = document.getElementById("summaryBox");
-      const attach = document.getElementById("attachSummary");
-      if (summaryText && summaryBox) {
-        summaryBox.hidden = false;
-        document.getElementById("summaryPreview").value = summaryText;
-        attach.checked = new URLSearchParams(location.search).get("da") === "calcolatore";
-      }
 
       form.addEventListener("submit", async e => {
         e.preventDefault();
@@ -1896,9 +1402,6 @@ def consulenza():
         if (!form.reportValidity()) return;
 
         const values = Object.fromEntries(new FormData(form).entries());
-        if (attach && attach.checked && summaryText) {
-          values.message = ((values.message || "") + NL + NL + "--- Riepilogo calcolatore ---" + NL + summaryText).trim();
-        }
 
         // Honeypot: se compilato da un bot, mostra un esito neutro senza inviare.
         if (String(values.website || "").trim()) {
@@ -1949,7 +1452,7 @@ def consulenza():
     })();
     </script>
     """
-    return page("Richiedi di essere contattato da un esperto", content, description="Chiedi di essere ricontattato da un esperto FixTude: richiesta gratuita e senza obbligo, anche allegando il riepilogo del calcolatore.")
+    return page("Ricontatto", content)
 
 
 @app.route("/api/contact", methods=["POST"])
@@ -2564,12 +2067,10 @@ BASE_DIR = Path(__file__).resolve().parent
 # I quattro moduli gratuiti sono direttamente nella cartella static/.
 MODULE_DIR = BASE_DIR / "static"
 
-# Il PDF completo a pagamento deve restare fuori dalla cartella static/,
-# perché Flask rende pubblici i file contenuti in static/. Caricarlo in /private/.
-PDF_DIR = BASE_DIR / "static" / "pdf"
+# Il PDF completo a pagamento deve restare fuori da static/, che Flask rende pubblico.
+# Prima del deploy, collocare il file in private/NIENTE_PANICO.pdf.
 PRIVATE_DIR = BASE_DIR / "private"
 BOOK_FILE = PRIVATE_DIR / "NIENTE_PANICO.pdf"
-PREVIEW_FILE = PDF_DIR / "NIENTE_PANICO_ANTEPRIMA.pdf"
 
 MODULE_FILES = {
     "saldo-stralcio": (
@@ -2635,7 +2136,7 @@ def moduli_gratuiti():
     </div>
     '''
 
-    return page("Moduli gratuiti per i creditori: saldo e stralcio, dilazione, piano di rientro", content, description="Scarica gratis i modelli PDF per proporre saldo e stralcio, dilazione o piano di rientro al creditore. Senza registrazione.")
+    return page("Moduli gratuiti", content)
 
 
 @app.route("/download/modulo/<slug>")
@@ -2680,11 +2181,7 @@ def educazione_finanziaria():
     <section class="card" id="priorita"><h2>2. Dare priorità ai pagamenti</h2><p>Prima di distribuire il denaro tra i debiti, proteggi le necessità essenziali e valuta le scadenze concrete. Non esiste una priorità universale valida per ogni situazione: atti giudiziari, garanzie, utenze e debiti fiscali possono avere conseguenze differenti. Se hai ricevuto un atto con termini, chiedi tempestivamente una valutazione qualificata.</p><ul><li>Apri e conserva le comunicazioni ricevute.</li><li>Segna importo, creditore, scadenza e riferimento della pratica.</li><li>Non ignorare raccomandate, PEC o atti notificati.</li></ul></section>
     <section class="card" id="creditori"><h2>3. Parlare con i creditori</h2><p>Una richiesta efficace è chiara, documentata e realistica. Indica il riferimento del rapporto, spiega brevemente la difficoltà, proponi un importo compatibile con il bilancio e chiedi conferma scritta delle condizioni. Non promettere pagamenti che non puoi sostenere e non considerare accettata una proposta finché non hai ricevuto una conferma verificabile.</p><p>Puoi partire dai <a href="/moduli">moduli gratuiti FixTude</a> e personalizzarli.</p></section>
     <section class="card" id="errori"><h2>4. Errori da evitare</h2><ul><li>Pagare intermediari che promettono cancellazioni o risultati garantiti.</li><li>Firmare accordi senza aver letto importi, scadenze e conseguenze.</li><li>Inviare documenti personali a destinatari non verificati.</li><li>Contrarre nuovo debito senza valutare il costo totale e la sostenibilità.</li><li>Rimandare la richiesta di aiuto quando arrivano atti con termini precisi.</li></ul><p>Le informazioni di questa pagina sono generali e non sostituiscono una consulenza professionale.</p></section>'''
-    content += '<section class="card" id="approfondimenti"><h2>Approfondimenti</h2><ul>' + "".join(
-        f'<li><a href="/guide/{escape(k)}">{escape(v["title"])}</a><br><span class="muted">{escape(v["summary"])}</span></li>'
-        for k, v in GUIDES.items()
-    ) + '</ul></section>'
-    return page("Educazione finanziaria: bilancio, priorità e rapporti con i creditori", content, description="Guide gratuite per organizzare il bilancio familiare, dare priorità ai pagamenti e parlare con i creditori. Più approfondimenti su saldo e stralcio e piani di rientro.")
+    return page("Educazione finanziaria", content)
 
 @app.route("/sic")
 def sic_banche_dati():
@@ -2697,14 +2194,14 @@ def sic_banche_dati():
       <div class="card"><h2>CAI – Banca d'Italia</h2><p>Consulta le informazioni ufficiali della Banca d'Italia sulla Centrale d'allarme interbancaria.</p><a class="btn" href="https://www.bancaditalia.it/servizi-cittadino/servizi/accesso-cai/index.html" target="_blank" rel="noopener">Accesso CAI</a></div>
     </div>
     <div class="notice">FixTude non accede alle banche dati per conto dell'utente e non garantisce tempi o risultati. Verifica sempre le istruzioni, l'identificazione richiesta e gli eventuali costi di servizi diversi dall'accesso ai dati personali.</div>'''
-    return page("Banche dati SIC: come accedere gratis ai tuoi dati", content, description="Collegamenti ufficiali a CRIF, Experian, CTC e CAI per esercitare il diritto di accesso ai tuoi dati creditizi.")
+    return page("Banche dati SIC", content)
 
 @app.route("/shop")
 def shop():
     content = '''<h1>Shop FixTude</h1>
     <section class="card product-card">
       <div class="shop-book-cover"><img src="/static/niente_panico_cover.png" alt="Copertina del libro Niente Panico di FixTude"></div>
-      <div class="shop-book-description"><h2>NIENTE PANICO</h2><p>Una guida pratica per mettere ordine nella situazione debitoria, leggere meglio le proprie possibilità e prepararsi ad affrontare i creditori con maggiore lucidità.</p><p><strong>Formato:</strong> libro digitale PDF.</p><p class="muted">Prima di acquistare, puoi leggere gratuitamente il primo capitolo. Il libro completo sarà disponibile dopo la conferma del pagamento.</p><p><a class="btn outline" href="/shop/anteprima" target="_blank" rel="noopener">Leggi il primo capitolo gratuitamente</a></p><div class="price">€ 6,99</div><form method="post" action="/shop/acquista"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">Acquista il libro digitale</button></form></div>
+      <div class="shop-book-description"><h2>NIENTE PANICO</h2><p>Una guida pratica per mettere ordine nella situazione debitoria, leggere meglio le proprie possibilità e prepararsi ad affrontare i creditori con maggiore lucidità.</p><p><strong>Formato:</strong> libro digitale PDF.</p><p class="muted">Dopo la conferma del pagamento potrai scaricare il PDF dalla pagina di conferma. Non è necessaria la registrazione.</p><div class="price">€ 6,99</div><form method="post" action="/shop/acquista"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">Acquista il libro digitale</button></form></div>
     </section>
     <section class="card product-card print-coming-soon" aria-labelledby="print-book-title">
       <div class="shop-book-cover"><img src="/static/niente_panico_cover.png" alt="Copertina prevista per l'edizione cartacea di Niente Panico"></div>
@@ -2734,24 +2231,7 @@ def shop():
       .coming-soon-button{width:100%;max-width:260px}
       @media(max-width:640px){.quantity-selector{align-items:flex-start;flex-direction:column}.coming-soon-button{max-width:none}}
     </style>'''
-    return page("Shop: Niente Panico, la guida per mettere ordine nei debiti", content, description="Niente Panico: guida pratica in PDF per mettere ordine nella situazione debitoria. Leggi gratis il primo capitolo.")
-
-@app.route("/shop/anteprima")
-def shop_anteprima():
-    """Mostra solo il primo capitolo gratuito, senza esporre il PDF completo."""
-    if not PREVIEW_FILE.is_file():
-        return page("Anteprima non disponibile", '<h1>Anteprima temporaneamente non disponibile</h1><p>Stiamo preparando il capitolo gratuito. Riprova più tardi.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 404
-    response = send_file(
-        PREVIEW_FILE,
-        mimetype="application/pdf",
-        as_attachment=False,
-        download_name="FixTude_NIENTE_PANICO_Anteprima.pdf",
-        conditional=True,
-    )
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Content-Disposition"] = 'inline; filename="FixTude_NIENTE_PANICO_Anteprima.pdf"'
-    return response
-
+    return page("Shop", content)
 
 @app.route("/shop/acquista", methods=["POST"])
 def shop_acquista():
@@ -2822,7 +2302,7 @@ def shop_scarica():
 # DOCUMENTI LEGALI - IDENTIFICAZIONE DEL TITOLARE E INFORMATIVE
 # =========================================================
 
-LEGAL_VERSION = "2026-10-15"
+LEGAL_VERSION = "2026-10-16"
 LEGAL_OWNER_NAME = os.environ.get("FIXTUDE_TITOLARE_NOME", "Giovanni Pugliese").strip()
 LEGAL_OWNER_ADDRESS = os.environ.get("FIXTUDE_TITOLARE_INDIRIZZO", "Via Saronno 65, 00188 Roma, Italia").strip()
 LEGAL_VAT_NUMBER = os.environ.get("FIXTUDE_PARTITA_IVA", "15990471003").strip()
@@ -2831,15 +2311,29 @@ LEGAL_EMAIL = "info@fixtude.it"
 
 def legal_page(title, body):
     owner_line = f"{escape(LEGAL_OWNER_NAME)} · P. IVA {escape(LEGAL_VAT_NUMBER)} · {escape(LEGAL_OWNER_ADDRESS)} · {LEGAL_EMAIL}"
-    return Response(f"""<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123a72"><title>{escape(title)} | FixTude</title><style>body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.65 Arial,sans-serif}}main{{width:min(920px,calc(100% - 28px));margin:28px auto 50px}}.paper{{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:clamp(20px,4vw,38px)}}h1,h2{{line-height:1.25}}h1{{color:#174b91}}h2{{font-size:21px;margin-top:28px}}a{{color:#174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}footer{{border-top:1px solid #dce5ef;margin-top:28px;padding-top:16px;font-size:13px;color:#65758b}}.top{{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}}.brand{{font-size:24px;font-weight:800;color:#174b91;text-decoration:none}}</style></head><body><main><div class="top"><a class="brand" href="/">FixTude</a><a href="/">Torna al sito</a></div><article class="paper"><h1>{escape(title)}</h1><p class="muted">Versione {LEGAL_VERSION}</p><div class="notice"><strong>Denominazione del servizio:</strong> FixTude · <strong>Titolare:</strong> {escape(LEGAL_OWNER_NAME)} · <strong>P. IVA:</strong> {escape(LEGAL_VAT_NUMBER)}</div>{body}<footer><strong>Contatti:</strong> {owner_line}<br>Ultimo aggiornamento: 15 ottobre 2026<br><button type="button" id="ft-cookie-reopen-footer" style="border:0;background:transparent;color:#174b91;text-decoration:underline;cursor:pointer;font:inherit">Preferenze cookie</button></footer></article></main></body></html>""", mimetype="text/html")
+    return Response(f"""<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123a72"><title>{escape(title)} | FixTude</title><style>body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.65 Arial,sans-serif}}main{{width:min(920px,calc(100% - 28px));margin:28px auto 50px}}.paper{{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:clamp(20px,4vw,38px)}}h1,h2{{line-height:1.25}}h1{{color:#174b91}}h2{{font-size:21px;margin-top:28px}}a{{color:#174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}footer{{border-top:1px solid #dce5ef;margin-top:28px;padding-top:16px;font-size:13px;color:#65758b}}.top{{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}}.brand{{font-size:24px;font-weight:800;color:#174b91;text-decoration:none}}</style></head><body><main><div class="top"><a class="brand" href="/">FixTude</a><a href="/">Torna al sito</a></div><article class="paper"><h1>{escape(title)}</h1><p class="muted">Versione {LEGAL_VERSION}</p><div class="notice"><strong>Denominazione del servizio:</strong> FixTude · <strong>Titolare:</strong> {escape(LEGAL_OWNER_NAME)} · <strong>P. IVA:</strong> {escape(LEGAL_VAT_NUMBER)}</div>{body}<footer><strong>Contatti:</strong> {owner_line}<br>Ultimo aggiornamento: 16 ottobre 2026<br><button type="button" id="ft-cookie-reopen-footer" style="border:0;background:transparent;color:#174b91;text-decoration:underline;cursor:pointer;font:inherit">Preferenze cookie</button></footer></article></main></body></html>""", mimetype="text/html")
+
+
+@app.route("/disclaimer")
+def legal_disclaimer():
+    body = """<p>Questo Disclaimer descrive la natura e i limiti degli strumenti e dei contenuti disponibili su FixTude. Si applica in particolare al calcolatore di sostenibilità del debito, ai materiali informativi gratuiti e alle eventuali richieste di contatto.</p>
+    <h2>1. Natura del servizio</h2><p>FixTude è un servizio informativo e di orientamento che propone strumenti per organizzare i dati economici, comprendere alcune possibili opzioni e preparare domande o comunicazioni da sottoporre ai soggetti competenti. L'utilizzo del sito, del calcolatore, della chat o dei moduli gratuiti non costituisce di per sé conferimento di un incarico professionale, mandato a rappresentare l'utente o instaurazione automatica di un rapporto di consulenza.</p>
+    <h2>2. Calcolatore di sostenibilità del debito</h2><p>Il calcolatore esegue simulazioni matematiche sulla base degli importi inseriti dall'utente. La riserva mensile di 200 euro, la quota iniziale pari al 50% del margine prudenziale e le soglie del semaforo sono parametri orientativi dello strumento; non rappresentano criteri ufficiali, soglie normative o garanzie di sostenibilità. Il risultato dipende dalla correttezza, completezza e attualità dei dati e può non riflettere spese occasionali, entrate variabili, interessi, costi, scadenze, garanzie o altre circostanze rilevanti.</p>
+    <h2>3. Simulazioni di rientro e saldo e stralcio</h2><p>Le rate a 6, 12 e 24 mesi sono calcoli teorici basati sul debito inserito e non includono necessariamente interessi, commissioni, spese legali, penali o altri importi. Lo scenario di saldo e stralcio al 60% è un esempio matematico e negoziale, non una percentuale tipica o garantita. Soltanto il creditore può valutare e accettare una proposta; prima di effettuare pagamenti è necessario ottenere condizioni chiare e conferma scritta degli effetti dell'accordo.</p>
+    <h2>4. Nessuna garanzia di risultato</h2><p>FixTude non garantisce riduzioni del debito, sospensioni di azioni di recupero, accettazione di piani, cancellazioni o rettifiche nelle banche dati creditizie, né tempi o risultati specifici. Un esito verde non certifica la solvibilità; un esito giallo o rosso non costituisce una decisione definitiva sulla situazione dell'utente.</p>
+    <h2>5. Limiti e professionisti abilitati</h2><p>I contenuti generali del sito non sostituiscono una consulenza legale, fiscale, contabile o finanziaria personalizzata. FixTude non si presenta, in forza del solo uso del sito, come avvocato, commercialista, consulente finanziario abilitato, organismo di composizione della crisi o rappresentante del cliente. Quando una situazione richiede una valutazione riservata a un professionista abilitato o a un organismo previsto dalla legge, l'utente dovrebbe rivolgersi al soggetto competente. Eventuali attività ulteriori, se offerte, dovranno essere descritte e concordate separatamente prima del loro avvio.</p>
+    <h2>6. Documenti e informazioni inseriti dall'utente</h2><p>L'utente è responsabile di verificare i dati inseriti, gli importi dei debiti, l'identità dei creditori, le scadenze e i documenti ricevuti. Non caricare o inviare tramite moduli o chat documenti integrali, credenziali bancarie o dati personali non necessari. In presenza di atti giudiziari, termini di opposizione, procedure esecutive o scadenze imminenti, richiedi tempestivamente assistenza qualificata.</p>
+    <h2>7. Elaborazione dei dati nel calcolatore</h2><p>Gli importi inseriti nel calcolatore vengono elaborati localmente nel browser e non sono inviati dal codice del calcolatore agli endpoint applicativi né salvati in un archivio di FixTude. Questa indicazione riguarda il calcolatore e non si estende automaticamente ai dati che l'utente sceglie di comunicare tramite il modulo di contatto, la chat, la posta elettronica o servizi di terze parti, che sono disciplinati dall'<a href="/privacy">Informativa Privacy</a>.</p>
+    <h2>8. Contatti e aggiornamenti</h2><p>Per chiarimenti sul servizio scrivi a info@fixtude.it. Questo Disclaimer può essere aggiornato quando cambiano le funzionalità o le condizioni del servizio. Le informazioni presenti sul sito non sostituiscono la lettura delle comunicazioni ufficiali ricevute dai creditori né la verifica della normativa applicabile al caso concreto.</p>"""
+    return legal_page("Disclaimer", body)
 
 
 @app.route("/termini")
 def legal_terms():
     body = """<p>I presenti Termini e Condizioni disciplinano l'uso del sito FixTude, dei suoi strumenti informativi e, quando attivo, l'acquisto del libro digitale <em>NIENTE PANICO</em>.</p>
     <h2>1. Denominazione del servizio, titolare e contatti</h2><p>FixTude è la denominazione del servizio e del progetto editoriale online. Il servizio è gestito da Giovanni Pugliese, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per comunicazioni: info@fixtude.it. FixTude è il nome del servizio e non indica, da solo, una società distinta dal titolare sopra identificato.</p>
-    <h2>2. Funzionalità gratuite</h2><p>Il sito può offrire calcolatore, guide, moduli scaricabili, collegamenti informativi e chat. Le funzioni e la loro disponibilità possono variare per manutenzione o ragioni tecniche. Il calcolatore è orientativo: i dati inseriti vengono elaborati nel browser e il risultato non è una valutazione professionale individuale.</p>
-    <h2>3. Limiti delle informazioni</h2><p>I contenuti hanno finalità informative e organizzative. Non costituiscono consulenza legale, fiscale o finanziaria personalizzata, non sostituiscono un professionista abilitato e non garantiscono riduzioni del debito, cancellazioni da banche dati o accettazione di proposte da parte dei creditori. L'utente deve verificare i dati e adattare i modelli alla propria situazione.</p>
+    <h2>2. Funzionalità gratuite</h2><p>Il sito può offrire un calcolatore orientativo di sostenibilità del debito, guide, moduli scaricabili, collegamenti informativi e chat. Le funzioni e la loro disponibilità possono variare per manutenzione o ragioni tecniche. Nel calcolatore gli importi sono elaborati nel browser e il codice dello strumento non li invia agli endpoint applicativi. Le formule, la riserva e le soglie del semaforo sono criteri orientativi scelti per una prima simulazione, non standard universali né una certificazione di solvibilità. Leggi anche il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
+    <h2>3. Limiti delle informazioni</h2><p>I contenuti hanno finalità informative e organizzative. Non costituiscono consulenza legale, fiscale o finanziaria personalizzata, non sostituiscono un professionista abilitato e non garantiscono riduzioni del debito, cancellazioni da banche dati o accettazione di proposte da parte dei creditori. L'utente deve verificare i dati e adattare i modelli alla propria situazione. Per i dettagli sui limiti del calcolatore e delle simulazioni consulta il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
     <h2>4. Chat e richieste di contatto</h2><p>L'invio di una richiesta di contatto non comporta obbligo di acquistare servizi né garantisce tempi di risposta specifici. La chat non è un servizio di emergenza. Non inserire nella chat o nel modulo dati bancari, credenziali, documenti completi o dati personali non necessari.</p>
     <h2>5. Libro digitale e pagamenti</h2><p>Per l'edizione digitale PDF di <em>NIENTE PANICO</em>, il prezzo mostrato al momento della revisione è € 6,99, salvo diversa indicazione nella pagina di acquisto. Il pagamento, quando disponibile, è elaborato da Stripe; il download viene reso disponibile dopo la verifica della transazione. Non inviare i dati della carta a FixTude via email.</p><p>L'edizione cartacea è contrassegnata come “COMING SOON”: al momento non è possibile ordinarla né pagarla dal sito. Prezzo, modalità di stampa, spedizione e condizioni saranno pubblicati prima dell'apertura degli ordini.</p>
     <h2>6. Consumatori e recesso</h2><p>Restano fermi i diritti inderogabili riconosciuti ai consumatori dalla normativa applicabile. Per contenuti digitali forniti senza supporto materiale, l'eventuale perdita del diritto di recesso richiede che ricorrano tutte le condizioni previste dalla legge, incluse le dichiarazioni espresse richieste prima dell'inizio dell'esecuzione e la conferma su supporto durevole. Il flusso di acquisto deve prevedere le informazioni e le dichiarazioni espresse richieste dalla normativa prima dell'inizio della fornitura del contenuto digitale, oltre alla conferma su supporto durevole quando prevista.</p>
@@ -2854,7 +2348,7 @@ def legal_terms():
 def privacy():
     body = """<p>Questa informativa descrive i principali trattamenti connessi alla versione attuale del sito FixTude. Viene aggiornata quando cambiano in modo rilevante le funzionalità, i fornitori o le modalità di trattamento.</p>
     <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è Giovanni Pugliese, che gestisce il servizio denominato FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per richieste relative ai dati personali: info@fixtude.it.</p>
-    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore:</strong> gli importi inseriti vengono elaborati nel browser e il codice del calcolatore non li invia agli endpoint applicativi. Se scegli di allegare il riepilogo alla richiesta di contatto, il testo che vedi in anteprima (importi e tipologia dei debiti) viene inviato insieme al modulo, con le stesse modalità descritte di seguito. Il salvataggio dello scenario sul dispositivo usa solo la memoria locale del tuo browser.</li><li><strong>Modulo di ricontatto:</strong> nome, email, telefono facoltativo e messaggio vengono inviati tramite Web3Forms per gestire la richiesta e recapitarla alla casella configurata. L'applicazione non conserva una copia in un proprio database. I dati possono restare nella casella email del destinatario e nei sistemi del fornitore secondo le relative condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server per permettere la conversazione; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L'invio di un messaggio genera una notifica email tramite Web3Forms.</li><li><strong>Libro digitale:</strong> se l'acquisto è attivo, Stripe tratta i dati necessari a elaborare e verificare il pagamento. FixTude riceve le informazioni necessarie a verificare la transazione.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
+    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore:</strong> gli importi inseriti vengono elaborati nel browser e il codice del calcolatore non li invia agli endpoint applicativi.</li><li><strong>Modulo di ricontatto:</strong> nome, email, telefono facoltativo e messaggio vengono inviati tramite Web3Forms per gestire la richiesta e recapitarla alla casella configurata. L'applicazione non conserva una copia in un proprio database. I dati possono restare nella casella email del destinatario e nei sistemi del fornitore secondo le relative condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server per permettere la conversazione; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L'invio di un messaggio genera una notifica email tramite Web3Forms.</li><li><strong>Libro digitale:</strong> se l'acquisto è attivo, Stripe tratta i dati necessari a elaborare e verificare il pagamento. FixTude riceve le informazioni necessarie a verificare la transazione.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
     <h2>3. Basi giuridiche</h2><p>Le richieste di contatto sono trattate per rispondere a una richiesta dell'interessato e adottare misure precontrattuali su sua richiesta. I dati relativi ad acquisti sono trattati per eseguire il contratto e adempiere agli obblighi di legge. Sicurezza e prevenzione abusi possono basarsi sul legittimo interesse, da valutare e documentare. Eventuali attività promozionali richiedono una valutazione e, ove necessario, un consenso separato.</p>
     <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l'hosting (se confermato in produzione), Web3Forms per invii dal modulo e notifiche email, Register per la casella email e Stripe per i pagamenti del libro, quando attivi. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
     <h2>5. Cookie e strumenti di tracciamento</h2><p>Google Analytics (ID di misurazione G-HMBBNLHC7E) viene caricato soltanto dopo la scelta esplicita della categoria statistiche nel pannello cookie. Se la categoria viene rifiutata o disattivata, il sito non avvia nuove richieste di misurazione e aggiorna lo stato di consenso di Google Analytics. I pixel pubblicitari non sono attivi. Prima del lancio definitivo occorre verificare tecnicamente i cookie effettivamente installati e aggiornare questa informativa in base ai risultati.</p>
@@ -2902,269 +2396,6 @@ def inject_cookie_banner_on_legal_pages(response):
     except Exception:
         app.logger.exception("Impossibile aggiungere il banner cookie alla pagina legale")
     return response
-
-
-# =========================================================
-# GUIDE, CHI SIAMO, SITEMAP E ROBOTS
-# =========================================================
-
-GUIDE_CTA = """
-<section class="card">
-  <h2>Parti dai tuoi numeri</h2>
-  <p>Prima di scrivere a un creditore o decidere una strategia, serve sapere quanto margine hai davvero ogni mese.</p>
-  <div class="actions">
-    <a class="btn" href="/misuratore">Usa il calcolatore gratuito</a>
-    <a class="btn outline" href="/moduli">Moduli gratuiti</a>
-    <a class="btn outline" href="/consulenza">Richiedi di essere contattato</a>
-  </div>
-</section>
-<p class="muted">Informazione generale e orientativa: non è consulenza legale o finanziaria personalizzata e non garantisce l'esito di alcuna trattativa. Le norme e le procedure cambiano: verifica sempre con un professionista abilitato o con la fonte ufficiale.</p>
-"""
-
-GUIDES = {
-    "saldo-e-stralcio-come-funziona": {
-        "title": "Saldo e stralcio: cos'è e come funziona",
-        "description": "Cos'è il saldo e stralcio, quando può avere senso, cosa chiedere per iscritto al creditore e quali errori evitare prima di firmare.",
-        "summary": "Pagare meno del dovuto a chiusura del debito: quando ha senso e come proporlo.",
-        "body": """
-<p>Il saldo e stralcio è un accordo con cui il creditore accetta di incassare una somma inferiore al dovuto e di considerare chiuso il debito. È una trattativa, non un diritto: il creditore può rifiutare.</p>
-<h2>Quando può avere senso</h2>
-<ul>
-<li>Il debito è già in sofferenza o in forte ritardo e il creditore rischia di recuperare poco.</li>
-<li>Puoi pagare in un'unica soluzione, o in poche rate ravvicinate, con soldi che hai davvero.</li>
-<li>L'offerta è realistica rispetto alla tua situazione e documentabile.</li>
-</ul>
-<h2>Cosa chiedere per iscritto</h2>
-<ul>
-<li>L'importo esatto e la scadenza entro cui pagare.</li>
-<li>Una dichiarazione di chiusura completa del rapporto (quietanza liberatoria), che comprenda capitale, interessi e spese.</li>
-<li>Come verrà registrata la posizione nelle banche dati creditizie dopo il pagamento.</li>
-<li>Cosa succede alle eventuali procedure in corso.</li>
-</ul>
-<h2>Errori da evitare</h2>
-<ul>
-<li>Pagare prima di avere l'accordo scritto e firmato dal creditore.</li>
-<li>Promettere somme che non puoi sostenere: un accordo non rispettato può far ripartire le richieste.</li>
-<li>Affidarti a chi promette cancellazioni o risultati garantiti, soprattutto se chiede anticipi.</li>
-<li>Ignorare i possibili effetti fiscali o sulle segnalazioni: chiedi a un professionista.</li>
-</ul>
-<p>Nel calcolatore trovi un simulatore che ti mostra quanto risparmieresti e se potresti permetterti l'offerta. Per scrivere la richiesta puoi partire dal <a href="/download/modulo/saldo-stralcio">modulo gratuito di saldo e stralcio</a>.</p>
-""",
-    },
-    "piano-di-rientro-come-proporlo": {
-        "title": "Piano di rientro: come proporlo al creditore",
-        "description": "Come costruire una proposta di piano di rientro sostenibile: quanto offrire, cosa scrivere, quali documenti allegare e come farti confermare l'accordo.",
-        "summary": "Rate sostenibili e accordo scritto: come impostare una proposta credibile.",
-        "body": """
-<p>Un piano di rientro è un accordo per pagare il debito a rate, in un tempo concordato. Funziona quando la proposta è chiara, realistica e coerente con il tuo bilancio.</p>
-<h2>1. Calcola la rata che puoi davvero sostenere</h2>
-<p>Parti dal margine mensile: entrate meno spese essenziali meno rate già in corso. Non impegnare tutto il margine: lascia un cuscinetto per gli imprevisti. Un piano che salta dopo due mesi peggiora la tua posizione.</p>
-<h2>2. Scrivi una richiesta breve e documentata</h2>
-<ul>
-<li>Riferimento della pratica e importo dovuto.</li>
-<li>Motivo della difficoltà, in poche righe.</li>
-<li>Rata mensile proposta, durata e data di inizio.</li>
-<li>Richiesta di conferma scritta delle condizioni, compreso lo stop a nuovi solleciti se previsto.</li>
-</ul>
-<h2>3. Allega solo ciò che serve</h2>
-<p>Documento di identità e, se utile, una prova del reddito. Evita di inviare dati bancari o documenti non richiesti a destinatari che non hai verificato.</p>
-<h2>4. Non considerare accettato finché non hai una conferma</h2>
-<p>Fino alla risposta scritta del creditore, la proposta resta una proposta. Conserva ogni comunicazione.</p>
-<p>Puoi partire dal <a href="/download/modulo/piano-rientro">modulo gratuito di piano di rientro</a> e adattarlo ai tuoi numeri.</p>
-""",
-    },
-    "dilazione-pagamento-creditore": {
-        "title": "Dilazione del pagamento: come chiedere più tempo",
-        "description": "Quando conviene chiedere una dilazione, come formulare la richiesta e cosa ottenere per iscritto. Differenza tra dilazione, piano di rientro e saldo e stralcio.",
-        "summary": "Più tempo senza cambiare l'importo dovuto: quando chiederla e come.",
-        "body": """
-<p>La dilazione è la richiesta di spostare in avanti una scadenza o di spalmare un pagamento nel tempo, di solito senza ridurre l'importo dovuto. È la soluzione più semplice quando la difficoltà è temporanea.</p>
-<h2>Dilazione, piano di rientro e saldo e stralcio</h2>
-<ul>
-<li><strong>Dilazione:</strong> stessa somma, più tempo.</li>
-<li><strong>Piano di rientro:</strong> debito già scaduto, da pagare a rate concordate.</li>
-<li><strong>Saldo e stralcio:</strong> si paga meno del dovuto per chiudere il debito.</li>
-</ul>
-<h2>Come chiederla</h2>
-<ul>
-<li>Scrivi prima della scadenza, non dopo: chi si fa sentire per primo è più credibile.</li>
-<li>Indica una data o una rata che sei in grado di rispettare.</li>
-<li>Chiedi conferma scritta e verifica se interessi o spese cambiano.</li>
-</ul>
-<p>Il <a href="/download/modulo/dilazione">modulo gratuito di dilazione</a> ti dà una traccia da personalizzare. Se la difficoltà non è temporanea, valuta con il calcolatore se serva una soluzione più strutturata.</p>
-""",
-    },
-    "atto-ricevuto-cosa-fare": {
-        "title": "Hai ricevuto un atto, un'ingiunzione o una diffida: cosa fare",
-        "description": "Primi passi se ricevi un atto di precetto, un decreto ingiuntivo o una diffida: non ignorarlo, annota le scadenze e rivolgiti subito a un professionista abilitato.",
-        "summary": "I termini sono brevi: i primi passi da fare subito.",
-        "body": """
-<p>Atti come un decreto ingiuntivo, un precetto o un atto di pignoramento hanno termini precisi, spesso brevi. Ignorarli è l'errore più costoso.</p>
-<h2>Cosa fare subito</h2>
-<ul>
-<li><strong>Non ignorare e non buttare nulla.</strong> Conserva busta, data di notifica e allegati.</li>
-<li><strong>Annota la data di notifica e le scadenze.</strong> Per un decreto ingiuntivo, ad esempio, il termine per opporsi è in genere di 40 giorni dalla notifica; per altri atti i termini sono diversi.</li>
-<li><strong>Rivolgiti subito a un avvocato</strong> o a un professionista abilitato, portando tutti i documenti. Alcuni termini non si recuperano.</li>
-<li><strong>Verifica che l'atto sia riferito a te</strong> e che l'importo corrisponda a quanto ti risulta.</li>
-</ul>
-<h2>Cosa evitare</h2>
-<ul>
-<li>Pagare o firmare accordi senza averne capito le conseguenze.</li>
-<li>Affidarti a chi promette di "far sparire" l'atto o chiede anticipi.</li>
-<li>Inviare documenti personali a soggetti non verificati.</li>
-</ul>
-<p>Anche in questo caso, un quadro chiaro dei tuoi numeri aiuta il professionista a valutare le strade possibili: puoi prepararlo con il <a href="/misuratore">calcolatore</a> e stampare il riepilogo.</p>
-""",
-    },
-    "sovraindebitamento-cosa-significa": {
-        "title": "Sovraindebitamento: cosa significa e a chi rivolgersi",
-        "description": "Cos'è il sovraindebitamento, in quali casi il debito non è più sostenibile e quali strumenti prevede la legge. Come funziona il supporto degli organismi di composizione della crisi.",
-        "summary": "Quando il debito non è più sostenibile e quali strumenti esistono.",
-        "body": """
-<p>Si parla di sovraindebitamento quando c'è uno squilibrio duraturo tra i debiti e le possibilità di pagarli. Non basta avere debiti: conta se, con le tue entrate, riesci ragionevolmente a farvi fronte nel tempo.</p>
-<h2>Gli strumenti previsti dalla legge</h2>
-<p>La materia è regolata dal Codice della crisi d'impresa e dell'insolvenza. Per chi non è un'impresa commerciale esistono procedure come la ristrutturazione dei debiti del consumatore, il concordato minimo e la liquidazione controllata, con la possibilità, a determinate condizioni, di ottenere l'esdebitazione.</p>
-<h2>A chi rivolgersi</h2>
-<p>Le procedure si seguono con l'assistenza di professionisti abilitati e degli organismi di composizione della crisi da sovraindebitamento (OCC). Sono loro a valutare se nel tuo caso esistano i requisiti.</p>
-<h2>Cosa non è questa pagina</h2>
-<p>Il verdetto "squilibrio strutturale" del calcolatore non è una diagnosi giuridica: indica soltanto che, con i dati inseriti, entrate e uscite non tornano. Serve una valutazione qualificata prima di qualsiasi decisione.</p>
-<p>Diffida da chi promette di cancellare i debiti con certezza o chiede somme in anticipo per "aprire la pratica".</p>
-""",
-    },
-    "banche-dati-sic-cosa-significa-essere-segnalati": {
-        "title": "Banche dati SIC: cosa significa essere segnalati",
-        "description": "Cosa sono le banche dati SIC (CRIF, Experian, CTC), quali dati contengono, come esercitare il diritto di accesso gratuito e perché i tempi di conservazione variano.",
-        "summary": "Cosa contengono, come chiedere accesso ai tuoi dati e come leggerli.",
-        "body": """
-<p>I sistemi di informazioni creditizie (SIC) raccolgono dati sui finanziamenti e sul modo in cui vengono rimborsati. Le banche li consultano quando valutano una richiesta di prestito.</p>
-<h2>Cosa possono contenere</h2>
-<ul>
-<li>Finanziamenti, carte e mutui, con gli importi e lo stato dei pagamenti.</li>
-<li>Eventuali ritardi o inadempimenti segnalati dall'intermediario.</li>
-<li>Informazioni sulla chiusura del rapporto.</li>
-</ul>
-<h2>Come controllare cosa risulta di te</h2>
-<p>Hai diritto di accedere ai tuoi dati direttamente presso i gestori, usando i loro canali ufficiali. Nella pagina <a href="/sic">Banche dati SIC</a> trovi i collegamenti ufficiali (CRIF, Experian, CTC e, per assegni e carte, la CAI della Banca d'Italia).</p>
-<h2>Tempi di conservazione</h2>
-<p>La durata di una segnalazione dipende dal tipo di evento e dalle regole applicabili ai singoli sistemi: verifica sempre le informazioni aggiornate sul sito del gestore. Quando chiudi un accordo con un creditore, chiedi per iscritto come verrà registrata la posizione.</p>
-<p>Attenzione a chi promette di "cancellare" le segnalazioni a pagamento: i dati corretti non si cancellano su richiesta.</p>
-""",
-    },
-    "cartelle-esattoriali-come-rateizzare": {
-        "title": "Cartelle esattoriali: come funziona la rateizzazione",
-        "description": "Come chiedere la rateizzazione di una cartella esattoriale, cosa controllare prima di farlo e perché è importante rispettare le rate. Verifica le regole aggiornate.",
-        "summary": "Come chiedere di pagare a rate e cosa controllare prima.",
-        "body": """
-<p>Se hai ricevuto una cartella da Agenzia delle Entrate-Riscossione, in molti casi puoi chiedere di pagare a rate. Le regole (numero massimo di rate, soglie, condizioni) sono cambiate nel tempo: controlla sempre quelle in vigore sul sito ufficiale dell'ente.</p>
-<h2>Prima di chiedere la rateizzazione</h2>
-<ul>
-<li>Verifica l'importo e la natura del debito (imposte, contributi, multe).</li>
-<li>Controlla le scadenze indicate nella cartella.</li>
-<li>Valuta con un professionista se esistano motivi per contestare l'atto: la contestazione ha termini propri e non si recuperano.</li>
-</ul>
-<h2>Come si fa</h2>
-<p>La richiesta si presenta attraverso i canali ufficiali dell'ente, seguendo le istruzioni aggiornate. Non servono intermediari a pagamento per un'operazione che puoi fare da solo.</p>
-<h2>Rispetta le rate</h2>
-<p>Il mancato pagamento di un certo numero di rate può far decadere la rateizzazione, con ripresa delle procedure di riscossione. Scegli una rata compatibile con il tuo margine mensile: il <a href="/misuratore">calcolatore</a> ti aiuta a stimarla.</p>
-""",
-    },
-}
-
-
-@app.route("/guide/<slug>")
-def guida(slug):
-    g = GUIDES.get(slug)
-    if not g:
-        return page(
-            "Guida non trovata",
-            '<h1>Guida non trovata</h1><p>La pagina cercata non esiste.</p><a class="btn" href="/educazione-finanziaria">Vai alle guide</a>',
-            description="Pagina non trovata.",
-        ), 404
-    related = "".join(
-        f'<li><a href="/guide/{escape(k)}">{escape(v["title"])}</a></li>'
-        for k, v in GUIDES.items() if k != slug
-    )
-    content = (
-        f'<h1>{escape(g["title"])}</h1>'
-        f'<p class="muted">{escape(g["summary"])}</p>'
-        f'<article class="card">{g["body"]}</article>'
-        + GUIDE_CTA
-        + f'<section class="card"><h2>Altre guide</h2><ul>{related}</ul></section>'
-    )
-    return page(g["title"], content, description=g["description"])
-
-
-@app.route("/chi-siamo")
-def chi_siamo():
-    owner = escape(LEGAL_OWNER_NAME)
-    address = escape(LEGAL_OWNER_ADDRESS)
-    vat = escape(LEGAL_VAT_NUMBER)
-    content = f"""
-    <h1>Chi siamo</h1>
-    <section class="card">
-      <p>FixTude è un servizio di informazione e strumenti pratici per chi ha difficoltà con debiti e rate. Nasce per rendere più chiare le cose più confuse di una situazione debitoria: quanto mi resta ogni mese, che cosa posso proporre al creditore, a chi rivolgermi.</p>
-      <p>Il servizio è gestito da <strong>{owner}</strong>, con sede a {address}, Partita IVA {vat}. Per scrivere: <a href="mailto:{LEGAL_EMAIL}">{LEGAL_EMAIL}</a>.</p>
-    </section>
-    <div class="grid">
-      <section class="card"><h2>Cosa facciamo</h2><ul>
-        <li>Un <a href="/misuratore">calcolatore gratuito</a> per capire margine mensile, peso delle rate e prossimi passi.</li>
-        <li>Moduli gratuiti per scrivere ai creditori.</li>
-        <li>Guide chiare e il collegamento ufficiale alle banche dati creditizie.</li>
-        <li>Il libro digitale <em>Niente Panico</em>, in vendita nello <a href="/shop">shop</a>.</li>
-      </ul></section>
-      <section class="card"><h2>Cosa non facciamo</h2><ul>
-        <li>Non siamo uno studio legale né un intermediario del credito.</li>
-        <li>Non trattiamo con i creditori al posto tuo.</li>
-        <li>Non promettiamo cancellazioni di debiti o di segnalazioni.</li>
-        <li>Non chiediamo anticipi per "aprire pratiche".</li>
-      </ul></section>
-    </div>
-    <section class="card">
-      <h2>Come ci sostentiamo</h2>
-      <p>Calcolatore, moduli e guide sono gratuiti. Oggi i ricavi arrivano dalla vendita del libro digitale. Se in futuro offriremo servizi a pagamento, lo diremo in modo chiaro prima, con prezzo e contenuto.</p>
-    </section>
-    <section class="card">
-      <h2>Parlaci della tua situazione</h2>
-      <p>Puoi scrivere nella chat o chiedere di essere ricontattato: è gratuito e senza obbligo.</p>
-      <div class="actions"><a class="btn" href="/consulenza">Richiedi di essere contattato</a><a class="btn outline" href="/misuratore">Prova il calcolatore</a></div>
-    </section>
-    """
-    return page(
-        "Chi siamo",
-        content,
-        description="Chi c'è dietro FixTude, cosa facciamo e cosa non facciamo, come ci sostentiamo e come contattarci.",
-    )
-
-
-SITEMAP_PATHS = [
-    "/", "/misuratore", "/consulenza", "/moduli", "/educazione-finanziaria",
-    "/sic", "/shop", "/chi-siamo", "/termini", "/privacy", "/cookie",
-]
-
-
-@app.route("/sitemap.xml")
-def sitemap_xml():
-    urls = SITEMAP_PATHS + [f"/guide/{slug}" for slug in GUIDES]
-    items = "".join(f"<url><loc>https://fixtude.it{escape(p)}</loc></url>" for p in urls)
-    xml = (
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + items + "</urlset>"
-    )
-    return Response(xml, mimetype="application/xml")
-
-
-@app.route("/robots.txt")
-def robots_txt():
-    text = (
-        "User-agent: *\n"
-        "Disallow: /chat-staff\n"
-        "Disallow: /api/\n"
-        "Disallow: /shop/acquista\n"
-        "Disallow: /shop/conferma\n"
-        "Disallow: /shop/scarica\n"
-        "Sitemap: https://fixtude.it/sitemap.xml\n"
-    )
-    return Response(text, mimetype="text/plain")
 
 
 @app.route("/health")
