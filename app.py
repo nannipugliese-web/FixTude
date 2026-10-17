@@ -68,21 +68,23 @@ def ora_italiana():
 
 
 def chat_orario_stato():
-    """La chat è in fascia di disponibilità dalle 09:30 alle 14:30, ora di Roma."""
-    adesso = datetime.now(ROME_TZ).time()
+    """Chat disponibile dal lunedì al venerdì, 09:30-14:30, ora di Roma."""
+    adesso = datetime.now(ROME_TZ)
+    ora = adesso.time()
     inizio = datetime.strptime("09:30", "%H:%M").time()
     fine = datetime.strptime("14:30", "%H:%M").time()
-    attiva = inizio <= adesso < fine
+    giorno_lavorativo = adesso.weekday() < 5  # lunedì=0, venerdì=4
+    attiva = giorno_lavorativo and inizio <= ora < fine
     if attiva:
         return {
             "open": True,
-            "status": "Chat disponibile · oggi dalle 9:30 alle 14:30",
+            "status": "Chat disponibile · lunedì-venerdì, 9:30-14:30",
             "notice": "La chat è attiva. Scrivi il tuo messaggio e ti risponderemo appena possibile."
         }
     return {
         "open": False,
-        "status": "Fuori orario · chat attiva dalle 9:30 alle 14:30",
-        "notice": "La chat in tempo reale è fuori orario. Puoi lasciare un messaggio: ti risponderemo nel più breve tempo possibile."
+        "status": "Fuori orario · lunedì-venerdì, 9:30-14:30",
+        "notice": "La chat in tempo reale è disponibile dal lunedì al venerdì, dalle 9:30 alle 14:30. Puoi lasciare un messaggio in qualsiasi momento: ti risponderemo nel più breve tempo possibile."
     }
 
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
@@ -912,7 +914,7 @@ def page(title, content, include_chat=True):
             </div>
             <div class="chat-messages" id="chatMessages"
                  aria-live="polite">
-              <p class="muted">Chat FixTude: disponibile dalle 9:30 alle 14:30. Fuori orario puoi lasciare un messaggio e ti risponderemo nel più breve tempo possibile.</p>
+              <p class="muted">Chat FixTude: disponibile dal lunedì al venerdì, dalle 9:30 alle 14:30. Fuori orario e nel fine settimana puoi lasciare un messaggio: ti risponderemo nel più breve tempo possibile.</p>
             </div>
             <form class="chat-form" id="chatForm">
               <input id="chatInput" maxlength="1000"
@@ -970,7 +972,7 @@ def page(title, content, include_chat=True):
 
               if (!r.ok) throw new Error("Chat non disponibile");
               const data = await r.json();
-              status.textContent = data.status || "Disponibile dalle 9:30 alle 14:30";
+              status.textContent = data.status || "Disponibile dal lunedì al venerdì, dalle 9:30 alle 14:30";
               if (data.notice) {
                 const note = document.createElement("p");
                 note.className = "muted";
