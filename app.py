@@ -66,6 +66,25 @@ def ora_italiana():
     """Restituisce l'orario locale italiano, rispettando ora legale e solare."""
     return datetime.now(ROME_TZ).strftime("%H:%M")
 
+
+def chat_orario_stato():
+    """La chat è in fascia di disponibilità dalle 09:30 alle 14:30, ora di Roma."""
+    adesso = datetime.now(ROME_TZ).time()
+    inizio = datetime.strptime("09:30", "%H:%M").time()
+    fine = datetime.strptime("14:30", "%H:%M").time()
+    attiva = inizio <= adesso < fine
+    if attiva:
+        return {
+            "open": True,
+            "status": "Chat disponibile · oggi dalle 9:30 alle 14:30",
+            "notice": "La chat è attiva. Scrivi il tuo messaggio e ti risponderemo appena possibile."
+        }
+    return {
+        "open": False,
+        "status": "Fuori orario · chat attiva dalle 9:30 alle 14:30",
+        "notice": "La chat in tempo reale è fuori orario. Puoi lasciare un messaggio: ti risponderemo nel più breve tempo possibile."
+    }
+
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 SMTP_USER = os.environ.get("SMTP_USER", "")
@@ -893,7 +912,7 @@ def page(title, content, include_chat=True):
             </div>
             <div class="chat-messages" id="chatMessages"
                  aria-live="polite">
-              <p class="muted">Connessione alla chat in corso…</p>
+              <p class="muted">Chat FixTude: disponibile dalle 9:30 alle 14:30. Fuori orario puoi lasciare un messaggio e ti risponderemo nel più breve tempo possibile.</p>
             </div>
             <form class="chat-form" id="chatForm">
               <input id="chatInput" maxlength="1000"
@@ -951,7 +970,14 @@ def page(title, content, include_chat=True):
 
               if (!r.ok) throw new Error("Chat non disponibile");
               const data = await r.json();
-              status.textContent = data.status || "Scrivi un messaggio";
+              status.textContent = data.status || "Disponibile dalle 9:30 alle 14:30";
+              if (data.notice) {
+                const note = document.createElement("p");
+                note.className = "muted";
+                note.textContent = data.notice;
+                messages.replaceChildren(note);
+                lastCount = -1;
+              }
             }
 
             function addMessage(m) {
@@ -998,7 +1024,13 @@ def page(title, content, include_chat=True):
                 }
 
                 status.textContent = data.status ||
-                  "Messaggi temporanei";
+                  "Disponibile dalle 9:30 alle 14:30";
+                if (data.notice && data.messages.length === 0) {
+                  const note = document.createElement("p");
+                  note.className = "muted";
+                  note.textContent = data.notice;
+                  messages.replaceChildren(note);
+                }
               } catch (_) {
                 status.textContent = "Connessione in attesa";
               } finally {
@@ -1777,7 +1809,8 @@ def chat_start():
 
         chats[chat_id]["updated"] = time.time()
 
-    return jsonify(ok=True, status="Puoi scrivere. Risponderemo quando disponibili.")
+    stato = chat_orario_stato()
+    return jsonify(ok=True, **stato)
 
 
 @app.route("/api/chat/<chat_id>/messages", methods=["GET"])
@@ -1788,15 +1821,14 @@ def chat_messages(chat_id):
     with chat_lock:
         chat = chats.get(chat_id)
         if not chat:
-            return jsonify(messages=[], status="Chat nuova o scaduta.")
+            stato = chat_orario_stato()
+            return jsonify(messages=[], **stato)
 
         chat["updated"] = time.time()
         messages = list(chat["messages"])
 
-    return jsonify(
-        messages=messages,
-        status="Chat attiva. Risponderemo quando disponibili."
-    )
+    stato = chat_orario_stato()
+    return jsonify(messages=messages, **stato)
 
 
 @app.route("/api/chat/send", methods=["POST"])
