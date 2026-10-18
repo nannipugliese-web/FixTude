@@ -1359,7 +1359,10 @@ def misuratore():
       .calc-panel>.card{height:100%;box-sizing:border-box;margin:0}
       .calc-panel .calc-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:22px;padding-top:16px;border-top:1px solid var(--line,#e2e8f0)}
       .calc-nav .btn{cursor:pointer;min-height:44px}
-      .calc-nav .calc-back{background:transparent;color:var(--ink,#172033);border:1px solid var(--line,#cbd5e1)}
+      .calc-nav .calc-back,.calc-nav .calc-next{background:#155eef!important;color:#fff!important;border:1px solid #155eef!important;border-radius:10px;font-weight:700;box-shadow:0 3px 0 #0b3eaa;}
+      .calc-nav .calc-back:hover,.calc-nav .calc-next:hover{background:#0b4ed0!important;color:#fff!important;filter:brightness(1.04)}
+      .calc-nav .calc-back:active,.calc-nav .calc-next:active{transform:translateY(2px);box-shadow:0 1px 0 #0b3eaa}
+      .calc-nav .calc-back[hidden]{display:none!important}
       .calc-nav .calc-next{margin-left:auto}
       .calc-step-caption{font-size:13px;color:var(--muted,#64748b)}
       @media(max-width:640px){.calc-progress{font-size:13px}.calc-panel>.card{padding:18px 15px}.calc-nav{gap:8px!important}.calc-nav .btn{padding:11px 13px;font-size:14px}.calc-step-caption{max-width:74px;text-align:center}}
@@ -1393,15 +1396,18 @@ def misuratore():
           const track = document.createElement("div"); track.className = "calc-track"; viewport.appendChild(track);
           wizard.append(progress, progressTrack, viewport);
           host.insertBefore(wizard, cards[0]);
+          // Cinque passaggi: i primi tre raccolgono i dati, il quarto mostra l'esito,
+          // il quinto riunisce simulazioni e indicazioni successive.
           const groups = [[0], [1], [2], [3], [4,5,6]];
           const titles = ["Entrate mensili", "Spese mensili", "Debiti e rate", "Il tuo esito", "Piani e prossimi passi"];
           const panels = groups.map((indices, index) => {
             const panel = document.createElement("div"); panel.className = "calc-panel"; panel.setAttribute("role", "group"); panel.setAttribute("aria-label", "Passaggio " + (index+1) + " di 5: " + titles[index]);
             indices.forEach(i => { if (cards[i]) panel.appendChild(cards[i]); });
             const nav = document.createElement("div"); nav.className = "calc-nav";
-            const back = document.createElement("button"); back.type = "button"; back.className = "btn calc-back"; back.textContent = "← Indietro"; back.hidden = index === 0; back.addEventListener("click", () => showStep(index-1));
+            const back = document.createElement("button"); back.type = "button"; back.className = "btn calc-back"; back.textContent = "← Indietro"; back.hidden = index === 0; back.setAttribute("aria-label", "Torna al passaggio precedente"); back.addEventListener("click", () => showStep(index-1));
             const caption = document.createElement("span"); caption.className = "calc-step-caption"; caption.textContent = (index+1) + " / 5";
-            const next = document.createElement("button"); next.type = "button"; next.className = "btn calc-next"; next.textContent = index === 4 ? "Torna all'esito ↑" : (index === 3 ? "Vedi simulazioni →" : "Avanti →");
+            const next = document.createElement("button"); next.type = "button"; next.className = "btn calc-next"; next.textContent = index === 4 ? "Torna all'esito ↑" : (index === 3 ? "Avanti: simulazioni →" : "Avanti →");
+            next.setAttribute("aria-label", index === 4 ? "Torna al passaggio dell'esito" : "Vai al passaggio successivo");
             next.addEventListener("click", () => showStep(index === 4 ? 3 : index+1));
             nav.append(back, caption, next); panel.appendChild(nav); track.appendChild(panel); return panel;
           });
@@ -1415,6 +1421,11 @@ def misuratore():
             if (currentStep === 3 || currentStep === 4) { const event = new Event("input", {bubbles:true}); document.getElementById("lumpSum")?.dispatchEvent(event); }
           }
           showStep(0);
+          // L'ancora dalla homepage può essere valutata prima che le sezioni
+          // vengano spostate nel carosello: ripristina lo scroll dopo l'inizializzazione.
+          if (window.location.hash === "#calculatorStart") {
+            window.requestAnimationFrame(() => window.setTimeout(() => calculatorStart.scrollIntoView({behavior:"smooth", block:"start"}), 80));
+          }
         }
       }
       const definitions = {
