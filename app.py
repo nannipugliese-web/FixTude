@@ -1184,9 +1184,33 @@ def misuratore():
       Tutti i calcoli sono eseguiti nel browser: gli importi non vengono inviati al server.
     </p>
 
-    <section class="card">
+    <section class="card situation-selector" aria-labelledby="situationTitle">
+      <h2 id="situationTitle">Da dove vuoi cominciare?</h2>
+      <p class="muted">Scegli il colore che descrive meglio la tua situazione. Ti guideremo al calcolatore.</p>
+      <div class="situation-options">
+        <button class="situation-choice situation-red" type="button" data-situation="red" aria-controls="calculatorWelcome">
+          <span class="situation-heading"><span class="situation-dot" aria-hidden="true"></span> ROSSO — EMERGENZA</span>
+          <em>Non riesco a pagare la rata di questo mese e ho già ricevuto solleciti.</em>
+        </button>
+        <button class="situation-choice situation-yellow" type="button" data-situation="yellow" aria-controls="calculatorWelcome">
+          <span class="situation-heading"><span class="situation-dot" aria-hidden="true"></span> GIALLO — ALLERTA</span>
+          <em>Pago tutto ma faccio fatica. Non mi rimane quasi nulla dello stipendio.</em>
+        </button>
+        <button class="situation-choice situation-green" type="button" data-situation="green" aria-controls="calculatorWelcome">
+          <span class="situation-heading"><span class="situation-dot" aria-hidden="true"></span> VERDE — CONTROLLO</span>
+          <em>La situazione è gestibile, ma voglio calcolare se i miei debiti sono davvero sostenibili.</em>
+        </button>
+      </div>
+    </section>
+
+    <section class="card" id="calculatorStart">
       <h2>1. Entrate nette mensili</h2>
       <p class="muted">Inserisci entrate effettivamente disponibili e ragionevolmente stabili. Evita di conteggiare somme occasionali o incerte come reddito ricorrente.</p>
+      <div id="calculatorWelcome" class="calculator-welcome" role="status" aria-live="polite" hidden>
+        <button type="button" class="welcome-close" id="calculatorWelcomeClose" aria-label="Chiudi messaggio">×</button>
+        <strong>Usa il calcolatore e analizziamo la tua situazione.</strong>
+        <span>Un passo alla volta, per capire meglio il tuo margine economico.</span>
+      </div>
       <div id="incomeRows"></div>
       <button class="btn outline" type="button" id="addIncome">+ Aggiungi entrata</button>
     </section>
@@ -1261,6 +1285,20 @@ def misuratore():
     </section>
 
     <style>
+      .situation-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
+      .situation-choice{display:flex;flex-direction:column;align-items:flex-start;gap:10px;text-align:left;width:100%;min-height:150px;padding:16px;border:2px solid transparent;border-radius:13px;cursor:pointer;font:inherit;color:var(--ink);transition:transform .18s ease,box-shadow .18s ease}
+      .situation-choice:hover{transform:translateY(-2px);box-shadow:0 7px 18px rgba(18,58,114,.12)}
+      .situation-choice:focus-visible{outline:3px solid var(--blue2);outline-offset:3px}
+      .situation-heading{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px}
+      .situation-dot{display:inline-block;width:13px;height:13px;min-width:13px;border-radius:50%}
+      .situation-choice em{font-size:14px;line-height:1.45;font-style:italic}
+      .situation-red{background:#fff1f1;border-color:#efb8b8}.situation-red .situation-dot{background:#b42318}
+      .situation-yellow{background:#fff9e9;border-color:#f0d68b}.situation-yellow .situation-dot{background:#b77900}
+      .situation-green{background:#effaf2;border-color:#b6e3c1}.situation-green .situation-dot{background:#188448}
+      .calculator-welcome{position:relative;margin:16px 0;padding:16px 42px 16px 16px;border:1px solid #b8d5f5;border-radius:12px;background:#eef5ff;color:#203047;box-shadow:0 5px 18px rgba(18,58,114,.08)}
+      .calculator-welcome strong,.calculator-welcome span{display:block}.calculator-welcome span{margin-top:5px;font-size:14px;color:#52647a}
+      .calculator-welcome[hidden]{display:none!important}.welcome-close{position:absolute;right:9px;top:7px;border:0;background:transparent;font-size:23px;line-height:1;cursor:pointer;color:#52647a}
+      @media(max-width:700px){.situation-options{grid-template-columns:1fr}.situation-choice{min-height:0;padding:14px}.situation-heading{font-size:14px}}
       .traffic-light{display:flex;gap:14px;align-items:flex-start;padding:16px;margin:16px 0;border:1px solid var(--line);border-radius:12px;background:#f7f9fc}
       .traffic-light .signal{width:18px;height:18px;min-width:18px;border-radius:50%;background:#94a3b8;margin-top:4px;box-shadow:0 0 0 5px #e2e8f0}
       .traffic-light.green{background:#effaf2;border-color:#b6e3c1}.traffic-light.green .signal{background:#188448;box-shadow:0 0 0 5px #d5f0dd}
@@ -1460,6 +1498,26 @@ def misuratore():
           summary.textContent = "La somma indicata (" + money(lumpSum) + ") è inferiore all'offerta teorica di " + money(offer) + ". La differenza è " + money(offer - lumpSum) + ". Non è possibile concludere che il creditore accetterà una cifra inferiore.";
         }
       }
+
+      const situationButtons = document.querySelectorAll(".situation-choice");
+      const calculatorStart = document.getElementById("calculatorStart");
+      const incomeRows = document.getElementById("incomeRows");
+      const calculatorWelcome = document.getElementById("calculatorWelcome");
+      const welcomeClose = document.getElementById("calculatorWelcomeClose");
+      situationButtons.forEach(button => {
+        button.addEventListener("click", () => {
+          situationButtons.forEach(item => {
+            item.setAttribute("aria-pressed", item === button ? "true" : "false");
+          });
+          calculatorWelcome.hidden = false;
+          calculatorStart.scrollIntoView({behavior:"smooth", block:"start"});
+          window.setTimeout(() => {
+            const firstInput = incomeRows.querySelector("input");
+            if (firstInput) firstInput.focus({preventScroll:true});
+          }, 450);
+        });
+      });
+      if (welcomeClose) welcomeClose.addEventListener("click", () => { calculatorWelcome.hidden = true; });
 
       document.getElementById("addIncome").addEventListener("click", () => addRow("income", "Nuova entrata", 0));
       document.getElementById("addExpense").addEventListener("click", () => addRow("expense", "Nuova spesa", 0));
