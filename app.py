@@ -1357,12 +1357,13 @@ def misuratore():
       .calc-track{display:flex;align-items:stretch;width:100%;min-width:100%;transition:transform .32s ease;will-change:transform;transform:translate3d(0,0,0)}
       .calc-panel{flex:0 0 100%;width:100%;min-width:100%;max-width:100%;box-sizing:border-box;padding:1px 2px 8px}
       .calc-panel>.card{height:100%;box-sizing:border-box;margin:0}
-      .calc-panel .calc-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:22px;padding-top:16px;border-top:1px solid var(--line,#e2e8f0)}
-      .calc-nav .btn{cursor:pointer;min-height:44px}
+      .calc-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding:14px 0 4px;border-top:1px solid var(--line,#e2e8f0)}
+      .calc-nav .btn{display:inline-flex!important;visibility:visible!important;opacity:1!important;cursor:pointer;min-height:44px;position:relative;z-index:5}
+      .calc-nav-global{width:100%;min-height:60px}
       .calc-nav .calc-back,.calc-nav .calc-next{background:#155eef!important;color:#fff!important;border:1px solid #155eef!important;border-radius:10px;font-weight:700;box-shadow:0 3px 0 #0b3eaa;}
       .calc-nav .calc-back:hover,.calc-nav .calc-next:hover{background:#0b4ed0!important;color:#fff!important;filter:brightness(1.04)}
       .calc-nav .calc-back:active,.calc-nav .calc-next:active{transform:translateY(2px);box-shadow:0 1px 0 #0b3eaa}
-      .calc-nav .calc-back[hidden]{display:none!important}
+      .calc-nav .calc-back[hidden]{visibility:hidden!important;display:inline-flex!important;opacity:0!important;pointer-events:none}
       .calc-nav .calc-next{margin-left:auto}
       .calc-step-caption{font-size:13px;color:var(--muted,#64748b)}
       @media(max-width:640px){.calc-progress{font-size:13px}.calc-panel>.card{padding:18px 15px}.calc-nav{gap:8px!important}.calc-nav .btn{padding:11px 13px;font-size:14px}.calc-step-caption{max-width:74px;text-align:center}}
@@ -1426,32 +1427,40 @@ def misuratore():
           panel.setAttribute("role", "group");
           panel.setAttribute("aria-label", "Passaggio " + (index + 1) + " di 5: " + titles[index]);
           indices.forEach(i => { if (cards[i]) panel.appendChild(cards[i]); });
-          const nav = document.createElement("div");
-          nav.className = "calc-nav";
-          const back = document.createElement("button");
-          back.type = "button";
-          back.className = "btn calc-back";
-          back.textContent = "← Indietro";
-          back.hidden = index === 0;
-          back.addEventListener("click", () => showStep(currentStep - 1));
-          const caption = document.createElement("span");
-          caption.className = "calc-step-caption";
-          caption.textContent = (index + 1) + " / 5";
-          const next = document.createElement("button");
-          next.type = "button";
-          next.className = "btn calc-next";
-          next.textContent = index === 4 ? "Torna all'esito ↑" : "Avanti →";
-          next.addEventListener("click", () => showStep(index === 4 ? 3 : currentStep + 1));
-          nav.append(back, caption, next);
-          panel.appendChild(nav);
           track.appendChild(panel);
           return panel;
         });
+
+        // Navigazione unica, esterna ai pannelli: resta visibile anche su mobile.
+        const nav = document.createElement("div");
+        nav.className = "calc-nav calc-nav-global";
+        const back = document.createElement("button");
+        back.type = "button";
+        back.className = "btn calc-back";
+        back.textContent = "← Indietro";
+        back.setAttribute("aria-label", "Torna al passaggio precedente");
+        back.addEventListener("click", () => showStep(currentStep - 1));
+        const caption = document.createElement("span");
+        caption.className = "calc-step-caption";
+        caption.setAttribute("aria-live", "polite");
+        caption.textContent = "1 / 5";
+        const next = document.createElement("button");
+        next.type = "button";
+        next.className = "btn calc-next";
+        next.textContent = "Avanti →";
+        next.setAttribute("aria-label", "Vai al passaggio successivo");
+        next.addEventListener("click", () => showStep(currentStep === 4 ? 3 : currentStep + 1));
+        nav.append(back, caption, next);
+        wizard.appendChild(nav);
 
         function showStep(step) {
           currentStep = Math.max(0, Math.min(4, step));
           // Percentuale riferita alla larghezza del pannello, non alla larghezza totale del track.
           track.style.transform = "translate3d(" + (-currentStep * 100) + "%, 0, 0)";
+          caption.textContent = (currentStep + 1) + " / 5";
+          back.disabled = currentStep === 0;
+          back.style.visibility = currentStep === 0 ? "hidden" : "visible";
+          next.textContent = currentStep === 4 ? "← Torna all'esito" : "Avanti →";
           progressLabel.textContent = "Passaggio " + (currentStep + 1) + " di 5 · " + titles[currentStep];
           progressFill.style.width = (((currentStep + 1) / 5) * 100) + "%";
           panels.forEach((panel, i) => {
