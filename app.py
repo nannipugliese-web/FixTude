@@ -1353,10 +1353,10 @@ def misuratore():
       .calc-progress{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px;font-size:14px;color:var(--muted,#64748b)}
       .calc-progress-track{height:6px;border-radius:999px;background:#e5eaf1;overflow:hidden;margin-bottom:18px}
       .calc-progress-fill{height:100%;width:20%;border-radius:999px;background:var(--blue2,#2563eb);transition:width .25s ease}
-      .calc-viewport{overflow:hidden;width:100%;border-radius:16px;touch-action:pan-y}
-      .calc-track{display:flex;align-items:stretch;width:100%;min-width:100%;transition:transform .32s ease;will-change:transform;transform:translate3d(0,0,0)}
+      .calc-viewport{overflow:hidden;width:100%;height:auto;border-radius:16px;touch-action:pan-y;transition:height .2s ease}
+      .calc-track{display:flex;align-items:flex-start;width:100%;min-width:100%;transition:transform .32s ease;will-change:transform;transform:translate3d(0,0,0)}
       .calc-panel{flex:0 0 100%;width:100%;min-width:100%;max-width:100%;box-sizing:border-box;padding:1px 2px 8px}
-      .calc-panel>.card{height:100%;box-sizing:border-box;margin:0}
+      .calc-panel>.card{height:auto;min-height:0;box-sizing:border-box;margin:0}
       .calc-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding:14px 0 4px;border-top:1px solid var(--line,#e2e8f0)}
       .calc-nav .btn{display:inline-flex!important;visibility:visible!important;opacity:1!important;cursor:pointer;min-height:44px;position:relative;z-index:5}
       .calc-nav-global{width:100%;min-height:60px}
@@ -1387,18 +1387,18 @@ def misuratore():
         const host = calculatorStart.parentElement;
         if (!host) return;
         const cards = Array.from(host.querySelectorAll(":scope > section.card"));
-        if (cards.length < 7) {
-          console.error("FixTude: impossibile inizializzare il calcolatore guidato; sezioni trovate:", cards.length);
+        if (cards.length !== 7) {
+          console.error("FixTude: il calcolatore richiede 7 sezioni; sezioni trovate:", cards.length);
           return;
         }
 
         const wizard = document.createElement("div");
         wizard.className = "calc-wizard";
-        wizard.setAttribute("aria-label", "Calcolatore guidato a scorrimento orizzontale in cinque passaggi");
+        wizard.setAttribute("aria-label", "Calcolatore guidato a scorrimento orizzontale in sette passaggi");
         const progress = document.createElement("div");
         progress.className = "calc-progress";
         const progressLabel = document.createElement("strong");
-        progressLabel.textContent = "Passaggio 1 di 5 · Entrate mensili";
+        progressLabel.textContent = "Passaggio 1 di 7 · Entrate mensili";
         const progressHint = document.createElement("span");
         progressHint.textContent = "I dati restano nel browser";
         progress.append(progressLabel, progressHint);
@@ -1417,16 +1417,16 @@ def misuratore():
         wizard.append(progress, progressTrack, viewport);
         host.insertBefore(wizard, cards[0]);
 
-        // 5 passaggi: entrate, spese, debiti, esito, simulazioni e prossimi passi.
-        const groups = [[0], [1], [2], [3], [4, 5, 6]];
-        const titles = ["Entrate mensili", "Spese mensili", "Debiti e rate", "Il tuo esito", "Simulazioni e prossimi passi"];
+        // Un modulo per passaggio: nessun gruppo finale enorme o vuoto.
+        const titles = ["Entrate mensili", "Spese mensili", "Debiti e rate", "Il tuo esito", "Piano di rientro", "Saldo e stralcio", "Prossimi passi"];
+        const totalSteps = cards.length;
         let currentStep = 0;
-        const panels = groups.map((indices, index) => {
+        const panels = cards.map((card, index) => {
           const panel = document.createElement("section");
           panel.className = "calc-panel";
           panel.setAttribute("role", "group");
-          panel.setAttribute("aria-label", "Passaggio " + (index + 1) + " di 5: " + titles[index]);
-          indices.forEach(i => { if (cards[i]) panel.appendChild(cards[i]); });
+          panel.setAttribute("aria-label", "Passaggio " + (index + 1) + " di " + totalSteps + ": " + titles[index]);
+          panel.appendChild(card);
           track.appendChild(panel);
           return panel;
         });
@@ -1443,26 +1443,30 @@ def misuratore():
         const caption = document.createElement("span");
         caption.className = "calc-step-caption";
         caption.setAttribute("aria-live", "polite");
-        caption.textContent = "1 / 5";
+        caption.textContent = "1 / " + totalSteps;
         const next = document.createElement("button");
         next.type = "button";
         next.className = "btn calc-next";
         next.textContent = "Avanti →";
         next.setAttribute("aria-label", "Vai al passaggio successivo");
-        next.addEventListener("click", () => showStep(currentStep === 4 ? 3 : currentStep + 1));
+        next.addEventListener("click", () => {
+          if (currentStep < totalSteps - 1) showStep(currentStep + 1);
+          else showStep(0);
+        });
         nav.append(back, caption, next);
         wizard.appendChild(nav);
 
         function showStep(step) {
-          currentStep = Math.max(0, Math.min(4, step));
-          // Percentuale riferita alla larghezza del pannello, non alla larghezza totale del track.
-          track.style.transform = "translate3d(" + (-currentStep * 100) + "%, 0, 0)";
-          caption.textContent = (currentStep + 1) + " / 5";
+          currentStep = Math.max(0, Math.min(totalSteps - 1, step));
+          // Usa pixel reali del viewport: evita salti di pannello dovuti alle percentuali CSS.
+          track.style.transform = "translate3d(" + (-currentStep * viewport.clientWidth) + "px, 0, 0)";
+          viewport.style.height = panels[currentStep].scrollHeight + "px";
+          caption.textContent = (currentStep + 1) + " / " + totalSteps;
           back.disabled = currentStep === 0;
           back.style.visibility = currentStep === 0 ? "hidden" : "visible";
-          next.textContent = currentStep === 4 ? "← Torna all'esito" : "Avanti →";
-          progressLabel.textContent = "Passaggio " + (currentStep + 1) + " di 5 · " + titles[currentStep];
-          progressFill.style.width = (((currentStep + 1) / 5) * 100) + "%";
+          next.textContent = currentStep === totalSteps - 1 ? "Torna all'inizio ↑" : "Avanti →";
+          progressLabel.textContent = "Passaggio " + (currentStep + 1) + " di " + totalSteps + " · " + titles[currentStep];
+          progressFill.style.width = (((currentStep + 1) / totalSteps) * 100) + "%";
           panels.forEach((panel, i) => {
             panel.setAttribute("aria-hidden", i === currentStep ? "false" : "true");
             panel.inert = i !== currentStep;
@@ -1471,10 +1475,20 @@ def misuratore():
             const lumpSum = document.getElementById("lumpSum");
             if (lumpSum) lumpSum.dispatchEvent(new Event("input", { bubbles: true }));
           }
-          const activePanel = panels[currentStep];
-          if (activePanel) activePanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
         showStep(0);
+        window.addEventListener("resize", () => {
+          track.style.transition = "none";
+          track.style.transform = "translate3d(" + (-currentStep * viewport.clientWidth) + "px, 0, 0)";
+          viewport.style.height = panels[currentStep].scrollHeight + "px";
+          requestAnimationFrame(() => { track.style.transition = ""; });
+        });
+        // Gli elementi dinamici (righe aggiunte/rimosse) aggiornano l'altezza del pannello.
+        const resizeObserver = new ResizeObserver(() => {
+          const activePanel = panels[currentStep];
+          if (activePanel) viewport.style.height = activePanel.scrollHeight + "px";
+        });
+        panels.forEach(panel => resizeObserver.observe(panel));
         if (window.location.hash === "#calculatorStart") {
           window.setTimeout(() => calculatorStart.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
         }
