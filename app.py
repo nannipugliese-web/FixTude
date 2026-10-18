@@ -1154,12 +1154,67 @@ def page(title, content, include_chat=True):
 @app.route("/")
 def home():
     content = """
+    <style>
+      .home-hero-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,300px);gap:28px;align-items:start}
+      .home-hero-copy h1{font-size:clamp(30px,4vw,46px);line-height:1.1;margin:0 0 14px}
+      .home-hero-copy p{font-size:18px;line-height:1.55;max-width:680px}
+      .home-quick-actions{display:flex;flex-direction:column;gap:12px;padding:18px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);border-radius:16px}
+      .home-quick-actions .btn{width:100%;text-align:center;justify-content:center;min-height:48px}
+      .home-situation-title{text-align:center;margin:30px 0 8px}
+      .home-situation-intro{text-align:center;margin:0 auto 12px;max-width:680px}
+      .home-situation-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin:20px auto 8px;max-width:900px}
+      .home-situation-option{display:flex;flex-direction:column;align-items:center;gap:15px;min-width:0}
+      .home-situation-choice{position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:clamp(150px,18vw,205px);height:clamp(150px,18vw,205px);padding:16px;border:3px solid rgba(255,255,255,.75);border-radius:50%;cursor:pointer;font:inherit;text-align:center;color:#fff;text-decoration:none;overflow:hidden;transform:translateY(-7px);box-shadow:0 9px 0 var(--button-depth),0 18px 24px rgba(16,24,40,.28),inset 0 3px 5px rgba(255,255,255,.75),inset 0 -8px 12px rgba(0,0,0,.2);transition:transform .13s ease,box-shadow .13s ease,filter .13s ease;touch-action:manipulation}
+      .home-situation-choice:before{content:"";position:absolute;z-index:-1;left:9%;top:5%;width:82%;height:43%;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,.78),rgba(255,255,255,.05));filter:blur(1px);pointer-events:none}
+      .home-situation-choice:hover{filter:brightness(1.07);transform:translateY(-11px);box-shadow:0 13px 0 var(--button-depth),0 23px 28px rgba(16,24,40,.3),inset 0 3px 5px rgba(255,255,255,.75),inset 0 -8px 12px rgba(0,0,0,.2)}
+      .home-situation-choice:active{transform:translateY(4px) scale(.985);box-shadow:0 1px 0 var(--button-depth),0 4px 8px rgba(16,24,40,.22),inset 0 4px 9px rgba(0,0,0,.22);filter:brightness(.97)}
+      .home-situation-choice:focus-visible{outline:3px solid #1675d1;outline-offset:7px}
+      .home-situation-icon{font-size:34px;line-height:1.1;font-weight:900}
+      .home-situation-label{font-size:clamp(20px,2.2vw,28px);font-weight:900;line-height:1.05;text-shadow:0 2px 2px rgba(0,0,0,.2)}
+      .home-situation-subtitle{font-size:clamp(12px,1.3vw,16px);font-weight:850;line-height:1.2}
+      .home-situation-description{max-width:250px;text-align:center;font-size:14px;line-height:1.5;font-style:italic}
+      .home-situation-red{--button-depth:#861821;background:radial-gradient(ellipse at 35% 18%,#ff9588 0%,#ff3d2f 33%,#d70d0d 69%,#9f0009 100%);border-color:#ffb6aa}
+      .home-situation-yellow{--button-depth:#98600b;color:#382707;background:radial-gradient(ellipse at 35% 18%,#fff7a0 0%,#ffdb24 35%,#f5ac00 72%,#b66b00 100%);border-color:#fff0a0}
+      .home-situation-green{--button-depth:#07502e;background:radial-gradient(ellipse at 35% 18%,#82f2b1 0%,#16b968 35%,#078346 70%,#00532c 100%);border-color:#a6f7c8}
+      @media(max-width:700px){.home-hero-layout{grid-template-columns:1fr;gap:18px}.home-quick-actions{display:grid;grid-template-columns:1fr 1fr}.home-situation-options{grid-template-columns:1fr;gap:24px}.home-situation-choice{width:176px;height:176px}.home-situation-description{max-width:320px}.home-situation-title{margin-top:24px}}
+      @media(prefers-reduced-motion:reduce){.home-situation-choice{transition:none}}
+    </style>
     <section class="hero">
-      <h1>Fai chiarezza sulla tua situazione debitoria.</h1>
-      <p>Inserisci entrate, uscite e rate per capire quanto ti rimane ogni mese e valutare in modo indicativo la sostenibilità dei tuoi impegni.</p>
-      <div class="actions"><a class="btn light" href="/misuratore">Prova il calcolatore gratuito</a><a class="btn outline contact-cta" href="/consulenza">Richiedi di essere contattato</a></div>
+      <div class="home-hero-layout">
+        <div class="home-hero-copy">
+          <h1>Fai chiarezza sulla tua situazione debitoria.</h1>
+          <p>Qualunque sia la tua situazione, puoi iniziare da qui. Capisci quanto ti rimane ogni mese e valuta in modo indicativo la sostenibilità dei tuoi impegni.</p>
+          <p><strong>Semplice. Riservato. Senza registrazione.</strong></p>
+        </div>
+        <div class="home-quick-actions" aria-label="Azioni rapide">
+          <a class="btn light" href="/misuratore">Prova il calcolatore</a>
+          <a class="btn outline contact-cta" href="/consulenza">Richiesta contatto</a>
+        </div>
+      </div>
+      <h2 class="home-situation-title">Da dove vuoi cominciare?</h2>
+      <p class="home-situation-intro">Scegli il pulsante che descrive meglio la tua situazione. Ti accompagneremo al calcolatore gratuito.</p>
+      <div class="home-situation-options">
+        <div class="home-situation-option">
+          <a class="home-situation-choice home-situation-red" href="/misuratore#calculatorStart" aria-label="Rosso, emergenza: non riesco a pagare la rata di questo mese e ho già ricevuto solleciti">
+            <span class="home-situation-icon" aria-hidden="true">!</span><span class="home-situation-label">ROSSO</span><span class="home-situation-subtitle">EMERGENZA</span>
+          </a>
+          <em class="home-situation-description">Non riesco a pagare la rata di questo mese e ho già ricevuto solleciti.</em>
+        </div>
+        <div class="home-situation-option">
+          <a class="home-situation-choice home-situation-yellow" href="/misuratore#calculatorStart" aria-label="Giallo, allerta: pago tutto ma faccio fatica e non mi rimane quasi nulla dello stipendio">
+            <span class="home-situation-icon" aria-hidden="true">!</span><span class="home-situation-label">GIALLO</span><span class="home-situation-subtitle">ALLERTA</span>
+          </a>
+          <em class="home-situation-description">Pago tutto, ma faccio fatica. Non mi rimane quasi nulla dello stipendio.</em>
+        </div>
+        <div class="home-situation-option">
+          <a class="home-situation-choice home-situation-green" href="/misuratore#calculatorStart" aria-label="Verde, controllo: voglio verificare se i miei debiti sono sostenibili">
+            <span class="home-situation-icon" aria-hidden="true">✓</span><span class="home-situation-label">VERDE</span><span class="home-situation-subtitle">CONTROLLO</span>
+          </a>
+          <em class="home-situation-description">La situazione è gestibile, ma voglio verificare se i miei debiti sono davvero sostenibili.</em>
+        </div>
+      </div>
     </section>
-    <section class="card start-card"><h2>Da dove cominciare</h2><div class="grid">
+    <section class="card start-card"><h2>Come funziona FixTude</h2><div class="grid">
       <div><strong>1. Fai il calcolo</strong><p class="muted">Usa gratuitamente il calcolatore. I dati inseriti restano nel browser e non serve registrarsi.</p></div>
       <div><strong>2. Valuta il risultato</strong><p class="muted">Ottieni una stima orientativa del margine mensile e del peso delle rate.</p></div>
       <div><strong>3. Se vuoi, chiedi di parlare con un esperto</strong><p class="muted">Lascia i tuoi recapiti e una breve descrizione della situazione per chiedere il contatto di un esperto FixTude. Il contatto è facoltativo e non comporta obblighi.</p></div>
