@@ -1188,18 +1188,27 @@ def misuratore():
       <h2 id="situationTitle">Da dove vuoi cominciare?</h2>
       <p class="muted">Scegli il colore che descrive meglio la tua situazione. Ti guideremo al calcolatore.</p>
       <div class="situation-options">
-        <button class="situation-choice situation-red" type="button" data-situation="red" aria-controls="calculatorWelcome">
-          <span class="situation-heading"><span class="situation-dot" aria-hidden="true"></span> ROSSO — EMERGENZA</span>
-          <em>Non riesco a pagare la rata di questo mese e ho già ricevuto solleciti.</em>
-        </button>
-        <button class="situation-choice situation-yellow" type="button" data-situation="yellow" aria-controls="calculatorWelcome">
-          <span class="situation-heading"><span class="situation-dot" aria-hidden="true"></span> GIALLO — ALLERTA</span>
-          <em>Pago tutto ma faccio fatica. Non mi rimane quasi nulla dello stipendio.</em>
-        </button>
-        <button class="situation-choice situation-green" type="button" data-situation="green" aria-controls="calculatorWelcome">
-          <span class="situation-heading"><span class="situation-dot" aria-hidden="true"></span> VERDE — CONTROLLO</span>
-          <em>La situazione è gestibile, ma voglio calcolare se i miei debiti sono davvero sostenibili.</em>
-        </button>
+        <div class="situation-option">
+          <button class="situation-choice situation-red" type="button" data-situation="red" aria-controls="calculatorWelcome" aria-pressed="false">
+            <span class="situation-icon" aria-hidden="true">!</span>
+            <span class="situation-label">ROSSO</span><span class="situation-subtitle">EMERGENZA</span>
+          </button>
+          <em class="situation-description">Non riesco a pagare la rata di questo mese e ho già ricevuto solleciti.</em>
+        </div>
+        <div class="situation-option">
+          <button class="situation-choice situation-yellow" type="button" data-situation="yellow" aria-controls="calculatorWelcome" aria-pressed="false">
+            <span class="situation-icon" aria-hidden="true">!</span>
+            <span class="situation-label">GIALLO</span><span class="situation-subtitle">ALLERTA</span>
+          </button>
+          <em class="situation-description">Pago tutto ma faccio fatica. Non mi rimane quasi nulla dello stipendio.</em>
+        </div>
+        <div class="situation-option">
+          <button class="situation-choice situation-green" type="button" data-situation="green" aria-controls="calculatorWelcome" aria-pressed="false">
+            <span class="situation-icon situation-shield" aria-hidden="true">✓</span>
+            <span class="situation-label">VERDE</span><span class="situation-subtitle">CONTROLLO</span>
+          </button>
+          <em class="situation-description">La situazione è gestibile, ma voglio calcolare se i miei debiti sono davvero sostenibili.</em>
+        </div>
       </div>
     </section>
 
@@ -1285,20 +1294,28 @@ def misuratore():
     </section>
 
     <style>
-      .situation-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
-      .situation-choice{display:flex;flex-direction:column;align-items:flex-start;gap:10px;text-align:left;width:100%;min-height:150px;padding:16px;border:2px solid transparent;border-radius:13px;cursor:pointer;font:inherit;color:var(--ink);transition:transform .18s ease,box-shadow .18s ease}
-      .situation-choice:hover{transform:translateY(-2px);box-shadow:0 7px 18px rgba(18,58,114,.12)}
-      .situation-choice:focus-visible{outline:3px solid var(--blue2);outline-offset:3px}
-      .situation-heading{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px}
-      .situation-dot{display:inline-block;width:13px;height:13px;min-width:13px;border-radius:50%}
-      .situation-choice em{font-size:14px;line-height:1.45;font-style:italic}
-      .situation-red{background:#fff1f1;border-color:#efb8b8}.situation-red .situation-dot{background:#b42318}
-      .situation-yellow{background:#fff9e9;border-color:#f0d68b}.situation-yellow .situation-dot{background:#b77900}
-      .situation-green{background:#effaf2;border-color:#b6e3c1}.situation-green .situation-dot{background:#188448}
+      .situation-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin:24px auto 8px;max-width:900px}
+      .situation-option{display:flex;flex-direction:column;align-items:center;gap:18px;min-width:0}
+      .situation-choice{position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:clamp(150px,18vw,205px);height:clamp(150px,18vw,205px);padding:16px;border:3px solid rgba(255,255,255,.72);border-radius:50%;cursor:pointer;font:inherit;text-align:center;color:#fff;overflow:hidden;transform:translateY(-7px);box-shadow:0 7px 0 var(--button-depth),0 15px 22px rgba(16,24,40,.25),inset 0 3px 5px rgba(255,255,255,.75),inset 0 -7px 12px rgba(0,0,0,.2);transition:transform .13s ease,box-shadow .13s ease,filter .13s ease;touch-action:manipulation}
+      .situation-choice::before{content:"";position:absolute;z-index:-1;left:9%;top:5%;width:82%;height:43%;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,.06));filter:blur(1px);pointer-events:none}
+      .situation-choice::after{content:"";position:absolute;z-index:-1;inset:5px;border:2px solid rgba(255,255,255,.27);border-radius:50%;box-shadow:inset 0 2px 4px rgba(255,255,255,.25);pointer-events:none}
+      .situation-choice:hover{filter:brightness(1.07);transform:translateY(-10px);box-shadow:0 10px 0 var(--button-depth),0 20px 26px rgba(16,24,40,.28),inset 0 3px 5px rgba(255,255,255,.75),inset 0 -7px 12px rgba(0,0,0,.2)}
+      .situation-choice:active,.situation-choice.is-pressed{transform:translateY(3px) scale(.985);box-shadow:0 1px 0 var(--button-depth),0 4px 8px rgba(16,24,40,.22),inset 0 4px 9px rgba(0,0,0,.22);filter:brightness(.97)}
+      .situation-choice[aria-pressed="true"]{outline:3px solid var(--button-depth);outline-offset:5px}
+      .situation-choice:focus-visible{outline:3px solid var(--blue2);outline-offset:7px}
+      .situation-icon{display:flex;align-items:center;justify-content:center;width:47px;height:47px;margin-bottom:4px;border:4px solid currentColor;border-radius:50%;font-size:37px;font-weight:900;line-height:1;text-shadow:0 2px 2px rgba(0,0,0,.15)}
+      .situation-shield{border-radius:13px 13px 18px 18px;width:43px;height:43px;font-size:29px}
+      .situation-label{font-size:clamp(20px,2.2vw,28px);font-weight:900;letter-spacing:.3px;line-height:1.05;text-shadow:0 2px 2px rgba(0,0,0,.2)}
+      .situation-subtitle{font-size:clamp(13px,1.3vw,17px);font-weight:850;line-height:1.2;text-shadow:0 1px 2px rgba(0,0,0,.18)}
+      .situation-description{max-width:250px;text-align:center;font-size:14px;line-height:1.5;font-style:italic;color:var(--ink)}
+      .situation-red{--button-depth:#861821;background:radial-gradient(ellipse at 35% 18%,#ff9588 0%,#ff3d2f 33%,#d70d0d 69%,#9f0009 100%);border-color:#ffb6aa}
+      .situation-yellow{--button-depth:#98600b;color:#382707;background:radial-gradient(ellipse at 35% 18%,#fff7a0 0%,#ffdb24 35%,#f5ac00 72%,#b66b00 100%);border-color:#fff0a0}
+      .situation-green{--button-depth:#07502e;background:radial-gradient(ellipse at 35% 18%,#82f2b1 0%,#16b968 35%,#078346 70%,#00532c 100%);border-color:#a6f7c8}
       .calculator-welcome{position:relative;margin:16px 0;padding:16px 42px 16px 16px;border:1px solid #b8d5f5;border-radius:12px;background:#eef5ff;color:#203047;box-shadow:0 5px 18px rgba(18,58,114,.08)}
       .calculator-welcome strong,.calculator-welcome span{display:block}.calculator-welcome span{margin-top:5px;font-size:14px;color:#52647a}
       .calculator-welcome[hidden]{display:none!important}.welcome-close{position:absolute;right:9px;top:7px;border:0;background:transparent;font-size:23px;line-height:1;cursor:pointer;color:#52647a}
-      @media(max-width:700px){.situation-options{grid-template-columns:1fr}.situation-choice{min-height:0;padding:14px}.situation-heading{font-size:14px}}
+      @media(max-width:700px){.situation-options{grid-template-columns:1fr;gap:24px}.situation-choice{width:176px;height:176px}.situation-description{max-width:320px}}
+      @media(prefers-reduced-motion:reduce){.situation-choice{transition:none}}
       .traffic-light{display:flex;gap:14px;align-items:flex-start;padding:16px;margin:16px 0;border:1px solid var(--line);border-radius:12px;background:#f7f9fc}
       .traffic-light .signal{width:18px;height:18px;min-width:18px;border-radius:50%;background:#94a3b8;margin-top:4px;box-shadow:0 0 0 5px #e2e8f0}
       .traffic-light.green{background:#effaf2;border-color:#b6e3c1}.traffic-light.green .signal{background:#188448;box-shadow:0 0 0 5px #d5f0dd}
@@ -1505,6 +1522,10 @@ def misuratore():
       const calculatorWelcome = document.getElementById("calculatorWelcome");
       const welcomeClose = document.getElementById("calculatorWelcomeClose");
       situationButtons.forEach(button => {
+        button.addEventListener("pointerdown", () => {
+          button.classList.add("is-pressed");
+          window.setTimeout(() => button.classList.remove("is-pressed"), 180);
+        });
         button.addEventListener("click", () => {
           situationButtons.forEach(item => {
             item.setAttribute("aria-pressed", item === button ? "true" : "false");
