@@ -422,7 +422,11 @@ def page(title, content, include_chat=True):
               letter-spacing:-.8px;
               text-decoration:none;
             }
-            nav {display:flex;gap:20px;flex-wrap:wrap}
+            .menu-toggle{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font-size:25px;cursor:pointer;line-height:1}
+            .nav-menu{display:none;position:absolute;right:max(18px,calc((100vw - 1080px)/2));top:68px;z-index:1000;min-width:245px;max-width:calc(100vw - 32px);padding:10px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 32px rgba(20,40,70,.18)}
+            .nav-menu.open{display:flex;flex-direction:column;gap:0}
+            .nav-menu a{display:block;padding:12px 14px;border-radius:8px;text-decoration:none;color:var(--ink);font-size:14px;font-weight:700}
+            .nav-menu a:hover,.nav-menu a:focus-visible{background:#edf4fc;color:var(--blue)}
             nav a {
               text-decoration:none;
               color:var(--ink);
@@ -701,13 +705,11 @@ def page(title, content, include_chat=True):
             .resource-link {display:block;padding:17px;border:1px solid var(--line);border-radius:12px;background:#fff;text-decoration:none;font-weight:700}
             .resource-link span {display:block;font-weight:400;color:var(--muted);font-size:14px;margin-top:5px}
             @media(max-width:650px) {
-              nav {width:100%;gap:9px 13px}
-              nav a {font-size:13px}
               .product-card {grid-template-columns:minmax(0,1fr);gap:12px}
               .shop-book-cover img {width:min(72%,250px);max-height:360px}
               .resource-list {grid-template-columns:1fr}
-              .nav {align-items:flex-start;flex-direction:column;gap:9px}
-              nav {gap:10px 16px}
+              .nav {align-items:center;flex-direction:row;gap:9px}
+              .nav-menu{top:64px;right:12px}
               main {width:calc(100% - 24px);margin:20px auto 45px}
               .grid {grid-template-columns:1fr}
               .card {padding:18px}
@@ -746,8 +748,9 @@ def page(title, content, include_chat=True):
         <body>
           <header>
             <div class="nav">
-              <a class="brand" href="/">FixTude</a>
-              <nav>
+              <a class="brand" href="/" aria-label="FixTude, homepage">FixTude</a>
+              <button class="menu-toggle" id="siteMenuToggle" type="button" aria-label="Apri menu" aria-expanded="false" aria-controls="siteMenu">☰</button>
+              <nav class="nav-menu" id="siteMenu" aria-label="Menu principale">
                 <a href="/misuratore">Calcolatore</a>
                 <a href="/consulenza">Contatta un esperto</a>
                 <a href="/moduli">Moduli gratuiti</a>
@@ -757,6 +760,9 @@ def page(title, content, include_chat=True):
                 <a href="/shop">Shop</a>
               </nav>
             </div>
+            <script>
+            (()=>{const b=document.getElementById('siteMenuToggle'),m=document.getElementById('siteMenu');if(!b||!m)return;function close(){m.classList.remove('open');b.setAttribute('aria-expanded','false');b.setAttribute('aria-label','Apri menu');b.textContent='☰'}b.addEventListener('click',()=>{const open=!m.classList.contains('open');m.classList.toggle('open',open);b.setAttribute('aria-expanded',String(open));b.setAttribute('aria-label',open?'Chiudi menu':'Apri menu');b.textContent=open?'×':'☰'});document.addEventListener('click',e=>{if(!m.contains(e.target)&&!b.contains(e.target))close()});document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});m.querySelectorAll('a').forEach(a=>a.addEventListener('click',close))})();
+            </script>
           </header>
           <main>
             {% if request.path != '/' %}
@@ -1155,11 +1161,9 @@ def page(title, content, include_chat=True):
 def home():
     content = """
     <style>
-      .home-hero-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,300px);gap:28px;align-items:start}
+      .home-hero-layout{display:block;max-width:820px;margin:0 auto;align-items:start}
       .home-hero-copy h1{font-size:clamp(30px,4vw,46px);line-height:1.1;margin:0 0 14px}
       .home-hero-copy p{font-size:18px;line-height:1.55;max-width:680px}
-      .home-quick-actions{display:flex;flex-direction:column;gap:12px;padding:18px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);border-radius:16px}
-      .home-quick-actions .btn{width:100%;text-align:center;justify-content:center;min-height:48px}
       .home-situation-title{text-align:center;margin:30px 0 8px}
       .home-situation-intro{text-align:center;margin:0 auto 12px;max-width:680px}
       .home-situation-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin:20px auto 8px;max-width:900px}
@@ -1176,7 +1180,7 @@ def home():
       .home-situation-red{--button-depth:#861821;background:radial-gradient(ellipse at 35% 18%,#ff9588 0%,#ff3d2f 33%,#d70d0d 69%,#9f0009 100%);border-color:#ffb6aa}
       .home-situation-yellow{--button-depth:#98600b;color:#382707;background:radial-gradient(ellipse at 35% 18%,#fff7a0 0%,#ffdb24 35%,#f5ac00 72%,#b66b00 100%);border-color:#fff0a0}
       .home-situation-green{--button-depth:#07502e;background:radial-gradient(ellipse at 35% 18%,#82f2b1 0%,#16b968 35%,#078346 70%,#00532c 100%);border-color:#a6f7c8}
-      @media(max-width:700px){.home-hero-layout{grid-template-columns:1fr;gap:18px}.home-quick-actions{display:grid;grid-template-columns:1fr 1fr}.home-situation-options{grid-template-columns:1fr;gap:24px}.home-situation-choice{width:176px;height:176px}.home-situation-description{max-width:320px}.home-situation-title{margin-top:24px}}
+      @media(max-width:700px){.home-hero-layout{grid-template-columns:1fr;gap:18px}.home-situation-options{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.home-situation-option{gap:8px}.home-situation-choice{width:min(28vw,118px);height:min(28vw,118px);padding:7px;border-width:2px;transform:translateY(-3px);box-shadow:0 5px 0 var(--button-depth),0 9px 12px rgba(16,24,40,.24),inset 0 2px 4px rgba(255,255,255,.75),inset 0 -5px 8px rgba(0,0,0,.2)}.home-situation-icon{font-size:22px}.home-situation-label{font-size:clamp(12px,3.4vw,16px)}.home-situation-subtitle{font-size:clamp(9px,2.5vw,12px)}.home-situation-description{max-width:100%;font-size:11px;line-height:1.35}.home-situation-title{margin-top:24px}}
       @media(prefers-reduced-motion:reduce){.home-situation-choice{transition:none}}
     </style>
     <section class="hero">
@@ -1185,10 +1189,6 @@ def home():
           <h1>Fai chiarezza sulla tua situazione debitoria.</h1>
           <p>Qualunque sia la tua situazione, puoi iniziare da qui. Capisci quanto ti rimane ogni mese e valuta in modo indicativo la sostenibilità dei tuoi impegni.</p>
           <p><strong>Semplice. Riservato. Senza registrazione.</strong></p>
-        </div>
-        <div class="home-quick-actions" aria-label="Azioni rapide">
-          <a class="btn light" href="/misuratore">Prova il calcolatore</a>
-          <a class="btn outline contact-cta" href="/consulenza">Richiesta contatto</a>
         </div>
       </div>
       <h2 class="home-situation-title">Da dove vuoi cominciare?</h2>
@@ -1238,34 +1238,6 @@ def misuratore():
       quota indicativa destinabile al debito e possibili scenari di rientro.
       Tutti i calcoli sono eseguiti nel browser: gli importi non vengono inviati al server.
     </p>
-
-    <section class="card situation-selector" aria-labelledby="situationTitle">
-      <h2 id="situationTitle">Da dove vuoi cominciare?</h2>
-      <p class="muted">Scegli il colore che descrive meglio la tua situazione. Ti guideremo al calcolatore.</p>
-      <div class="situation-options">
-        <div class="situation-option">
-          <button class="situation-choice situation-red" type="button" data-situation="red" aria-controls="calculatorWelcome" aria-pressed="false">
-            <span class="situation-icon" aria-hidden="true">!</span>
-            <span class="situation-label">ROSSO</span><span class="situation-subtitle">EMERGENZA</span>
-          </button>
-          <em class="situation-description">Non riesco a pagare la rata di questo mese e ho già ricevuto solleciti.</em>
-        </div>
-        <div class="situation-option">
-          <button class="situation-choice situation-yellow" type="button" data-situation="yellow" aria-controls="calculatorWelcome" aria-pressed="false">
-            <span class="situation-icon" aria-hidden="true">!</span>
-            <span class="situation-label">GIALLO</span><span class="situation-subtitle">ALLERTA</span>
-          </button>
-          <em class="situation-description">Pago tutto ma faccio fatica. Non mi rimane quasi nulla dello stipendio.</em>
-        </div>
-        <div class="situation-option">
-          <button class="situation-choice situation-green" type="button" data-situation="green" aria-controls="calculatorWelcome" aria-pressed="false">
-            <span class="situation-icon situation-shield" aria-hidden="true">✓</span>
-            <span class="situation-label">VERDE</span><span class="situation-subtitle">CONTROLLO</span>
-          </button>
-          <em class="situation-description">La situazione è gestibile, ma voglio calcolare se i miei debiti sono davvero sostenibili.</em>
-        </div>
-      </div>
-    </section>
 
     <section class="card" id="calculatorStart">
       <h2>1. Entrate nette mensili</h2>
