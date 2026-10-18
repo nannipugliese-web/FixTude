@@ -1199,20 +1199,20 @@ def home():
       <p class="home-situation-intro">Scegli il pulsante che descrive la tua situazione. Il calcolatore ti fornirà un primo esito di sostenibilità.</p>
       <div class="home-situation-options">
         <div class="home-situation-option">
-          <a class="home-situation-choice home-situation-red" href="/misuratore#calculatorStart" aria-label="Rosso, emergenza: non riesco a pagare la rata di questo mese e ho già ricevuto solleciti">
-            <span class="home-situation-icon" aria-hidden="true">!</span><span class="home-situation-label">ROSSO</span><span class="home-situation-subtitle">EMERGENZA</span>
+          <a class="home-situation-choice home-situation-red" href="/misuratore#calculatorStart" aria-label="Emergenza: non riesco a pagare la rata di questo mese e ho già ricevuto solleciti">
+            <span class="home-situation-icon" aria-hidden="true">!</span><span class="home-situation-subtitle">EMERGENZA</span>
           </a>
           <em class="home-situation-description">Non riesco a pagare la rata di questo mese e ho già ricevuto solleciti.</em>
         </div>
         <div class="home-situation-option">
-          <a class="home-situation-choice home-situation-yellow" href="/misuratore#calculatorStart" aria-label="Giallo, allerta: pago tutto ma faccio fatica e non mi rimane quasi nulla dello stipendio">
-            <span class="home-situation-icon" aria-hidden="true">!</span><span class="home-situation-label">GIALLO</span><span class="home-situation-subtitle">ALLERTA</span>
+          <a class="home-situation-choice home-situation-yellow" href="/misuratore#calculatorStart" aria-label="Allerta: pago tutto ma faccio fatica e non mi rimane quasi nulla dello stipendio">
+            <span class="home-situation-icon" aria-hidden="true">!</span><span class="home-situation-subtitle">ALLERTA</span>
           </a>
           <em class="home-situation-description">Pago tutto, ma faccio fatica. Non mi rimane quasi nulla dello stipendio.</em>
         </div>
         <div class="home-situation-option">
-          <a class="home-situation-choice home-situation-green" href="/misuratore#calculatorStart" aria-label="Verde, controllo: voglio verificare se i miei debiti sono sostenibili">
-            <span class="home-situation-icon" aria-hidden="true">✓</span><span class="home-situation-label">VERDE</span><span class="home-situation-subtitle">CONTROLLO</span>
+          <a class="home-situation-choice home-situation-green" href="/misuratore#calculatorStart" aria-label="Controllo: voglio verificare se i miei debiti sono sostenibili">
+            <span class="home-situation-icon" aria-hidden="true">✓</span><span class="home-situation-subtitle">CONTROLLO</span>
           </a>
           <em class="home-situation-description">La situazione è gestibile, ma voglio verificare se i miei debiti sono davvero sostenibili.</em>
         </div>
@@ -1348,6 +1348,22 @@ def misuratore():
       .calculator-welcome[hidden]{display:none!important}.welcome-close{position:absolute;right:9px;top:7px;border:0;background:transparent;font-size:23px;line-height:1;cursor:pointer;color:#52647a}
       @media(max-width:700px){.situation-options{grid-template-columns:1fr;gap:24px}.situation-choice{width:176px;height:176px}.situation-description{max-width:320px}}
       @media(prefers-reduced-motion:reduce){.situation-choice{transition:none}}
+      /* Calcolatore guidato: cinque schermate orizzontali */
+      .calc-wizard{margin:18px 0 28px;min-width:0}
+      .calc-progress{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px;font-size:14px;color:var(--muted,#64748b)}
+      .calc-progress-track{height:6px;border-radius:999px;background:#e5eaf1;overflow:hidden;margin-bottom:18px}
+      .calc-progress-fill{height:100%;width:20%;border-radius:999px;background:var(--blue2,#2563eb);transition:width .25s ease}
+      .calc-viewport{overflow:hidden;width:100%;border-radius:16px;touch-action:pan-y}
+      .calc-track{display:flex;align-items:stretch;width:100%;transition:transform .32s ease;will-change:transform}
+      .calc-panel{flex:0 0 100%;width:100%;min-width:0;box-sizing:border-box;padding:1px 2px 8px}
+      .calc-panel>.card{height:100%;box-sizing:border-box;margin:0}
+      .calc-panel .calc-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:22px;padding-top:16px;border-top:1px solid var(--line,#e2e8f0)}
+      .calc-nav .btn{cursor:pointer;min-height:44px}
+      .calc-nav .calc-back{background:transparent;color:var(--ink,#172033);border:1px solid var(--line,#cbd5e1)}
+      .calc-nav .calc-next{margin-left:auto}
+      .calc-step-caption{font-size:13px;color:var(--muted,#64748b)}
+      @media(max-width:640px){.calc-progress{font-size:13px}.calc-panel>.card{padding:18px 15px}.calc-nav{gap:8px!important}.calc-nav .btn{padding:11px 13px;font-size:14px}.calc-step-caption{max-width:74px;text-align:center}}
+      @media(prefers-reduced-motion:reduce){.calc-track,.calc-progress-fill{transition:none}}
       .traffic-light{display:flex;gap:14px;align-items:flex-start;padding:16px;margin:16px 0;border:1px solid var(--line);border-radius:12px;background:#f7f9fc}
       .traffic-light .signal{width:18px;height:18px;min-width:18px;border-radius:50%;background:#94a3b8;margin-top:4px;box-shadow:0 0 0 5px #e2e8f0}
       .traffic-light.green{background:#effaf2;border-color:#b6e3c1}.traffic-light.green .signal{background:#188448;box-shadow:0 0 0 5px #d5f0dd}
@@ -1360,6 +1376,47 @@ def misuratore():
 
     <script>
     (() => {
+      // Trasforma le sette sezioni esistenti in cinque passaggi orizzontali.
+      const calculatorStart = document.getElementById("calculatorStart");
+      if (calculatorStart) {
+        const host = calculatorStart.parentElement;
+        const cards = Array.from(host.children).filter(el => el.matches && el.matches("section.card"));
+        if (cards.length >= 7) {
+          const wizard = document.createElement("div"); wizard.className = "calc-wizard"; wizard.setAttribute("aria-label", "Calcolatore guidato in cinque passaggi");
+          const progress = document.createElement("div"); progress.className = "calc-progress";
+          const progressLabel = document.createElement("strong"); progressLabel.textContent = "Passaggio 1 di 5";
+          const progressHint = document.createElement("span"); progressHint.textContent = "I dati restano nel browser";
+          progress.append(progressLabel, progressHint);
+          const progressTrack = document.createElement("div"); progressTrack.className = "calc-progress-track"; progressTrack.setAttribute("aria-hidden", "true");
+          const progressFill = document.createElement("div"); progressFill.className = "calc-progress-fill"; progressTrack.appendChild(progressFill);
+          const viewport = document.createElement("div"); viewport.className = "calc-viewport";
+          const track = document.createElement("div"); track.className = "calc-track"; viewport.appendChild(track);
+          wizard.append(progress, progressTrack, viewport);
+          host.insertBefore(wizard, cards[0]);
+          const groups = [[0], [1], [2], [3], [4,5,6]];
+          const titles = ["Entrate mensili", "Spese mensili", "Debiti e rate", "Il tuo esito", "Piani e prossimi passi"];
+          const panels = groups.map((indices, index) => {
+            const panel = document.createElement("div"); panel.className = "calc-panel"; panel.setAttribute("role", "group"); panel.setAttribute("aria-label", "Passaggio " + (index+1) + " di 5: " + titles[index]);
+            indices.forEach(i => { if (cards[i]) panel.appendChild(cards[i]); });
+            const nav = document.createElement("div"); nav.className = "calc-nav";
+            const back = document.createElement("button"); back.type = "button"; back.className = "btn calc-back"; back.textContent = "← Indietro"; back.hidden = index === 0; back.addEventListener("click", () => showStep(index-1));
+            const caption = document.createElement("span"); caption.className = "calc-step-caption"; caption.textContent = (index+1) + " / 5";
+            const next = document.createElement("button"); next.type = "button"; next.className = "btn calc-next"; next.textContent = index === 4 ? "Torna all'esito ↑" : (index === 3 ? "Vedi simulazioni →" : "Avanti →");
+            next.addEventListener("click", () => showStep(index === 4 ? 3 : index+1));
+            nav.append(back, caption, next); panel.appendChild(nav); track.appendChild(panel); return panel;
+          });
+          let currentStep = 0;
+          function showStep(step) {
+            currentStep = Math.max(0, Math.min(4, step));
+            track.style.transform = "translateX(-" + (currentStep*100) + "%)";
+            progressLabel.textContent = "Passaggio " + (currentStep+1) + " di 5 · " + titles[currentStep];
+            progressFill.style.width = (((currentStep+1)/5)*100) + "%";
+            panels.forEach((panel, i) => { panel.setAttribute("aria-hidden", i === currentStep ? "false" : "true"); panel.inert = i !== currentStep; });
+            if (currentStep === 3 || currentStep === 4) { const event = new Event("input", {bubbles:true}); document.getElementById("lumpSum")?.dispatchEvent(event); }
+          }
+          showStep(0);
+        }
+      }
       const definitions = {
         income: [["Stipendio o pensione", 0], ["Altre entrate ricorrenti", 0]],
         expense: [["Casa e utenze", 0], ["Alimentari e necessità", 0], ["Trasporti", 0], ["Salute", 0], ["Altre spese", 0]],
