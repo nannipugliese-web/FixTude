@@ -278,6 +278,10 @@ SEO_PAGES = {
         "title": "Shop digitale e guide FixTude",
         "description": "Scopri i materiali digitali FixTude dedicati all'organizzazione del bilancio e alla gestione delle situazioni debitorie.",
     },
+    "/assistenza-legale": {
+        "title": "Assistenza legale per debiti | Pacchetti lancio FixTude",
+        "description": "Scopri i pacchetti FixTude di assistenza legale per situazioni debitorie, con orientamento al professionista competente e prezzi di lancio trasparenti.",
+    },
     "/disclaimer": {
         "title": "Disclaimer: limiti del calcolatore e dei contenuti | FixTude",
         "description": "Leggi finalità, limiti e criteri orientativi del calcolatore di sostenibilità del debito e dei materiali informativi FixTude.",
@@ -304,7 +308,7 @@ def page(title, content, include_chat=True):
     seo_title = seo.get("title", f"{title} | FixTude")
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
-    noindex_paths = ("/chat-staff", "/shop/conferma", "/shop/scarica", "/shop/anteprima")
+    noindex_paths = ("/chat-staff", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma")
     robots = "noindex, nofollow" if path in noindex_paths or path.startswith("/api/") else "index, follow, max-image-preview:large"
     structured_data = None
     if path == "/":
@@ -749,6 +753,7 @@ def page(title, content, include_chat=True):
                 <a href="/moduli">Moduli gratuiti</a>
                 <a href="/educazione-finanziaria">Educazione finanziaria</a>
                 <a href="/sic">Banche dati SIC</a>
+                <a href="/assistenza-legale">Assistenza Legale</a>
                 <a href="/shop">Shop</a>
               </nav>
             </div>
@@ -1160,7 +1165,7 @@ def home():
       <div><strong>3. Se vuoi, chiedi di parlare con un esperto</strong><p class="muted">Lascia i tuoi recapiti e una breve descrizione della situazione per chiedere il contatto di un esperto FixTude. Il contatto è facoltativo e non comporta obblighi.</p></div>
       <div><strong>4. Hai una domanda?</strong><p class="muted">Apri la chat con un esperto FixTude in basso a destra per inviare un messaggio allo staff. La chat è disponibile senza registrazione.</p></div>
     </div></section>
-    <p class="muted">Il calcolatore e i materiali hanno finalità informative e orientative. Non costituiscono consulenza legale o finanziaria personalizzata e non garantiscono l'accettazione di proposte da parte dei creditori.</p>
+    <p class="muted">Il calcolatore e i materiali gratuiti hanno finalità informative e orientative. Gli eventuali servizi di assistenza legale sono descritti nella sezione dedicata e vengono svolti da professionisti abilitati sulla base di uno specifico mandato. Nessun servizio garantisce l'accettazione di proposte da parte dei creditori o un esito giudiziario favorevole.</p>
     """
     return page("Fai chiarezza", content)
 
@@ -2426,6 +2431,132 @@ def sic_banche_dati():
     <div class="notice">FixTude non accede alle banche dati per conto dell'utente e non garantisce tempi o risultati. Verifica sempre le istruzioni, l'identificazione richiesta e gli eventuali costi di servizi diversi dall'accesso ai dati personali.</div>'''
     return page("Banche dati SIC", content)
 
+# =========================================================
+# ASSISTENZA LEGALE - PACCHETTI LANCIO E CHECKOUT STRIPE
+# =========================================================
+
+ASSISTENZA_LEGALE_PACCHETTI = {
+    "debito_5000": {
+        "name": "Assistenza Legale FixTude - debiti fino a 5.000 euro",
+        "short": "Debiti fino a € 5.000",
+        "amount": 49900,
+        "display": "499",
+    },
+    "debito_10000": {
+        "name": "Assistenza Legale FixTude - debiti da 5.000 a 10.000 euro",
+        "short": "Debiti da € 5.000 a € 10.000",
+        "amount": 89900,
+        "display": "899",
+    },
+    "debito_30000": {
+        "name": "Assistenza Legale FixTude - debiti da 10.000 a 30.000 euro",
+        "short": "Debiti da € 10.000 a € 30.000",
+        "amount": 199000,
+        "display": "1.990",
+    },
+    "debito_60000": {
+        "name": "Assistenza Legale FixTude - debiti da 30.000 a 60.000 euro",
+        "short": "Debiti da € 30.000 a € 60.000",
+        "amount": 399000,
+        "display": "3.990",
+    },
+}
+
+
+@app.route("/assistenza-legale")
+def assistenza_legale():
+    cards = []
+    package_details = {
+        "debito_5000": [
+            "Analisi della posizione debitoria e della documentazione ricevuta.",
+            "Valutazione delle opzioni di rientro, negoziazione e saldo e stralcio.",
+            "Orientamento al legale del pool più competente per materia e pratica.",
+            "Compenso dell’avvocato incluso per le attività stragiudiziali e giudiziali espressamente comprese nel mandato scritto, con fasi definite per la pratica.",
+        ],
+        "debito_10000": [
+            "Tutte le attività del pacchetto precedente, calibrate sulla pratica.",
+            "Esame degli atti ricevuti e individuazione delle priorità e delle scadenze.",
+            "Gestione delle trattative con creditori e società di recupero tramite il professionista incaricato.",
+            "Compenso dell’avvocato incluso per l’assistenza giudiziale espressamente prevista nel mandato professionale concordato.",
+        ],
+        "debito_30000": [
+            "Analisi coordinata delle posizioni debitorie comprese nell'incarico.",
+            "Piano personalizzato di intervento e valutazione delle alternative negoziali.",
+            "Compenso dell’avvocato incluso per l’assistenza stragiudiziale e giudiziale espressamente prevista nel mandato scritto.",
+            "Valutazione di atti monitori ed esecutivi e delle iniziative difensive pertinenti al caso.",
+        ],
+        "debito_60000": [
+            "Analisi approfondita delle posizioni incluse nell'incarico.",
+            "Strategia coordinata di gestione e negoziazione del debito.",
+            "Orientamento al legale del pool con competenza specifica, anche per questioni esecutive.",
+            "Compenso dell’avvocato incluso per le attività stragiudiziali e giudiziali e le fasi espressamente incluse nel mandato.",
+        ],
+    }
+    for key, pkg in ASSISTENZA_LEGALE_PACCHETTI.items():
+        items = "".join("<li>" + escape(item) + "</li>" for item in package_details[key])
+        cards.append(f'''<section class="card legal-package"><div class="package-kicker">PREZZO DI LANCIO</div><h2>{escape(pkg["short"])}</h2><div class="price">€ {pkg["display"]}</div><ul>{items}</ul><form method="post" action="/assistenza-legale/acquista"><input type="hidden" name="package" value="{key}"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>. Ho compreso che il pagamento avvia la richiesta di attivazione e che l'incarico professionale, le attività incluse e le eventuali spese vive saranno formalizzati per iscritto.</span></label><button class="btn" type="submit">Acquista e vai al checkout</button></form></section>''')
+    content = '''<section class="hero"><h1>Assistenza Legale FixTude</h1><p>Un percorso strutturato per affrontare le situazioni debitorie, con orientamento al professionista competente del nostro pool di avvocati e prezzi di lancio trasparenti.</p><p><strong>Quattro pacchetti, un percorso personalizzato e un checkout Stripe immediato.</strong></p><p class="muted">Al checkout saranno mostrati i metodi di pagamento disponibili per la transazione, comprese eventuali opzioni rateali se abilitate e compatibili.</p></section>
+    <section class="card"><h2>Cosa può comprendere il servizio</h2><ul><li>Analisi della situazione debitoria e della documentazione.</li><li>Valutazione di strategie di rientro, negoziazione e saldo e stralcio.</li><li>Esame di solleciti, decreti ingiuntivi, precetti e atti esecutivi, quando pertinenti.</li><li>Orientamento al legale del pool con competenza specifica.</li><li>Assistenza stragiudiziale e giudiziale, comprese opposizioni o procedure pertinenti, soltanto secondo l'incarico professionale sottoscritto.</li><li>Definizione delle attività, delle fasi, dei compensi e delle spese incluse prima dell'avvio dell'attività legale.</li></ul></section>
+    <div class="notice"><strong>Prezzi di lancio.</strong> Gli importi promozionali sono quelli indicati per ciascuna fascia di indebitamento. La fascia è un criterio iniziale di orientamento, non una valutazione automatica della complessità. Prima dell'avvio dell'attività, il professionista incaricato confermerà per iscritto il perimetro dell'incarico. Il pacchetto non può essere inteso come copertura illimitata di qualsiasi causa, di ogni grado di giudizio o di procedimenti non identificati al momento dell'incarico. Il compenso dell’avvocato per le attività e le fasi espressamente incluse nel mandato è compreso nel prezzo di lancio: non sono previste ulteriori parcelle per quelle attività. Le spese vive e gli esborsi di terzi (ad esempio contributo unificato, notifiche, consulenti tecnici o altri ausiliari) sono esclusi salvo diversa indicazione scritta. Attività ulteriori o nuovi procedimenti non compresi nel mandato richiedono un preventivo scritto e l’accettazione del cliente prima di essere avviati.</div>
+    <p class="muted">Il pagamento non garantisce accordi con i creditori, riduzioni del debito o un esito giudiziario favorevole. L'attività riservata è svolta dall'avvocato incaricato, che definisce e sottoscrive il mandato professionale. Se dopo la valutazione la pratica non rientra nel perimetro del pacchetto, saranno chiarite le opzioni disponibili prima di avviare attività ulteriori.</p>
+    <div class="legal-packages-grid">''' + "".join(cards) + '''</div>
+    <style>.legal-packages-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:20px}.legal-package{margin:0;display:flex;flex-direction:column}.legal-package h2{margin:5px 0}.package-kicker{font-size:12px;letter-spacing:.09em;font-weight:800;color:#16794b}.legal-package .price{font-size:32px;margin:4px 0 12px}.legal-package ul{padding-left:20px;flex:1}.legal-package li{margin:0 0 8px}.legal-package form{margin-top:12px}.legal-package .btn{width:100%}.notice{padding:16px;border:1px solid #efd58b;border-radius:12px;background:#fff7df;margin:20px 0}@media(max-width:700px){.legal-packages-grid{grid-template-columns:1fr}}</style>'''
+    return page("Assistenza Legale", content)
+
+
+@app.route("/assistenza-legale/acquista", methods=["POST"])
+def assistenza_legale_acquista():
+    package_key = request.form.get("package", "").strip()
+    pkg = ASSISTENZA_LEGALE_PACCHETTI.get(package_key)
+    if not pkg:
+        return page("Pacchetto non valido", '<h1>Pacchetto non valido</h1><p>Torna alla pagina Assistenza Legale e seleziona un pacchetto disponibile.</p><a class="btn" href="/assistenza-legale">Torna ai pacchetti</a>'), 400
+    if request.form.get("accept_terms") != "yes":
+        return page("Conferma necessaria", '<h1>Prima di proseguire</h1><p>Devi accettare i Termini e Condizioni per continuare.</p><a class="btn" href="/assistenza-legale">Torna ai pacchetti</a>'), 400
+    secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+    if stripe is None or not secret_key:
+        return page("Checkout temporaneamente non disponibile", '<h1>Pagamento non disponibile</h1><p>Il checkout non è configurato al momento. Non è stato effettuato alcun addebito.</p><a class="btn" href="/assistenza-legale">Torna ai pacchetti</a>'), 503
+    stripe.api_key = secret_key
+    try:
+        # Non impostare payment_method_types: Stripe propone i metodi abilitati
+        # nella Dashboard e compatibili con il pagamento, inclusi Klarna/Scalapay
+        # quando disponibili per quella transazione e per il cliente.
+        checkout = stripe.checkout.Session.create(
+            mode="payment",
+            line_items=[{"price_data": {"currency": "eur", "unit_amount": pkg["amount"], "product_data": {"name": pkg["name"], "description": "Pacchetto promozionale FixTude: compenso dell’avvocato incluso per le attività e le fasi espressamente comprese nel mandato scritto; spese vive di terzi escluse salvo accordo scritto."}}, "quantity": 1}],
+            success_url=request.host_url.rstrip("/") + "/assistenza-legale/conferma?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=request.host_url.rstrip("/") + "/assistenza-legale?annullato=1",
+            billing_address_collection="auto",
+            metadata={"fixtude_product": "assistenza_legale", "fixtude_package": package_key, "terms_accepted": "yes", "terms_version": "2026-10-18"},
+        )
+        return redirect(checkout.url, code=303)
+    except Exception:
+        app.logger.exception("Creazione checkout Stripe assistenza legale non riuscita")
+        return page("Checkout non disponibile", '<h1>Non è stato possibile avviare il pagamento</h1><p>Nessun pagamento è stato confermato. Riprova più tardi.</p><a class="btn" href="/assistenza-legale">Torna ai pacchetti</a>'), 502
+
+
+@app.route("/assistenza-legale/conferma")
+def assistenza_legale_conferma():
+    session_id = request.args.get("session_id", "").strip()
+    secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+    if not session_id or stripe is None or not secret_key:
+        return page("Verifica pagamento", '<h1>Non possiamo verificare il pagamento</h1><p>Contatta info@fixtude.it per assistenza.</p>'), 400
+    try:
+        stripe.api_key = secret_key
+        checkout = stripe.checkout.Session.retrieve(session_id)
+        data = checkout.to_dict()
+        metadata = data.get("metadata") or {}
+        paid = data.get("payment_status") == "paid"
+        package_key = metadata.get("fixtude_package", "")
+        pkg = ASSISTENZA_LEGALE_PACCHETTI.get(package_key)
+        if not paid or metadata.get("fixtude_product") != "assistenza_legale" or not pkg:
+            return page("Pagamento da verificare", '<h1>Pagamento non ancora confermato</h1><p>La pratica sarà presa in carico dopo la verifica del pagamento.</p><a class="btn" href="/assistenza-legale">Torna all’assistenza legale</a>'), 402
+        content = f'''<h1>Pagamento confermato</h1><section class="card"><p>Grazie. Il pagamento del pacchetto <strong>{escape(pkg["short"])}</strong> risulta confermato.</p><p>Il prossimo passaggio è la verifica della documentazione e l'orientamento al professionista del pool più competente. Il mandato legale e il perimetro delle attività saranno formalizzati per iscritto.</p><p>Per avviare il contatto, scrivi a <a href="mailto:info@fixtude.it">info@fixtude.it</a> indicando il riferimento di sessione <code>{escape(session_id)}</code>. Non inviare dati bancari o documenti particolarmente sensibili via email non protetta.</p><a class="btn" href="/consulenza">Completa la richiesta di contatto</a></section>'''
+        return page("Pagamento confermato", content)
+    except Exception:
+        app.logger.exception("Verifica checkout Stripe assistenza legale non riuscita")
+        return page("Verifica non riuscita", '<h1>Non è stato possibile verificare il pagamento</h1><p>Riprova più tardi o scrivi a info@fixtude.it.</p>'), 502
+
+
 @app.route("/shop")
 def shop():
     content = '''<h1>Shop FixTude</h1>
@@ -2680,7 +2811,7 @@ def sitemap_xml():
     """Sitemap XML delle pagine pubbliche principali di FixTude."""
     paths = [
         "/", "/misuratore", "/consulenza", "/moduli",
-        "/educazione-finanziaria", "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo", "/sic", "/shop",
+        "/educazione-finanziaria", "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo", "/sic", "/assistenza-legale", "/shop",
         "/disclaimer", "/termini", "/privacy", "/cookie",
     ]
     urls = "".join(
