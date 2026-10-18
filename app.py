@@ -1191,13 +1191,12 @@ def home():
       <div class="home-hero-layout">
         <div class="home-hero-copy">
           <h1>Fai chiarezza sulla tua situazione debitoria.</h1>
-          <p>Qualunque sia la tua situazione, puoi iniziare da qui. Capisci quanto ti rimane ogni mese e valuta in modo indicativo la sostenibilità dei tuoi impegni.</p>
           <p><strong>Semplice. Riservato. Senza registrazione.</strong></p>
         </div>
       </div>
       <div class="home-situation-panel">
       <h2 class="home-situation-title">Da dove vuoi cominciare?</h2>
-      <p class="home-situation-intro">Scegli il pulsante che descrive meglio la tua situazione. Ti accompagneremo al calcolatore gratuito.</p>
+      <p class="home-situation-intro">Scegli il pulsante che descrive la tua situazione. Il calcolatore ti fornirà un primo esito di sostenibilità.</p>
       <div class="home-situation-options">
         <div class="home-situation-option">
           <a class="home-situation-choice home-situation-red" href="/misuratore#calculatorStart" aria-label="Rosso, emergenza: non riesco a pagare la rata di questo mese e ho già ricevuto solleciti">
