@@ -277,8 +277,8 @@ SEO_PAGES = {
         "description": "Informazioni pratiche per leggere il bilancio familiare, valutare le spese e gestire gli impegni economici con maggiore consapevolezza.",
     },
     "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo": {
-        "title": "Come gestire le entrate: regola 1/3, 1/3, 1/3 | FixTude",
-        "description": "Scopri come organizzare le entrate con la regola 1/3, 1/3, 1/3. Esempi pratici per lavoratori dipendenti, autonomi, single e famiglie.",
+        "title": "Come gestire le entrate: la regola di un terzo | FixTude",
+        "description": "Scopri come organizzare le entrate con la regola di un terzo. Esempi pratici per lavoratori dipendenti, autonomi, single e famiglie.",
     },
     "/sic": {
         "title": "Sistemi di informazione creditizia (SIC) | FixTude",
@@ -355,7 +355,7 @@ def page(title, content, include_chat=True):
         structured_data = {
             "@context": "https://schema.org",
             "@type": "BlogPosting",
-            "headline": "Come gestire le entrate: la regola 1/3, 1/3, 1/3 per single e famiglie",
+            "headline": "Come gestire le entrate: la regola di un terzo",
             "description": SEO_PAGES[path]["description"],
             "datePublished": "2026-10-17",
             "dateModified": "2026-10-17",
@@ -2611,12 +2611,24 @@ def download_modulo(slug):
 def educazione_finanziaria():
     content = '''<h1>Educazione finanziaria</h1>
     <p class="muted">Guide introduttive gratuite per comprendere meglio il bilancio personale, organizzare le spese e affrontare con maggiore consapevolezza gli impegni economici.</p>
-    <section class="card" aria-labelledby="guide-stipendio">
-      <p class="muted">GUIDA PRATICA · 7 MINUTI DI LETTURA</p>
-      <h2 id="guide-stipendio"><a href="/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo">Come gestire le entrate: la regola 1/3, 1/3, 1/3 per single e famiglie</a></h2>
-      <p>Un metodo semplice per osservare come si distribuisce il reddito tra spese essenziali, vita quotidiana e obiettivi finanziari. Con esempi numerici e indicazioni su come adattare le proporzioni alla propria situazione.</p>
-      <a class="btn" href="/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo">Leggi la guida</a>
+    <section class="card education-article-card" aria-labelledby="guide-stipendio">
+      <a class="education-article-image-link" href="/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo" aria-label="Leggi la guida: Come gestire le entrate: la regola di un terzo">
+        <img class="education-article-image" src="/static/articolo-entrate-budget.png" alt="Infografica per organizzare le entrate e il bilancio personale con la regola di un terzo" loading="lazy">
+      </a>
+      <div class="education-article-copy">
+        <p class="muted">GUIDA PRATICA · 7 MINUTI DI LETTURA</p>
+        <h2 id="guide-stipendio"><a href="/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo">Come gestire le entrate: la regola di un terzo</a></h2>
+        <p>Un metodo semplice per osservare come si distribuisce il reddito tra spese essenziali, vita quotidiana e obiettivi finanziari. Con esempi numerici e indicazioni su come adattare le proporzioni alla propria situazione.</p>
+        <a class="btn" href="/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo">Leggi la guida</a>
+      </div>
     </section>
+    <style>
+      .education-article-card{display:grid;grid-template-columns:minmax(150px,230px) minmax(0,1fr);gap:20px;align-items:center}
+      .education-article-image-link{display:block;max-width:230px}
+      .education-article-image{display:block;width:100%;height:auto;max-height:190px;object-fit:cover;border-radius:12px}
+      .education-article-copy h2{margin-top:6px}
+      @media(max-width:600px){.education-article-card{grid-template-columns:1fr;gap:12px}.education-article-image-link{width:100%;max-width:100%}.education-article-image{width:100%;max-height:210px;object-fit:contain;object-position:left center}.education-article-copy h2{font-size:1.25rem}}
+    </style>
     <section class="card" id="bilancio"><h2>Organizzare il bilancio familiare</h2><p>Annota le entrate nette effettivamente disponibili e separa le spese essenziali (casa, utenze, alimentazione, salute e trasporti) dalle spese flessibili. Inserisci poi rate, arretrati e scadenze. Il margine mensile è una stima: lascia un cuscinetto per gli imprevisti e non considerare sostenibile una rata che mette a rischio le necessità di base.</p><ul><li>Usa importi mensili omogenei.</li><li>Evita di contare entrate incerte come se fossero garantite.</li><li>Aggiorna il prospetto quando cambiano reddito o spese.</li></ul><p><a href="/misuratore">Prova il calcolatore gratuito di sostenibilità del debito</a>.</p></section>
     <section class="card" id="priorita"><h2>Dare priorità ai pagamenti</h2><p>Prima di distribuire il denaro tra i debiti, proteggi le necessità essenziali e valuta le scadenze concrete. Non esiste una priorità universale valida per ogni situazione: atti giudiziari, garanzie, utenze e debiti fiscali possono avere conseguenze differenti. Se hai ricevuto un atto con termini, chiedi tempestivamente una valutazione qualificata.</p><ul><li>Apri e conserva le comunicazioni ricevute.</li><li>Segna importo, creditore, scadenza e riferimento della pratica.</li><li>Non ignorare raccomandate, PEC o atti notificati.</li></ul></section>
     <section class="card" id="creditori"><h2>Parlare con i creditori</h2><p>Una richiesta efficace è chiara, documentata e realistica. Indica il riferimento del rapporto, spiega brevemente la difficoltà, proponi un importo compatibile con il bilancio e chiedi conferma scritta delle condizioni. Non promettere pagamenti che non puoi sostenere e non considerare accettata una proposta finché non hai ricevuto una conferma verificabile.</p><p>Puoi partire dai <a href="/moduli">moduli gratuiti FixTude</a> e personalizzarli.</p></section>
@@ -2628,7 +2640,7 @@ def educazione_finanziaria():
 def articolo_gestione_stipendio():
     content = '''<article class="card article-content">
       <p class="muted">EDUCAZIONE FINANZIARIA · 7 MINUTI DI LETTURA</p>
-      <h1>Come gestire le entrate: la regola 1/3, 1/3, 1/3 per single e famiglie</h1>
+      <h1>Come gestire le entrate: la regola di un terzo</h1>
       <figure class="article-hero-image"><img src="/static/articolo-entrate-budget.png" alt="Organizzare le entrate e il bilancio personale con la regola dei tre terzi: necessità, vita quotidiana e risparmio" loading="eager" fetchpriority="high"><figcaption>Un metodo orientativo per distribuire le entrate tra necessità, vita quotidiana e obiettivi.</figcaption></figure>
       <p class="article-subtitle">Non conta soltanto quanto guadagni, ma come organizzi le risorse che hai a disposizione: stipendio, lavoro autonomo, pensione o entrate variabili.</p>
       <p class="muted">Pubblicato il 17 ottobre 2026 · Aggiornato il 17 ottobre 2026</p>
