@@ -9,6 +9,8 @@ import threading
 import sqlite3
 import secrets
 import hmac
+import struct
+import zlib
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from email.message import EmailMessage
@@ -162,8 +164,12 @@ def housekeeping():
 
 @app.after_request
 def security_headers(response):
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
+    if request.path in ("/favicon.svg", "/favicon.ico", "/favicon-16.png", "/apple-touch-icon.png"):
+        response.headers["Cache-Control"] = "public, max-age=86400"
+        response.headers.pop("Pragma", None)
+    else:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
@@ -371,11 +377,9 @@ def page(title, content, include_chat=True):
           <meta name="description" content="{{ seo_description }}">
           <meta name="robots" content="{{ robots }}">
           <link rel="canonical" href="{{ canonical_url }}">
-          <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20261019">
-          <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20261019"><link rel="icon" type="image/png" sizes="16x16" href="/static/fixtude-16.png?v=20261019">
-          <link rel="icon" type="image/png" sizes="48x48" href="/favicon.ico?v=20261019">
-          <link rel="apple-touch-icon" sizes="180x180" href="/static/fixtude-180.png?v=20261019">
-          <link rel="icon" type="image/png" sizes="512x512" href="/static/fixtude-512.png?v=20261019">
+          <link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261019" sizes="48x48">
+          <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=20261019">
+          <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20261019">
           <meta property="og:locale" content="it_IT">
           <meta property="og:type" content="website">
           <meta property="og:site_name" content="FixTude">
@@ -2693,14 +2697,14 @@ def sic_banche_dati():
 
 ASSISTENZA_LEGALE_PACCHETTI = {
     "esame_documenti": {
-        "name": "FixTude - primo esame documentale",
-        "short": "Primo esame documentale",
+        "name": "FixTude Starter - Orientamento e primo esame documentale",
+        "short": "Starter",
         "amount": 4990,
         "display": "49,90",
     },
     "analisi_consulenza": {
-        "name": "FixTude - analisi approfondita e primo colloquio",
-        "short": "Analisi approfondita e primo colloquio",
+        "name": "FixTude Standard - Analisi approfondita e primo colloquio",
+        "short": "Standard",
         "amount": 9990,
         "display": "99,90",
     },
@@ -2709,19 +2713,39 @@ ASSISTENZA_LEGALE_PACCHETTI = {
 
 @app.route("/assistenza-legale")
 def assistenza_legale():
-    content = """<section class="hero"><h1>Orientamento e documenti FixTude</h1><p>FixTude è una piattaforma informativa e di orientamento. Non svolge direttamente attività riservate agli avvocati e non assume il mandato del cliente. Quando opportuno e solo con le modalità concordate, l’utente può essere messo in contatto con un professionista abilitato, che valuta autonomamente il caso.</p></section>
+    content = """<section class="hero"><h1>Orientamento e Primo esame documentale</h1><p>Due servizi a pagamento per aiutarti a fare ordine nella documentazione e individuare i prossimi passi. Prima dell’acquisto sono indicati prezzo e contenuto del pacchetto; eventuali incarichi legali successivi, se necessari, saranno concordati direttamente con l’avvocato e non sono inclusi nel prezzo.</p></section>
     <div class="grid legal-packages-grid">
-      <section class="card legal-package"><div class="package-kicker">SERVIZIO PROPOSTO</div><h2>Primo esame documentale</h2><div class="price">€ 49,90</div><p>Prima lettura orientativa di un documento, per individuare i punti da verificare e preparare le domande da rivolgere al soggetto competente.</p><p class="muted">Non costituisce parere legale, rappresentanza o garanzia di risultato. Il perimetro esatto del servizio e il soggetto che lo eroga saranno indicati prima dell’attivazione.</p><button class="btn" type="button" disabled aria-disabled="true">Acquisto temporaneamente sospeso</button></section>
-      <section class="card legal-package"><div class="package-kicker">SERVIZIO PROPOSTO</div><h2>Analisi approfondita e primo colloquio</h2><div class="price">€ 99,90</div><p>Analisi più approfondita della documentazione e primo colloquio orientativo con il professionista, secondo modalità e limiti che saranno concordati per iscritto.</p><p class="muted">Eventuali incarichi successivi, attività riservate, compensi e spese del professionista saranno oggetto di accordo diretto e separato con il cliente. Nessun esito è garantito.</p><button class="btn" type="button" disabled aria-disabled="true">Acquisto temporaneamente sospeso</button></section>
+      <section class="card legal-package"><div class="package-kicker">PACCHETTO STARTER</div><h2>Starter</h2><div class="price">€ 49,90</div><p><strong>Orientamento e primo esame documentale.</strong> Prima lettura della documentazione fornita, individuazione dei principali punti da verificare e preparazione delle domande utili per il passo successivo.</p><p class="muted">Il servizio non comprende rappresentanza legale, attività giudiziale o garanzia di un particolare risultato. Eventuali incarichi ulteriori e relativi compensi sono separati.</p><form method="post" action="/assistenza-legale/acquista"><input type="hidden" name="package" value="esame_documenti"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l’<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">Acquista Starter — € 49,90</button></form></section>
+      <section class="card legal-package"><div class="package-kicker">PACCHETTO STANDARD</div><h2>Standard</h2><div class="price">€ 99,90</div><p><strong>Analisi approfondita e primo colloquio orientativo.</strong> Esame più approfondito della documentazione e primo colloquio per chiarire gli aspetti da valutare e le possibili opzioni successive.</p><p class="muted">Il servizio non comprende automaticamente incarichi successivi, rappresentanza o attività giudiziale. Ogni eventuale incarico legale e relativo compenso sarà concordato direttamente con il professionista.</p><form method="post" action="/assistenza-legale/acquista"><input type="hidden" name="package" value="analisi_consulenza"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l’<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">Acquista Standard — € 99,90</button></form></section>
     </div>
-    <section class="card"><h2>Prima di attivare i servizi</h2><p>I prezzi sopra indicati sono proposte non acquistabili in questa fase. Checkout e pagamenti sono disabilitati mentre vengono verificati con i professionisti gli aspetti contrattuali, il soggetto che eroga e fattura ciascun servizio, le informazioni precontrattuali e le regole deontologiche applicabili.</p><p>Quando viene conferito un incarico legale, il cliente e l’avvocato sottoscrivono direttamente il mandato professionale, con attività incluse, compensi e spese chiaramente descritti. FixTude non riceve percentuali o commissioni sui compensi del professionista.</p><p><a href="/incarico-legale">Consulta il fac-simile di incarico professionale</a> · <a href="/professionisti">Area Professionisti</a></p></section>"""
-    return page("Orientamento e documenti", content)
+    <section class="card"><h2>Come funzionano i servizi a pagamento</h2><p><strong>Starter (€ 49,90)</strong> è pensato per un primo orientamento e una lettura iniziale dei documenti. <strong>Standard (€ 99,90)</strong> aggiunge un’analisi più approfondita e un primo colloquio orientativo. Il contenuto concreto, le modalità di erogazione e il soggetto responsabile del servizio devono essere confermati nelle condizioni applicabili prima dell’acquisto.</p><p>Questi prezzi non includono eventuali ulteriori incarichi professionali, spese o attività successive. Se sarà necessario un mandato legale, il cliente e l’avvocato lo concorderanno direttamente per iscritto. Nessun esito è garantito.</p><p><a href="/incarico-legale">Consulta il fac-simile di incarico professionale</a> · <a href="/professionisti">Area Professionisti</a></p></section>"""
+    return page("Orientamento e Primo esame documentale", content)
 
 
 @app.route("/assistenza-legale/acquista", methods=["POST"])
 def assistenza_legale_acquista():
-    # Checkout deliberatamente sospeso fino alla verifica legale e contrattuale.
-    return page("Checkout sospeso", '<h1>Checkout temporaneamente sospeso</h1><p>Non è possibile effettuare pagamenti per questi servizi in questa fase. Nessun addebito è stato effettuato.</p><a class="btn" href="/assistenza-legale">Torna ai servizi</a>'), 503
+    if request.form.get("accept_terms") != "yes":
+        return page("Conferma necessaria", '<h1>Conferma necessaria</h1><p>Per proseguire devi accettare i Termini e Condizioni e dichiarare di aver letto l’Informativa Privacy.</p><a class="btn" href="/assistenza-legale">Torna ai servizi</a>'), 400
+    package_key = request.form.get("package", "").strip()
+    pkg = ASSISTENZA_LEGALE_PACCHETTI.get(package_key)
+    if not pkg:
+        return page("Pacchetto non valido", '<h1>Pacchetto non valido</h1><p>Seleziona uno dei servizi disponibili.</p><a class="btn" href="/assistenza-legale">Torna ai servizi</a>'), 400
+    secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+    if stripe is None or not secret_key:
+        return page("Pagamento non disponibile", '<h1>Pagamento non disponibile</h1><p>Il pagamento online non è configurato al momento. Non è stato effettuato alcun addebito.</p><a class="btn" href="/assistenza-legale">Torna ai servizi</a>'), 503
+    stripe.api_key = secret_key
+    try:
+        checkout = stripe.checkout.Session.create(
+            mode="payment",
+            line_items=[{"price_data": {"currency": "eur", "unit_amount": pkg["amount"], "product_data": {"name": pkg["name"], "description": "Servizio di orientamento secondo le condizioni pubblicate su FixTude"}}, "quantity": 1}],
+            success_url=request.host_url.rstrip("/") + "/assistenza-legale/conferma?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=request.host_url.rstrip("/") + "/assistenza-legale?annullato=1",
+            metadata={"fixtude_product": "assistenza_legale", "fixtude_package": package_key, "terms_accepted": "yes", "terms_version": "2026-10-19"},
+        )
+        return redirect(checkout.url, code=303)
+    except Exception:
+        app.logger.exception("Creazione sessione Stripe assistenza legale non riuscita")
+        return page("Pagamento non disponibile", '<h1>Non è stato possibile avviare il pagamento</h1><p>Nessun pagamento è stato confermato. Riprova più tardi o scrivi a info@fixtude.it.</p><a class="btn" href="/assistenza-legale">Torna ai servizi</a>'), 502
 
 
 @app.route("/assistenza-legale/conferma")
@@ -2884,7 +2908,7 @@ def legal_page(title, body):
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
     owner_line = f"{escape(LEGAL_OWNER_NAME)} · P. IVA {escape(LEGAL_VAT_NUMBER)} · {escape(LEGAL_OWNER_ADDRESS)} · {LEGAL_EMAIL}"
-    return Response(f"""<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123a72"><meta name="description" content="{escape(seo_description, quote=True)}"><meta name="robots" content="index, follow, max-image-preview:large"><link rel="canonical" href="{escape(canonical_url, quote=True)}"><link rel="icon" type="image/png" sizes="16x16" href="/static/fixtude-16.png?v=20261019"><link rel="icon" type="image/png" sizes="48x48" href="/favicon.ico?v=20261019"><link rel="apple-touch-icon" sizes="180x180" href="/static/fixtude-180.png?v=20261019"><link rel="icon" type="image/png" sizes="512x512" href="/static/fixtude-512.png?v=20261019"><meta property="og:locale" content="it_IT"><meta property="og:type" content="website"><meta property="og:site_name" content="FixTude"><meta property="og:title" content="{escape(seo_title, quote=True)}"><meta property="og:description" content="{escape(seo_description, quote=True)}"><meta property="og:url" content="{escape(canonical_url, quote=True)}"><meta property="og:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><meta property="og:image:alt" content="Logo FixTude"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{escape(seo_title, quote=True)}"><meta name="twitter:description" content="{escape(seo_description, quote=True)}"><meta name="twitter:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><title>{escape(seo_title)}</title><style>body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.65 Arial,sans-serif}}main{{width:min(920px,calc(100% - 28px));margin:28px auto 50px}}.paper{{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:clamp(20px,4vw,38px)}}h1,h2{{line-height:1.25}}h1{{color:#174b91}}h2{{font-size:21px;margin-top:28px}}a{{color:#174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}footer{{border-top:1px solid #dce5ef;margin-top:28px;padding-top:16px;font-size:13px;color:#65758b}}.top{{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}}.brand{{font-size:24px;font-weight:800;color:#174b91;text-decoration:none}}</style></head><body><main><div class="top"><a class="brand" href="/">FixTude</a><a href="/">Torna al sito</a></div><article class="paper"><h1>{escape(title)}</h1><p class="muted">Versione {LEGAL_VERSION}</p><div class="notice"><strong>Denominazione del servizio:</strong> FixTude · <strong>Titolare:</strong> {escape(LEGAL_OWNER_NAME)} · <strong>P. IVA:</strong> {escape(LEGAL_VAT_NUMBER)}</div>{body}<footer><strong>Contatti:</strong> {owner_line}<br>Ultimo aggiornamento: 16 ottobre 2026<br><button type="button" id="ft-cookie-reopen-footer" style="border:0;background:transparent;color:#174b91;text-decoration:underline;cursor:pointer;font:inherit">Preferenze cookie</button></footer></article></main></body></html>""", mimetype="text/html")
+    return Response(f"""<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123a72"><meta name="description" content="{escape(seo_description, quote=True)}"><meta name="robots" content="index, follow, max-image-preview:large"><link rel="canonical" href="{escape(canonical_url, quote=True)}"><link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261019" sizes="48x48"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=20261019"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20261019"><meta property="og:locale" content="it_IT"><meta property="og:type" content="website"><meta property="og:site_name" content="FixTude"><meta property="og:title" content="{escape(seo_title, quote=True)}"><meta property="og:description" content="{escape(seo_description, quote=True)}"><meta property="og:url" content="{escape(canonical_url, quote=True)}"><meta property="og:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><meta property="og:image:alt" content="Logo FixTude"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{escape(seo_title, quote=True)}"><meta name="twitter:description" content="{escape(seo_description, quote=True)}"><meta name="twitter:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><title>{escape(seo_title)}</title><style>body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.65 Arial,sans-serif}}main{{width:min(920px,calc(100% - 28px));margin:28px auto 50px}}.paper{{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:clamp(20px,4vw,38px)}}h1,h2{{line-height:1.25}}h1{{color:#174b91}}h2{{font-size:21px;margin-top:28px}}a{{color:#174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}footer{{border-top:1px solid #dce5ef;margin-top:28px;padding-top:16px;font-size:13px;color:#65758b}}.top{{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}}.brand{{font-size:24px;font-weight:800;color:#174b91;text-decoration:none}}</style></head><body><main><div class="top"><a class="brand" href="/">FixTude</a><a href="/">Torna al sito</a></div><article class="paper"><h1>{escape(title)}</h1><p class="muted">Versione {LEGAL_VERSION}</p><div class="notice"><strong>Denominazione del servizio:</strong> FixTude · <strong>Titolare:</strong> {escape(LEGAL_OWNER_NAME)} · <strong>P. IVA:</strong> {escape(LEGAL_VAT_NUMBER)}</div>{body}<footer><strong>Contatti:</strong> {owner_line}<br>Ultimo aggiornamento: 19 ottobre 2026<br><button type="button" id="ft-cookie-reopen-footer" style="border:0;background:transparent;color:#174b91;text-decoration:underline;cursor:pointer;font:inherit">Preferenze cookie</button></footer></article></main></body></html>""", mimetype="text/html")
 
 
 @app.route("/disclaimer")
@@ -2913,7 +2937,7 @@ def legal_terms():
     <h2>7. Uso corretto</h2><p>L'utente si impegna a usare il sito in modo lecito, a non tentare accessi non autorizzati, a non inviare spam e a non caricare dati di terzi senza una base legittima.</p>
     <h2>8. Proprietà intellettuale</h2><p>Testi, grafica, marchio e materiali originali del sito sono protetti dalle norme applicabili. I modelli scaricabili possono essere utilizzati per esigenze personali, senza rimuovere avvertenze o presentare i contenuti come pareri professionali garantiti.</p>
     <h2>9. Privacy</h2><p>Il trattamento dei dati personali è descritto nell'<a href="/privacy">Informativa Privacy</a>. L'accettazione dei presenti Termini non sostituisce l'informativa e non costituisce consenso generale a trattamenti facoltativi.</p>
-    <h2>10. Area Professionisti</h2><p>L’area professionisti è in fase di attivazione. La registrazione non comporta automaticamente la pubblicazione del profilo o l’attivazione di un abbonamento. I profili sono pubblicati solo dopo verifica e approvazione. Le eventuali funzionalità di inoltro richieste e i pacchetti di lead non sono acquistabili fino alla definizione delle condizioni contrattuali e alla verifica legale e deontologica.</p><h2>11. Assistenza e modifiche</h2><p>Per richieste o reclami scrivere a info@fixtude.it. I termini potranno essere aggiornati per modifiche normative o tecniche; per gli acquisti conclusi restano fermi i diritti già acquisiti.</p>"""
+    <h2>10. Area Professionisti</h2><p>L’area professionisti è in fase di attivazione. La registrazione non comporta automaticamente la pubblicazione del profilo o l’attivazione di un abbonamento. I profili sono pubblicati solo dopo verifica e approvazione. Le eventuali funzionalità di inoltro richieste e i pacchetti di lead non sono pubblicati come offerta commerciale, non sono acquistabili e non saranno attivati fino alla definizione delle condizioni contrattuali e alla verifica legale e deontologica.</p><h2>11. Assistenza e modifiche</h2><p>Per richieste o reclami scrivere a info@fixtude.it. I termini potranno essere aggiornati per modifiche normative o tecniche; per gli acquisti conclusi restano fermi i diritti già acquisiti.</p>"""
     return legal_page("Termini e Condizioni", body)
 
 
@@ -2921,9 +2945,9 @@ def legal_terms():
 def privacy():
     body = """<p>Questa informativa descrive i principali trattamenti connessi alla versione attuale del sito FixTude. Viene aggiornata quando cambiano in modo rilevante le funzionalità, i fornitori o le modalità di trattamento.</p>
     <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è Giovanni Pugliese, che gestisce il servizio denominato FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per richieste relative ai dati personali: info@fixtude.it.</p>
-    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore:</strong> gli importi inseriti vengono elaborati nel browser e il codice del calcolatore non li invia agli endpoint applicativi.</li><li><strong>Modulo di ricontatto:</strong> nome, email, telefono facoltativo e messaggio vengono inviati tramite Web3Forms per gestire la richiesta e recapitarla alla casella configurata. L'applicazione non conserva una copia in un proprio database. I dati possono restare nella casella email del destinatario e nei sistemi del fornitore secondo le relative condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server per permettere la conversazione; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L'invio di un messaggio genera una notifica email tramite Web3Forms.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Libro digitale:</strong> se l'acquisto è attivo, Stripe tratta i dati necessari a elaborare e verificare il pagamento. FixTude riceve le informazioni necessarie a verificare la transazione.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
+    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore:</strong> gli importi inseriti vengono elaborati nel browser e il codice del calcolatore non li invia agli endpoint applicativi.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio tramite Web3Forms. È presente anche l’endpoint alternativo <code>/api/contact</code>, che se invocato inoltra i dati tramite il server SMTP configurato dal titolare. L’applicazione non conserva una copia in un proprio database; i dati possono restare nei sistemi dei fornitori e nella casella email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Libro digitale:</strong> se l'acquisto è attivo, Stripe tratta i dati necessari a elaborare e verificare il pagamento. FixTude riceve le informazioni necessarie a verificare la transazione.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
     <h2>3. Basi giuridiche</h2><p>Le richieste di contatto sono trattate per rispondere a una richiesta dell'interessato e adottare misure precontrattuali su sua richiesta. I dati relativi ad acquisti sono trattati per eseguire il contratto e adempiere agli obblighi di legge. Sicurezza e prevenzione abusi possono basarsi sul legittimo interesse, da valutare e documentare. Eventuali attività promozionali richiedono una valutazione e, ove necessario, un consenso separato.</p>
-    <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l'hosting (se confermato in produzione), Web3Forms per invii dal modulo e notifiche email, Register per la casella email e Stripe per i pagamenti del libro, quando attivi. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
+    <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l’hosting (se confermato in produzione), Web3Forms per il modulo visibile e le notifiche email della chat, il fornitore del servizio SMTP configurato per l’endpoint alternativo, Register per la casella email e Stripe per i pagamenti del libro, quando attivi. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
     <h2>5. Cookie e strumenti di tracciamento</h2><p>Google Analytics (ID di misurazione G-HMBBNLHC7E) viene caricato soltanto dopo la scelta esplicita della categoria statistiche nel pannello cookie. Se la categoria viene rifiutata o disattivata, il sito non avvia nuove richieste di misurazione e aggiorna lo stato di consenso di Google Analytics. I pixel pubblicitari non sono attivi. Prima del lancio definitivo occorre verificare tecnicamente i cookie effettivamente installati e aggiornare questa informativa in base ai risultati.</p>
     <h2>6. Conservazione</h2><p>I messaggi chat sono temporanei secondo quanto descritto sopra. Le richieste di contatto possono restare nei sistemi del fornitore di invio e nella casella email del destinatario. I tempi effettivi di conservazione dei fornitori, della posta e dei log devono essere verificati e definiti dal titolare prima del lancio.</p>
     <h2>7. Diritti</h2><p>Nei limiti previsti dal GDPR è possibile chiedere accesso, rettifica, cancellazione, limitazione, opposizione e, ove applicabile, portabilità, scrivendo a info@fixtude.it. È possibile proporre reclamo al Garante per la protezione dei dati personali.</p>
@@ -2971,20 +2995,102 @@ def inject_cookie_banner_on_legal_pages(response):
     return response
 
 
+def _png_chunk(kind, data):
+    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
+
+
+def _generated_icon_png(size=48):
+    size = max(16, min(int(size), 512))
+    blue, dark, white = (23, 75, 145, 255), (17, 24, 39, 255), (255, 255, 255, 255)
+    raw = bytearray()
+    for y in range(size):
+        raw.append(0)
+        for x in range(size):
+            nx, ny = x / size, y / size
+            color = white
+            if (0.20 <= nx <= 0.35 and 0.15 <= ny <= 0.84) or (0.20 <= nx <= 0.77 and 0.15 <= ny <= 0.30) or (0.20 <= nx <= 0.65 and 0.39 <= ny <= 0.54):
+                color = blue
+            if (0.55 <= nx <= 0.84 and 0.43 <= ny <= 0.56) or (0.66 <= nx <= 0.77 and 0.52 <= ny <= 0.84):
+                color = dark
+            raw.extend(color)
+    sig = b"\x89PNG\r\n\x1a\n"
+    ihdr = struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0)
+    return sig + _png_chunk(b"IHDR", ihdr) + _png_chunk(b"IDAT", zlib.compress(bytes(raw), 9)) + _png_chunk(b"IEND", b"")
+
+
+def _preferred_icon_png(filename, size):
+    path = os.path.join(app.root_path, "static", filename)
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+        if data.startswith(b"\x89PNG\r\n\x1a\n") and len(data) >= 24:
+            width, height = struct.unpack(">II", data[16:24])
+            if width == int(size) and height == int(size):
+                return data
+    except OSError:
+        pass
+    return _generated_icon_png(size)
+
+
+def _png_chunk(kind, data):
+    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
+
+
+def _generated_icon_png(size=48):
+    size = max(16, min(int(size), 512))
+    blue, dark, white = (23, 75, 145, 255), (17, 24, 39, 255), (255, 255, 255, 255)
+    raw = bytearray()
+    for y in range(size):
+        raw.append(0)
+        for x in range(size):
+            nx, ny = x / size, y / size
+            color = white
+            if (0.20 <= nx <= 0.35 and 0.15 <= ny <= 0.84) or (0.20 <= nx <= 0.77 and 0.15 <= ny <= 0.30) or (0.20 <= nx <= 0.65 and 0.39 <= ny <= 0.54):
+                color = blue
+            if (0.55 <= nx <= 0.84 and 0.43 <= ny <= 0.56) or (0.66 <= nx <= 0.77 and 0.52 <= ny <= 0.84):
+                color = dark
+            raw.extend(color)
+    sig = b"\x89PNG\r\n\x1a\n"
+    ihdr = struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0)
+    return sig + _png_chunk(b"IHDR", ihdr) + _png_chunk(b"IDAT", zlib.compress(bytes(raw), 9)) + _png_chunk(b"IEND", b"")
+
+
+def _preferred_icon_png(filename, size):
+    path = os.path.join(app.root_path, "static", filename)
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+        if data.startswith(b"\x89PNG\r\n\x1a\n") and len(data) >= 24:
+            width, height = struct.unpack(">II", data[16:24])
+            if width == int(size) and height == int(size):
+                return data
+    except OSError:
+        pass
+    return _generated_icon_png(size)
+
+
 @app.route("/favicon.svg", methods=["GET"])
 def favicon_svg():
-    """Favicon SVG di fallback, disponibile anche se gli asset statici non sono presenti."""
-    svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#fff"/><path d="M15 12h35v9H25v9h21v9H25v13H15z" fill="#174b91"/><path d="M43 39h8v13H43z" fill="#111827"/></svg>"""
+    svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#fff"/><path d="M13 10h35v9H22v9h22v9H22v17h-9z" fill="#174b91"/><path d="M35 35h19v7h-6v12h-7V42h-6z" fill="#111827"/></svg>"""
     return Response(svg, mimetype="image/svg+xml", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.route("/favicon-16.png", methods=["GET"])
+def favicon_png_16():
+    return Response(_preferred_icon_png("fixtude-16.png", 16), mimetype="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.route("/apple-touch-icon.png", methods=["GET"])
+def apple_touch_icon():
+    return Response(_preferred_icon_png("fixtude-180.png", 180), mimetype="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.route("/favicon.ico", methods=["GET"])
 def favicon_ico():
-    """Serve l'asset PNG ufficiale se presente; altrimenti restituisce il fallback SVG."""
-    icon_path = os.path.join(app.root_path, "static", "fixtude-48.png")
-    if os.path.isfile(icon_path):
-        return send_file(icon_path, mimetype="image/png", max_age=86400)
-    return favicon_svg()
+    png = _preferred_icon_png("fixtude-48.png", 48)
+    header = struct.pack("<HHH", 0, 1, 1)
+    entry = struct.pack("<BBBBHHII", 48, 48, 0, 0, 1, 32, len(png), 22)
+    return Response(header + entry + png, mimetype="image/vnd.microsoft.icon", headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.route("/robots.txt", methods=["GET"])
@@ -3023,15 +3129,27 @@ def sitemap_xml():
 # Nessun recapito diretto viene mostrato nella vetrina pubblica.
 # =========================================================
 
-PRO_DB_PATH = os.environ.get("FIXTUDE_DB_PATH", os.path.join(app.root_path, "fixtude_professionisti.sqlite3"))
+PRO_DB_CONFIGURED = bool(os.environ.get("FIXTUDE_DB_PATH", "").strip())
+PRO_DB_PATH = os.environ.get("FIXTUDE_DB_PATH", "").strip() or os.path.join(app.root_path, "fixtude_professionisti.sqlite3")
 PROFESSIONISTI_ADMIN_TOKEN = os.environ.get("PROFESSIONISTI_ADMIN_TOKEN", "").strip()
+
+
+def contiene_recapiti_diretti(value):
+    value = str(value or "")
+    patterns = (
+        r"(?i)\b[\w.+%-]+@[\w.-]+\.[a-z]{2,}\b",
+        r"(?i)(?:https?://|www\.|mailto:|tel:|wa\.me/|t\.me/)",
+        r"(?i)\b(?:telefono|cellulare|whatsapp|telegram|e-?mail|pec|linkedin|instagram|facebook|contattami|contattare|scrivimi|chiamami)\b",
+        r"(?<!\w)\+?\d(?:[\s()./-]*\d){7,}(?!\w)",
+    )
+    return any(re.search(pattern, value) for pattern in patterns)
 
 
 def professionisti_registration_ready():
     # Non raccogliere dati professionali finché non sono configurati archivio persistente,
     # segreto di sessione e token amministrativo per la revisione manuale.
     return (
-        os.environ.get("PROFESSIONISTI_REGISTRATION_ENABLED", "0").strip() == "1"
+        os.environ.get("PROFESSIONISTI_REGISTRATION_ENABLED", "1").strip() == "1"
         and bool(os.environ.get("FIXTUDE_DB_PATH", "").strip())
         and bool(os.environ.get("PROFESSIONISTI_ADMIN_TOKEN", "").strip())
         and bool(os.environ.get("SECRET_KEY", "").strip())
@@ -3084,7 +3202,7 @@ def pro_current_user():
 def pro_shell(title, body, robots="noindex, nofollow"):
     safe_title = escape(title)
     safe_body = body
-    html = f'''<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="{escape(robots)}"><meta name="theme-color" content="#123a72"><link rel="icon" href="/favicon.ico?v=20261019"><title>{safe_title} | FixTude</title><style>
+    html = f'''<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="{escape(robots)}"><meta name="theme-color" content="#123a72"><link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261019" sizes="48x48"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=20261019"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20261019"><title>{safe_title} | FixTude</title><style>
     *{{box-sizing:border-box}}body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.6 Arial,sans-serif}}main{{width:min(960px,calc(100% - 28px));margin:28px auto 55px}}header{{background:#fff;border-bottom:1px solid #dce5ef;padding:14px max(14px,calc((100% - 960px)/2));display:flex;justify-content:space-between;align-items:center;gap:16px}}header a{{color:#174b91;text-decoration:none;font-weight:700}}.brand{{font-size:24px}}.card{{background:#fff;border:1px solid #dce5ef;border-radius:15px;padding:20px;margin:16px 0}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}}h1,h2,h3{{line-height:1.25}}h1{{color:#174b91}}label{{display:block;font-weight:700;margin:12px 0 5px}}input,select,textarea{{width:100%;font:inherit;padding:11px 12px;border:1px solid #bdcbdc;border-radius:8px;background:#fff}}textarea{{min-height:100px;resize:vertical}}.btn,button.btn{{display:inline-block;background:#174b91;color:#fff;border:0;border-radius:9px;padding:11px 16px;text-decoration:none;font:inherit;font-weight:700;cursor:pointer}}.btn.secondary{{background:#fff;color:#174b91;border:1px solid #174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}.profile{{border:1px solid #dce5ef;border-radius:12px;padding:16px;background:#fff}}.profile h3{{margin:0 0 6px}}.tag{{display:inline-block;background:#eaf2fc;color:#174b91;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:700}}.actions{{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}}.price{{font-size:22px;font-weight:800;color:#174b91}}.doc h2{{margin-top:26px}}.signature{{margin-top:38px;display:grid;grid-template-columns:1fr 1fr;gap:35px}}.line{{border-top:1px solid #64748b;padding-top:8px;margin-top:55px}}@media(max-width:600px){{header{{padding:12px 14px}}.card{{padding:16px}}.signature{{grid-template-columns:1fr}}}}
     @media print{{header,.no-print,.back-row{{display:none!important}}body{{background:#fff}}main{{width:100%;margin:0}}.card{{border:0;padding:0}}}}
     </style></head><body><header><a class="brand" href="/">FixTude</a><nav><a href="/professionisti">Area Professionisti</a> · <a href="/">Sito</a></nav></header><main>{safe_body}</main></body></html>'''
@@ -3093,16 +3211,23 @@ def pro_shell(title, body, robots="noindex, nofollow"):
 
 @app.route("/professionisti")
 def area_professionisti():
-    db = professionisti_db()
-    try:
-        pros = db.execute("SELECT nome_pubblico,categoria,citta,albo,bio FROM professionisti WHERE status='approved' ORDER BY categoria,nome_pubblico").fetchall()
-    finally:
-        db.close()
+    pros = []
+    if PRO_DB_CONFIGURED and os.path.isfile(PRO_DB_PATH):
+        try:
+            db = professionisti_db()
+            try:
+                pros = db.execute("SELECT nome_pubblico,categoria,citta,albo,bio FROM professionisti WHERE status='approved' ORDER BY categoria,nome_pubblico").fetchall()
+            finally:
+                db.close()
+        except Exception:
+            app.logger.exception("Lettura vetrina professionisti non riuscita")
+    # Filtra anche eventuali record preesistenti, non solo i nuovi invii/modifiche.
+    pros = [p for p in pros if not any(contiene_recapiti_diretti(p[field]) for field in ("nome_pubblico", "citta", "albo", "bio"))]
     if pros:
         cards = "".join(f'''<article class="profile"><span class="tag">{escape(p['categoria'])}</span><h3>{escape(p['nome_pubblico'])}</h3><p><strong>{escape(p['citta'])}</strong></p><p>{escape(p['albo'])}</p><p>{escape(p['bio'])}</p></article>''' for p in pros)
     else:
         cards = '<div class="card"><p>La vetrina è in fase di attivazione. I profili appariranno solo dopo la verifica e l’approvazione.</p></div>'
-    body = f'''<section class="card"><h1>Area Professionisti FixTude</h1><p>Uno spazio dedicato ad avvocati e commercialisti che desiderano presentare le proprie competenze a persone che cercano orientamento nella gestione di situazioni debitorie.</p><div class="notice"><strong>Informazioni riservate ai professionisti:</strong> le condizioni economiche di adesione non sono pubblicate in questa pagina. Gli avvocati che hanno creato un account possono prenderne visione accedendo all’area riservata. Registrazione e accesso non comportano obblighi di acquisto o attivazione di abbonamenti.</div><p>I profili pubblici non mostrano telefono, email, link di contatto, chat o pulsanti per contattare direttamente il professionista. L’eventuale inoltro di richieste e i pacchetti lead restano disattivati in attesa di verifica legale e deontologica.</p><div class="actions"><a class="btn" href="/professionisti/registrazione">Richiedi la registrazione</a><a class="btn secondary" href="/professionisti/login">Accedi</a></div></section><section><h2>Professionisti approvati</h2><div class="grid">{cards}</div></section>'''
+    body = f'''<section class="card"><h1>Area Professionisti FixTude</h1><p>Uno spazio dedicato ad avvocati e commercialisti che desiderano presentare le proprie competenze a persone che cercano orientamento nella gestione di situazioni debitorie.</p><div class="notice"><strong>Trasparenza:</strong> i profili pubblici non mostrano telefono, email, link di contatto, chat o pulsanti per contattare direttamente il professionista. L’eventuale inoltro di richieste e i pacchetti lead non sono attivi in questa fase, in attesa di verifica legale e deontologica.</div><div class="actions"><a class="btn" href="/professionisti/registrazione">Richiedi la registrazione</a><a class="btn secondary" href="/professionisti/login">Accedi</a></div></section><section><h2>Professionisti approvati</h2><div class="grid">{cards}</div></section><section class="card"><h2>Condizioni di adesione</h2><p>La vetrina e l’area riservata sono in fase di verifica. Al momento non è attivo alcun abbonamento e non è possibile acquistare pacchetti o lead. Le condizioni economiche saranno pubblicate soltanto dopo una verifica legale e deontologica specifica e la definizione di un contratto completo.</p><p>FixTude non riceve percentuali, commissioni o partecipazioni sui compensi delle pratiche professionali. Il rapporto professionale, l’incarico e il relativo compenso sono concordati direttamente tra cliente e professionista.</p><p class="muted">Le proposte economiche interne non costituiscono un’offerta al pubblico e non generano obblighi di pagamento.</p></section>'''
     return pro_shell("Area Professionisti", body, robots="index, follow")
 
 
@@ -3112,6 +3237,8 @@ def professionisti_registrazione():
         return pro_shell("Registrazione in preparazione", '<section class="card"><h1>Registrazione in preparazione</h1><p>La registrazione sarà attivata dopo la configurazione dell’archivio persistente e delle misure di sicurezza e amministrazione. In questa fase non vengono raccolti dati.</p></section>'), 503
     err = ""
     if request.method == "POST":
+        if rate_limited("professionisti_login", 10, 300):
+            return pro_shell("Troppi tentativi", '<section class="card"><h1>Troppi tentativi</h1><p>Attendi qualche minuto prima di riprovare.</p></section>'), 429
         if not pro_csrf_valid():
             return pro_shell("Richiesta non valida", '<section class="card"><h1>Richiesta non valida</h1><p>Ricarica la pagina e riprova.</p></section>'), 400
         email = request.form.get("email", "").strip().lower()
@@ -3129,6 +3256,7 @@ def professionisti_registrazione():
         elif not citta or len(citta) > 100: err = "Inserisci la città professionale."
         elif not albo or len(albo) > 180: err = "Indica Ordine/Albo e provincia di iscrizione."
         elif not bio or len(bio) > 900: err = "Inserisci una breve presentazione (massimo 900 caratteri)."
+        elif any(contiene_recapiti_diretti(v) for v in (nome, citta, albo, bio)): err = "I campi pubblici non possono contenere email, telefoni, link o inviti al contatto diretto."
         else:
             db = professionisti_db()
             try:
@@ -3188,7 +3316,8 @@ def professionisti_area():
         citta = request.form.get("citta", "").strip()
         albo = request.form.get("albo", "").strip()
         bio = request.form.get("bio", "").strip()
-        if nome and citta and albo and bio and len(nome) <= 120 and len(citta) <= 100 and len(albo) <= 180 and len(bio) <= 900:
+        if (nome and citta and albo and bio and len(nome) <= 120 and len(citta) <= 100 and len(albo) <= 180 and len(bio) <= 900
+                and not any(contiene_recapiti_diretti(v) for v in (nome, citta, albo, bio))):
             db = professionisti_db()
             try:
                 db.execute("UPDATE professionisti SET nome_pubblico=?,citta=?,albo=?,bio=?,status=CASE WHEN status='approved' THEN 'pending' ELSE status END,updated_at=? WHERE id=?", (nome,citta,albo,bio,datetime.now(ROME_TZ).isoformat(timespec="seconds"),user["id"]))
@@ -3200,14 +3329,10 @@ def professionisti_area():
     status_text = {"pending":"In attesa di verifica: il profilo non è pubblico.","approved":"Profilo approvato e visibile nella vetrina.","suspended":"Profilo sospeso: contatta l’amministrazione FixTude."}.get(user["status"], "Stato non disponibile")
     token = escape(pro_csrf_token(), quote=True)
     saved = '<p class="notice">Modifiche salvate. Il profilo è in revisione.</p>' if request.args.get("salvato") else ''
-    economic_link = ('<p><a class="btn" href="/professionisti/contratto">Consulta condizioni riservate e bozza contrattuale</a></p>' if user["categoria"] == "Avvocato" else '<p class="muted">Le condizioni economiche specifiche per la tua categoria, se previste, saranno comunicate separatamente e in forma riservata.</p>')
-    body = f'''<section class="card"><h1>Area riservata professionisti</h1><p><strong>Account:</strong> {escape(user['email'])}</p><p class="notice">{escape(status_text)}</p>{saved}<form method="post"><input type="hidden" name="csrf_token" value="{token}"><label for="nome_pubblico">Nome/denominazione pubblica</label><input id="nome_pubblico" name="nome_pubblico" maxlength="120" value="{escape(user['nome_pubblico'], quote=True)}" required><label>Professione</label><input value="{escape(user['categoria'], quote=True)}" disabled><label for="citta">Città</label><input id="citta" name="citta" maxlength="100" value="{escape(user['citta'], quote=True)}" required><label for="albo">Ordine/Albo e provincia</label><input id="albo" name="albo" maxlength="180" value="{escape(user['albo'], quote=True)}" required><label for="bio">Presentazione pubblica</label><textarea id="bio" name="bio" maxlength="900" required>{escape(user['bio'])}</textarea><p class="muted">Telefono, email, chat e link di contatto non vengono pubblicati nella vetrina.</p><button class="btn" type="submit">Salva modifiche</button></form></section><section class="card"><h2>Adesione professionale</h2><p>Non risulta attivo alcun abbonamento. La registrazione e l’accesso non comportano obblighi di acquisto. Le condizioni economiche non sono pubbliche e non sono attualmente acquistabili; eventuali pacchetti lead restano sospesi fino alla verifica legale e deontologica.</p>{economic_link}<form method="post" action="/professionisti/logout"><input type="hidden" name="csrf_token" value="{token}"><button class="btn secondary" type="submit">Esci</button></form></section>'''
-    response = pro_shell("Area riservata professionisti", body)
-    response.headers["Cache-Control"] = "private, no-store, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
-    response.headers["Vary"] = "Cookie"
-    return response
+    if request.method == "POST" and not request.args.get("salvato"):
+        saved = '<p class="notice">Modifiche non salvate: controlla i campi e rimuovi recapiti, link o inviti al contatto diretto.</p>'
+    body = f'''<section class="card"><h1>Area riservata professionisti</h1><p><strong>Account:</strong> {escape(user['email'])}</p><p class="notice">{escape(status_text)}</p>{saved}<form method="post"><input type="hidden" name="csrf_token" value="{token}"><label for="nome_pubblico">Nome/denominazione pubblica</label><input id="nome_pubblico" name="nome_pubblico" maxlength="120" value="{escape(user['nome_pubblico'], quote=True)}" required><label>Professione</label><input value="{escape(user['categoria'], quote=True)}" disabled><label for="citta">Città</label><input id="citta" name="citta" maxlength="100" value="{escape(user['citta'], quote=True)}" required><label for="albo">Ordine/Albo e provincia</label><input id="albo" name="albo" maxlength="180" value="{escape(user['albo'], quote=True)}" required><label for="bio">Presentazione pubblica</label><textarea id="bio" name="bio" maxlength="900" required>{escape(user['bio'])}</textarea><p class="muted">Telefono, email, chat e link di contatto non vengono pubblicati nella vetrina.</p><button class="btn" type="submit">Salva modifiche</button></form></section><section class="card"><h2>Abbonamento</h2><p>Non hai un abbonamento attivo. Prezzi e pacchetti lead sono in fase di verifica legale/deontologica e non possono essere acquistati da questa area.</p><p><a href="/professionisti/contratto">Consulta la bozza di contratto professionisti</a>.</p><form method="post" action="/professionisti/logout"><input type="hidden" name="csrf_token" value="{token}"><button class="btn secondary" type="submit">Esci</button></form></section>'''
+    return pro_shell("Area riservata professionisti", body)
 
 
 @app.route("/professionisti/logout", methods=["POST"])
@@ -3221,8 +3346,8 @@ def professionisti_logout():
 
 @app.route("/professionisti/admin", methods=["GET", "POST"])
 def professionisti_admin():
-    if not PROFESSIONISTI_ADMIN_TOKEN:
-        return pro_shell("Amministrazione non configurata", '<section class="card"><h1>Area amministrazione non configurata</h1><p>Imposta la variabile PROFESSIONISTI_ADMIN_TOKEN su Render per abilitare la revisione dei profili.</p></section>'), 503
+    if not PROFESSIONISTI_ADMIN_TOKEN or not PRO_DB_CONFIGURED or not os.environ.get("SECRET_KEY", "").strip():
+        return pro_shell("Amministrazione non configurata", '<section class="card"><h1>Area amministrazione non configurata</h1><p>Per abilitare la revisione servono PROFESSIONISTI_ADMIN_TOKEN, SECRET_KEY e FIXTUDE_DB_PATH su un disco persistente Render.</p></section>'), 503
     if request.method == "POST" and request.form.get("admin_token"):
         if not pro_csrf_valid():
             return pro_shell("Richiesta non valida", '<section class="card"><h1>Richiesta non valida</h1><p>Ricarica la pagina e riprova.</p></section>'), 400
@@ -3252,18 +3377,13 @@ def professionisti_admin():
 
 @app.route("/professionisti/contratto")
 def professionisti_contratto():
+    if not professionisti_registration_ready():
+        return pro_shell("Bozza contrattuale non ancora disponibile", '<section class="card"><h1>Bozza contrattuale in revisione</h1><p>Il contratto non è ancora disponibile per la sottoscrizione. L’area professionisti e le condizioni economiche restano sospese fino alla verifica legale e deontologica.</p></section>'), 503
     user = pro_current_user()
     if not user:
         return redirect("/professionisti/login", code=303)
-    if user["categoria"] != "Avvocato":
-        return pro_shell("Condizioni riservate", '<section class="card"><h1>Condizioni riservate</h1><p>Questa pagina è riservata agli account professionali della categoria Avvocato.</p><p><a href="/professionisti/area">Torna alla tua area riservata</a></p></section>'), 403
-    body = '''<article class="card doc"><div class="no-print"><p class="notice"><strong>Bozza da sottoporre a revisione legale prima della firma.</strong> La pubblicazione di questa bozza non costituisce attestazione di conformità deontologica. Le funzioni di invio di lead e i relativi corrispettivi restano sospesi fino all’approvazione del testo definitivo.</p><button class="btn" onclick="window.print()" type="button">Stampa / salva in PDF</button></div><h1>Contratto di adesione e servizi di presenza professionale FixTude</h1><p>Bozza del 19 ottobre 2026 — da completare con i dati del professionista e approvare prima dell’uso.</p><p><strong>Tra</strong> Giovanni Pugliese, titolare del servizio online FixTude, con domicilio professionale in Via Saronno 65, 00188 Roma, P. IVA 15990471003, email info@fixtude.it (di seguito “Gestore”);</p><p><strong>e</strong> il professionista identificato in calce (di seguito “Professionista”).</p><h2>1. Oggetto</h2><p>Il contratto disciplina l’eventuale adesione del Professionista alla vetrina FixTude, la gestione del proprio account e la pubblicazione di un profilo professionale previa verifica e approvazione. FixTude non svolge attività riservate al Professionista e non assume il mandato del cliente.</p><h2>2. Autonomia professionale</h2><p>Il Professionista opera in piena autonomia, sotto la propria responsabilità, nel rispetto delle norme di legge, delle regole dell’Ordine di appartenenza e dei doveri di indipendenza, competenza, riservatezza e correttezza. Nessun rapporto di lavoro subordinato, associazione professionale o società tra le parti è creato dal presente contratto.</p><h2>3. Profilo e verifica</h2><p>Il Professionista garantisce la veridicità e l’aggiornamento delle informazioni, dichiara di essere regolarmente iscritto all’Ordine/Albo ove richiesto e autorizza la pubblicazione dei soli dati professionali approvati: nome/denominazione, categoria, città, Ordine/Albo e presentazione. Telefono, email, chat e collegamenti di contatto diretto non saranno mostrati nella vetrina pubblica. Il Gestore può chiedere documentazione verificabile e sospendere il profilo in caso di informazioni incomplete o non corrette.</p><h2>4. Servizi, prezzi e attivazione</h2><p>La vetrina e l’account sono in fase di attivazione. Le tariffe ipotizzate sono: mensile € 25 per 10 contatti, € 50 per 25, € 100 per 50, € 200 per contatti illimitati; annuale anticipato € 200, € 350, € 700 e € 1.500 rispettivamente. <strong>Queste tariffe non costituiscono al momento un’offerta acquistabile</strong>: periodo di riferimento delle quote, definizione del contatto qualificato, modalità di assegnazione, esclusività, rimborsi e scadenza dei contatti devono essere specificati in un allegato separato, previa verifica legale e deontologica. Nessun corrispettivo è dovuto fino alla sottoscrizione dell’ordine definitivo e all’attivazione esplicita del servizio.</p><h2>5. Divieto di compensi sui mandati</h2><p>Il Gestore non percepisce percentuali, commissioni o partecipazioni sui compensi professionali, sugli accordi transattivi o sui risultati delle pratiche. Il Professionista determina autonomamente i propri compensi, concordandoli direttamente con il cliente nel mandato professionale scritto. Nessun esito è garantito da FixTude.</p><h2>6. Contatti e incarichi</h2><p>Il presente contratto non conferisce al Gestore poteri di rappresentanza o negoziazione per conto del Professionista o del cliente. Un eventuale incarico professionale è conferito direttamente dal cliente al Professionista mediante documento separato, con descrizione delle attività, compensi, spese, tempi, informativa privacy e condizioni applicabili.</p><h2>7. Dati personali e riservatezza</h2><p>Ciascuna parte tratta i dati personali nel rispetto della normativa applicabile. Il Professionista non deve inserire nella vetrina dati di clienti, informazioni coperte da segreto o documenti riservati. I ruoli privacy, le basi giuridiche, i tempi di conservazione e le eventuali responsabilità connesse all’inoltro di richieste dovranno essere descritti nell’informativa e negli eventuali accordi dedicati prima di attivare tali funzioni.</p><h2>8. Durata, rinnovo e recesso</h2><p>La durata, il rinnovo, il preavviso e le modalità di cessazione saranno indicati nell’ordine di attivazione sottoscritto. In assenza di ordine attivo non sussiste abbonamento né obbligo di pagamento. Ciascuna parte può chiedere la correzione o la rimozione di dati professionali non aggiornati; il Gestore può sospendere un profilo per ragioni documentate di sicurezza, correttezza o conformità normativa.</p><h2>9. Limitazioni e responsabilità</h2><p>Il Gestore fornisce un servizio di presenza online e strumenti informativi, senza garantire un numero di clienti, un volume di richieste, l’accettazione di incarichi o risultati professionali. Il Professionista resta responsabile delle prestazioni rese e delle verifiche relative al cliente e al conflitto d’interessi. Restano ferme le responsabilità inderogabili previste dalla legge.</p><h2>10. Reclami e legge applicabile</h2><p>Le comunicazioni relative al servizio possono essere inviate a info@fixtude.it. Il contratto è soggetto alla legge italiana, fatti salvi i fori inderogabili e le norme imperative applicabili. Ogni clausola va interpretata in modo compatibile con le norme professionali e deontologiche pertinenti.</p><h2>11. Approvazioni specifiche</h2><p>Le eventuali clausole che richiedano approvazione specifica ai sensi degli artt. 1341 e 1342 c.c. dovranno essere individuate e approvate separatamente nella versione definitiva dopo revisione legale.</p><div class="signature"><div><p><strong>Il Gestore</strong></p><div class="line">Giovanni Pugliese — FixTude</div><div class="line">Data e firma</div></div><div><p><strong>Il Professionista</strong></p><div class="line">Nome / denominazione</div><div class="line">Codice fiscale / P. IVA</div><div class="line">Ordine/Albo e provincia</div><div class="line">Data e firma</div></div></div></article>'''
-    response = pro_shell("Condizioni riservate e bozza contrattuale", body)
-    response.headers["Cache-Control"] = "private, no-store, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
-    response.headers["Vary"] = "Cookie"
-    return response
+    body = '''<article class="card doc"><div class="no-print"><p class="notice"><strong>Bozza da sottoporre a revisione legale prima della firma.</strong> La pubblicazione di questa bozza non costituisce attestazione di conformità deontologica. Le funzioni di invio di lead e i relativi corrispettivi restano sospesi fino all’approvazione del testo definitivo.</p><button class="btn" onclick="window.print()" type="button">Stampa / salva in PDF</button></div><h1>Contratto di adesione e servizi di presenza professionale FixTude</h1><p>Bozza del 19 ottobre 2026 — da completare con i dati del professionista e approvare prima dell’uso.</p><p><strong>Tra</strong> Giovanni Pugliese, titolare del servizio online FixTude, con domicilio professionale in Via Saronno 65, 00188 Roma, P. IVA 15990471003, email info@fixtude.it (di seguito “Gestore”);</p><p><strong>e</strong> il professionista identificato in calce (di seguito “Professionista”).</p><h2>1. Oggetto</h2><p>Il contratto disciplina l’eventuale adesione del Professionista alla vetrina FixTude, la gestione del proprio account e la pubblicazione di un profilo professionale previa verifica e approvazione. FixTude non svolge attività riservate al Professionista e non assume il mandato del cliente.</p><h2>2. Autonomia professionale</h2><p>Il Professionista opera in piena autonomia, sotto la propria responsabilità, nel rispetto delle norme di legge, delle regole dell’Ordine di appartenenza e dei doveri di indipendenza, competenza, riservatezza e correttezza. Nessun rapporto di lavoro subordinato, associazione professionale o società tra le parti è creato dal presente contratto.</p><h2>3. Profilo e verifica</h2><p>Il Professionista garantisce la veridicità e l’aggiornamento delle informazioni, dichiara di essere regolarmente iscritto all’Ordine/Albo ove richiesto e autorizza la pubblicazione dei soli dati professionali approvati: nome/denominazione, categoria, città, Ordine/Albo e presentazione. Telefono, email, chat e collegamenti di contatto diretto non saranno mostrati nella vetrina pubblica. Il Gestore può chiedere documentazione verificabile e sospendere il profilo in caso di informazioni incomplete o non corrette.</p><h2>4. Servizi, corrispettivi e attivazione</h2><p>La vetrina e l’account sono in fase di attivazione. <strong>Alla data della presente bozza non è attivo alcun piano a pagamento e non è formulata un’offerta economica vincolante.</strong> Eventuali corrispettivi, durata, rinnovo, prestazioni incluse, imposte e condizioni di cessazione dovranno essere indicati in un ordine di attivazione completo, sottoscritto da entrambe le parti dopo revisione legale.</p><p>Qualsiasi servizio che preveda quantità, inoltro, assegnazione o priorità di richieste/lead è escluso dal presente testo e non potrà essere attivato né fatturato senza uno specifico allegato approvato dopo una verifica legale e deontologica dedicata. Nessun corrispettivo è dovuto fino alla sottoscrizione dell’ordine definitivo e all’attivazione esplicita del servizio.</p><h2>5. Divieto di compensi sui mandati</h2><p>Il Gestore non percepisce percentuali, commissioni o partecipazioni sui compensi professionali, sugli accordi transattivi o sui risultati delle pratiche. Il Professionista determina autonomamente i propri compensi, concordandoli direttamente con il cliente nel mandato professionale scritto. Nessun esito è garantito da FixTude.</p><h2>6. Contatti e incarichi</h2><p>Il presente contratto non conferisce al Gestore poteri di rappresentanza o negoziazione per conto del Professionista o del cliente. Un eventuale incarico professionale è conferito direttamente dal cliente al Professionista mediante documento separato, con descrizione delle attività, compensi, spese, tempi, informativa privacy e condizioni applicabili.</p><h2>7. Dati personali e riservatezza</h2><p>Ciascuna parte tratta i dati personali nel rispetto della normativa applicabile. Il Professionista non deve inserire nella vetrina dati di clienti, informazioni coperte da segreto o documenti riservati. I ruoli privacy, le basi giuridiche, i tempi di conservazione e le eventuali responsabilità connesse all’inoltro di richieste dovranno essere descritti nell’informativa e negli eventuali accordi dedicati prima di attivare tali funzioni.</p><h2>8. Durata, rinnovo e recesso</h2><p>La durata, il rinnovo, il preavviso e le modalità di cessazione saranno indicati nell’ordine di attivazione sottoscritto. In assenza di ordine attivo non sussiste abbonamento né obbligo di pagamento. Ciascuna parte può chiedere la correzione o la rimozione di dati professionali non aggiornati; il Gestore può sospendere un profilo per ragioni documentate di sicurezza, correttezza o conformità normativa.</p><h2>9. Limitazioni e responsabilità</h2><p>Il Gestore fornisce un servizio di presenza online e strumenti informativi, senza garantire un numero di clienti, un volume di richieste, l’accettazione di incarichi o risultati professionali. Il Professionista resta responsabile delle prestazioni rese e delle verifiche relative al cliente e al conflitto d’interessi. Restano ferme le responsabilità inderogabili previste dalla legge.</p><h2>10. Reclami e legge applicabile</h2><p>Le comunicazioni relative al servizio possono essere inviate a info@fixtude.it. Il contratto è soggetto alla legge italiana, fatti salvi i fori inderogabili e le norme imperative applicabili. Ogni clausola va interpretata in modo compatibile con le norme professionali e deontologiche pertinenti.</p><h2>11. Approvazioni specifiche</h2><p>Le eventuali clausole che richiedano approvazione specifica ai sensi degli artt. 1341 e 1342 c.c. dovranno essere individuate e approvate separatamente nella versione definitiva dopo revisione legale.</p><div class="signature"><div><p><strong>Il Gestore</strong></p><div class="line">Giovanni Pugliese — FixTude</div><div class="line">Data e firma</div></div><div><p><strong>Il Professionista</strong></p><div class="line">Nome / denominazione</div><div class="line">Codice fiscale / P. IVA</div><div class="line">Ordine/Albo e provincia</div><div class="line">Data e firma</div></div></div></article>'''
+    return pro_shell("Bozza contratto professionisti", body)
 
 
 @app.route("/incarico-legale")
