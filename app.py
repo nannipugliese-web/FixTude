@@ -1182,8 +1182,8 @@ def home():
       .home-hero-copy h1{font-size:clamp(30px,4vw,46px);line-height:1.1;margin:0 0 14px}
       .home-hero-copy p{font-size:18px;line-height:1.55;max-width:680px}
       .home-situation-panel{width:100%;max-width:900px;margin:0 auto;display:flex;flex-direction:column;align-items:center;text-align:center;box-sizing:border-box}
-      .home-situation-title{display:block;width:100%;max-width:820px;box-sizing:border-box;text-align:center;margin:30px auto 8px;padding:0 12px;align-self:center}
-      .home-situation-intro{display:block;width:100%;max-width:680px;box-sizing:border-box;text-align:center;margin:0 auto 12px;padding:0 12px;align-self:center}
+      .home-situation-title{display:block;width:100%;max-width:820px;box-sizing:border-box;text-align:center;margin:10px auto 8px;padding:0 12px;align-self:center}
+      .home-situation-intro{display:block;width:100%;max-width:760px;box-sizing:border-box;text-align:center;margin:0 auto 12px;padding:0 12px;align-self:center}
       .home-situation-options{display:grid;width:100%;box-sizing:border-box;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin:24px auto 8px;max-width:820px;align-items:start;justify-content:center;align-self:center}
       .home-situation-option{display:flex;flex-direction:column;align-items:center;gap:15px;min-width:0}
       .home-situation-choice{position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:clamp(98px,11.7vw,133px);height:clamp(98px,11.7vw,133px);padding:10px;border:3px solid rgba(255,255,255,.75);border-radius:50%;cursor:pointer;font:inherit;text-align:center;color:#fff;text-decoration:none;overflow:hidden;transform:translateY(-5px);box-shadow:0 6px 0 var(--button-depth),0 12px 17px rgba(16,24,40,.25),inset 0 3px 5px rgba(255,255,255,.75),inset 0 -8px 12px rgba(0,0,0,.2);transition:transform .13s ease,box-shadow .13s ease,filter .13s ease;touch-action:manipulation}
@@ -1198,37 +1198,37 @@ def home():
       .home-situation-red{--button-depth:#861821;background:radial-gradient(ellipse at 35% 18%,#ff9588 0%,#ff3d2f 33%,#d70d0d 69%,#9f0009 100%);border-color:#ffb6aa}
       .home-situation-yellow{--button-depth:#98600b;color:#382707;background:radial-gradient(ellipse at 35% 18%,#fff7a0 0%,#ffdb24 35%,#f5ac00 72%,#b66b00 100%);border-color:#fff0a0}
       .home-situation-green{--button-depth:#07502e;background:radial-gradient(ellipse at 35% 18%,#82f2b1 0%,#16b968 35%,#078346 70%,#00532c 100%);border-color:#a6f7c8}
-      @media(max-width:700px){.home-hero-layout{grid-template-columns:1fr;gap:18px}.home-hero-copy h1{font-size:clamp(27px,6vw,36px);line-height:1.12}.home-hero-copy p{font-size:16px;line-height:1.5}.home-situation-panel{width:100%;max-width:100%;padding:0 4px}.home-situation-title{font-size:clamp(21px,5vw,28px);margin-top:24px;padding:0 8px}.home-situation-intro{font-size:15px;line-height:1.4;padding:0 8px}.home-situation-options{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:20px;padding:0 2px}.home-situation-option{gap:9px}.home-situation-choice{width:min(18.2vw,86px);height:min(18.2vw,86px);min-width:68px;min-height:68px;padding:5px;border-width:2px;transform:translateY(-3px);box-shadow:0 4px 0 var(--button-depth),0 7px 9px rgba(16,24,40,.22),inset 0 2px 4px rgba(255,255,255,.75),inset 0 -4px 6px rgba(0,0,0,.2)}.home-situation-choice:hover{transform:translateY(-5px)}.home-situation-icon{font-size:17px}.home-situation-label{font-size:clamp(10px,2.7vw,13px)}.home-situation-subtitle{font-size:clamp(7px,2vw,9px)}.home-situation-description{max-width:100%;font-size:10px;line-height:1.35}.home-situation-title{margin-top:24px}.home-situation-intro{font-size:15px;line-height:1.4}}
+      @media(max-width:700px){.home-hero-layout{grid-template-columns:1fr;gap:18px}.home-hero-copy h1{font-size:clamp(27px,6vw,36px);line-height:1.12}.home-hero-copy p{font-size:16px;line-height:1.5}.home-situation-panel{width:100%;max-width:100%;padding:0 4px}.home-situation-title{font-size:clamp(21px,5vw,28px);margin-top:8px;padding:0 8px}.home-situation-intro{font-size:15px;line-height:1.4;padding:0 8px}.home-situation-options{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:20px;padding:0 2px}.home-situation-option{gap:9px}.home-situation-choice{width:min(18.2vw,86px);height:min(18.2vw,86px);min-width:68px;min-height:68px;padding:5px;border-width:2px;transform:translateY(-3px);box-shadow:0 4px 0 var(--button-depth),0 7px 9px rgba(16,24,40,.22),inset 0 2px 4px rgba(255,255,255,.75),inset 0 -4px 6px rgba(0,0,0,.2)}.home-situation-choice:hover{transform:translateY(-5px)}.home-situation-icon{font-size:17px}.home-situation-label{font-size:clamp(10px,2.7vw,13px)}.home-situation-subtitle{font-size:clamp(7px,2vw,9px)}.home-situation-description{max-width:100%;font-size:clamp(11px,2.9vw,13px);line-height:1.35}.home-situation-title{margin-top:8px}.home-situation-intro{font-size:15px;line-height:1.4}}
       @media(prefers-reduced-motion:reduce){.home-situation-choice{transition:none}}
     </style>
     <section class="hero">
       <div class="home-hero-layout">
         <div class="home-hero-copy">
-          <h1>Fai chiarezza sulla tua situazione debitoria.</h1>
+          <h1>Fai chiarezza sulla tua<br>situazione debitoria.</h1>
           <p><strong>Semplice. Riservato. Senza registrazione.</strong></p>
         </div>
       </div>
       <div class="home-situation-panel">
-      <h2 class="home-situation-title">Da dove vuoi cominciare?</h2>
-      <p class="home-situation-intro">Scegli il pulsante che descrive la tua situazione. Il calcolatore ti fornirà un primo esito di sostenibilità.</p>
+      <h2 class="home-situation-title">Cominciamo.</h2>
+      <p class="home-situation-intro">Scegli il pulsante che descrive la tua situazione.<br>Il calcolatore ti fornirà un primo esito di sostenibilità.</p>
       <div class="home-situation-options">
         <div class="home-situation-option">
           <a class="home-situation-choice home-situation-red" href="/misuratore?scenario=rosso#calculatorStart" aria-label="Emergenza: non riesco a pagare la rata di questo mese e ho già ricevuto solleciti">
             <span class="home-situation-icon" aria-hidden="true">!</span><span class="home-situation-subtitle">EMERGENZA</span>
           </a>
-          <em class="home-situation-description">Non riesco a pagare la rata di questo mese e ho già ricevuto solleciti.</em>
+          <em class="home-situation-description">Sto indietro con le rate.</em>
         </div>
         <div class="home-situation-option">
           <a class="home-situation-choice home-situation-yellow" href="/misuratore?scenario=giallo#calculatorStart" aria-label="Allerta: pago tutto ma faccio fatica e non mi rimane quasi nulla dello stipendio">
             <span class="home-situation-icon" aria-hidden="true">!</span><span class="home-situation-subtitle">ALLERTA</span>
           </a>
-          <em class="home-situation-description">Pago tutto, ma faccio fatica. Non mi rimane quasi nulla dello stipendio.</em>
+          <em class="home-situation-description">Faccio fatica a pagare tutto.</em>
         </div>
         <div class="home-situation-option">
           <a class="home-situation-choice home-situation-green" href="/misuratore?scenario=verde#calculatorStart" aria-label="Controllo: voglio verificare se i miei debiti sono sostenibili">
             <span class="home-situation-icon" aria-hidden="true">✓</span><span class="home-situation-subtitle">CONTROLLO</span>
           </a>
-          <em class="home-situation-description">La situazione è gestibile, ma voglio verificare se i miei debiti sono davvero sostenibili.</em>
+          <em class="home-situation-description">Situazione gestibile.</em>
         </div>
       </div>
       </div>
