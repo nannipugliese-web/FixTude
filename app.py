@@ -1270,39 +1270,8 @@ def home():
 @app.route("/misuratore")
 def misuratore():
     scenario = (request.args.get("scenario", "verde") or "verde").strip().lower()
-    if scenario in ("rosso", "giallo"):
-        red = scenario == "rosso"
-        theme = "rosso" if red else "giallo"
-        title = "Atti e procedure" if red else "Comunicazioni ricevute"
-        intro = ("Indica gli atti o le procedure presenti e gli importi richiesti. Non occorre caricare documenti."
-                 if red else "Indica quali comunicazioni hai ricevuto e gli importi richiesti. Non occorre caricare documenti.")
-        fields = ('''<div class="case-section"><h2>1. Atti e procedure</h2><p class="case-help">Seleziona ogni atto e, se lo conosci, indica l'importo richiesto. Puoi aggiungere più voci.</p><div id="actRows"></div><button type="button" class="case-add" id="addAct">+ Aggiungi un altro atto</button></div>''' if red else '''
-        <div class="case-section"><h2>1. Comunicazioni ricevute</h2><p class="case-help">Indica se hai ricevuto ciascuna comunicazione e riporta gli importi, se disponibili.</p>
-        <div class="case-field"><label for="solleciti">Solleciti di pagamento</label><select id="solleciti"><option value="no">Non ricevuti</option><option value="si">Ricevuti</option></select><label for="numeroSolleciti">Numero di solleciti</label><input id="numeroSolleciti" type="number" min="0" value="0" disabled><label for="importoSolleciti">Importo richiesto nei solleciti (€)</label><input id="importoSolleciti" type="number" min="0" step="0.01" value="0" disabled></div>
-        <div class="case-field"><label for="preavviso">Preavviso di costituzione in mora</label><select id="preavviso"><option value="no">Non ricevuto</option><option value="si">Ricevuto</option></select><label for="importoPreavviso">Importo richiesto (€)</label><input id="importoPreavviso" type="number" min="0" step="0.01" value="0" disabled></div>
-        <div class="case-field"><label for="mora">Costituzione in mora</label><select id="mora"><option value="no">Non ricevuta</option><option value="si">Ricevuta</option></select><label for="importoMora">Importo richiesto (€)</label><input id="importoMora" type="number" min="0" step="0.01" value="0" disabled></div>
-        <div class="case-field"><label for="diffida">Diffida legale</label><select id="diffida"><option value="no">Non ricevuta</option><option value="si">Ricevuta</option></select><label for="importoDiffida">Importo richiesto nella diffida (€)</label><input id="importoDiffida" type="number" min="0" step="0.01" value="0" disabled></div></div>''')
-        common = '''<div class="case-section"><h2>2. Importo complessivo richiesto</h2><div class="case-field"><label for="importoTotale">Importo totale attualmente richiesto (€)</label><input id="importoTotale" type="number" min="0" step="0.01" value="0"><small>Usa il totale più recente che conosci.</small></div></div>
-        <div class="case-section"><h2>3. Spese di recupero e spese legali</h2><div class="case-field"><label for="speseRecupero">Le spese di recupero sono già conteggiate nell'importo richiesto?</label><select id="speseRecupero"><option value="ignoto">Non so / non è chiaro</option><option value="si">Sì</option><option value="no">No</option></select><label for="importoRecupero">Importo delle spese di recupero, se distinto (€)</label><input id="importoRecupero" type="number" min="0" step="0.01" value="0"><small>Non sommare nuovamente le spese già incluse nel totale.</small></div><div class="case-field"><label for="speseLegali">Sono richieste spese legali?</label><select id="speseLegali"><option value="ignoto">Non so / non è chiaro</option><option value="si">Sì</option><option value="no">No</option></select><label for="importoLegali">Importo delle spese legali, se indicato (€)</label><input id="importoLegali" type="number" min="0" step="0.01" value="0"></div></div>
-        <div class="case-result"><h2>Riepilogo preliminare</h2><div class="case-result-grid"><div><span>Importo complessivo</span><strong id="outTotale">€ 0,00</strong></div><div><span>Spese recupero distinte</span><strong id="outRecupero">€ 0,00</strong></div><div><span>Spese legali distinte</span><strong id="outLegali">€ 0,00</strong></div></div><p id="outMessaggio" aria-live="polite"></p><p class="case-disclaimer">Il riepilogo non verifica la validità dell'atto, la correttezza del credito o i termini legali. In presenza di decreto ingiuntivo, precetto, pignoramento o diffida, verifica tempestivamente l'atto con un professionista abilitato e non ignorare le scadenze indicate.</p></div><div class="case-actions"><button type="button" class="btn" id="resetCase">Azzera i campi</button><a class="btn outline" href="/consulenza">Richiedi di essere ricontattato</a></div>'''
-        content = '''<style>
-        .case-calculator{--accent:#a71924;--dark:#71121b;--pale:#fff2f3;max-width:900px;margin:0 auto 28px;border:1px solid #e7b7bb;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 14px 38px rgba(24,39,75,.10)}
-        .case-calculator.case-giallo{--accent:#b77b13;--dark:#79500a;--pale:#fff8e8;border-color:#e8d39d}
-        .case-head{padding:25px 28px;color:#fff;background:linear-gradient(115deg,var(--dark),var(--accent) 65%,#d99b70);border-bottom:4px solid rgba(255,255,255,.35)}.case-giallo .case-head{background:linear-gradient(115deg,#76500d,#b77b13 65%,#e2bd63)}
-        .case-kicker{display:inline-block;padding:5px 10px;border:1px solid #ffffff88;border-radius:99px;background:#ffffff1c;font-size:11px;font-weight:850;letter-spacing:.12em}.case-head h1{margin:12px 0 8px;color:#fff;font-size:clamp(25px,4vw,35px)}.case-head p{margin:0;max-width:680px;color:#ffffffed;line-height:1.55}
-        .case-body{padding:22px 25px 26px;border-left:5px solid var(--accent)}.case-section{padding:20px 0;border-bottom:1px solid #e9edf3}.case-section:first-child{padding-top:0}.case-section h2,.case-result h2{font-size:19px;margin:0 0 9px;color:#182230}.case-help,.case-field small{color:#667085;font-size:13px;line-height:1.5}.case-field{display:grid;gap:7px;margin:13px 0;padding:15px;border:1px solid #e4e8ef;border-radius:12px;background:#fff}.case-field label{font-size:13px;font-weight:750;color:#344054}.case-field input,.case-field select,#actRows input,#actRows select{width:100%;min-width:0;padding:11px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#172033;font:inherit}.case-act-row{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(150px,.8fr) auto;gap:10px;align-items:end;padding:14px;margin:12px 0;border:1px solid #e4e8ef;border-radius:12px;background:#fbfcfe}.case-act-row label{display:block;font-size:13px;font-weight:750;margin-bottom:7px}.case-add{padding:10px 13px;border:1px solid var(--accent);border-radius:9px;background:var(--pale);color:var(--dark);font-weight:800;cursor:pointer}.case-remove{padding:10px;border:1px solid #e5aeb3;border-radius:8px;background:#fff;color:#9f1d27;cursor:pointer}.case-result{margin-top:20px;padding:19px;border:1px solid #e7c4c7;border-radius:13px;background:var(--pale)}.case-result-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.case-result-grid>div{padding:13px;border-radius:10px;background:#ffffffd9}.case-result-grid span,.case-result-grid strong{display:block}.case-result-grid span{font-size:12px;color:#667085}.case-result-grid strong{margin-top:6px;font-size:18px;color:var(--dark);overflow-wrap:anywhere}.case-disclaimer{font-size:12px;line-height:1.55;color:#5b6472}.case-actions{display:flex;gap:10px;flex-wrap:wrap;padding-top:20px}.case-actions .btn{margin:0;background:var(--accent);border-color:var(--accent)}.case-actions .btn.outline{background:#fff;color:var(--dark);border:1px solid var(--accent)}
-        @media(max-width:620px){.case-head{padding:22px 18px}.case-body{padding:18px 14px 22px}.case-act-row{grid-template-columns:1fr}.case-result-grid{grid-template-columns:1fr}.case-actions{flex-direction:column}.case-actions .btn{width:100%;text-align:center}}
-        </style><section class="case-calculator case-__THEME__" id="caseCalculator"><header class="case-head"><span class="case-kicker">FixTude · __KICKER__</span><h1>__TITLE__</h1><p>__INTRO__</p></header><div class="case-body">__FIELDS__ __COMMON__</div></section>
-        <script>(()=>{const red=__RED__;const euro=n=>Number(n||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'});const num=id=>{const e=document.getElementById(id),n=e?Number(e.value):0;return Number.isFinite(n)&&n>0?Math.min(n,100000000):0};const val=id=>{const e=document.getElementById(id);return e?e.value:'no'};
-        function addAct(type='Nessun atto'){const host=document.getElementById('actRows');const row=document.createElement('div');row.className='case-act-row';const a=document.createElement('div'),b=document.createElement('div');const la=document.createElement('label'),lb=document.createElement('label');la.textContent='Tipo di atto';lb.textContent='Importo richiesto (€)';const sel=document.createElement('select');sel.className='act-type';['Nessun atto','Atto di messa in mora / intimazione','Decreto ingiuntivo','Atto di precetto','Pignoramento presso terzi','Pignoramento mobiliare','Pignoramento immobiliare','Altro atto giudiziario'].forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o)});sel.value=type;const inp=document.createElement('input');inp.type='number';inp.min='0';inp.step='.01';inp.value='0';inp.className='act-amount';a.append(la,sel);b.append(lb,inp);const rm=document.createElement('button');rm.type='button';rm.className='case-remove';rm.textContent='Rimuovi';rm.onclick=()=>{row.remove();if(!host.children.length)addAct('Nessun atto');update()};row.append(a,b,rm);host.appendChild(row);sel.addEventListener('change',update);inp.addEventListener('input',update);update()}
-        function toggle(sid,ids){const s=document.getElementById(sid);const sync=()=>ids.forEach(id=>{const e=document.getElementById(id);e.disabled=s.value!=='si';if(e.disabled)e.value='0'});s.addEventListener('change',()=>{sync();update()});sync()}
-        if(red){addAct();document.getElementById('addAct').onclick=()=>addAct('Decreto ingiuntivo')}else{toggle('solleciti',['numeroSolleciti','importoSolleciti']);toggle('preavviso',['importoPreavviso']);toggle('mora',['importoMora']);toggle('diffida',['importoDiffida'])}
-        function update(){document.getElementById('outTotale').textContent=euro(num('importoTotale'));document.getElementById('outRecupero').textContent=euro(num('importoRecupero'));document.getElementById('outLegali').textContent=euro(num('importoLegali'));let n=[];if(red){const acts=[...document.querySelectorAll('.case-act-row')].map(r=>({t:r.querySelector('.act-type').value,a:Number(r.querySelector('.act-amount').value)||0})).filter(x=>x.t!=='Nessun atto');n.push(acts.length?'Atti indicati: '+acts.map(x=>x.t+(x.a?' ('+euro(x.a)+')':'')).join('; '):'Non hai indicato atti o procedure.')}else{const items=[['Solleciti di pagamento','solleciti','importoSolleciti'],['Preavviso di costituzione in mora','preavviso','importoPreavviso'],['Costituzione in mora','mora','importoMora'],['Diffida legale','diffida','importoDiffida']].filter(x=>val(x[1])==='si');n.push(items.length?'Comunicazioni indicate: '+items.map(x=>x[0]+(num(x[2])?' ('+euro(num(x[2]))+')':'')).join('; '):'Non hai indicato comunicazioni ricevute.');if(val('solleciti')==='si')n.push('Numero di solleciti: '+Math.floor(num('numeroSolleciti'))+'.')}n.push('Spese di recupero '+(val('speseRecupero')==='si'?'indicate come già comprese nel totale':val('speseRecupero')==='no'?'indicate come non comprese':'non chiaramente identificate')+'.');n.push('Spese legali '+(val('speseLegali')==='si'?'indicate come richieste':val('speseLegali')==='no'?'non indicate':'non chiaramente identificate')+'.');n.push(num('importoTotale')?'Verifica che il totale sia aggiornato e non sommare due volte le spese già incluse.':'Inserisci il totale richiesto, se disponibile.');document.getElementById('outMessaggio').textContent=n.join(' ')}
-        document.querySelectorAll('#caseCalculator input,#caseCalculator select').forEach(e=>e.addEventListener('input',update));document.getElementById('resetCase').onclick=()=>{document.querySelectorAll('#caseCalculator input').forEach(e=>{if(e.type==='number')e.value='0'});document.querySelectorAll('#caseCalculator select').forEach(e=>e.selectedIndex=0);if(red){document.getElementById('actRows').replaceChildren();addAct('Nessun atto')}else{['solleciti','preavviso','mora','diffida'].forEach(id=>document.getElementById(id).dispatchEvent(new Event('change')))}update()};update()})();</script>'''
-        content = (content.replace("__THEME__", theme).replace("__KICKER__", "EMERGENZA" if red else "ALLERTA")
-                   .replace("__TITLE__", title).replace("__INTRO__", intro).replace("__FIELDS__", fields)
-                   .replace("__COMMON__", common).replace("__RED__", "true" if red else "false"))
-        return page(title + " | FixTude", content)
+    if scenario not in ("rosso", "giallo", "verde"):
+        scenario = "verde"
     content = """
     <h1>Calcolatore di sostenibilità del debito</h1>
     <p class="muted">
@@ -1415,7 +1384,7 @@ def misuratore():
       .calculator-welcome[hidden]{display:none!important}.welcome-close{position:absolute;right:9px;top:7px;border:0;background:transparent;font-size:23px;line-height:1;cursor:pointer;color:#52647a}
       @media(max-width:700px){.situation-options{grid-template-columns:1fr;gap:24px}.situation-choice{width:176px;height:176px}.situation-description{max-width:320px}}
       @media(prefers-reduced-motion:reduce){.situation-choice{transition:none}}
-      /* Calcolatore guidato: cinque schermate orizzontali */
+      /* Calcolatore guidato: sette schermate orizzontali */
       .calc-wizard{margin:18px 0 28px;min-width:0}
       .calc-progress{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px;font-size:14px;color:var(--muted,#64748b)}
       .calc-progress-track{height:6px;border-radius:999px;background:#e5eaf1;overflow:hidden;margin-bottom:18px}
@@ -1791,6 +1760,105 @@ def misuratore():
     })();
     </script>
     """
+    # Il percorso resta sempre il wizard originale in sette passaggi. I campi specifici
+    # rosso/giallo sono inseriti nella terza pagina, senza creare schermate aggiuntive.
+    scenario_intro = {
+        "rosso": "EMERGENZA · Analisi guidata in 7 passaggi. Oltre al bilancio, puoi indicare gli atti ricevuti e le spese richieste.",
+        "giallo": "ALLERTA · Analisi guidata in 7 passaggi. Oltre al bilancio, puoi indicare le comunicazioni ricevute e le spese richieste.",
+        "verde": "CONTROLLO · Analisi guidata in 7 passaggi per verificare il margine mensile e la sostenibilità dei debiti."
+    }[scenario]
+    scenario_fields = ""
+    if scenario == "rosso":
+        scenario_fields = """
+        <div class="scenario-extra scenario-red" aria-label="Atti e procedure">
+          <h3>Atti e procedure ricevuti</h3>
+          <p>Seleziona gli atti presenti e inserisci l'importo richiesto, se disponibile. Puoi aggiungere più voci. Non caricare documenti.</p>
+          <div id="scenarioActRows"></div>
+          <button class="btn outline" type="button" id="scenarioAddAct">+ Aggiungi un altro atto</button>
+          <div class="field"><label for="scenarioTotal">Importo totale attualmente richiesto (€)</label><input id="scenarioTotal" type="number" min="0" step="0.01" value="0"></div>
+          <div class="field"><label for="scenarioRecoveryIncluded">Le spese di recupero sono già incluse nell'importo richiesto?</label><select id="scenarioRecoveryIncluded"><option value="unknown">Non so / non è chiaro</option><option value="yes">Sì</option><option value="no">No</option></select></div>
+          <div class="field"><label for="scenarioRecoveryAmount">Importo spese di recupero, se distinto (€)</label><input id="scenarioRecoveryAmount" type="number" min="0" step="0.01" value="0"></div>
+          <div class="field"><label for="scenarioLegalRequested">Sono richieste spese legali?</label><select id="scenarioLegalRequested"><option value="unknown">Non so / non è chiaro</option><option value="yes">Sì</option><option value="no">No</option></select></div>
+          <div class="field"><label for="scenarioLegalAmount">Importo spese legali, se indicato (€)</label><input id="scenarioLegalAmount" type="number" min="0" step="0.01" value="0"></div>
+          <p class="muted" id="scenarioExtraSummary" aria-live="polite">I dati aggiuntivi sono elaborati in questa pagina e non vengono salvati.</p>
+        </div>"""
+    elif scenario == "giallo":
+        scenario_fields = """
+        <div class="scenario-extra scenario-yellow" aria-label="Comunicazioni ricevute">
+          <h3>Comunicazioni ricevute</h3>
+          <p>Indica ciò che hai ricevuto, anche più di una comunicazione. Non caricare documenti.</p>
+          <div class="field"><label for="scenarioSolleciti">Solleciti di pagamento</label><select id="scenarioSolleciti"><option value="no">Non ricevuti</option><option value="yes">Ricevuti</option></select></div>
+          <div class="field"><label for="scenarioSollecitiCount">Numero di solleciti</label><input id="scenarioSollecitiCount" type="number" min="0" step="1" value="0"></div>
+          <div class="field"><label for="scenarioSollecitiAmount">Importo richiesto nei solleciti (€)</label><input id="scenarioSollecitiAmount" type="number" min="0" step="0.01" value="0"></div>
+          <div class="field"><label for="scenarioPreavviso">Preavviso di costituzione in mora</label><select id="scenarioPreavviso"><option value="no">Non ricevuto</option><option value="yes">Ricevuto</option></select></div>
+          <div class="field"><label for="scenarioPreavvisoAmount">Importo richiesto (€)</label><input id="scenarioPreavvisoAmount" type="number" min="0" step="0.01" value="0"></div>
+          <div class="field"><label for="scenarioMora">Costituzione in mora</label><select id="scenarioMora"><option value="no">Non ricevuta</option><option value="yes">Ricevuta</option></select></div>
+          <div class="field"><label for="scenarioMoraAmount">Importo richiesto (€)</label><input id="scenarioMoraAmount" type="number" min="0" step="0.01" value="0"></div>
+          <div class="field"><label for="scenarioDiffida">Diffida legale</label><select id="scenarioDiffida"><option value="no">Non ricevuta</option><option value="yes">Ricevuta</option></select></div>
+          <div class="field"><label for="scenarioDiffidaAmount">Importo richiesto nella diffida (€)</label><input id="scenarioDiffidaAmount" type="number" min="0" step="0.01" value="0"></div>
+          <div class="field"><label for="scenarioTotal">Importo totale attualmente richiesto (€)</label><input id="scenarioTotal" type="number" min="0" step="0.01" value="0"></div>
+          <div class="field"><label for="scenarioRecoveryIncluded">Le spese di recupero sono già incluse nell'importo richiesto?</label><select id="scenarioRecoveryIncluded"><option value="unknown">Non so / non è chiaro</option><option value="yes">Sì</option><option value="no">No</option></select></div>
+          <div class="field"><label for="scenarioRecoveryAmount">Importo spese di recupero, se distinto (€)</label><input id="scenarioRecoveryAmount" type="number" min="0" step="0.01" value="0"></div>
+          <div class="field"><label for="scenarioLegalRequested">Sono richieste spese legali?</label><select id="scenarioLegalRequested"><option value="unknown">Non so / non è chiaro</option><option value="yes">Sì</option><option value="no">No</option></select></div>
+          <div class="field"><label for="scenarioLegalAmount">Importo spese legali, se indicato (€)</label><input id="scenarioLegalAmount" type="number" min="0" step="0.01" value="0"></div>
+          <p class="muted" id="scenarioExtraSummary" aria-live="polite">I dati aggiuntivi sono elaborati in questa pagina e non vengono salvati.</p>
+        </div>"""
+    content = content.replace('<div id="debtRows"></div>', '<div id="debtRows"></div>\n' + scenario_fields)
+    # Add visual identity to the existing seven-page wizard; green is explicitly styled too.
+    theme_css = """
+    <style>
+      html[data-calc-scenario="rosso"] { --calc-accent:#b4232f; --calc-accent-soft:#fff0f1; --calc-accent-dark:#781923; }
+      html[data-calc-scenario="giallo"] { --calc-accent:#b77900; --calc-accent-soft:#fff8e6; --calc-accent-dark:#704700; }
+      html[data-calc-scenario="verde"] { --calc-accent:#16834a; --calc-accent-soft:#effaf3; --calc-accent-dark:#075c31; }
+      html[data-calc-scenario] .calc-progress-fill { background:var(--calc-accent)!important; }
+      html[data-calc-scenario] .calc-nav .calc-back, html[data-calc-scenario] .calc-nav .calc-next { background:var(--calc-accent)!important;border-color:var(--calc-accent)!important;box-shadow:0 3px 0 var(--calc-accent-dark)!important; }
+      html[data-calc-scenario] .calc-panel>.card { border-top:4px solid var(--calc-accent); }
+      html[data-calc-scenario] .calc-panel>.card h2 { color:var(--calc-accent-dark); }
+      .scenario-extra { margin-top:20px;padding:18px;border:1px solid var(--calc-accent);border-left:6px solid var(--calc-accent);border-radius:14px;background:var(--calc-accent-soft); }
+      .scenario-extra h3 { margin:0 0 8px;color:var(--calc-accent-dark);font-size:19px; }
+      .scenario-extra>p { line-height:1.5; }
+      .scenario-extra .field { margin-top:12px; }
+      .scenario-extra .field input,.scenario-extra .field select { width:100%;box-sizing:border-box; }
+      .scenario-extra .btn { margin-top:10px; }
+    </style>
+    <script>document.documentElement.dataset.calcScenario = """ + scenario + """;</script>
+    """
+    content = content.replace('<h1>Calcolatore di sostenibilità del debito</h1>', '<h1>Calcolatore di sostenibilità del debito</h1><p class="scenario-intro">' + scenario_intro + '</p>')
+    content = content.replace("    <script>\n    (() => {\n      // Inizializza il wizard", theme_css + "\n    <script>\n    (() => {\n      // Inizializza il wizard")
+    # Browser-only interactions for the extra fields; never post or persist entered values.
+    extra_js = """
+    <script>
+    (() => {
+      const root=document.querySelector('.scenario-extra'); if(!root)return;
+      const euro=n=>Number(n||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'});
+      const money=id=>{const e=document.getElementById(id);return e?Math.max(0,Number(e.value)||0):0;};
+      const update=()=>{
+        const out=document.getElementById('scenarioExtraSummary'); if(!out)return;
+        const total=money('scenarioTotal'),rec=money('scenarioRecoveryAmount'),leg=money('scenarioLegalAmount');
+        const lines=['Totale richiesto indicato: '+euro(total), 'Spese di recupero distinte: '+euro(rec), 'Spese legali distinte: '+euro(leg)];
+        if(document.getElementById('scenarioActRows')){
+          const acts=[...root.querySelectorAll('.scenario-act-row')].map(r=>({type:r.querySelector('select').value,amount:Math.max(0,Number(r.querySelector('input').value)||0)})).filter(a=>a.type!=='Nessun atto');
+          lines.unshift(acts.length?'Atti indicati: '+acts.map(a=>a.type+' ('+euro(a.amount)+')').join('; '):'Nessun atto selezionato.');
+        } else {
+          const names=[['Solleciti di pagamento','scenarioSolleciti','scenarioSollecitiAmount'],['Preavviso di costituzione in mora','scenarioPreavviso','scenarioPreavvisoAmount'],['Costituzione in mora','scenarioMora','scenarioMoraAmount'],['Diffida legale','scenarioDiffida','scenarioDiffidaAmount']];
+          const selected=names.filter(a=>document.getElementById(a[1])?.value==='yes').map(a=>a[0]+' ('+euro(money(a[2]))+')');
+          lines.unshift(selected.length?'Comunicazioni indicate: '+selected.join('; '):'Nessuna comunicazione selezionata.');
+          if(document.getElementById('scenarioSolleciti')?.value==='yes') lines.push('Numero di solleciti: '+Math.floor(money('scenarioSollecitiCount'))+'.');
+        }
+        lines.push('Spese di recupero: '+({'yes':'già incluse','no':'non incluse','unknown':'non chiaramente identificate'}[document.getElementById('scenarioRecoveryIncluded')?.value||'unknown'])+'.');
+        lines.push('Spese legali: '+({'yes':'indicate come richieste','no':'non indicate','unknown':'non chiaramente identificate'}[document.getElementById('scenarioLegalRequested')?.value||'unknown'])+'.');
+        out.textContent=lines.join(' ');
+      };
+      const addAct=()=>{const host=document.getElementById('scenarioActRows'),row=document.createElement('div');row.className='scenario-act-row field';const s=document.createElement('select');['Nessun atto','Atto di messa in mora / intimazione','Decreto ingiuntivo','Atto di precetto','Pignoramento presso terzi','Pignoramento mobiliare','Pignoramento immobiliare','Altro atto giudiziario'].forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;s.appendChild(o)});const i=document.createElement('input');i.type='number';i.min='0';i.step='0.01';i.value='0';i.setAttribute('aria-label','Importo richiesto per questo atto');const label=document.createElement('label');label.textContent='Tipo di atto';const amountLabel=document.createElement('label');amountLabel.textContent='Importo richiesto (€)';const remove=document.createElement('button');remove.type='button';remove.className='btn outline';remove.textContent='Rimuovi';remove.onclick=()=>{row.remove();if(!host.children.length)addAct();update()};row.append(label,s,amountLabel,i,remove);host.appendChild(row);s.addEventListener('change',update);i.addEventListener('input',update);};
+      document.getElementById('scenarioAddAct')?.addEventListener('click',addAct);
+      if(document.getElementById('scenarioActRows'))addAct();
+      root.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',update));root.querySelectorAll('select').forEach(e=>e.addEventListener('change',update));
+      document.getElementById('resetCalculator')?.addEventListener('click',()=>{setTimeout(()=>{root.querySelectorAll('input').forEach(e=>{if(e.type==='number')e.value='0'});root.querySelectorAll('select').forEach(e=>e.selectedIndex=0);if(document.getElementById('scenarioActRows')){document.getElementById('scenarioActRows').replaceChildren();addAct()}update()},0)});
+      update();
+    })();
+    </script>
+    """
+    content += extra_js
     return page("Calcolatore di sostenibilità del debito", content)
 
 
