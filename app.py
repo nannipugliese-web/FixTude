@@ -1811,9 +1811,15 @@ def misuratore():
       html[data-calc-scenario="giallo"] { --calc-accent:#b77900; --calc-accent-soft:#fff8e6; --calc-accent-dark:#704700; }
       html[data-calc-scenario="verde"] { --calc-accent:#16834a; --calc-accent-soft:#effaf3; --calc-accent-dark:#075c31; }
       html[data-calc-scenario] .calc-progress-fill { background:var(--calc-accent)!important; }
-      html[data-calc-scenario] .calc-nav .calc-back, html[data-calc-scenario] .calc-nav .calc-next { background:var(--calc-accent)!important;border-color:var(--calc-accent)!important;box-shadow:0 3px 0 var(--calc-accent-dark)!important; }
-      html[data-calc-scenario] .calc-panel>.card { border-top:4px solid var(--calc-accent); }
-      html[data-calc-scenario] .calc-panel>.card h2 { color:var(--calc-accent-dark); }
+      html[data-calc-scenario] .calc-progress-track { background:var(--calc-accent-soft)!important; }
+      html[data-calc-scenario] .calc-nav .calc-back, html[data-calc-scenario] .calc-nav .calc-next { background:var(--calc-accent)!important;border-color:var(--calc-accent)!important;box-shadow:0 3px 0 var(--calc-accent-dark)!important;color:#fff!important; }
+      html[data-calc-scenario] .calc-panel>.card { border-top:5px solid var(--calc-accent)!important; }
+      html[data-calc-scenario] .calc-panel>.card h2 { color:var(--calc-accent-dark)!important; }
+      html[data-calc-scenario] .calc-progress strong { color:var(--calc-accent-dark)!important; }
+      html[data-calc-scenario] .scenario-intro { padding:14px 16px;border-left:6px solid var(--calc-accent);border-radius:10px;background:var(--calc-accent-soft);color:var(--calc-accent-dark);font-weight:750;line-height:1.5; }
+      html[data-calc-scenario="verde"] .calc-panel>.card { background:linear-gradient(180deg,var(--calc-accent-soft) 0, #fff 90px)!important; }
+      html[data-calc-scenario="rosso"] .calc-panel>.card { background:linear-gradient(180deg,#fff5f5 0, #fff 90px)!important; }
+      html[data-calc-scenario="giallo"] .calc-panel>.card { background:linear-gradient(180deg,#fffaf0 0, #fff 90px)!important; }
       .scenario-extra { margin-top:20px;padding:18px;border:1px solid var(--calc-accent);border-left:6px solid var(--calc-accent);border-radius:14px;background:var(--calc-accent-soft); }
       .scenario-extra h3 { margin:0 0 8px;color:var(--calc-accent-dark);font-size:19px; }
       .scenario-extra>p { line-height:1.5; }
@@ -1821,9 +1827,10 @@ def misuratore():
       .scenario-extra .field input,.scenario-extra .field select { width:100%;box-sizing:border-box; }
       .scenario-extra .btn { margin-top:10px; }
     </style>
-    <script>document.documentElement.dataset.calcScenario = """ + scenario + """;</script>
+    <script>document.documentElement.dataset.calcScenario = '""" + scenario + """';</script>
     """
-    content = content.replace('<h1>Calcolatore di sostenibilità del debito</h1>', '<h1>Calcolatore di sostenibilità del debito</h1><p class="scenario-intro">' + scenario_intro + '</p>')
+    scenario_title = {"rosso": "Emergenza", "giallo": "Allerta", "verde": "Controllo"}[scenario]
+    content = content.replace('<h1>Calcolatore di sostenibilità del debito</h1>', '<h1>Calcolatore di sostenibilità del debito · ' + scenario_title + '</h1><p class="scenario-intro">' + scenario_intro + '</p>')
     content = content.replace("    <script>\n    (() => {\n      // Inizializza il wizard", theme_css + "\n    <script>\n    (() => {\n      // Inizializza il wizard")
     # Browser-only interactions for the extra fields; never post or persist entered values.
     extra_js = """
