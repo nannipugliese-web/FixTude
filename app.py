@@ -280,6 +280,10 @@ SEO_PAGES = {
         "title": "Come gestire le entrate: la regola di un terzo | FixTude",
         "description": "Scopri come organizzare le entrate con la regola di un terzo. Esempi pratici per lavoratori dipendenti, autonomi, single e famiglie.",
     },
+    "/educazione-finanziaria/guida-saldo-e-stralcio": {
+        "title": "Saldo e stralcio: cos'è, come funziona e quando conviene | FixTude",
+        "description": "Saldo e stralcio dei debiti: come funziona la trattativa, quali rischi controllare, cosa scrivere nell'accordo e come evitare errori prima di pagare.",
+    },
     "/sic": {
         "title": "Sistemi di informazione creditizia (SIC) | FixTude",
         "description": "Informazioni orientative sui sistemi di informazione creditizia e sulla consultazione dei dati relativi alla propria posizione.",
@@ -360,6 +364,20 @@ def page(title, content, include_chat=True):
             "datePublished": "2026-10-17",
             "dateModified": "2026-10-17",
             "inLanguage": "it-IT",
+            "mainEntityOfPage": {"@type": "WebPage", "@id": SEO_BASE_URL + path},
+            "author": {"@type": "Organization", "name": "FixTude", "url": SEO_BASE_URL + "/"},
+            "publisher": {"@type": "Organization", "name": "FixTude", "url": SEO_BASE_URL + "/"},
+        }
+    elif path == "/educazione-finanziaria/guida-saldo-e-stralcio":
+        structured_data = {
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            "headline": "Saldo e stralcio: cos'è, come funziona e quando conviene",
+            "description": SEO_PAGES[path]["description"],
+            "datePublished": "2026-10-20",
+            "dateModified": "2026-10-20",
+            "inLanguage": "it-IT",
+            "image": SEO_BASE_URL + "/static/articolo-saldo-stralcio.png",
             "mainEntityOfPage": {"@type": "WebPage", "@id": SEO_BASE_URL + path},
             "author": {"@type": "Organization", "name": "FixTude", "url": SEO_BASE_URL + "/"},
             "publisher": {"@type": "Organization", "name": "FixTude", "url": SEO_BASE_URL + "/"},
@@ -2624,6 +2642,17 @@ def educazione_finanziaria():
         <a class="btn" href="/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo">Leggi la guida</a>
       </div>
     </section>
+    <section class="card education-article-card" aria-labelledby="guide-saldo-stralcio">
+      <a class="education-article-image-link" href="/educazione-finanziaria/guida-saldo-e-stralcio" aria-label="Leggi la guida sul saldo e stralcio">
+        <img class="education-article-image" src="/static/articolo-saldo-stralcio.png" alt="Saldo e stralcio: debiti, cartelle e accordo per una possibile chiusura bonaria" loading="lazy">
+      </a>
+      <div class="education-article-copy">
+        <p class="muted">GUIDA PRATICA · 8 MINUTI DI LETTURA</p>
+        <h2 id="guide-saldo-stralcio"><a href="/educazione-finanziaria/guida-saldo-e-stralcio">Saldo e stralcio: cos'è, come funziona e quando conviene</a></h2>
+        <p>Come valutare una proposta di chiusura a saldo e stralcio, quali documenti controllare, cosa pretendere nell'accordo scritto e quali errori evitare prima di effettuare il pagamento.</p>
+        <a class="btn" href="/educazione-finanziaria/guida-saldo-e-stralcio">Leggi l'articolo</a>
+      </div>
+    </section>
     <style>
       .education-article-card{display:grid;grid-template-columns:minmax(150px,230px) minmax(0,1fr);gap:20px;align-items:center}
       .education-article-image-link{display:block;max-width:230px}
@@ -2691,6 +2720,68 @@ def articolo_gestione_stipendio():
       @media(max-width:650px){.budget-grid{grid-template-columns:1fr}.article-content{padding:18px}}
     </style>'''
     return page("Come gestire le entrate", content)
+
+@app.route("/educazione-finanziaria/guida-saldo-e-stralcio")
+def articolo_saldo_e_stralcio():
+    content = '''<article class="card article-content">
+      <p class="muted">EDUCAZIONE FINANZIARIA · 8 MINUTI DI LETTURA</p>
+      <h1>Saldo e stralcio: cos'è, come funziona e quando conviene</h1>
+      <figure class="article-hero-image"><img src="/static/articolo-saldo-stralcio.png" alt="Saldo e stralcio: debiti, cartelle e accordo per una possibile chiusura bonaria" loading="eager" fetchpriority="high"><figcaption>Il saldo e stralcio può consentire una chiusura concordata, ma ogni proposta va verificata con attenzione.</figcaption></figure>
+      <p class="article-subtitle">Ridurre un debito attraverso un accordo è possibile in alcuni casi, ma non esistono sconti automatici né percentuali garantite. La differenza la fanno la situazione concreta, il soggetto che vanta il credito e le condizioni scritte dell'intesa.</p>
+      <p class="muted">Pubblicato il 20 ottobre 2026 · Aggiornato il 20 ottobre 2026</p>
+      <p>Quando arrivano solleciti, telefonate o comunicazioni di recupero, l'idea di chiudere una posizione pagando una somma inferiore al debito richiesto può sembrare una via d'uscita. È questo, in sintesi, il principio del <strong>saldo e stralcio</strong>: il creditore accetta una somma concordata a definizione della posizione, secondo condizioni esplicite e verificabili. Ma attenzione: non basta proporre uno sconto e non è sufficiente ricevere un messaggio informale. Occorre capire chi può accettare la proposta, quale debito si sta definendo e quali effetti avrà il pagamento.</p>
+      <h2>Che cos'è il saldo e stralcio</h2>
+      <p>Con l'espressione saldo e stralcio si indica comunemente un accordo con cui creditore e debitore concordano il pagamento di una somma inferiore a quella complessivamente richiesta, in cambio della definizione del debito alle condizioni stabilite. Può riguardare, a seconda del caso e della disponibilità del creditore, debiti verso banche, finanziarie, fornitori o altri soggetti privati. La valutazione è individuale: il creditore può rifiutare la proposta, formulare una controproposta oppure accettarla con scadenze e modalità specifiche.</p>
+      <p>Non è una procedura che il debitore possa imporre unilateralmente. Non esiste una regola generale per cui basti offrire il 30%, il 50% o un'altra percentuale perché la posizione venga chiusa. La somma eventualmente accettata dipende, tra l'altro, dalla documentazione, dalla fase di recupero, dalle risorse disponibili e dalle politiche del creditore.</p>
+      <h2>Quando può essere utile valutare una trattativa</h2>
+      <p>Una proposta può avere senso quando il debitore dispone di una somma realmente accessibile, magari dopo aver ricostruito il bilancio familiare o aver ricevuto un aiuto documentabile, e quando il creditore è disposto a valutare una definizione concordata. È fondamentale non promettere denaro che non si possiede e non utilizzare nuovo credito costoso senza averne valutato conseguenze e sostenibilità.</p>
+      <p>Prima di avviare una trattativa, ricostruisci la situazione: importo richiesto, eventuali pagamenti già effettuati, interessi e spese indicati, riferimenti contrattuali, comunicazioni ricevute e stato della pratica. Se sono presenti atti giudiziari, termini perentori, pignoramenti o altre iniziative legali, non aspettare che una trattativa informale risolva automaticamente la questione: chiedi una valutazione qualificata in tempi utili.</p>
+      <h2>Il primo controllo: chi sta chiedendo il pagamento?</h2>
+      <p>La società che telefona o invia una lettera potrebbe essere il creditore originario, un incaricato del recupero oppure un soggetto che dichiara di aver acquistato il credito. Queste situazioni non sono necessariamente equivalenti. Prima di pagare, verifica l'identità del soggetto, il riferimento della posizione e il titolo in base al quale interviene. Se la proposta proviene da un incaricato, accertati che abbia i poteri necessari per formulare e confermare l'accordo.</p>
+      <p>Non condividere dati bancari o documenti personali con interlocutori non verificati. Se hai dubbi, utilizza canali ufficiali e recapiti reperiti autonomamente, non soltanto quelli contenuti in un messaggio inatteso. Conserva lettere, email, PEC, ricevute e ogni documento relativo alla trattativa.</p>
+      <h2>Come preparare una proposta sostenibile</h2>
+      <p>La proposta deve partire dalle possibilità economiche effettive. Calcola le entrate nette, sottrai le spese necessarie, le rate già in corso e le uscite irregolari prevedibili. Mantieni un margine per gli imprevisti: impegnare tutto il denaro disponibile può creare un nuovo problema appena arriva una bolletta o una spesa sanitaria.</p>
+      <p>Una proposta credibile è chiara e concreta. Può indicare la somma che si è in grado di pagare, la disponibilità entro una certa data e l'eventuale esigenza di una breve rateizzazione. Evita dichiarazioni non vere o promesse che non potrai mantenere. Se il denaro è disponibile soltanto a una certa condizione, non presentarlo come già garantito.</p>
+      <h2>L'accordo scritto: cosa deve chiarire</h2>
+      <p>Il punto decisivo non è soltanto l'importo scontato, ma il significato giuridico del pagamento. Prima di versare la somma, leggi l'accordo e verifica che identifichi chiaramente:</p>
+      <ul>
+        <li>il creditore o il soggetto legittimato ad accettare e il riferimento della posizione;</li>
+        <li>l'importo complessivo oggetto dell'accordo e la somma concordata;</li>
+        <li>la scadenza, il metodo di pagamento e l'eventuale calendario delle rate;</li>
+        <li>le condizioni in cui il pagamento determina la definizione della posizione;</li>
+        <li>il trattamento dell'eventuale residuo e gli impegni assunti dal creditore;</li>
+        <li>la gestione di eventuali coobbligati o garanti, se coinvolti, e gli effetti previsti nei loro confronti.</li>
+      </ul>
+      <p>Le formule generiche come “pratica in lavorazione” o “importo accettato” non sostituiscono una conferma completa degli effetti dell'accordo. La quietanza del pagamento dimostra che una somma è stata versata, ma non sempre chiarisce da sola che ogni residuo sia estinto. Per questo è importante leggere l'intero documento e, quando la situazione è complessa, sottoporlo a un professionista prima di firmare o pagare.</p>
+      <h2>Un esempio numerico, senza promesse di sconto</h2>
+      <p>Immaginiamo che la posizione riporti un importo di 5.000 euro e che il debitore possa mettere a disposizione 2.000 euro senza compromettere le spese essenziali. Potrebbe proporre quella cifra come definizione a saldo e stralcio, ma il creditore non è obbligato ad accettarla. Potrebbe rifiutare, chiedere una cifra diversa oppure proporre un piano di rientro. Solo se viene raggiunto un accordo valido e sufficientemente preciso si potrà procedere secondo le condizioni concordate.</p>
+      <p>L'esempio serve a illustrare il meccanismo, non a suggerire che una proposta del 40% sia normalmente accettata. Ogni situazione è diversa e l'esito non può essere garantito in anticipo.</p>
+      <h2>Saldo e stralcio o piano di rientro?</h2>
+      <p>Un saldo e stralcio richiede in genere una disponibilità iniziale, mentre un piano di rientro distribuisce il pagamento nel tempo e può comportare il pagamento di una quota più ampia del debito. La scelta dipende dalla liquidità reale, dalla stabilità delle entrate, dalle condizioni offerte e dalle conseguenze del mancato rispetto degli impegni. Una rata apparentemente contenuta può diventare insostenibile se il bilancio è già in deficit.</p>
+      <p>Non confrontare le alternative soltanto in base alla cifra mensile. Valuta il totale da pagare, le scadenze, gli eventuali costi, cosa accade se salti una rata e quali obblighi restano in capo alle parti. Non esiste una soluzione migliore per tutti.</p>
+      <h2>Gli errori da evitare prima di pagare</h2>
+      <ul>
+        <li><strong>Pagare sulla base di un accordo solo telefonico:</strong> chiedi una conferma scritta, completa e verificabile.</li>
+        <li><strong>Non controllare l'interlocutore:</strong> verifica chi è il creditore e chi può impegnarlo.</li>
+        <li><strong>Confondere ricevuta e liberatoria:</strong> conserva entrambe e controlla cosa attestano.</li>
+        <li><strong>Impegnare tutto il risparmio:</strong> proteggi le spese essenziali e un margine per gli imprevisti.</li>
+        <li><strong>Ignorare atti e scadenze:</strong> una trattativa non sospende automaticamente termini o procedure.</li>
+        <li><strong>Dare per scontata la posizione di garanti e coobbligati:</strong> verifica espressamente gli effetti dell'accordo per ogni soggetto coinvolto.</li>
+      </ul>
+      <h2>Una checklist prima di accettare</h2>
+      <div class="checklist-box"><p>Prima di effettuare il pagamento, controlla di poter rispondere sì a queste domande:</p><ul><li>Ho verificato l'identità del creditore o i poteri del suo incaricato?</li><li>Il documento identifica senza ambiguità la posizione da definire?</li><li>La somma e le scadenze sono scritte in modo preciso?</li><li>È chiaro che cosa succede al residuo dopo il pagamento concordato?</li><li>Ho verificato l'eventuale posizione di garanti o coobbligati?</li><li>Posso rispettare l'accordo senza compromettere le necessità fondamentali?</li><li>Ho valutato eventuali atti legali o termini in corso?</li></ul></div>
+      <h2>In conclusione</h2>
+      <p>Il saldo e stralcio può rappresentare un'opportunità di definizione concordata, ma non è uno sconto automatico e non elimina la necessità di verificare i documenti. Prima si ricostruisce la posizione, poi si valuta una proposta sostenibile; infine si controlla l'accordo scritto prima di pagare. Se ci sono procedure giudiziarie, più debitori, garanti o dubbi sull'importo richiesto, è prudente ottenere assistenza professionale.</p>
+      <section class="notice"><strong>Nota informativa</strong><br>Questo articolo ha finalità generali di educazione finanziaria e non costituisce consulenza legale, fiscale o finanziaria personalizzata. Gli effetti di un accordo dipendono dal testo sottoscritto, dai soggetti coinvolti e dalle circostanze concrete. Non sono garantiti sconti, accettazioni o risultati.</section>
+      <div class="actions"><a class="btn" href="/shop">Scopri la guida completa FixTude</a><a class="btn outline" href="/misuratore">Calcola il tuo margine mensile</a><a class="btn outline" href="/educazione-finanziaria">Tutte le guide di educazione finanziaria</a></div>
+    </article>
+    <style>
+      .article-content h1{margin-top:0}.article-content h2{margin-top:30px}
+      .article-hero-image{margin:18px 0 20px}.article-hero-image img{display:block;width:100%;height:auto;max-height:520px;object-fit:cover;border-radius:14px}.article-hero-image figcaption{font-size:13px;color:#5b6573;margin-top:7px}.article-subtitle{font-size:1.08rem;line-height:1.65;color:#34445b;margin:0 0 18px}
+      .checklist-box{padding:16px;background:#f4f8fd;border:1px solid #dce5ef;border-radius:12px}.checklist-box li{margin:7px 0}
+    </style>'''
+    return page("Saldo e stralcio: guida pratica", content)
+
 
 @app.route("/sic")
 def sic_banche_dati():
@@ -2793,12 +2884,13 @@ def shop():
       <div class="shop-book-description"><h2>NIENTE PANICO</h2><p>Una guida pratica per mettere ordine nella situazione debitoria, leggere meglio le proprie possibilità e prepararsi ad affrontare i creditori con maggiore lucidità.</p><p><strong>Formato:</strong> libro digitale PDF.</p><p class="muted">Prima di acquistare, puoi leggere gratuitamente il primo capitolo. Il libro completo sarà disponibile dopo la conferma del pagamento.</p><p><a class="btn outline" href="/shop/anteprima" target="_blank" rel="noopener">Leggi il primo capitolo gratuitamente</a></p><p class="muted">Dopo la conferma del pagamento potrai scaricare il PDF completo dalla pagina di conferma. Non è necessaria la registrazione.</p><div class="price">€ 6,99</div><form method="post" action="/shop/acquista"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">Acquista il libro digitale</button></form></div>
     </section>
     <section class="card product-card" aria-labelledby="guida-saldo-title">
-      <div class="shop-book-cover"><img src="/static/Guida%20al%20Saldo%20e%20Stralcio%20FixTude.png" alt="Copertina della guida FixTude Saldo e stralcio"></div>
+      <div class="shop-book-cover"><img src="/static/guida_saldo_stralcio_cover.png" alt="Copertina della guida FixTude Saldo e stralcio"></div>
       <div class="shop-book-description">
         <h2 id="guida-saldo-title">GUIDA AL SALDO E STRALCIO</h2>
         <p>Tutto quello che c'è da sapere sul saldo e stralcio: come funziona, quali sono i possibili vantaggi e i limiti di una pratica utilizzata per tentare la chiusura bonaria di una posizione debitoria.</p>
         <p><strong>Formato:</strong> guida digitale PDF, edizione rivista.</p>
         <p class="muted">Un contenuto informativo per comprendere meglio la procedura e prepararsi a valutare la propria situazione. L'accettazione di una proposta dipende sempre dal creditore e dalle circostanze del caso.</p>
+        <p class="muted">Puoi leggere gratuitamente l'anteprima del primo capitolo prima di acquistare.</p><p><a class="btn outline" href="/shop/anteprima-saldo-stralcio" target="_blank" rel="noopener">Leggi il primo capitolo gratuitamente</a></p>
         <div class="price">€ 6,99</div>
         <form method="post" action="/shop/acquista-guida"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">Acquista la guida PDF</button></form>
       </div>
@@ -2813,6 +2905,10 @@ def shop():
         <div class="quantity-selector" aria-label="Selettore quantità non ancora attivo"><span>Numero di copie</span><div class="quantity-controls"><button type="button" class="btn outline" disabled aria-label="Diminuisci numero di copie">−</button><output aria-live="polite">1</output><button type="button" class="btn outline" disabled aria-label="Aumenta numero di copie">+</button></div></div>
         <button type="button" class="btn coming-soon-button" disabled aria-disabled="true">COMING SOON</button>
       </div>
+    </section>
+    <section class="card product-card print-coming-soon" aria-labelledby="print-guida-saldo-title">
+      <div class="shop-book-cover"><img src="/static/guida_saldo_stralcio_cover.png" alt="Copertina della guida Saldo e stralcio FixTude, prevista anche in edizione cartacea"></div>
+      <div class="shop-book-description"><div class="coming-soon-label">COMING SOON</div><h2 id="print-guida-saldo-title">GUIDA AL SALDO E STRALCIO — Edizione cartacea</h2><p>La guida sarà proposta prossimamente anche in formato cartaceo, con stampa su richiesta.</p><p class="muted">Prezzo, tempi e spedizione saranno comunicati prima dell'apertura degli ordini.</p><div class="quantity-selector" aria-label="Selettore quantità non ancora attivo"><span>Numero di copie</span><div class="quantity-controls"><button type="button" class="btn outline" disabled aria-label="Diminuisci numero di copie">−</button><output aria-live="polite">1</output><button type="button" class="btn outline" disabled aria-label="Aumenta numero di copie">+</button></div></div><button type="button" class="btn coming-soon-button" disabled aria-disabled="true">COMING SOON</button></div>
     </section>
     <p class="muted">I moduli di richiesta debitoria restano gratuiti e sono disponibili nella sezione <a href="/moduli">Moduli gratuiti</a>.</p>
     <style>
@@ -2834,6 +2930,18 @@ def shop_anteprima():
     response = send_file(PREVIEW_FILE, mimetype="application/pdf", as_attachment=False, download_name="FixTude_NIENTE_PANICO_Anteprima.pdf", conditional=True)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Content-Disposition"] = 'inline; filename="FixTude_NIENTE_PANICO_Anteprima.pdf"'
+    return response
+
+
+@app.route("/shop/anteprima-saldo-stralcio")
+def shop_anteprima_saldo_stralcio():
+    # Anteprima PDF gratuita della guida al saldo e stralcio.
+    preview_file = PDF_DIR / "FixTude_Guida_Saldo_e_Stralcio_ANTEPRIMA.pdf"
+    if not preview_file.is_file():
+        return page("Anteprima non disponibile", '<h1>Anteprima temporaneamente non disponibile</h1><p>Il primo capitolo gratuito non è al momento disponibile. Riprova più tardi.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 404
+    response = send_file(preview_file, mimetype="application/pdf", as_attachment=False, download_name="FixTude_Guida_Saldo_e_Stralcio_Anteprima.pdf", conditional=True)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Content-Disposition"] = 'inline; filename="FixTude_Guida_Saldo_e_Stralcio_Anteprima.pdf"'
     return response
 
 
@@ -3146,7 +3254,7 @@ def sitemap_xml():
     """Sitemap XML delle pagine pubbliche principali di FixTude."""
     paths = [
         "/", "/misuratore", "/consulenza", "/moduli",
-        "/educazione-finanziaria", "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo", "/sic", "/assistenza-legale", "/professionisti", "/shop",
+        "/educazione-finanziaria", "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo", "/educazione-finanziaria/guida-saldo-e-stralcio", "/sic", "/assistenza-legale", "/professionisti", "/shop",
         "/disclaimer", "/termini", "/privacy", "/cookie",
     ]
     urls = "".join(
