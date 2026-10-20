@@ -2497,15 +2497,16 @@ BASE_DIR = Path(__file__).resolve().parent
 # I quattro moduli gratuiti sono direttamente nella cartella static/.
 MODULE_DIR = BASE_DIR / "static"
 
-# Il PDF completo a pagamento deve restare fuori da static/, che Flask rende pubblico.
-# Prima del deploy, collocare il file in private/NIENTE_PANICO.pdf.
-PRIVATE_DIR = BASE_DIR / "private"
-BOOK_FILE = PRIVATE_DIR / "NIENTE_PANICO.pdf"
-
-# L'anteprima gratuita del primo capitolo è separata dal libro completo.
-# Il file deve essere presente in static/pdf/NIENTE_PANICO_ANTEPRIMA.pdf.
+# I PDF sono attualmente organizzati nella cartella static/pdf del progetto.
+# ATTENZIONE: i file in static/ sono raggiungibili anche tramite URL diretto.
+# Questa configurazione mantiene la struttura attuale; per proteggere i prodotti
+# a pagamento dovremo poi spostare i PDF completi fuori da static/.
 PDF_DIR = BASE_DIR / "static" / "pdf"
+BOOK_FILE = PDF_DIR / "NIENTE_PANICO.pdf"
 PREVIEW_FILE = PDF_DIR / "NIENTE_PANICO_ANTEPRIMA.pdf"
+GUIDE_FILE = PDF_DIR / "FixTude_Guida_Saldo_e_Stralcio_EDIZIONE_RIVISTA_SEO.pdf"
+GUIDE_PRODUCT_ID = "guida_saldo_stralcio_pdf"
+GUIDE_PRICE_CENTS = 699
 
 MODULE_FILES = {
     "saldo-stralcio": (
@@ -2791,6 +2792,16 @@ def shop():
       <div class="shop-book-cover"><img src="/static/niente_panico_cover.png" alt="Copertina del libro Niente Panico di FixTude"></div>
       <div class="shop-book-description"><h2>NIENTE PANICO</h2><p>Una guida pratica per mettere ordine nella situazione debitoria, leggere meglio le proprie possibilità e prepararsi ad affrontare i creditori con maggiore lucidità.</p><p><strong>Formato:</strong> libro digitale PDF.</p><p class="muted">Prima di acquistare, puoi leggere gratuitamente il primo capitolo. Il libro completo sarà disponibile dopo la conferma del pagamento.</p><p><a class="btn outline" href="/shop/anteprima" target="_blank" rel="noopener">Leggi il primo capitolo gratuitamente</a></p><p class="muted">Dopo la conferma del pagamento potrai scaricare il PDF completo dalla pagina di conferma. Non è necessaria la registrazione.</p><div class="price">€ 6,99</div><form method="post" action="/shop/acquista"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">Acquista il libro digitale</button></form></div>
     </section>
+    <section class="card product-card" aria-labelledby="guida-saldo-title">
+      <div class="shop-book-description">
+        <h2 id="guida-saldo-title">GUIDA AL SALDO E STRALCIO</h2>
+        <p>Tutto quello che c'è da sapere sul saldo e stralcio: come funziona, quali sono i possibili vantaggi e i limiti di una pratica utilizzata per tentare la chiusura bonaria di una posizione debitoria.</p>
+        <p><strong>Formato:</strong> guida digitale PDF, edizione rivista.</p>
+        <p class="muted">Un contenuto informativo per comprendere meglio la procedura e prepararsi a valutare la propria situazione. L'accettazione di una proposta dipende sempre dal creditore e dalle circostanze del caso.</p>
+        <div class="price">€ 6,99</div>
+        <form method="post" action="/shop/acquista-guida"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">Acquista la guida PDF</button></form>
+      </div>
+    </section>
     <section class="card product-card print-coming-soon" aria-labelledby="print-book-title">
       <div class="shop-book-cover"><img src="/static/niente_panico_cover.png" alt="Copertina prevista per l'edizione cartacea di Niente Panico"></div>
       <div class="shop-book-description">
@@ -2798,14 +2809,7 @@ def shop():
         <h2 id="print-book-title">NIENTE PANICO — Edizione cartacea</h2>
         <p>Il libro in formato cartaceo sarà disponibile prossimamente, con stampa su richiesta.</p>
         <p class="muted">Prezzo e spedizione saranno comunicati prima dell'apertura degli ordini.</p>
-        <div class="quantity-selector" aria-label="Selettore quantità non ancora attivo">
-          <span>Numero di copie</span>
-          <div class="quantity-controls">
-            <button type="button" class="btn outline" disabled aria-label="Diminuisci numero di copie">−</button>
-            <output aria-live="polite">1</output>
-            <button type="button" class="btn outline" disabled aria-label="Aumenta numero di copie">+</button>
-          </div>
-        </div>
+        <div class="quantity-selector" aria-label="Selettore quantità non ancora attivo"><span>Numero di copie</span><div class="quantity-controls"><button type="button" class="btn outline" disabled aria-label="Diminuisci numero di copie">−</button><output aria-live="polite">1</output><button type="button" class="btn outline" disabled aria-label="Aumenta numero di copie">+</button></div></div>
         <button type="button" class="btn coming-soon-button" disabled aria-disabled="true">COMING SOON</button>
       </div>
     </section>
@@ -2823,25 +2827,17 @@ def shop():
 
 @app.route("/shop/anteprima")
 def shop_anteprima():
-    """Mostra solo il primo capitolo gratuito, senza esporre il PDF completo."""
+    # Mostra solo il primo capitolo gratuito, senza esporre il PDF completo.
     if not PREVIEW_FILE.is_file():
         return page("Anteprima non disponibile", '<h1>Anteprima temporaneamente non disponibile</h1><p>Il primo capitolo gratuito non è al momento disponibile. Riprova più tardi.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 404
-    response = send_file(
-        PREVIEW_FILE,
-        mimetype="application/pdf",
-        as_attachment=False,
-        download_name="FixTude_NIENTE_PANICO_Anteprima.pdf",
-        conditional=True,
-    )
+    response = send_file(PREVIEW_FILE, mimetype="application/pdf", as_attachment=False, download_name="FixTude_NIENTE_PANICO_Anteprima.pdf", conditional=True)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Content-Disposition"] = 'inline; filename="FixTude_NIENTE_PANICO_Anteprima.pdf"'
     return response
 
 
-@app.route("/shop/acquista", methods=["POST"])
-def shop_acquista():
-    if request.form.get("accept_terms") != "yes":
-        return page("Conferma necessaria", '<h1>Prima di proseguire</h1><p>Devi accettare i Termini e Condizioni per continuare con l’acquisto.</p><a class="btn" href="/shop">Torna allo shop</a>'), 400
+def _crea_checkout_pdf(product_id, product_name, description, cancel_url):
+    # Crea un checkout separato per ciascun PDF digitale.
     secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
     if stripe is None or not secret_key:
         return page("Acquisto temporaneamente non disponibile", '<h1>Acquisto non ancora attivo</h1><p>Il pagamento online non è configurato al momento. Non è stato effettuato alcun addebito.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 503
@@ -2849,15 +2845,30 @@ def shop_acquista():
     try:
         checkout = stripe.checkout.Session.create(
             mode="payment",
-            line_items=[{"price_data": {"currency": "eur", "unit_amount": 699, "product_data": {"name": "NIENTE PANICO - libro digitale FixTude", "description": "Libro digitale in formato PDF"}}, "quantity": 1}],
+            line_items=[{"price_data": {"currency": "eur", "unit_amount": 699, "product_data": {"name": product_name, "description": description}}, "quantity": 1}],
             success_url=request.host_url.rstrip("/") + "/shop/conferma?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url=request.host_url.rstrip("/") + "/shop?annullato=1",
-            metadata={"fixtude_product": "niente_panico_pdf", "terms_accepted": "yes", "terms_version": "2026-10-12"},
+            cancel_url=request.host_url.rstrip("/") + cancel_url,
+            metadata={"fixtude_product": product_id, "terms_accepted": "yes", "terms_version": "2026-10-19"},
         )
         return redirect(checkout.url, code=303)
     except Exception:
-        app.logger.exception("Creazione sessione Stripe non riuscita")
+        app.logger.exception("Creazione sessione Stripe non riuscita per %s", product_id)
         return page("Acquisto non disponibile", '<h1>Non è stato possibile avviare il pagamento</h1><p>Nessun pagamento è stato confermato. Riprova più tardi.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 502
+
+
+@app.route("/shop/acquista", methods=["POST"])
+def shop_acquista():
+    if request.form.get("accept_terms") != "yes":
+        return page("Conferma necessaria", '<h1>Prima di proseguire</h1><p>Devi accettare i Termini e Condizioni per continuare con l’acquisto.</p><a class="btn" href="/shop">Torna allo shop</a>'), 400
+    return _crea_checkout_pdf("niente_panico_pdf", "NIENTE PANICO - libro digitale FixTude", "Libro digitale in formato PDF", "/shop?annullato=1")
+
+
+@app.route("/shop/acquista-guida", methods=["POST"])
+def shop_acquista_guida():
+    if request.form.get("accept_terms") != "yes":
+        return page("Conferma necessaria", '<h1>Prima di proseguire</h1><p>Devi accettare i Termini e Condizioni per continuare con l’acquisto.</p><a class="btn" href="/shop">Torna allo shop</a>'), 400
+    return _crea_checkout_pdf(GUIDE_PRODUCT_ID, "Guida FixTude - Saldo e stralcio", "Guida digitale PDF, edizione rivista", "/shop?annullato=1")
+
 
 @app.route("/shop/conferma")
 def shop_conferma():
@@ -2867,20 +2878,24 @@ def shop_conferma():
         return page("Verifica acquisto", '<h1>Non possiamo verificare il pagamento</h1><p>Contatta info@fixtude.it per assistenza.</p>'), 400
     try:
         stripe.api_key = secret_key
-        checkout = stripe.checkout.Session.retrieve(session_id)
-        # Converti l'oggetto Stripe in un dizionario Python prima di usare .get().
-        checkout_data = checkout.to_dict()
+        checkout_data = stripe.checkout.Session.retrieve(session_id).to_dict()
         paid = checkout_data.get("payment_status") == "paid"
-        product = (checkout_data.get("metadata") or {}).get("fixtude_product") == "niente_panico_pdf"
+        product_id = (checkout_data.get("metadata") or {}).get("fixtude_product")
+        products = {
+            "niente_panico_pdf": {"file": BOOK_FILE, "title": "NIENTE PANICO", "filename": "FixTude_NIENTE_PANICO.pdf"},
+            GUIDE_PRODUCT_ID: {"file": GUIDE_FILE, "title": "Guida FixTude — Saldo e stralcio", "filename": "FixTude_Guida_Saldo_e_Stralcio.pdf"},
+        }
+        product = products.get(product_id)
         if not paid or not product:
-            return page("Pagamento da verificare", '<h1>Pagamento non ancora confermato</h1><p>Il libro sarà disponibile dopo la conferma del pagamento.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 402
-        if not BOOK_FILE.is_file():
-            return page("PDF in preparazione", '<h1>Pagamento confermato</h1><p>Il pagamento risulta confermato, ma il file del libro non è presente sul server. Contatta info@fixtude.it per ricevere assistenza.</p>'), 500
-        content = '''<h1>Grazie per il tuo acquisto!</h1><section class="card"><p>Il pagamento è stato confermato.</p><p><strong>NIENTE PANICO</strong> è pronto per il download.</p><a class="btn" href="/shop/scarica?session_id=''' + escape(session_id) + '''">Scarica il libro PDF</a></section><p class="muted">Conserva questa pagina finché non hai scaricato il file.</p>'''
+            return page("Pagamento da verificare", '<h1>Pagamento non ancora confermato</h1><p>Il PDF sarà disponibile dopo la conferma del pagamento.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 402
+        if not product["file"].is_file():
+            return page("PDF in preparazione", f'<h1>Pagamento confermato</h1><p>Il pagamento risulta confermato, ma il file di {escape(product["title"])} non è presente nell’area privata del server. Contatta info@fixtude.it per ricevere assistenza.</p>'), 500
+        content = f'<h1>Grazie per il tuo acquisto!</h1><section class="card"><p>Il pagamento è stato confermato.</p><p><strong>{escape(product["title"])}</strong> è pronto per il download.</p><a class="btn" href="/shop/scarica?session_id={escape(session_id, quote=True)}">Scarica il PDF</a></section><p class="muted">Conserva questa pagina finché non hai scaricato il file.</p>'
         return page("Acquisto confermato", content)
     except Exception:
         app.logger.exception("Verifica sessione Stripe non riuscita")
         return page("Verifica non riuscita", '<h1>Non è stato possibile verificare il pagamento</h1><p>Riprova più tardi o scrivi a info@fixtude.it.</p>'), 502
+
 
 @app.route("/shop/scarica")
 def shop_scarica():
@@ -2890,16 +2905,22 @@ def shop_scarica():
         return "Accesso non autorizzato", 403
     try:
         stripe.api_key = secret_key
-        checkout = stripe.checkout.Session.retrieve(session_id)
-        # Converti l'oggetto Stripe in un dizionario Python prima di usare .get().
-        checkout_data = checkout.to_dict()
+        checkout_data = stripe.checkout.Session.retrieve(session_id).to_dict()
         paid = checkout_data.get("payment_status") == "paid"
-        product = (checkout_data.get("metadata") or {}).get("fixtude_product") == "niente_panico_pdf"
-        if not paid or not product or not BOOK_FILE.is_file():
+        product_id = (checkout_data.get("metadata") or {}).get("fixtude_product")
+        products = {
+            "niente_panico_pdf": {"file": BOOK_FILE, "filename": "FixTude_NIENTE_PANICO.pdf"},
+            GUIDE_PRODUCT_ID: {"file": GUIDE_FILE, "filename": "FixTude_Guida_Saldo_e_Stralcio.pdf"},
+        }
+        product = products.get(product_id)
+        if not paid or not product or not product["file"].is_file():
             return "Accesso non autorizzato o file non disponibile", 403
-        return send_file(BOOK_FILE, as_attachment=True, download_name="FixTude_NIENTE_PANICO.pdf", mimetype="application/pdf")
+        response = send_file(product["file"], as_attachment=True, download_name=product["filename"], mimetype="application/pdf")
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
     except Exception:
-        app.logger.exception("Download libro non riuscito")
+        app.logger.exception("Download PDF non riuscito")
         return "Non è stato possibile verificare l'acquisto", 502
 
 
