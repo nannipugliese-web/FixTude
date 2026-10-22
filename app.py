@@ -1527,9 +1527,9 @@ def misuratore():
     </section>
 
     <style>
-      .situation-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin:24px auto 8px;max-width:900px}
+      .situation-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:18px auto 8px;max-width:820px}
       .situation-option{display:flex;flex-direction:column;align-items:center;gap:18px;min-width:0}
-      .situation-choice{position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:clamp(98px,11.7vw,133px);height:clamp(98px,11.7vw,133px);padding:10px;border:3px solid rgba(255,255,255,.72);border-radius:50%;cursor:pointer;font:inherit;text-align:center;color:#fff;overflow:hidden;transform:translateY(-7px);box-shadow:0 7px 0 var(--button-depth),0 15px 22px rgba(16,24,40,.25),inset 0 3px 5px rgba(255,255,255,.75),inset 0 -7px 12px rgba(0,0,0,.2);transition:transform .13s ease,box-shadow .13s ease,filter .13s ease;touch-action:manipulation}
+      .situation-choice{position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:clamp(90px,10vw,118px);height:clamp(90px,10vw,118px);padding:8px;border:2px solid rgba(255,255,255,.72);border-radius:50%;cursor:pointer;font:inherit;text-align:center;color:#fff;overflow:hidden;transform:translateY(-2px);box-shadow:0 7px 0 var(--button-depth),0 15px 22px rgba(16,24,40,.25),inset 0 3px 5px rgba(255,255,255,.75),inset 0 -7px 12px rgba(0,0,0,.2);transition:transform .13s ease,box-shadow .13s ease,filter .13s ease;touch-action:manipulation}
       .situation-choice::before{content:"";position:absolute;z-index:-1;left:9%;top:5%;width:82%;height:43%;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,.06));filter:blur(1px);pointer-events:none}
       .situation-choice::after{content:"";position:absolute;z-index:-1;inset:5px;border:2px solid rgba(255,255,255,.27);border-radius:50%;box-shadow:inset 0 2px 4px rgba(255,255,255,.25);pointer-events:none}
       .situation-choice:hover{filter:brightness(1.07);transform:translateY(-10px);box-shadow:0 10px 0 var(--button-depth),0 20px 26px rgba(16,24,40,.28),inset 0 3px 5px rgba(255,255,255,.75),inset 0 -7px 12px rgba(0,0,0,.2)}
@@ -1584,7 +1584,10 @@ def misuratore():
       // Inizializza il wizard solo dopo che tutto il modulo è presente nel DOM.
       function initCalculatorWizard() {
         const calculatorStart = document.getElementById("calculatorStart");
-        if (!calculatorStart || document.querySelector(".calc-wizard")) return;
+        if (!calculatorStart) return;
+        // Layout semplificato: tutte le sezioni restano visibili in ordine verticale.
+        // Evita il wizard a sette schermate, che rendeva i contenuti difficili da seguire.
+        return;
         const host = calculatorStart.parentElement;
         if (!host) return;
         const cards = Array.from(host.querySelectorAll(":scope > section.card"));
@@ -1749,7 +1752,7 @@ def misuratore():
           typeField.appendChild(typeLabel);
           const typeSelect = document.createElement("select");
           typeSelect.setAttribute("aria-label", "Tipo di debito");
-          typeSelect.innerHTML = '<option value="Utenze e servizi">Utenze e servizi</option><option value="Prestiti e finanziamenti">Prestiti e finanziamenti</option><option value="Carte e conto corrente">Carte e conto corrente</option><option value="Mutuo">Mutuo</option><option value="Affitto e condominio">Affitto e condominio</option><option value="Debiti fiscali e tributi">Debiti fiscali e tributi</option><option value="Debiti verso privati">Debiti verso privati</option><option value="Altro">Altro</option>';
+          typeSelect.innerHTML = '<option value="" selected>Seleziona il tipo di debito</option><option value="Utenze e servizi">Utenze e servizi</option><option value="Prestiti e finanziamenti">Prestiti e finanziamenti</option><option value="Carte e conto corrente">Carte e conto corrente</option><option value="Mutuo">Mutuo</option><option value="Affitto e condominio">Affitto e condominio</option><option value="Debiti fiscali e tributi">Debiti fiscali e tributi</option><option value="Debiti verso privati">Debiti verso privati</option><option value="Altro">Altro</option>';
           typeField.appendChild(typeSelect);
           row.appendChild(typeField);
         }
@@ -1945,105 +1948,57 @@ def misuratore():
         "giallo": "ALLERTA · Analisi guidata in 7 passaggi. Oltre al bilancio, puoi indicare le comunicazioni ricevute e le spese richieste.",
         "verde": "CONTROLLO · Analisi guidata in 7 passaggi per verificare il margine mensile e la sostenibilità dei debiti."
     }[scenario]
+    # I tre percorsi condividono lo stesso calcolatore: niente moduli aggiuntivi diversi
+    # per scenario, così l'interfaccia rimane semplice e coerente.
     scenario_fields = ""
-    if scenario == "rosso":
-        scenario_fields = """
-        <div class="scenario-extra scenario-red" aria-label="Atti e procedure">
-          <h3>Atti e procedure ricevuti</h3>
-          <p>Seleziona gli atti presenti e inserisci l'importo richiesto, se disponibile. Puoi aggiungere più voci. Non caricare documenti.</p>
-          <div id="scenarioActRows"></div>
-          <button class="btn outline" type="button" id="scenarioAddAct">+ Aggiungi un altro atto</button>
-          <div class="field"><label for="scenarioTotal">Importo totale attualmente richiesto (€)</label><input id="scenarioTotal" type="number" min="0" step="0.01" value="0"></div>
-          <div class="field"><label for="scenarioRecoveryIncluded">Le spese di recupero sono già incluse nell'importo richiesto?</label><select id="scenarioRecoveryIncluded"><option value="unknown">Non so / non è chiaro</option><option value="yes">Sì</option><option value="no">No</option></select></div>
-          <div class="field"><label for="scenarioRecoveryAmount">Importo spese di recupero, se distinto (€)</label><input id="scenarioRecoveryAmount" type="number" min="0" step="0.01" value="0"></div>
-          <div class="field"><label for="scenarioLegalRequested">Sono richieste spese legali?</label><select id="scenarioLegalRequested"><option value="unknown">Non so / non è chiaro</option><option value="yes">Sì</option><option value="no">No</option></select></div>
-          <div class="field"><label for="scenarioLegalAmount">Importo spese legali, se indicato (€)</label><input id="scenarioLegalAmount" type="number" min="0" step="0.01" value="0"></div>
-          <p class="muted" id="scenarioExtraSummary" aria-live="polite">I dati aggiuntivi sono elaborati in questa pagina e non vengono salvati.</p>
-        </div>"""
-    elif scenario == "giallo":
-        scenario_fields = """
-        <div class="scenario-extra scenario-yellow" aria-label="Comunicazioni ricevute">
-          <h3>Comunicazioni ricevute</h3>
-          <p>Indica ciò che hai ricevuto, anche più di una comunicazione. Non caricare documenti.</p>
-          <div class="field"><label for="scenarioSolleciti">Solleciti di pagamento</label><select id="scenarioSolleciti"><option value="no">Non ricevuti</option><option value="yes">Ricevuti</option></select></div>
-          <div class="field"><label for="scenarioSollecitiCount">Numero di solleciti</label><input id="scenarioSollecitiCount" type="number" min="0" step="1" value="0"></div>
-          <div class="field"><label for="scenarioSollecitiAmount">Importo richiesto nei solleciti (€)</label><input id="scenarioSollecitiAmount" type="number" min="0" step="0.01" value="0"></div>
-          <div class="field"><label for="scenarioPreavviso">Preavviso di costituzione in mora</label><select id="scenarioPreavviso"><option value="no">Non ricevuto</option><option value="yes">Ricevuto</option></select></div>
-          <div class="field"><label for="scenarioPreavvisoAmount">Importo richiesto (€)</label><input id="scenarioPreavvisoAmount" type="number" min="0" step="0.01" value="0"></div>
-          <div class="field"><label for="scenarioMora">Costituzione in mora</label><select id="scenarioMora"><option value="no">Non ricevuta</option><option value="yes">Ricevuta</option></select></div>
-          <div class="field"><label for="scenarioMoraAmount">Importo richiesto (€)</label><input id="scenarioMoraAmount" type="number" min="0" step="0.01" value="0"></div>
-          <div class="field"><label for="scenarioDiffida">Diffida legale</label><select id="scenarioDiffida"><option value="no">Non ricevuta</option><option value="yes">Ricevuta</option></select></div>
-          <div class="field"><label for="scenarioDiffidaAmount">Importo richiesto nella diffida (€)</label><input id="scenarioDiffidaAmount" type="number" min="0" step="0.01" value="0"></div>
-          <div class="field"><label for="scenarioTotal">Importo totale attualmente richiesto (€)</label><input id="scenarioTotal" type="number" min="0" step="0.01" value="0"></div>
-          <div class="field"><label for="scenarioRecoveryIncluded">Le spese di recupero sono già incluse nell'importo richiesto?</label><select id="scenarioRecoveryIncluded"><option value="unknown">Non so / non è chiaro</option><option value="yes">Sì</option><option value="no">No</option></select></div>
-          <div class="field"><label for="scenarioRecoveryAmount">Importo spese di recupero, se distinto (€)</label><input id="scenarioRecoveryAmount" type="number" min="0" step="0.01" value="0"></div>
-          <div class="field"><label for="scenarioLegalRequested">Sono richieste spese legali?</label><select id="scenarioLegalRequested"><option value="unknown">Non so / non è chiaro</option><option value="yes">Sì</option><option value="no">No</option></select></div>
-          <div class="field"><label for="scenarioLegalAmount">Importo spese legali, se indicato (€)</label><input id="scenarioLegalAmount" type="number" min="0" step="0.01" value="0"></div>
-          <p class="muted" id="scenarioExtraSummary" aria-live="polite">I dati aggiuntivi sono elaborati in questa pagina e non vengono salvati.</p>
-        </div>"""
-    content = content.replace('<div id="debtRows"></div>', '<div id="debtRows"></div>\n' + scenario_fields)
-    # Add visual identity to the existing seven-page wizard; green is explicitly styled too.
-    theme_css = """
-    <style>
-      html[data-calc-scenario="rosso"] { --calc-accent:#b4232f; --calc-accent-soft:#fff0f1; --calc-accent-dark:#781923; }
-      html[data-calc-scenario="giallo"] { --calc-accent:#b77900; --calc-accent-soft:#fff8e6; --calc-accent-dark:#704700; }
-      html[data-calc-scenario="verde"] { --calc-accent:#16834a; --calc-accent-soft:#effaf3; --calc-accent-dark:#075c31; }
-      html[data-calc-scenario] .calc-progress-fill { background:var(--calc-accent)!important; }
-      html[data-calc-scenario] .calc-progress-track { background:var(--calc-accent-soft)!important; }
-      html[data-calc-scenario] .calc-nav .calc-back, html[data-calc-scenario] .calc-nav .calc-next { background:var(--calc-accent)!important;border-color:var(--calc-accent)!important;box-shadow:0 3px 0 var(--calc-accent-dark)!important;color:#fff!important; }
-      html[data-calc-scenario] .calc-panel>.card { border-top:5px solid var(--calc-accent)!important; }
-      html[data-calc-scenario] .calc-panel>.card h2 { color:var(--calc-accent-dark)!important; }
-      html[data-calc-scenario] .calc-progress strong { color:var(--calc-accent-dark)!important; }
-      html[data-calc-scenario] .scenario-intro { padding:14px 16px;border-left:6px solid var(--calc-accent);border-radius:10px;background:var(--calc-accent-soft);color:var(--calc-accent-dark);font-weight:750;line-height:1.5; }
-      html[data-calc-scenario="verde"] .calc-panel>.card { background:linear-gradient(180deg,var(--calc-accent-soft) 0, #fff 90px)!important; }
-      html[data-calc-scenario="rosso"] .calc-panel>.card { background:linear-gradient(180deg,#fff5f5 0, #fff 90px)!important; }
-      html[data-calc-scenario="giallo"] .calc-panel>.card { background:linear-gradient(180deg,#fffaf0 0, #fff 90px)!important; }
-      .scenario-extra { margin-top:20px;padding:18px;border:1px solid var(--calc-accent);border-left:6px solid var(--calc-accent);border-radius:14px;background:var(--calc-accent-soft); }
-      .scenario-extra h3 { margin:0 0 8px;color:var(--calc-accent-dark);font-size:19px; }
-      .scenario-extra>p { line-height:1.5; }
-      .scenario-extra .field { margin-top:12px; }
-      .scenario-extra .field input,.scenario-extra .field select { width:100%;box-sizing:border-box; }
-      .scenario-extra .btn { margin-top:10px; }
-    </style>
-    <script>document.documentElement.dataset.calcScenario = '""" + scenario + """';</script>
-    """
+    content = content.replace('<div id="debtRows"></div>', '<div id="debtRows"></div>')
+    scenario_intro = {
+        "rosso": "EMERGENZA · Inserisci entrate, spese e debiti per ottenere una prima valutazione orientativa.",
+        "giallo": "ALLERTA · Verifica il peso delle rate sul tuo bilancio mensile.",
+        "verde": "CONTROLLO · Verifica il margine mensile e la sostenibilità dei debiti."
+    }[scenario]
     scenario_title = {"rosso": "Emergenza", "giallo": "Allerta", "verde": "Controllo"}[scenario]
     content = content.replace('<h1>Calcolatore di sostenibilità del debito</h1>', '<h1>Calcolatore di sostenibilità del debito · ' + scenario_title + '</h1><p class="scenario-intro">' + scenario_intro + '</p>')
-    content = content.replace("    <script>\n    (() => {\n      // Inizializza il wizard", theme_css + "\n    <script>\n    (() => {\n      // Inizializza il wizard")
-    # Browser-only interactions for the extra fields; never post or persist entered values.
-    extra_js = """
+    # Dropdown principale visibile subito in ognuno dei tre percorsi; le singole righe
+    # mantengono anche il proprio menu per consentire di indicare debiti di tipo diverso.
+    main_debt_type = """
+    <section class="card primary-debt-type">
+      <h2>Che tipo di debito vuoi analizzare?</h2>
+      <p class="muted">Scegli la categoria principale. Se hai più debiti, potrai indicare il tipo per ciascuna posizione nella sezione dedicata.</p>
+      <div class="field"><label for="primaryDebtType">Tipo di debito principale</label>
+        <select id="primaryDebtType" aria-label="Tipo di debito principale">
+          <option value="" selected>Seleziona una categoria</option>
+          <option>Utenze e servizi</option><option>Prestiti e finanziamenti</option>
+          <option>Carte e conto corrente</option><option>Mutuo</option>
+          <option>Affitto e condominio</option><option>Debiti fiscali e tributi</option>
+          <option>Debiti verso privati</option><option>Altro</option>
+        </select>
+      </div>
+    </section>
+    <style>
+      .scenario-intro{padding:12px 14px;border-left:4px solid #155eef;border-radius:8px;background:#f3f7ff;line-height:1.5;margin:12px 0 18px}
+      .primary-debt-type{border:1px solid #d9e2ef;background:#fbfcfe;margin:16px 0}
+      .primary-debt-type h2{margin-top:0}
+      .primary-debt-type select{width:100%;max-width:100%;box-sizing:border-box}
+      #calculatorStart{scroll-margin-top:20px}
+      #calculatorStart~section.card{margin-top:18px}
+      .entry-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;align-items:end}
+      .entry-row .field{min-width:0}
+      .entry-row input,.entry-row select{width:100%;min-width:0;box-sizing:border-box}
+      @media(max-width:760px){.entry-row{grid-template-columns:1fr;gap:10px}.entry-row .field{margin:0}.entry-row .remove-button{justify-self:start}}
+    </style>
     <script>
-    (() => {
-      const root=document.querySelector('.scenario-extra'); if(!root)return;
-      const euro=n=>Number(n||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'});
-      const money=id=>{const e=document.getElementById(id);return e?Math.max(0,Number(e.value)||0):0;};
-      const update=()=>{
-        const out=document.getElementById('scenarioExtraSummary'); if(!out)return;
-        const total=money('scenarioTotal'),rec=money('scenarioRecoveryAmount'),leg=money('scenarioLegalAmount');
-        const lines=['Totale richiesto indicato: '+euro(total), 'Spese di recupero distinte: '+euro(rec), 'Spese legali distinte: '+euro(leg)];
-        if(document.getElementById('scenarioActRows')){
-          const acts=[...root.querySelectorAll('.scenario-act-row')].map(r=>({type:r.querySelector('select').value,amount:Math.max(0,Number(r.querySelector('input').value)||0)})).filter(a=>a.type!=='Nessun atto');
-          lines.unshift(acts.length?'Atti indicati: '+acts.map(a=>a.type+' ('+euro(a.amount)+')').join('; '):'Nessun atto selezionato.');
-        } else {
-          const names=[['Solleciti di pagamento','scenarioSolleciti','scenarioSollecitiAmount'],['Preavviso di costituzione in mora','scenarioPreavviso','scenarioPreavvisoAmount'],['Costituzione in mora','scenarioMora','scenarioMoraAmount'],['Diffida legale','scenarioDiffida','scenarioDiffidaAmount']];
-          const selected=names.filter(a=>document.getElementById(a[1])?.value==='yes').map(a=>a[0]+' ('+euro(money(a[2]))+')');
-          lines.unshift(selected.length?'Comunicazioni indicate: '+selected.join('; '):'Nessuna comunicazione selezionata.');
-          if(document.getElementById('scenarioSolleciti')?.value==='yes') lines.push('Numero di solleciti: '+Math.floor(money('scenarioSollecitiCount'))+'.');
-        }
-        lines.push('Spese di recupero: '+({'yes':'già incluse','no':'non incluse','unknown':'non chiaramente identificate'}[document.getElementById('scenarioRecoveryIncluded')?.value||'unknown'])+'.');
-        lines.push('Spese legali: '+({'yes':'indicate come richieste','no':'non indicate','unknown':'non chiaramente identificate'}[document.getElementById('scenarioLegalRequested')?.value||'unknown'])+'.');
-        out.textContent=lines.join(' ');
-      };
-      const addAct=()=>{const host=document.getElementById('scenarioActRows'),row=document.createElement('div');row.className='scenario-act-row field';const s=document.createElement('select');['Nessun atto','Atto di messa in mora / intimazione','Decreto ingiuntivo','Atto di precetto','Pignoramento presso terzi','Pignoramento mobiliare','Pignoramento immobiliare','Altro atto giudiziario'].forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;s.appendChild(o)});const i=document.createElement('input');i.type='number';i.min='0';i.step='0.01';i.value='0';i.setAttribute('aria-label','Importo richiesto per questo atto');const label=document.createElement('label');label.textContent='Tipo di atto';const amountLabel=document.createElement('label');amountLabel.textContent='Importo richiesto (€)';const remove=document.createElement('button');remove.type='button';remove.className='btn outline';remove.textContent='Rimuovi';remove.onclick=()=>{row.remove();if(!host.children.length)addAct();update()};row.append(label,s,amountLabel,i,remove);host.appendChild(row);s.addEventListener('change',update);i.addEventListener('input',update);};
-      document.getElementById('scenarioAddAct')?.addEventListener('click',addAct);
-      if(document.getElementById('scenarioActRows'))addAct();
-      root.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',update));root.querySelectorAll('select').forEach(e=>e.addEventListener('change',update));
-      document.getElementById('resetCalculator')?.addEventListener('click',()=>{setTimeout(()=>{root.querySelectorAll('input').forEach(e=>{if(e.type==='number')e.value='0'});root.querySelectorAll('select').forEach(e=>e.selectedIndex=0);if(document.getElementById('scenarioActRows')){document.getElementById('scenarioActRows').replaceChildren();addAct()}update()},0)});
-      update();
+    (()=>{
+      const primary=document.getElementById('primaryDebtType');
+      if(!primary)return;
+      primary.addEventListener('change',()=>{
+        const first=document.querySelector('#debtRows .entry-row select');
+        if(first && primary.value) first.value=primary.value;
+      });
     })();
     </script>
     """
-    content += extra_js
+    content = content.replace('<section class="card" id="calculatorStart">', main_debt_type + '\n<section class="card" id="calculatorStart">', 1)
     return page("Calcolatore di sostenibilità del debito", content)
 
 
