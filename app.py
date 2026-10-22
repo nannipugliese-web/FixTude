@@ -1438,16 +1438,12 @@ def misuratore():
     if scenario not in ("rosso", "giallo", "verde"):
         scenario = "verde"
     content = """
-    <h1>Calcolatore di sostenibilità del debito</h1>
-    <p class="muted">
-      Una prima analisi orientativa del bilancio: saldo mensile, margine prudenziale,
-      quota indicativa destinabile al debito e possibili scenari di rientro.
-      Tutti i calcoli sono eseguiti nel browser: gli importi non vengono inviati al server.
-    </p>
+    <div class="calc-clean-layout">
+    <h1>Calcolatore di sostenibilità</h1>
+    <p class="calc-lead">Fai chiarezza sui tuoi debiti in pochi passaggi. Inserisci gli importi mensili: il calcolo viene eseguito nel tuo browser e i valori economici non vengono inviati al server.</p>
 
-    <section class="card" id="calculatorStart">
-      <h2>1. Entrate nette mensili</h2>
-      <p class="muted">Inserisci entrate effettivamente disponibili e ragionevolmente stabili. Evita di conteggiare somme occasionali o incerte come reddito ricorrente.</p>
+    <section class="card calc-section calc-income" id="calculatorStart">
+      <div class="calc-section-heading"><span class="calc-number">1</span><div><h2>Entrate mensili</h2><p>Quanto entra ogni mese, al netto delle imposte.</p></div></div>
       <div id="calculatorWelcome" class="calculator-welcome" role="status" aria-live="polite" hidden>
         <button type="button" class="welcome-close" id="calculatorWelcomeClose" aria-label="Chiudi messaggio">×</button>
         <strong>Usa il calcolatore e analizziamo la tua situazione.</strong>
@@ -1457,16 +1453,14 @@ def misuratore():
       <button class="btn outline" type="button" id="addIncome">+ Aggiungi entrata</button>
     </section>
 
-    <section class="card">
-      <h2>2. Spese mensili</h2>
-      <p class="muted">Inserisci le spese reali, incluse casa, utenze, alimentari, trasporti, salute e altre necessità. Non inserire qui le rate dei debiti che registrerai nella sezione successiva, per evitare un doppio conteggio.</p>
+    <section class="card calc-section calc-expenses">
+      <div class="calc-section-heading"><span class="calc-number">2</span><div><h2>Spese mensili</h2><p>Casa, bollette, alimentari, trasporti, salute e necessità. Non inserire qui le rate dei debiti.</p></div></div>
       <div id="expenseRows"></div>
       <button class="btn outline" type="button" id="addExpense">+ Aggiungi spesa</button>
     </section>
 
-    <section class="card">
-      <h2>3. Debiti e rate già in corso</h2>
-      <p class="muted">Per ogni posizione indica il debito residuo e la rata mensile attualmente pagata. Le rate in corso vengono sottratte dal saldo mensile, oltre alle spese indicate sopra.</p>
+    <section class="card calc-section calc-debts">
+      <div class="calc-section-heading"><span class="calc-number">3</span><div><h2>Debiti e rate</h2><p>Per ogni debito indica l'importo residuo e la rata mensile attuale.</p></div></div>
       <div id="debtRows"></div>
       <button class="btn outline" type="button" id="addDebt">+ Aggiungi debito</button>
       <div class="field" style="margin-top:18px">
@@ -1476,8 +1470,8 @@ def misuratore():
       </div>
     </section>
 
-    <section class="card">
-      <h2>4. Esito della valutazione preliminare</h2>
+    <section class="card calc-section calc-result">
+      <div class="calc-section-heading"><span class="calc-number">4</span><div><h2>Il tuo risultato</h2><p>Una stima orientativa della sostenibilità mensile.</p></div></div>
       <div class="total-grid">
         <div class="total"><span class="muted">Entrate mensili</span><strong id="totalIncome">€ 0,00</strong></div>
         <div class="total"><span class="muted">Spese dichiarate</span><strong id="totalExpenses">€ 0,00</strong></div>
@@ -1496,9 +1490,8 @@ def misuratore():
       <p class="muted" id="dataQuality"></p>
     </section>
 
-    <section class="card">
-      <h2>5. Simulazioni di piano di rientro</h2>
-      <p class="muted">Il confronto considera il debito complessivo dichiarato e non include eventuali interessi, spese, penali o condizioni contrattuali. La compatibilità matematica non significa che il creditore accetterà il piano.</p>
+    <section class="card calc-section calc-plan">
+      <div class="calc-section-heading"><span class="calc-number">5</span><div><h2>Piano di rientro</h2><p>Simulazioni teoriche, senza interessi o spese aggiuntive. Il creditore non è tenuto ad accettarle.</p></div></div>
       <div class="table-wrap">
         <table class="result-table">
           <thead><tr><th>Durata</th><th>Rata mensile teorica</th><th>Confronto con la quota suggerita</th></tr></thead>
@@ -1508,9 +1501,8 @@ def misuratore():
       <div class="notice" id="planSummary">Le simulazioni appariranno dopo l'inserimento dei dati.</div>
     </section>
 
-    <section class="card">
-      <h2>6. Simulazione separata: saldo e stralcio</h2>
-      <p class="muted">Esempio teorico basato su un'offerta pari al 60% del debito inserito. È soltanto uno scenario negoziale: non è una percentuale garantita né una previsione di accettazione.</p>
+    <section class="card calc-section calc-settlement">
+      <div class="calc-section-heading"><span class="calc-number">6</span><div><h2>Ipotesi di saldo e stralcio</h2><p>Esempio teorico al 60% del debito: non è una percentuale garantita né una previsione di accettazione.</p></div></div>
       <div class="total-grid">
         <div class="total"><span class="muted">Offerta teorica al 60%</span><strong id="settlementAmount">—</strong></div>
         <div class="total"><span class="muted">Somma una tantum disponibile</span><strong id="availableLumpSum">€ 0,00</strong></div>
@@ -1518,15 +1510,37 @@ def misuratore():
       <div class="notice" id="settlementSummary">Inserisci il debito e l'eventuale somma una tantum disponibile per valutare questo scenario.</div>
     </section>
 
-    <section class="card">
-      <h2>7. Cosa fare dopo</h2>
+    <section class="card calc-section calc-next-step">
+      <div class="calc-section-heading"><span class="calc-number">7</span><div><h2>Il prossimo passo</h2><p>Valuta l'esito con prudenza prima di assumere nuovi impegni.</p></div></div>
       <p id="nextStep">Il risultato è preliminare e dipende dalla completezza e accuratezza dei dati inseriti.</p>
       <a class="btn" href="/consulenza">Richiedi di essere contattato</a>
       <button class="btn outline" type="button" id="resetCalculator" style="margin-left:8px">Azzera tutti i campi</button>
       <p class="muted" style="margin-top:16px">Questo strumento fornisce una simulazione informativa, non una certificazione di solvibilità, una consulenza legale, fiscale o finanziaria personalizzata, né una garanzia di accordo con i creditori. Leggi il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
     </section>
 
+    </div>
+
     <style>
+      .calc-clean-layout{max-width:1060px;margin:0 auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+      .calc-clean-layout>h1,.calc-clean-layout>.calc-lead,.calc-clean-layout>.primary-debt-type,.calc-clean-layout>.calc-debts,.calc-clean-layout>.calc-result,.calc-clean-layout>.calc-next-step{grid-column:1/-1}
+      .calc-clean-layout>h1{margin-bottom:0}
+      .calc-lead{grid-column:1/-1;margin:0 0 4px;color:var(--muted,#64748b);line-height:1.55}
+      .calc-section{margin:0;min-width:0;border:1px solid #dce5ef;box-shadow:0 4px 16px rgba(20,42,75,.045);border-radius:14px;padding:22px}
+      .calc-section-heading{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+      .calc-section-heading h2{margin:0 0 5px;font-size:20px;line-height:1.25}
+      .calc-section-heading p{margin:0;color:var(--muted,#64748b);font-size:14px;line-height:1.45}
+      .calc-number{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:10px;background:#eaf2ff;color:#174b91;font-size:16px;font-weight:800}
+      .calc-clean-layout .primary-debt-type{grid-column:1/-1;margin:0;padding:18px 22px;border:1px solid #c8d9ef;background:#f7faff;border-radius:14px}
+      .calc-clean-layout .primary-debt-type h2{margin:0 0 5px;font-size:19px}
+      .calc-clean-layout .primary-debt-type p{margin:0 0 12px}
+      .calc-clean-layout .primary-debt-type .field{margin:0;max-width:560px}
+      .calc-clean-layout .primary-debt-type select{width:100%;min-height:46px}
+      .calc-clean-layout .calc-result .total-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+      .calc-clean-layout .calc-plan,.calc-clean-layout .calc-settlement{height:100%;box-sizing:border-box}
+      .calc-clean-layout .calc-next-step .btn{margin-top:8px}
+      .calc-clean-layout .entry-row{padding:12px 0;border-bottom:1px solid #edf1f6}
+      .calc-clean-layout .entry-row:last-child{border-bottom:0}
+      @media(max-width:760px){.calc-clean-layout{grid-template-columns:minmax(0,1fr);gap:12px}.calc-clean-layout>h1,.calc-clean-layout>.calc-lead,.calc-clean-layout>.primary-debt-type,.calc-clean-layout>.calc-debts,.calc-clean-layout>.calc-result,.calc-clean-layout>.calc-next-step{grid-column:1}.calc-section{padding:18px}.calc-clean-layout .primary-debt-type{padding:18px}}
       .situation-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:18px auto 8px;max-width:820px}
       .situation-option{display:flex;flex-direction:column;align-items:center;gap:18px;min-width:0}
       .situation-choice{position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:clamp(90px,10vw,118px);height:clamp(90px,10vw,118px);padding:8px;border:2px solid rgba(255,255,255,.72);border-radius:50%;cursor:pointer;font:inherit;text-align:center;color:#fff;overflow:hidden;transform:translateY(-2px);box-shadow:0 7px 0 var(--button-depth),0 15px 22px rgba(16,24,40,.25),inset 0 3px 5px rgba(255,255,255,.75),inset 0 -7px 12px rgba(0,0,0,.2);transition:transform .13s ease,box-shadow .13s ease,filter .13s ease;touch-action:manipulation}
@@ -1941,12 +1955,11 @@ def misuratore():
     })();
     </script>
     """
-    # Il percorso resta sempre il wizard originale in sette passaggi. I campi specifici
-    # rosso/giallo sono inseriti nella terza pagina, senza creare schermate aggiuntive.
+    # Il calcolatore usa una pagina unica con sezioni ordinate e responsive.
     scenario_intro = {
-        "rosso": "EMERGENZA · Analisi guidata in 7 passaggi. Oltre al bilancio, puoi indicare gli atti ricevuti e le spese richieste.",
-        "giallo": "ALLERTA · Analisi guidata in 7 passaggi. Oltre al bilancio, puoi indicare le comunicazioni ricevute e le spese richieste.",
-        "verde": "CONTROLLO · Analisi guidata in 7 passaggi per verificare il margine mensile e la sostenibilità dei debiti."
+        "rosso": "EMERGENZA · Inserisci i dati essenziali e verifica il margine disponibile.",
+        "giallo": "ALLERTA · Controlla il peso delle rate sul tuo bilancio mensile.",
+        "verde": "CONTROLLO · Verifica se i tuoi debiti sono sostenibili nel tempo."
     }[scenario]
     # I tre percorsi condividono lo stesso calcolatore: niente moduli aggiuntivi diversi
     # per scenario, così l'interfaccia rimane semplice e coerente.
@@ -1958,7 +1971,7 @@ def misuratore():
         "verde": "CONTROLLO · Verifica il margine mensile e la sostenibilità dei debiti."
     }[scenario]
     scenario_title = {"rosso": "Emergenza", "giallo": "Allerta", "verde": "Controllo"}[scenario]
-    content = content.replace('<h1>Calcolatore di sostenibilità del debito</h1>', '<h1>Calcolatore di sostenibilità del debito · ' + scenario_title + '</h1><p class="scenario-intro">' + scenario_intro + '</p>')
+    content = content.replace('<h1>Calcolatore di sostenibilità</h1>', '<h1>Calcolatore di sostenibilità · ' + scenario_title + '</h1><p class="scenario-intro">' + scenario_intro + '</p>')
     # Dropdown principale visibile subito in ognuno dei tre percorsi; le singole righe
     # mantengono anche il proprio menu per consentire di indicare debiti di tipo diverso.
     main_debt_type = """
@@ -1993,12 +2006,12 @@ def misuratore():
       if(!primary)return;
       primary.addEventListener('change',()=>{
         const first=document.querySelector('#debtRows .entry-row select');
-        if(first && primary.value) first.value=primary.value;
+        if(first && primary.value){ first.value=primary.value; first.dispatchEvent(new Event('change',{bubbles:true})); }
       });
     })();
     </script>
     """
-    content = content.replace('<section class="card" id="calculatorStart">', main_debt_type + '\n<section class="card" id="calculatorStart">', 1)
+    content = content.replace('<section class="card calc-section calc-income" id="calculatorStart">', main_debt_type + '\n<section class="card calc-section calc-income" id="calculatorStart">', 1)
     return page("Calcolatore di sostenibilità del debito", content)
 
 
