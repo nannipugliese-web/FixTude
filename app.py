@@ -1348,11 +1348,15 @@ def situazione_debitoria_avvia():
       .intake-wrap{{max-width:820px;margin:0 auto}}
       .intake-form-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}}
       .intake-form-grid .full{{grid-column:1/-1}}
-      .intake-type-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
-      .intake-type{{display:flex;align-items:flex-start;gap:9px;border:1px solid #dce5ef;border-radius:10px;padding:12px;background:#fff}}
-      .intake-type input{{margin-top:5px;flex-shrink:0}}
+      .intake-type-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:9px;align-items:stretch}}
+      .intake-form-grid .field label.intake-type{{display:flex!important;flex-direction:row;align-items:flex-start;justify-content:flex-start;gap:10px;width:100%;min-width:0;min-height:0;margin:0;padding:13px 14px;border:1px solid #dce5ef;border-radius:10px;background:#fff;font-weight:400;line-height:1.4;cursor:pointer}}
+      .intake-form-grid .field label.intake-type:hover{{border-color:#8eafd9;background:#f8fbff}}
+      .intake-form-grid .field label.intake-type input[type=checkbox]{{display:block!important;appearance:auto;width:17px!important;min-width:17px;max-width:17px;height:17px!important;margin:3px 0 0!important;padding:0!important;flex:0 0 17px;border:initial;box-shadow:none}}
+      .intake-type span{{display:block;flex:1 1 auto;min-width:0;overflow-wrap:anywhere}}
+      .intake-type strong{{display:block;margin:0 0 4px;font-size:15px;color:#203047}}
+      .intake-type small{{display:block;font-size:13px;line-height:1.45;color:#65758b;font-weight:400}}
       .intake-form-actions{{display:flex;gap:10px;flex-wrap:wrap;align-items:center}}
-      @media(max-width:650px){{.intake-form-grid,.intake-type-grid{{grid-template-columns:1fr}}.intake-form-grid .full{{grid-column:auto}}}}
+      @media(max-width:650px){{.intake-form-grid,.intake-type-grid{{grid-template-columns:1fr}}.intake-form-grid .full{{grid-column:auto}}.intake-form-grid .field label.intake-type{{padding:12px}}}}
     </style>
     <div class="intake-wrap">
       <p class="muted">LA MIA SITUAZIONE DEBITORIA · {mode_label.upper()}</p>
