@@ -1203,57 +1203,57 @@ def page(title, content, include_chat=True):
 def home():
     content = r"""
     <style>
-      .ft-home{max-width:960px;margin:0 auto}
+      .ft-home{max-width:1120px;margin:0 auto}
       .ft-hero{padding:clamp(24px,4vw,42px);border-radius:18px;background:linear-gradient(135deg,#102f5d,#2469ad);color:#fff;text-align:center}
       .ft-hero h1{max-width:800px;margin:0 auto 14px;font-size:clamp(29px,4.6vw,44px);line-height:1.14;letter-spacing:-.5px}
       .ft-hero h1 span{color:#bfe0ff}
       .ft-lead{max-width:680px;margin:0 auto 10px;font-size:17px;line-height:1.55}
       .ft-promise{margin:0 auto 22px;font-size:14px;line-height:1.5}
-      .ft-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:690px;margin:20px auto 0;align-items:start}
+      .ft-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;max-width:840px;margin:24px auto 0;align-items:start}
       .ft-choice{display:flex;flex-direction:column;align-items:center;gap:8px;color:inherit;text-decoration:none;min-width:0;background:transparent;border:0;padding:0;cursor:pointer;font:inherit}
-      .ft-circle{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;width:clamp(76px,9vw,100px);height:clamp(76px,9vw,100px);border:2px solid rgba(255,255,255,.78);border-radius:50%;color:#fff;box-shadow:0 5px 0 var(--depth),0 8px 17px rgba(0,0,0,.17),inset 0 2px 4px rgba(255,255,255,.3);transition:transform .15s ease,outline .15s ease}
+      .ft-circle{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;width:clamp(112px,12vw,132px);height:clamp(112px,12vw,132px);box-sizing:border-box;padding:12px;border:2px solid rgba(255,255,255,.88);border-radius:50%;color:#fff;box-shadow:0 5px 0 var(--depth),0 8px 17px rgba(0,0,0,.17),inset 0 2px 4px rgba(255,255,255,.3);transition:transform .15s ease,outline .15s ease;text-align:center;overflow-wrap:anywhere}
       .ft-choice:hover .ft-circle{transform:translateY(-2px)}
       .ft-choice[aria-pressed="true"] .ft-circle{outline:3px solid #fff;outline-offset:4px;transform:translateY(-2px)}
-      .ft-circle b{font-size:clamp(10px,1.3vw,14px);letter-spacing:.03em}
-      .ft-circle span{font-size:clamp(9px,1.1vw,11px);font-weight:700}
+      .ft-circle b{font-size:clamp(12px,1.35vw,15px);line-height:1.15;letter-spacing:.02em}
+      .ft-circle span{font-size:clamp(11px,1.15vw,13px);line-height:1.2;font-weight:700}
       .ft-red{--depth:#6d111b;background:linear-gradient(145deg,#ed5a60,#a91624)}
       .ft-yellow{--depth:#80530b;background:linear-gradient(145deg,#f4d56e,#b47b13)}
       .ft-green{--depth:#064b31;background:linear-gradient(145deg,#46bd88,#08704a)}
-      .ft-choice small{max-width:185px;font-size:13px;line-height:1.35;color:#fff}
+      .ft-choice small{display:none}
       .ft-next{max-width:690px;margin:25px auto 0;padding:20px;background:#fff;border:1px solid #dce5ef;border-radius:15px;box-shadow:0 7px 22px rgba(20,48,85,.06);text-align:center}
       .ft-next h2{font-size:clamp(20px,2.6vw,25px);margin:0 0 7px;color:#17375f}
-      .ft-next p{margin:0 auto 16px;max-width:570px;color:#5f6e82;line-height:1.5}
+      .ft-next p{display:none}
       .ft-next-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
       .ft-next-btn{display:flex;align-items:center;justify-content:center;min-height:48px;padding:12px 16px;border-radius:10px;font-weight:800;text-decoration:none;line-height:1.3;box-sizing:border-box}
       .ft-next-btn.primary{background:#174b91;color:#fff;border:2px solid #174b91}
       .ft-next-btn.secondary{background:#fff;color:#174b91;border:2px solid #174b91}
       .ft-next-btn:hover{filter:brightness(.97)}
       .ft-home-note{max-width:690px;margin:16px auto 0;text-align:center;color:#66758a;font-size:12px;line-height:1.5}
-      @media(max-width:520px){.ft-hero{padding:23px 12px;border-radius:14px}.ft-lead{font-size:15px}.ft-promise{font-size:12px;margin-bottom:19px}.ft-buttons{gap:5px;margin-top:18px}.ft-circle{width:min(23vw,78px);height:min(23vw,78px);min-width:64px;min-height:64px}.ft-choice{gap:8px}.ft-choice small{font-size:10px;max-width:110px}.ft-next{padding:17px 13px;margin-top:23px}.ft-next-actions{grid-template-columns:1fr}.ft-next-btn{min-height:46px}}
+      .ft-selection-status{min-height:20px;margin:12px auto 0;color:#fff;font-size:13px;font-weight:700}
+      .ft-next-status{min-height:18px;margin:0 auto 10px;color:#a11b2b;font-size:13px;font-weight:700}
+      @media(max-width:520px){.ft-hero{padding:23px 12px;border-radius:14px}.ft-lead{font-size:15px}.ft-promise{display:none}.ft-buttons{gap:5px;margin-top:18px}.ft-circle{width:min(29vw,104px);height:min(29vw,104px);min-width:0;min-height:0;padding:8px;gap:5px}.ft-circle b{font-size:clamp(10px,3vw,13px)}.ft-circle span{font-size:clamp(9px,2.7vw,11px)}.ft-choice{gap:8px}.ft-next{padding:17px 13px;margin-top:23px}.ft-next-actions{grid-template-columns:1fr}.ft-next-btn{min-height:46px}}
     </style>
     <div class="ft-home">
       <section class="ft-hero" aria-labelledby="ft-home-title">
         <h1 id="ft-home-title">Non farti cercare dal recupero crediti.<br><span>Cerca tu la soluzione.</span></h1>
         <p class="ft-lead">Fai chiarezza sulla tua situazione e scegli come muovere il primo passo.</p>
-        <p class="ft-promise"><strong>Nessun giudizio. Nessun obbligo di proseguire.</strong></p>
+
         <div class="ft-buttons" role="group" aria-label="Seleziona la tua situazione">
           <button class="ft-choice" type="button" data-situazione="urgente" aria-pressed="false">
             <span class="ft-circle ft-red"><b>URGENZA</b><span>Ho ricevuto un atto</span></span>
-            <small>Ho ricevuto un sollecito o un atto.</small>
           </button>
           <button class="ft-choice" type="button" data-situazione="difficolta" aria-pressed="false">
             <span class="ft-circle ft-yellow"><b>DIFFICOLTÀ</b><span>Non riesco a pagare</span></span>
-            <small>Faccio fatica a sostenere le rate.</small>
           </button>
           <button class="ft-choice" type="button" data-situazione="prevenzione" aria-pressed="false">
             <span class="ft-circle ft-green"><b>PREVENZIONE</b><span>Voglio fare chiarezza</span></span>
-            <small>Voglio capire per tempo cosa posso fare.</small>
           </button>
         </div>
+        <div class="ft-selection-status" id="ft-selection-status" aria-live="polite">Seleziona una situazione per continuare.</div>
       </section>
       <section class="ft-next" aria-labelledby="ft-next-title">
         <h2 id="ft-next-title">Come vuoi procedere?</h2>
-        <p>Puoi scegliere di proseguire con la registrazione oppure andare avanti senza registrarti.</p>
+        <div class="ft-next-status" id="ft-next-status" role="status" aria-live="polite"></div>
         <div class="ft-next-actions">
           <a class="ft-next-btn primary" id="ft-register-link" href="/situazione-debitoria/avvia?modalita=registrazione">Procedi con la registrazione</a>
           <a class="ft-next-btn secondary" id="ft-guest-link" href="/situazione-debitoria/avvia?modalita=senza-registrazione">Procedi senza registrazione</a>
@@ -1266,6 +1266,8 @@ def home():
       const choices = Array.from(document.querySelectorAll(".ft-choice[data-situazione]"));
       const registerLink = document.getElementById("ft-register-link");
       const guestLink = document.getElementById("ft-guest-link");
+      const selectionStatus = document.getElementById("ft-selection-status");
+      const nextStatus = document.getElementById("ft-next-status");
       let selectedSituation = "";
       function updateLinks() {
         for (const [link, percorso] of [[registerLink, "registrazione"], [guestLink, "senza-registrazione"]]) {
@@ -1276,11 +1278,21 @@ def home():
       }
       choices.forEach(choice => choice.addEventListener("click", () => {
         selectedSituation = choice.dataset.situazione || "";
+        const labels = {urgente:"Urgenza selezionata.",difficolta:"Difficoltà selezionata.",prevenzione:"Prevenzione selezionata."};
+        selectionStatus.textContent = labels[selectedSituation] || "Seleziona una situazione per continuare.";
+        nextStatus.textContent = "";
         choices.forEach(item => {
           const active = item === choice;
           item.setAttribute("aria-pressed", active ? "true" : "false");
         });
         updateLinks();
+      }));
+      [registerLink, guestLink].forEach(link => link.addEventListener("click", event => {
+        if (!selectedSituation) {
+          event.preventDefault();
+          nextStatus.textContent = "Seleziona prima Urgenza, Difficoltà o Prevenzione.";
+          document.querySelector(".ft-hero").scrollIntoView({behavior:"smooth",block:"center"});
+        }
       }));
       updateLinks();
     })();
