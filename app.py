@@ -589,13 +589,14 @@ def page(title, content, include_chat=True):
             .error {color:var(--red);font-weight:700}
             .entry-row {
               display:grid;
-              grid-template-columns:minmax(0,1.25fr) minmax(110px,1fr) minmax(110px,1fr) auto;
+              grid-template-columns:minmax(0,1.1fr) minmax(145px,1fr) minmax(110px,.8fr) minmax(125px,.9fr) auto;
               gap:10px;
               align-items:end;
               padding:12px 0;
               border-bottom:1px solid var(--line);
             }
             .entry-row .field {margin:0}
+            .entry-row select {width:100%;min-width:0;box-sizing:border-box}
             .traffic-light {
               display:flex;
               align-items:center;
@@ -754,6 +755,7 @@ def page(title, content, include_chat=True):
               .card {padding:18px}
               .entry-row {grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
               .entry-row .name-field {grid-column:1 / -1}
+              .entry-row .debt-type-field {grid-column:1 / -1}
               .entry-row .remove-button {grid-column:2;justify-self:end}
               .hero {border-radius:14px}
               .hero p {font-size:16px}
@@ -1227,10 +1229,9 @@ def home():
       .home-situation-green{--button-depth:#06462d;background:radial-gradient(ellipse at 34% 20%,#48bd88 0%,#13845b 39%,#086544 73%,#06452f 100%);border-color:rgba(255,255,255,.58)}
       @media(max-width:700px){.home-hero-layout{grid-template-columns:1fr;gap:18px}.home-hero-copy h1{font-size:clamp(27px,6vw,36px);line-height:1.12}.home-hero-copy p{font-size:16px;line-height:1.5}.home-situation-panel{width:100%;max-width:100%;padding:0 4px}.home-situation-title{font-size:clamp(21px,5vw,28px);margin-top:8px;padding:0 8px}.home-situation-intro{font-size:15px;line-height:1.4;padding:0 8px}.home-situation-options{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:20px;padding:0 2px}.home-situation-option{gap:9px}.home-situation-choice{width:min(18.2vw,86px);height:min(18.2vw,86px);min-width:68px;min-height:68px;padding:5px;border-width:1px;transform:translateY(-2px);box-shadow:0 3px 0 var(--button-depth),0 7px 11px rgba(15,23,42,.17),inset 0 1px 2px rgba(255,255,255,.7),inset 0 -4px 7px rgba(0,0,0,.22)}.home-situation-choice:hover{transform:translateY(-4px)}.home-situation-icon{font-size:17px}.home-situation-label{font-size:clamp(10px,2.7vw,13px)}.home-situation-subtitle{font-size:clamp(7px,2vw,9px)}.home-situation-description{max-width:100%;font-size:clamp(11px,2.9vw,13px);line-height:1.35}.home-situation-title{margin-top:8px}.home-situation-intro{font-size:15px;line-height:1.4}}
       @media(prefers-reduced-motion:reduce){.home-situation-choice{transition:none}}
-      .home-intake-cta{max-width:760px;margin:30px auto 4px;padding:24px 22px;background:#fff;border:1px solid #dce5ef;border-radius:16px;text-align:center;box-shadow:0 8px 24px rgba(18,58,114,.07)}
-      .home-intake-cta h2{margin:0 0 8px;font-size:clamp(21px,3vw,28px);line-height:1.2}
-      .home-intake-cta p{margin:0 auto 16px;max-width:620px;font-size:16px;color:#52647b}
-      @media(max-width:650px){.home-intake-cta{margin-top:24px;padding:20px 16px}.home-intake-cta p{font-size:15px}}
+      .home-path-actions{display:flex;justify-content:center;align-items:stretch;gap:12px;flex-wrap:wrap;max-width:760px;margin:28px auto 4px}
+      .home-path-actions .btn{min-width:230px;text-align:center;justify-content:center;white-space:normal}
+      @media(max-width:600px){.home-path-actions{display:grid;grid-template-columns:1fr;gap:10px;margin-top:22px;padding:0 8px}.home-path-actions .btn{width:100%;min-width:0;box-sizing:border-box}}
     </style>
     <section class="hero">
       <div class="home-hero-layout">
@@ -1262,10 +1263,9 @@ def home():
           <em class="home-situation-description">Situazione gestibile.</em>
         </div>
       </div>
-      <div class="home-intake-cta">
-        <h2>Hai ricevuto una richiesta di pagamento o un atto?</h2>
-        <p>Raccogli le informazioni essenziali, distingui le scadenze e fai il primo passo per capire come affrontare la situazione.</p>
-        <a class="btn" href="/situazione-debitoria">Descrivi la mia situazione debitoria</a>
+      <div class="home-path-actions" aria-label="Scegli come proseguire">
+        <a class="btn" href="/situazione-debitoria/avvia?modalita=registrazione">Procedi con la registrazione</a>
+        <a class="btn outline" href="/situazione-debitoria/avvia?modalita=senza-registrazione">Procedi senza registrazione</a>
       </div>
       </div>
     </section>
@@ -1736,7 +1736,20 @@ def misuratore():
           return {field, input};
         }
         const primary = makeAmountField(type === "debt" ? "Debito residuo (€)" : "Importo mensile (€)", amount, type === "debt" ? "Importo residuo del debito in euro" : "Importo mensile in euro");
-        row.append(nameField, primary.field);
+        row.appendChild(nameField);
+        if (type === "debt") {
+          const typeField = document.createElement("div");
+          typeField.className = "field debt-type-field";
+          const typeLabel = document.createElement("label");
+          typeLabel.textContent = "Tipo di debito";
+          typeField.appendChild(typeLabel);
+          const typeSelect = document.createElement("select");
+          typeSelect.setAttribute("aria-label", "Tipo di debito");
+          typeSelect.innerHTML = '<option value="Utenze e servizi">Utenze e servizi</option><option value="Prestiti e finanziamenti">Prestiti e finanziamenti</option><option value="Carte e conto corrente">Carte e conto corrente</option><option value="Mutuo">Mutuo</option><option value="Affitto e condominio">Affitto e condominio</option><option value="Debiti fiscali e tributi">Debiti fiscali e tributi</option><option value="Debiti verso privati">Debiti verso privati</option><option value="Altro">Altro</option>';
+          typeField.appendChild(typeSelect);
+          row.appendChild(typeField);
+        }
+        row.appendChild(primary.field);
         if (type === "debt") {
           const installment = makeAmountField("Rata mensile già in corso (€)", payment, "Rata mensile già in corso in euro");
           row.appendChild(installment.field);
