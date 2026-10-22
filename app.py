@@ -73,73 +73,6 @@ def ora_italiana():
     return datetime.now(ROME_TZ).strftime("%H:%M")
 
 
-@contextmanager
-def leads_db():
-    """Connessione SQLite con commit/rollback e chiusura garantita."""
-    directory = os.path.dirname(os.path.abspath(LEADS_DB_PATH))
-    os.makedirs(directory, exist_ok=True)
-    conn = sqlite3.connect(LEADS_DB_PATH, timeout=15)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    try:
-        yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
-
-
-def init_leads_db():
-    with leads_db() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS leads (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                name TEXT NOT NULL,
-                phone TEXT NOT NULL,
-                email TEXT NOT NULL,
-                debt_type TEXT NOT NULL,
-                situation TEXT NOT NULL,
-                message TEXT NOT NULL DEFAULT '',
-                status TEXT NOT NULL DEFAULT 'Nuovo',
-                priority TEXT NOT NULL DEFAULT 'Normale',
-                notes TEXT NOT NULL DEFAULT '',
-                last_contact_at TEXT NOT NULL DEFAULT '',
-                reminder_at TEXT NOT NULL DEFAULT '',
-                privacy_ack INTEGER NOT NULL DEFAULT 1,
-                marketing_consent INTEGER NOT NULL DEFAULT 0
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS lead_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                lead_id INTEGER NOT NULL,
-                created_at TEXT NOT NULL,
-                event TEXT NOT NULL,
-                details TEXT NOT NULL DEFAULT '',
-                FOREIGN KEY(lead_id) REFERENCES leads(id) ON DELETE CASCADE
-            )
-        """)
-        existing_columns = {row[1] for row in conn.execute("PRAGMA table_info(leads)").fetchall()}
-        if "reminder_at" not in existing_columns:
-            conn.execute("ALTER TABLE leads ADD COLUMN reminder_at TEXT NOT NULL DEFAULT ''")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_created ON leads(created_at DESC)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status)")
-
-
-init_leads_db()
-
-
-def add_lead_history(conn, lead_id, event, details=""):
-    conn.execute(
-        "INSERT INTO lead_history (lead_id, created_at, event, details) VALUES (?, ?, ?, ?)",
-        (lead_id, datetime.now(ROME_TZ).isoformat(timespec="seconds"), event, details[:2000])
-    )
-
-
 def chat_orario_stato():
     """Chat disponibile dal lunedì al venerdì, 09:30-14:30, ora di Roma."""
     adesso = datetime.now(ROME_TZ)
@@ -167,19 +100,6 @@ SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USER)
 
 CHAT_ADMIN_PASSWORD = os.environ.get("CHAT_ADMIN_PASSWORD", "")
-
-# Archivio persistente delle richieste di contatto FixTude.
-# Su Render impostare LEADS_DB_PATH=/var/data/fixtude_leads.sqlite3 e collegare
-# un Persistent Disk al percorso /var/data. Senza disco persistente, il file
-# locale può andare perso al riavvio o a un nuovo deploy.
-LEADS_DB_PATH = os.environ.get(
-    "LEADS_DB_PATH", os.path.join(app.instance_path, "fixtude_leads.sqlite3")
-)
-LEADS_ADMIN_PASSWORD = os.environ.get("LEADS_ADMIN_PASSWORD", "").strip()
-LEAD_STATUSES = (
-    "Nuovo", "Da ricontattare", "In attesa di informazioni",
-    "Documentazione ricevuta", "Servizio proposto", "Cliente acquisito", "Chiuso"
-)
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
 VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "mailto:info@fixtude.it").strip()
@@ -340,6 +260,14 @@ SEO_PAGES = {
         "title": "FixTude | Calcolatore gratuito di sostenibilità dei debiti",
         "description": SEO_DEFAULT_DESCRIPTION,
     },
+    "/situazione-debitoria": {
+        "title": "La mia situazione debitoria | FixTude",
+        "description": "Descrivi la tua situazione debitoria e scegli se procedere con la registrazione o senza account. Primo orientamento, senza promesse di risultato.",
+    },
+    "/situazione-debitoria/avvia": {
+        "title": "Avvia la richiesta sulla tua situazione debitoria | FixTude",
+        "description": "Raccogli le informazioni essenziali su creditori, importi e comunicazioni ricevute per chiedere un primo contatto a FixTude.",
+    },
     "/misuratore": {
         "title": "Calcolatore gratuito di sostenibilità del debito | FixTude",
         "description": "Calcola gratuitamente il margine mensile e valuta in modo orientativo il peso delle rate rispetto a entrate e spese.",
@@ -406,7 +334,7 @@ def page(title, content, include_chat=True):
     seo_title = seo.get("title", f"{title} | FixTude")
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
-    noindex_paths = ("/chat-staff", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
+    noindex_paths = ("/situazione-debitoria/avvia", "/chat-staff", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
     robots = "noindex, nofollow" if path in noindex_paths or path.startswith("/api/") else "index, follow, max-image-preview:large"
     structured_data = None
     if path == "/":
@@ -661,13 +589,14 @@ def page(title, content, include_chat=True):
             .error {color:var(--red);font-weight:700}
             .entry-row {
               display:grid;
-              grid-template-columns:minmax(0,1.25fr) minmax(110px,1fr) minmax(110px,1fr) auto;
+              grid-template-columns:minmax(0,1.1fr) minmax(145px,1fr) minmax(110px,.8fr) minmax(125px,.9fr) auto;
               gap:10px;
               align-items:end;
               padding:12px 0;
               border-bottom:1px solid var(--line);
             }
             .entry-row .field {margin:0}
+            .entry-row select {width:100%;min-width:0;box-sizing:border-box}
             .traffic-light {
               display:flex;
               align-items:center;
@@ -826,7 +755,7 @@ def page(title, content, include_chat=True):
               .card {padding:18px}
               .entry-row {grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
               .entry-row .name-field {grid-column:1 / -1}
-              .entry-row .debt-type-field select {width:100%;box-sizing:border-box}
+              .entry-row .debt-type-field {grid-column:1 / -1}
               .entry-row .remove-button {grid-column:2;justify-self:end}
               .hero {border-radius:14px}
               .hero p {font-size:16px}
@@ -1326,8 +1255,8 @@ def home():
         <h2 id="ft-next-title">Come vuoi procedere?</h2>
         <p>Puoi scegliere di proseguire con la registrazione oppure andare avanti senza registrarti.</p>
         <div class="ft-next-actions">
-          <a class="ft-next-btn primary" id="ft-register-link" href="/consulenza?percorso=registrazione">Procedi con la registrazione</a>
-          <a class="ft-next-btn secondary" id="ft-guest-link" href="/consulenza?percorso=senza-registrazione">Procedi senza registrazione</a>
+          <a class="ft-next-btn primary" id="ft-register-link" href="/situazione-debitoria/avvia?modalita=registrazione">Procedi con la registrazione</a>
+          <a class="ft-next-btn secondary" id="ft-guest-link" href="/situazione-debitoria/avvia?modalita=senza-registrazione">Procedi senza registrazione</a>
         </div>
       </section>
       <p class="ft-home-note">Il calcolatore di sostenibilità del debito resta disponibile dal menu principale. I dati economici inseriti nel calcolatore vengono elaborati nel browser.</p>
@@ -1340,9 +1269,9 @@ def home():
       let selectedSituation = "";
       function updateLinks() {
         for (const [link, percorso] of [[registerLink, "registrazione"], [guestLink, "senza-registrazione"]]) {
-          const params = new URLSearchParams({percorso});
+          const params = new URLSearchParams({modalita: percorso});
           if (selectedSituation) params.set("situazione", selectedSituation);
-          link.href = "/consulenza?" + params.toString();
+          link.href = "/situazione-debitoria/avvia?" + params.toString();
         }
       }
       choices.forEach(choice => choice.addEventListener("click", () => {
@@ -1360,6 +1289,172 @@ def home():
     return page("Non farti cercare dal recupero crediti", content)
 
 
+# =========================================================
+# NUOVO PERCORSO CLIENTI: SITUAZIONE DEBITORIA
+# Prototipo di raccolta iniziale: nessun documento caricato e nessun
+# archivio pratica/account cliente viene creato in questa versione.
+# =========================================================
+
+@app.route("/situazione-debitoria", methods=["GET"])
+def situazione_debitoria():
+    modalita = (request.args.get("modalita", "") or "").strip().lower()
+    if modalita not in ("registrazione", "senza-registrazione"):
+        modalita = ""
+    mode_label = "con richiesta di registrazione" if modalita == "registrazione" else "senza registrazione"
+    content = f'''<style>
+      .intake-wrap{{max-width:850px;margin:0 auto}}
+      .intake-intro{{font-size:17px;max-width:760px}}
+      .intake-options{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:24px 0}}
+      .intake-option{{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:22px;border:1px solid #dce5ef;border-radius:16px;background:#fff;box-shadow:0 8px 22px rgba(18,58,114,.06)}}
+      .intake-option h2{{margin:0;font-size:22px;line-height:1.2}}
+      .intake-option p{{margin:0;color:#52647b}}
+      .intake-option .btn{{margin-top:auto;white-space:normal;text-align:center}}
+      .intake-icon{{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:#eaf2ff;color:#174b91;font-size:23px;font-weight:800}}
+      .intake-note{{font-size:13px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;padding:14px;border-radius:12px}}
+      .intake-form-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}}
+      .intake-form-grid .full{{grid-column:1/-1}}
+      .intake-type-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
+      .intake-type{{display:flex;align-items:flex-start;gap:9px;border:1px solid #dce5ef;border-radius:10px;padding:12px;background:#fff}}
+      .intake-type input{{margin-top:5px;flex-shrink:0}}
+      .intake-form-actions{{display:flex;gap:10px;flex-wrap:wrap;align-items:center}}
+      @media(max-width:650px){{.intake-options,.intake-form-grid,.intake-type-grid{{grid-template-columns:1fr}}.intake-form-grid .full{{grid-column:auto}}.intake-option{{padding:19px}}}}
+    </style>
+    <div class="intake-wrap">
+      <p class="muted">FIXTUDE · PRIMO ORIENTAMENTO</p>
+      <h1>La mia situazione debitoria</h1>
+      <p class="intake-intro">Hai ricevuto un sollecito, una cartella, una diffida o un altro documento relativo a un debito? Inizia da qui. Ti aiutiamo a mettere in ordine le informazioni essenziali e a individuare i prossimi passi da valutare.</p>
+      <section class="intake-options" aria-label="Scegli come procedere">
+        <article class="intake-option">
+          <div class="intake-icon" aria-hidden="true">♙</div>
+          <h2>Procedi con la registrazione</h2>
+          <p>Per chi desidera un percorso personale e vuole prepararsi a ritrovare le proprie richieste e gli aggiornamenti in un unico spazio.</p>
+          <a class="btn" href="/situazione-debitoria/avvia?modalita=registrazione">Procedi con la registrazione</a>
+          <p class="muted" style="font-size:12px">L'area personale e l'archivio delle pratiche sono in fase di attivazione: questa schermata non crea ancora un account.</p>
+        </article>
+        <article class="intake-option">
+          <div class="intake-icon" aria-hidden="true">➜</div>
+          <h2>Procedi senza registrazione</h2>
+          <p>Per chi vuole descrivere subito la propria situazione, senza creare un account e senza impostare una password.</p>
+          <a class="btn outline" href="/situazione-debitoria/avvia?modalita=senza-registrazione">Procedi senza registrazione</a>
+        </article>
+      </section>
+      <div class="intake-note"><strong>Prima di iniziare:</strong> non caricare documenti in questa versione e non inserire codici fiscali, coordinate bancarie, password o dati non necessari. Se hai ricevuto un atto con una scadenza, annota la data e valuta tempestivamente un confronto con un professionista abilitato. FixTude non promette cancellazioni del debito o risultati garantiti.</div>
+      <p class="muted" style="margin-top:20px">Puoi continuare anche con il <a href="/misuratore">calcolatore gratuito</a> oppure <a href="/consulenza">chiedere di essere ricontattato</a>.</p>
+    </div>'''
+    return page("La mia situazione debitoria", content)
+
+
+@app.route("/situazione-debitoria/avvia", methods=["GET"])
+def situazione_debitoria_avvia():
+    modalita = (request.args.get("modalita", "senza-registrazione") or "senza-registrazione").strip().lower()
+    if modalita not in ("registrazione", "senza-registrazione"):
+        modalita = "senza-registrazione"
+    situazione = (request.args.get("situazione", "") or "").strip().lower()
+    situazioni_valide = {
+        "urgente": ("Urgenza", "Ho ricevuto un sollecito o un atto."),
+        "difficolta": ("Difficoltà", "Sono in difficoltà e non riesco a pagare."),
+        "prevenzione": ("Prevenzione", "Voglio prevenire i problemi e trovare una soluzione."),
+    }
+    if situazione not in situazioni_valide:
+        situazione = ""
+    situazione_label, situazione_descrizione = situazioni_valide.get(
+        situazione, ("Non selezionata", "Nessuna situazione selezionata dalla Home.")
+    )
+    registrazione = modalita == "registrazione"
+    mode_label = "con richiesta di registrazione" if registrazione else "senza registrazione"
+    titolo = "Richiesta di avvio con registrazione" if registrazione else "Descrivi la tua situazione"
+    sottotitolo = ("Raccogliamo la tua richiesta per il percorso con registrazione. L'account personale non viene creato automaticamente in questa versione; ti contatteremo per i passaggi successivi." if registrazione else "Compila i campi che conosci. Non serve creare un account. Per ora non inviare allegati: ti chiediamo solo le informazioni iniziali necessarie.")
+    content = f'''<style>
+      .intake-wrap{{max-width:820px;margin:0 auto}}
+      .intake-form-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}}
+      .intake-form-grid .full{{grid-column:1/-1}}
+      .intake-type-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:9px;align-items:stretch}}
+      .intake-form-grid .field label.intake-type{{display:flex!important;flex-direction:row;align-items:flex-start;justify-content:flex-start;gap:10px;width:100%;min-width:0;min-height:0;margin:0;padding:13px 14px;border:1px solid #dce5ef;border-radius:10px;background:#fff;font-weight:400;line-height:1.4;cursor:pointer}}
+      .intake-form-grid .field label.intake-type:hover{{border-color:#8eafd9;background:#f8fbff}}
+      .intake-form-grid .field label.intake-type input[type=checkbox]{{display:block!important;appearance:auto;width:17px!important;min-width:17px;max-width:17px;height:17px!important;margin:3px 0 0!important;padding:0!important;flex:0 0 17px;border:initial;box-shadow:none}}
+      .intake-type span{{display:block;flex:1 1 auto;min-width:0;overflow-wrap:anywhere}}
+      .intake-type strong{{display:block;margin:0 0 4px;font-size:15px;color:#203047}}
+      .intake-type small{{display:block;font-size:13px;line-height:1.45;color:#65758b;font-weight:400}}
+      .intake-form-actions{{display:flex;gap:10px;flex-wrap:wrap;align-items:center}}
+      @media(max-width:650px){{.intake-form-grid,.intake-type-grid{{grid-template-columns:1fr}}.intake-form-grid .full{{grid-column:auto}}.intake-form-grid .field label.intake-type{{padding:12px}}}}
+    </style>
+    <div class="intake-wrap">
+      <p class="muted">LA MIA SITUAZIONE DEBITORIA · {mode_label.upper()}</p>
+      <div class="intake-note" style="margin:12px 0 18px"><strong>Percorso scelto:</strong> {escape(situazione_label)} — {escape(situazione_descrizione)}</div>
+      <h1>{titolo}</h1>
+      <p class="muted">{sottotitolo}</p>
+      <section class="card">
+        <form id="debtIntakeForm">
+          <input type="hidden" name="modalita_percorso" value="{escape(modalita)}">
+          <input type="hidden" name="situazione_home" value="{escape(situazione_label)}">
+          <input type="hidden" name="situazione_descrizione" value="{escape(situazione_descrizione)}">
+          <input type="hidden" name="subject" value="FixTude - nuova richiesta situazione debitoria">
+          <input type="hidden" name="from_name" value="FixTude - percorso situazione debitoria">
+          <div class="intake-form-grid">
+            <div class="field"><label for="di_name">Nome *</label><input id="di_name" name="name" maxlength="100" autocomplete="name" required></div>
+            <div class="field"><label for="di_email">Email *</label><input id="di_email" name="email" type="email" maxlength="254" autocomplete="email" required></div>
+            <div class="field"><label for="di_phone">Telefono (facoltativo)</label><input id="di_phone" name="phone" type="tel" maxlength="40" autocomplete="tel"></div>
+            <div class="field"><label for="di_count">Quante posizioni vuoi segnalare?</label><select id="di_count" name="numero_posizioni"><option value="1">Una</option><option value="2-3">Due o tre</option><option value="4 o più">Quattro o più</option><option value="Non so ancora">Non lo so ancora</option></select></div>
+            <div class="field full"><label>Che tipo di debito riguarda? Seleziona tutte le opzioni pertinenti *</label><div class="intake-type-grid">
+              <label class="intake-type"><input type="checkbox" name="tipi_debito" value="Utenze e servizi"><span><strong>Utenze e servizi</strong><br><small>Luce, gas, acqua, telefono, Internet, abbonamenti</small></span></label>
+              <label class="intake-type"><input type="checkbox" name="tipi_debito" value="Crediti finanziari"><span><strong>Crediti finanziari</strong><br><small>Prestiti, finanziamenti, carte, mutui, banca</small></span></label>
+              <label class="intake-type"><input type="checkbox" name="tipi_debito" value="Debiti fiscali e tributari"><span><strong>Debiti fiscali e tributari</strong><br><small>Cartelle, Agenzia Entrate-Riscossione, IMU, TARI, bollo</small></span></label>
+              <label class="intake-type"><input type="checkbox" name="tipi_debito" value="Altri debiti"><span><strong>Altri debiti</strong><br><small>Condominio, affitto, privati o debiti commerciali</small></span></label>
+            </div></div>
+            <div class="field"><label for="di_creditor">Creditore principale (se noto)</label><input id="di_creditor" name="creditore_principale" maxlength="180" placeholder="Es. società, banca, ente"></div>
+            <div class="field"><label for="di_amount">Importo indicativo complessivo (€)</label><input id="di_amount" name="importo_indicativo" inputmode="decimal" maxlength="30" placeholder="Facoltativo"></div>
+            <div class="field full"><label for="di_act">Hai ricevuto una comunicazione o un atto?</label><select id="di_act" name="documento_ricevuto"><option value="Non so / preferisco descriverlo">Non so / preferisco descriverlo</option><option value="Sollecito di pagamento">Sollecito di pagamento</option><option value="Messa in mora o diffida">Messa in mora o diffida</option><option value="Decreto ingiuntivo">Decreto ingiuntivo</option><option value="Atto di precetto">Atto di precetto</option><option value="Pignoramento">Pignoramento</option><option value="Cartella di pagamento">Cartella di pagamento</option><option value="Avviso di accertamento o atto fiscale">Avviso di accertamento o atto fiscale</option><option value="Intimazione di pagamento">Intimazione di pagamento</option><option value="Preavviso di fermo o ipoteca">Preavviso di fermo o ipoteca</option><option value="Piano di rateizzazione">Piano di rateizzazione</option><option value="Altro">Altro</option><option value="Nessun documento ricevuto">Nessun documento ricevuto</option></select></div>
+            <div class="field"><label for="di_date">Data di ricezione (se nota)</label><input id="di_date" name="data_ricezione" type="date"></div>
+            <div class="field"><label for="di_deadline">Scadenza indicata (se nota)</label><input id="di_deadline" name="scadenza_indicata" type="date"></div>
+            <div class="field full"><label for="di_notes">Descrizione breve (facoltativa)</label><textarea id="di_notes" name="descrizione" maxlength="1800" rows="4" placeholder="Descrivi in breve cosa è successo e cosa vorresti chiarire. Non inserire codici fiscali, coordinate bancarie o altri dati sensibili."></textarea></div>
+          </div>
+          <div style="position:absolute;left:-10000px" aria-hidden="true"><label for="di_website">Non compilare</label><input id="di_website" name="website" tabindex="-1" autocomplete="off"></div>
+          <label class="check" style="margin-top:16px"><input type="checkbox" name="privacy" value="Letta" required><span>Dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a> e chiedo di essere ricontattato per questa richiesta.</span></label>
+          <label class="check"><input type="checkbox" name="accept_terms" value="Accettati" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label>
+          <p class="intake-note" style="font-size:13px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;padding:13px;border-radius:10px">I dati saranno inviati al titolare via Web3Forms per gestire la richiesta; l'applicazione non salva una copia nel proprio database. In questa versione non è previsto il caricamento di documenti né un archivio pratica. Le richieste che riguardano atti con termini o scadenze potrebbero richiedere una valutazione professionale tempestiva.</p>
+          <div id="debtIntakeResult" role="status" aria-live="polite"></div>
+          <div class="intake-form-actions"><button class="btn" id="debtIntakeSubmit" type="submit">Invia la richiesta</button><a class="btn outline" href="/situazione-debitoria">Torna alla scelta</a></div>
+        </form>
+      </section>
+    </div>
+    <script>
+    (()=>{{
+      const form=document.getElementById('debtIntakeForm');
+      const result=document.getElementById('debtIntakeResult');
+      const button=document.getElementById('debtIntakeSubmit');
+      const checks=[...form.querySelectorAll('input[name="tipi_debito"]')];
+      form.addEventListener('submit',async e=>{{
+        e.preventDefault(); result.className=''; result.textContent='';
+        if(!form.reportValidity())return;
+        if(!checks.some(x=>x.checked)){{result.className='notice error';result.textContent='Seleziona almeno una categoria di debito.';return;}}
+        const values={{}};
+        for(const [key,value] of new FormData(form).entries()){{
+          if(key==='website'&&String(value).trim()){{result.className='notice success';result.textContent='Richiesta inviata. Grazie.';form.reset();return;}}
+          if(key==='tipi_debito'){{(values[key]||(values[key]=[])).push(value);}}
+          else if(key!=='website') values[key]=value;
+        }}
+        values.access_key='6cfd757e-6b16-49e0-96b5-e055a159f403';
+        values.botcheck='';
+        button.disabled=true;button.textContent='Invio in corso…';
+        try{{
+          const response=await fetch('https://api.web3forms.com/submit',{{method:'POST',headers:{{'Content-Type':'application/json','Accept':'application/json'}},body:JSON.stringify(values)}});
+          const data=await response.json();
+          if(!response.ok||data.success!==true)throw new Error(data.message||'Non è stato possibile inviare la richiesta. Riprova più tardi.');
+          result.className='notice success';
+          result.textContent='Richiesta inviata correttamente. Grazie. FixTude potrà ricontattarti usando i recapiti indicati.';
+          form.reset();
+        }}catch(err){{result.className='notice error';result.textContent=err.message||'Errore di connessione. Riprova più tardi.';}}
+        finally{{button.disabled=false;button.textContent='Invia la richiesta';}}
+      }});
+    }})();
+    </script>'''
+    return page(titolo, content)
+
+
+# =========================================================
+# CALCOLATORE
+# =========================================================
+
 @app.route("/misuratore")
 def misuratore():
     scenario = (request.args.get("scenario", "verde") or "verde").strip().lower()
@@ -1372,26 +1467,6 @@ def misuratore():
       quota indicativa destinabile al debito e possibili scenari di rientro.
       Tutti i calcoli sono eseguiti nel browser: gli importi non vengono inviati al server.
     </p>
-
-    <section class="card" id="debtTypeCard">
-      <h2>Prima di iniziare: che tipo di debito devi affrontare?</h2>
-      <p class="muted">Scegli la categoria prevalente. Puoi aggiungere più posizioni nella sezione Debiti e rate.</p>
-      <div class="field">
-        <label for="primaryDebtType">Tipo di debito</label>
-        <select id="primaryDebtType" name="primary_debt_type">
-          <option value="">Seleziona il tipo di debito</option>
-          <option>Prestito personale o finanziamento</option>
-          <option>Carta di credito o credito revolving</option>
-          <option>Mutuo o finanziamento immobiliare</option>
-          <option>Bollette luce, gas o telefonia</option>
-          <option>Cartelle, tributi o multe</option>
-          <option>Affitto o spese condominiali</option>
-          <option>Debito bancario o scoperto di conto</option>
-          <option>Debito verso un fornitore o un privato</option>
-          <option>Altro / non so esattamente</option>
-        </select>
-      </div>
-    </section>
 
     <section class="card" id="calculatorStart">
       <h2>1. Entrate nette mensili</h2>
@@ -1469,7 +1544,8 @@ def misuratore():
     <section class="card">
       <h2>7. Cosa fare dopo</h2>
       <p id="nextStep">Il risultato è preliminare e dipende dalla completezza e accuratezza dei dati inseriti.</p>
-      <button class="btn outline" type="button" id="resetCalculator">Azzera tutti i campi</button>
+      <a class="btn" href="/consulenza">Richiedi di essere contattato</a>
+      <button class="btn outline" type="button" id="resetCalculator" style="margin-left:8px">Azzera tutti i campi</button>
       <p class="muted" style="margin-top:16px">Questo strumento fornisce una simulazione informativa, non una certificazione di solvibilità, una consulenza legale, fiscale o finanziaria personalizzata, né una garanzia di accordo con i creditori. Leggi il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
     </section>
 
@@ -1687,20 +1763,21 @@ def misuratore():
           return {field, input};
         }
         const primary = makeAmountField(type === "debt" ? "Debito residuo (€)" : "Importo mensile (€)", amount, type === "debt" ? "Importo residuo del debito in euro" : "Importo mensile in euro");
-        row.append(nameField, primary.field);
+        row.appendChild(nameField);
         if (type === "debt") {
           const typeField = document.createElement("div");
           typeField.className = "field debt-type-field";
           const typeLabel = document.createElement("label");
           typeLabel.textContent = "Tipo di debito";
+          typeField.appendChild(typeLabel);
           const typeSelect = document.createElement("select");
           typeSelect.setAttribute("aria-label", "Tipo di debito");
-          [["", "Seleziona il tipo"], ["Prestito personale o finanziamento", "Prestito personale o finanziamento"], ["Carta di credito o credito revolving", "Carta di credito o credito revolving"], ["Mutuo o finanziamento immobiliare", "Mutuo o finanziamento immobiliare"], ["Bollette luce, gas o telefonia", "Bollette luce, gas o telefonia"], ["Cartelle, tributi o multe", "Cartelle, tributi o multe"], ["Affitto o spese condominiali", "Affitto o spese condominiali"], ["Debito bancario o scoperto di conto", "Debito bancario o scoperto di conto"], ["Altro / non so esattamente", "Altro / non so esattamente"]].forEach(([value, text]) => { const option=document.createElement("option"); option.value=value; option.textContent=text; typeSelect.appendChild(option); });
-          const primaryType = document.getElementById("primaryDebtType");
-          if (primaryType && primaryType.value) typeSelect.value = primaryType.value;
-          typeSelect.addEventListener("change", calculate);
-          typeLabel.appendChild(typeSelect); typeField.appendChild(typeLabel);
+          typeSelect.innerHTML = '<option value="Utenze e servizi">Utenze e servizi</option><option value="Prestiti e finanziamenti">Prestiti e finanziamenti</option><option value="Carte e conto corrente">Carte e conto corrente</option><option value="Mutuo">Mutuo</option><option value="Affitto e condominio">Affitto e condominio</option><option value="Debiti fiscali e tributi">Debiti fiscali e tributi</option><option value="Debiti verso privati">Debiti verso privati</option><option value="Altro">Altro</option>';
+          typeField.appendChild(typeSelect);
           row.appendChild(typeField);
+        }
+        row.appendChild(primary.field);
+        if (type === "debt") {
           const installment = makeAmountField("Rata mensile già in corso (€)", payment, "Rata mensile già in corso in euro");
           row.appendChild(installment.field);
         }
@@ -1871,15 +1948,11 @@ def misuratore():
       document.getElementById("addExpense").addEventListener("click", () => addRow("expense", "Nuova spesa", 0));
       document.getElementById("addDebt").addEventListener("click", () => addRow("debt", "Nuovo debito", 0, 0));
       document.getElementById("lumpSum").addEventListener("input", calculate);
-      document.getElementById("primaryDebtType")?.addEventListener("change", () => {
-        document.querySelectorAll("#debtRows .debt-type-field select").forEach(select => { if (!select.value) select.value = document.getElementById("primaryDebtType").value; });
-      });
       document.getElementById("resetCalculator").addEventListener("click", () => {
         document.getElementById("incomeRows").replaceChildren();
         document.getElementById("expenseRows").replaceChildren();
         document.getElementById("debtRows").replaceChildren();
         document.getElementById("lumpSum").value = "0";
-        if (document.getElementById("primaryDebtType")) document.getElementById("primaryDebtType").value = "";
         definitions.income.forEach(([label, value]) => addRow("income", label, value));
         definitions.expense.forEach(([label, value]) => addRow("expense", label, value));
         definitions.debt.forEach(([label, value, payment]) => addRow("debt", label, value, payment));
@@ -1888,8 +1961,8 @@ def misuratore():
     })();
     </script>
     """
-    # Il calcolatore è raggiungibile dal menu e dalle pagine che lo richiamano.
-    # La categoria del debito viene scelta subito e può essere specificata per ogni posizione.
+    # Il percorso resta sempre il wizard originale in sette passaggi. I campi specifici
+    # rosso/giallo sono inseriti nella terza pagina, senza creare schermate aggiuntive.
     scenario_intro = {
         "rosso": "EMERGENZA · Analisi guidata in 7 passaggi. Oltre al bilancio, puoi indicare gli atti ricevuti e le spese richieste.",
         "giallo": "ALLERTA · Analisi guidata in 7 passaggi. Oltre al bilancio, puoi indicare le comunicazioni ricevute e le spese richieste.",
@@ -2012,7 +2085,6 @@ def consulenza():
 
     <section class="card">
       <form id="contactForm">
-        <input type="hidden" id="situazione" name="situazione" value="">
         <div class="field">
           <label for="name">Nome</label>
           <input id="name" name="name" maxlength="100"
@@ -2138,21 +2210,6 @@ def consulenza():
     })();
     </script>
     """
-    percorso = (request.args.get("percorso", "") or "").strip().lower()
-    situazione = (request.args.get("situazione", "") or "").strip().lower()
-    scenario_labels = {"urgente": "Ho ricevuto un sollecito o un atto", "difficolta": "Sono in difficoltà e non riesco a pagare", "prevenzione": "Voglio prevenire i problemi e trovare una soluzione"}
-    if situazione not in scenario_labels:
-        situazione = ""
-    # Propaga la situazione scelta nella richiesta di ricontatto senza conservarla sul server.
-    content = content.replace('id="situazione" name="situazione" value=""', 'id="situazione" name="situazione" value="' + situazione + '"')
-    if percorso in ("registrazione", "senza-registrazione"):
-        heading = "Procedi con la registrazione" if percorso == "registrazione" else "Procedi senza registrazione"
-        note = ("La registrazione di un account personale non è ancora attiva. Puoi lasciare una richiesta di contatto: non verrà creato automaticamente un account." if percorso == "registrazione" else "Puoi inviare una richiesta di contatto senza creare un account.")
-        banner = '<section class="card"><h2>' + heading + '</h2><p>' + note + '</p>'
-        if situazione in scenario_labels:
-            banner += '<p><strong>Situazione selezionata:</strong> ' + scenario_labels[situazione] + '</p>'
-        banner += '</section>'
-        content = content.replace('<h1>Richiedi di essere contattato da un esperto FixTude</h1>', '<h1>' + heading + '</h1>' + banner)
     return page("Ricontatto", content)
 
 
@@ -3793,184 +3850,6 @@ def professionisti_contratto():
 def bozza_incarico_legale():
     body = '''<article class="card doc"><div class="no-print"><p class="notice"><strong>Fac-simile informativo da completare e validare dall’avvocato incaricato.</strong> Non è un mandato già conferito e non sostituisce il preventivo, l’informativa sul trattamento dei dati o gli altri documenti richiesti nel caso concreto.</p><button class="btn" onclick="window.print()" type="button">Stampa / salva in PDF</button></div><h1>Fac-simile di conferimento dell’incarico professionale</h1><p><strong>Cliente:</strong> ______________________________________________</p><p>Codice fiscale: __________________________ Indirizzo: __________________________________________</p><p>Email/PEC per comunicazioni: _________________________________________________________________</p><p><strong>Avvocato incaricato:</strong> __________________________________________, C.F./P. IVA __________________</p><p>Ordine degli Avvocati di __________________________, studio in ____________________________________</p><h2>1. Oggetto dell’incarico</h2><p>Il Cliente conferisce all’Avvocato, che accetta, l’incarico limitato alle seguenti attività e posizioni debitorie: ______________________________________________________________________________________________.</p><p>Creditori/controparte e riferimenti dei documenti: __________________________________________________.</p><h2>2. Attività incluse e limiti</h2><p>Attività stragiudiziali incluse: ____________________________________________________________________.</p><p>Eventuale attività giudiziale, procedimento, autorità e grado inclusi: ___________________________________.</p><p>Restano escluse le attività non espressamente indicate, i nuovi procedimenti e i gradi successivi, salvo separato accordo scritto.</p><h2>3. Compenso, preventivo e spese</h2><p>Compenso concordato, criteri e scadenze: __________________________________________________________.</p><p>IVA, contributo previdenziale, spese generali, anticipazioni e spese vive: ________________________________.</p><p>Eventuali somme pagate a FixTude per prodotti o servizi distinti non costituiscono automaticamente compenso dell’Avvocato, salvo accordo espresso e documentato tra le parti interessate.</p><h2>4. Obblighi e autonomia</h2><p>L’Avvocato opera in autonomia e secondo le regole professionali applicabili, senza garantire il risultato. Il Cliente si impegna a fornire documenti veritieri e completi, comunicare tempestivamente atti e scadenze e informare l’Avvocato di ogni cambiamento rilevante.</p><h2>5. Informazioni, comunicazioni e privacy</h2><p>Canali concordati per le comunicazioni: ___________________________________________________________.</p><p>L’informativa privacy, le modalità di conservazione dei documenti, i soggetti autorizzati e le eventuali comunicazioni a terzi sono descritti nell’informativa separata consegnata al Cliente.</p><h2>6. Durata, revoca e rinuncia</h2><p>L’incarico decorre dalla sottoscrizione e termina con: __________________________________________________. Revoca e rinuncia sono disciplinate dalla legge e dalle regole professionali applicabili, con liquidazione delle attività svolte e delle spese dovute secondo l’accordo e la normativa.</p><h2>7. Documenti allegati</h2><p>☐ Preventivo dettagliato · ☐ Informativa privacy · ☐ Documenti del Cliente · ☐ Altro: _______________________</p><div class="signature"><div><div class="line">Luogo, data e firma del Cliente</div></div><div><div class="line">Luogo, data e firma dell’Avvocato</div></div></div><p class="muted">Il professionista deve adattare il fac-simile al caso concreto e verificare gli obblighi informativi e formali applicabili prima della sottoscrizione.</p></article>'''
     return pro_shell("Fac-simile incarico legale", body)
-
-
-# =========================================================
-# RICHIESTE DI CONTATTO: INGRESSO E PANNELLO INTERNO
-# =========================================================
-
-@app.route("/api/lead", methods=["POST"])
-def lead_create():
-    if rate_limited("lead", 5, 900):
-        return jsonify(ok=False, error="Hai inviato troppe richieste. Riprova più tardi."), 429
-
-    data = request.get_json(silent=True) or request.form.to_dict()
-    if str(data.get("website", "")).strip():
-        return jsonify(ok=True), 200
-
-    name = str(data.get("name", "")).strip()
-    phone = str(data.get("phone", "")).strip()
-    email = str(data.get("email", "")).strip().lower()
-    debt_type = str(data.get("debt_type", "")).strip()
-    situation = str(data.get("situation", "")).strip()
-    message = str(data.get("message", "")).strip()
-    privacy = data.get("privacy")
-    marketing = data.get("marketing") in (True, "yes", "on", "true", "1")
-
-    if not name or len(name) > 100:
-        return jsonify(ok=False, error="Inserisci nome e cognome."), 400
-    if not phone or len(phone) > 40 or len(re.sub(r"[^0-9+]", "", phone)) < 6:
-        return jsonify(ok=False, error="Inserisci un numero di telefono valido."), 400
-    if not valid_email(email) or len(email) > 254 or "\r" in email or "\n" in email:
-        return jsonify(ok=False, error="Inserisci un indirizzo email valido."), 400
-    if not debt_type or len(debt_type) > 120:
-        return jsonify(ok=False, error="Seleziona il tipo di debito."), 400
-    if not situation or len(situation) > 160:
-        return jsonify(ok=False, error="Seleziona la situazione che ti descrive meglio."), 400
-    if len(message) > 1500:
-        return jsonify(ok=False, error="Il messaggio è troppo lungo."), 400
-    if privacy not in (True, "yes", "on", "true", "1"):
-        return jsonify(ok=False, error="Per inviare la richiesta devi confermare di aver letto l'informativa privacy."), 400
-
-    now = datetime.now(ROME_TZ).isoformat(timespec="seconds")
-    try:
-        with leads_db() as conn:
-            cur = conn.execute("INSERT INTO leads (created_at, updated_at, name, phone, email, debt_type, situation, message, status, priority, notes, last_contact_at, privacy_ack, marketing_consent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Nuovo', 'Normale', '', '', 1, ?)", (now, now, name, phone, email, debt_type, situation, message, int(marketing)))
-            lead_id = cur.lastrowid
-            add_lead_history(conn, lead_id, "Richiesta ricevuta", f"Tipo di debito: {debt_type}; situazione: {situation}")
-    except Exception as exc:
-        app.logger.error("Salvataggio richiesta FixTude fallito: %s", type(exc).__name__)
-        return jsonify(ok=False, error="Al momento non riusciamo a registrare la richiesta. Riprova più tardi."), 503
-
-    # La richiesta è già salvata: l'eventuale problema SMTP non la fa perdere.
-    def notify_staff():
-        try:
-            body = (
-                "Nuova richiesta di contatto FixTude\n\n"
-                f"Numero pratica: {lead_id}\nNome: {name}\nTelefono: {phone}\nEmail: {email}\n"
-                f"Tipo di debito: {debt_type}\nSituazione: {situation}\n"
-                f"Messaggio: {message or 'Non inserito'}\n\n"
-                "Apri il pannello richieste su https://fixtude.it/richieste\n"
-            )
-            send_email("FixTude - nuova richiesta di contatto", body, reply_to=email)
-        except Exception as exc:
-            app.logger.warning("Notifica email richiesta #%s non inviata (%s)", lead_id, type(exc).__name__)
-    threading.Thread(target=notify_staff, daemon=True).start()
-    return jsonify(ok=True, lead_id=lead_id), 200
-
-
-def leads_admin_logged_in():
-    return session.get("leads_admin_authenticated") is True
-
-
-def leads_admin_page(title, body):
-    return render_template_string(r'''<!doctype html><html lang="it"><head><meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow">
-    <title>{{ title }} · FixTude</title><style>
-    *{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:#203047;font:15px/1.5 Arial,sans-serif}
-    header{background:#123a72;color:#fff;padding:18px 22px}header a{color:#fff;text-decoration:none;font-weight:800;font-size:22px}
-    main{max-width:1200px;margin:25px auto;padding:0 16px 50px}.card{background:#fff;border:1px solid #dce5ef;border-radius:13px;padding:20px;margin:16px 0;box-shadow:0 3px 12px #123a720a}
-    h1{font-size:27px;margin:0 0 15px}h2{font-size:20px;margin:0 0 12px}label{display:block;font-weight:700;font-size:13px;margin:0 0 5px}
-    input,select,textarea{width:100%;border:1px solid #cbd7e5;border-radius:8px;padding:10px;font:inherit;background:white;color:#203047}textarea{min-height:90px}
-    .btn{display:inline-block;background:#174b91;color:#fff;border:0;border-radius:8px;padding:10px 15px;font-weight:700;text-decoration:none;cursor:pointer}.btn.secondary{background:#eaf1fa;color:#174b91}
-    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.field{margin-bottom:12px;min-width:0}.muted{color:#66758a}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:800px}th,td{text-align:left;padding:10px;border-bottom:1px solid #e2e8f0;vertical-align:top}th{background:#f6f8fb;font-size:13px}small{font-size:12px}.status{font-weight:700}.row-actions{display:flex;gap:8px;flex-wrap:wrap}@media(max-width:700px){.grid{grid-template-columns:1fr}main{margin-top:15px}.card{padding:15px}}
-    </style></head><body><header><a href="/">FixTude</a> <span style="font-size:13px;font-weight:400">· Gestione richieste</span></header><main>{{ body|safe }}</main></body></html>''', title=title, body=body)
-
-
-@app.route("/richieste", methods=["GET", "POST"])
-def leads_admin():
-    if not LEADS_ADMIN_PASSWORD:
-        return leads_admin_page("Pannello non configurato", '<section class="card"><h1>Pannello richieste non configurato</h1><p>Per attivare l’accesso, imposta la variabile <code>LEADS_ADMIN_PASSWORD</code> nelle variabili di ambiente di Render.</p></section>'), 503
-
-    if request.method == "POST":
-        action = request.form.get("action", "")
-        if action == "login":
-            supplied = request.form.get("password", "")
-            if hmac.compare_digest(supplied, LEADS_ADMIN_PASSWORD):
-                session["leads_admin_authenticated"] = True
-                session["leads_admin_csrf"] = secrets.token_urlsafe(24)
-                return redirect(url_for("leads_admin"))
-            return leads_admin_page("Accesso", '<section class="card"><h1>Accesso al pannello</h1><p style="color:#a62929">Password non corretta.</p><form method="post"><input type="hidden" name="action" value="login"><div class="field"><label>Password amministratore</label><input type="password" name="password" required autocomplete="current-password"></div><button class="btn">Accedi</button></form></section>'), 401
-        if not leads_admin_logged_in():
-            return redirect(url_for("leads_admin"))
-        supplied_csrf = request.form.get("csrf", "")
-        if not hmac.compare_digest(supplied_csrf, session.get("leads_admin_csrf", "invalid")):
-            return "Richiesta non valida. Ricarica la pagina e riprova.", 400
-        if action == "logout":
-            session.pop("leads_admin_authenticated", None)
-            session.pop("leads_admin_csrf", None)
-            return redirect(url_for("leads_admin"))
-        if action == "update":
-            try:
-                lead_id = int(request.form.get("lead_id", "0"))
-            except ValueError:
-                return "Numero pratica non valido", 400
-            status = request.form.get("status", "Nuovo")
-            notes = request.form.get("notes", "").strip()[:8000]
-            reminder_at = request.form.get("reminder_at", "").strip()[:30]
-            contact_note = request.form.get("contact_note", "").strip()[:1000]
-            contact_done = request.form.get("contact_done") == "yes"
-            if status not in LEAD_STATUSES or priority not in ("Bassa", "Normale", "Alta", "Urgente"):
-                return "Valori non validi", 400
-            if reminder_at:
-                try:
-                    datetime.fromisoformat(reminder_at)
-                except ValueError:
-                    return "Data promemoria non valida", 400
-            now = datetime.now(ROME_TZ).isoformat(timespec="seconds")
-            with leads_db() as conn:
-                old = conn.execute("SELECT status, priority, notes, reminder_at, last_contact_at FROM leads WHERE id=?", (lead_id,)).fetchone()
-                if not old:
-                    return "Richiesta non trovata", 404
-                last_contact = now if contact_done else old["last_contact_at"]
-                conn.execute("UPDATE leads SET updated_at=?, status=?, priority=?, notes=?, reminder_at=?, last_contact_at=? WHERE id=?",
-                             (now, status, priority, notes, reminder_at, last_contact, lead_id))
-                changes=[]
-                if old["status"] != status: changes.append(f"Stato: {old['status']} → {status}")
-                if old["priority"] != priority: changes.append(f"Priorità: {old['priority']} → {priority}")
-                if old["notes"] != notes: changes.append("Note interne aggiornate")
-                if old["reminder_at"] != reminder_at: changes.append("Promemoria aggiornato")
-                if contact_done: changes.append("Contatto registrato" + (f": {contact_note}" if contact_note else ""))
-                if changes: add_lead_history(conn, lead_id, "Aggiornamento pratica", "; ".join(changes))
-            return redirect(url_for("leads_admin", lead=lead_id))
-
-    if not leads_admin_logged_in():
-        body = '''<section class="card" style="max-width:460px;margin:45px auto"><h1>Accesso amministratore</h1><p class="muted">Area riservata per gestire le richieste di contatto FixTude.</p><form method="post"><input type="hidden" name="action" value="login"><div class="field"><label>Password amministratore</label><input type="password" name="password" required autocomplete="current-password"></div><button class="btn">Accedi</button></form></section>'''
-        return leads_admin_page("Accesso", body)
-
-    q = request.args.get("q", "").strip()[:100]
-    status_filter = request.args.get("status", "").strip()
-    selected_id = request.args.get("lead", "").strip()
-    where=[]; params=[]
-    if q:
-        where.append("(name LIKE ? OR phone LIKE ? OR email LIKE ? OR debt_type LIKE ? OR message LIKE ?)")
-        params.extend([f"%{q}%"]*5)
-    if status_filter in LEAD_STATUSES:
-        where.append("status=?"); params.append(status_filter)
-    sql="SELECT * FROM leads" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY CASE priority WHEN 'Urgente' THEN 0 WHEN 'Alta' THEN 1 ELSE 2 END, created_at DESC LIMIT 300"
-    with leads_db() as conn:
-        leads=conn.execute(sql,params).fetchall()
-        counts={r["status"]:r["n"] for r in conn.execute("SELECT status, COUNT(*) n FROM leads GROUP BY status").fetchall()}
-        selected=None; history=[]
-        if selected_id.isdigit():
-            selected=conn.execute("SELECT * FROM leads WHERE id=?",(int(selected_id),)).fetchone()
-            if selected:
-                history=conn.execute("SELECT * FROM lead_history WHERE lead_id=? ORDER BY id DESC LIMIT 50",(int(selected_id),)).fetchall()
-
-    csrf=escape(session.get("leads_admin_csrf", ""))
-    status_options=''.join(f'<option value="{escape(st)}" {"selected" if st==status_filter else ""}>{escape(st)} ({counts.get(st,0)})</option>' for st in LEAD_STATUSES)
-    rows=[]
-    for lead in leads:
-        rows.append(f'''<tr><td><a href="{url_for('leads_admin',lead=lead['id'])}">#{lead['id']}</a><br><small>{escape(lead['created_at'].replace('T',' '))}</small></td><td><strong>{escape(lead['name'])}</strong><br><a href="tel:{escape(lead['phone'])}">{escape(lead['phone'])}</a><br><a href="mailto:{escape(lead['email'])}">{escape(lead['email'])}</a></td><td>{escape(lead['debt_type'])}<br><small>{escape(lead['situation'])}</small></td><td><span class="status">{escape(lead['status'])}</span><br><small>Priorità: {escape(lead['priority'])}</small></td><td><a class="btn secondary" href="{url_for('leads_admin',lead=lead['id'])}">Apri pratica</a></td></tr>''')
-    if not rows: rows=['<tr><td colspan="5" class="muted">Nessuna richiesta trovata.</td></tr>']
-    body=f'''<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><h1>Richieste di contatto</h1><p class="muted">Le richieste vengono salvate nell’archivio e gestite manualmente.</p></div><form method="post"><input type="hidden" name="action" value="logout"><input type="hidden" name="csrf" value="{csrf}"><button class="btn secondary">Esci</button></form></div>
-    <section class="card"><form method="get" class="grid"><div class="field"><label>Cerca</label><input name="q" value="{escape(q)}" placeholder="Nome, telefono, email o debito"></div><div class="field"><label>Filtra per stato</label><select name="status"><option value="">Tutti gli stati</option>{status_options}</select></div><div class="field" style="align-self:end"><button class="btn">Filtra richieste</button></div></form><p class="muted"><strong>{sum(counts.values())}</strong> richieste archiviate · visualizzate al massimo 300 per volta.</p><div class="table-wrap"><table><thead><tr><th>Pratica</th><th>Contatti</th><th>Situazione</th><th>Stato</th><th>Gestione</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div></section>'''
-    if selected:
-        hist=''.join(f'<li><strong>{escape(h["created_at"].replace("T"," "))}</strong> — {escape(h["event"])}: {escape(h["details"])}</li>' for h in history) or '<li>Nessuna attività registrata.</li>'
-        options=''.join(f'<option {"selected" if selected["status"]==st else ""}>{escape(st)}</option>' for st in LEAD_STATUSES)
-        priority_opts=''.join(f'<option {"selected" if selected["priority"]==p else ""}>{p}</option>' for p in ("Bassa","Normale","Alta","Urgente"))
-        body+=f'''<section class="card"><h2>Pratica #{selected['id']} · {escape(selected['name'])}</h2><div class="grid"><div><p><strong>Telefono:</strong> <a href="tel:{escape(selected['phone'])}">{escape(selected['phone'])}</a></p><p><strong>Email:</strong> <a href="mailto:{escape(selected['email'])}">{escape(selected['email'])}</a></p><p><strong>Tipo di debito:</strong> {escape(selected['debt_type'])}</p><p><strong>Situazione:</strong> {escape(selected['situation'])}</p><p><strong>Ricevuta:</strong> {escape(selected['created_at'].replace('T',' '))}</p><p><strong>Ultimo contatto:</strong> {escape(selected['last_contact_at'] or 'Non registrato')}</p><p><strong>Promemoria:</strong> {escape(selected['reminder_at'] or 'Nessuno impostato')}</p><p><strong>Consenso aggiornamenti:</strong> {'Sì' if selected['marketing_consent'] else 'No'}</p></div><div><strong>Messaggio del richiedente</strong><p>{escape(selected['message'] or 'Nessun messaggio aggiuntivo')}</p></div></div><form method="post"><input type="hidden" name="action" value="update"><input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="lead_id" value="{selected['id']}"><div class="grid"><div class="field"><label>Stato pratica</label><select name="status">{options}</select></div><div class="field"><label>Priorità</label><select name="priority">{priority_opts}</select></div><div class="field"><label>Promemoria</label><input type="datetime-local" name="reminder_at" value="{escape(selected['reminder_at'])}"></div></div><div class="field"><label>Contatto effettuato</label><label style="font-weight:400"><input style="width:auto" type="checkbox" name="contact_done" value="yes"> Registra una telefonata o email effettuata</label><label style="margin-top:8px">Nota sul contatto</label><input name="contact_note" maxlength="1000" placeholder="Es. chiamato, non risponde; inviata email"></div><div class="field"><label>Note interne / storico operativo</label><textarea name="notes" maxlength="8000">{escape(selected['notes'])}</textarea></div><button class="btn">Salva aggiornamento</button> <a class="btn secondary" href="{url_for('leads_admin')}">Chiudi pratica</a></form><h2 style="margin-top:24px">Storico attività</h2><ul>{hist}</ul></section>'''
-    return leads_admin_page("Richieste di contatto", body)
 
 
 @app.route("/health")
