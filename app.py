@@ -1196,7 +1196,7 @@ def home():
       .ft-home{max-width:850px;margin:0 auto;text-align:center;padding:24px 8px 30px}
       .ft-home h1{font-size:clamp(30px,4.5vw,48px);line-height:1.12;margin:0 auto 20px;max-width:800px}
       .ft-home .lead{font-size:clamp(17px,2vw,21px);line-height:1.6;max-width:740px;margin:0 auto 14px}
-      .ft-home .motto{font-size:clamp(17px,2vw,20px);font-weight:800;color:#fff;margin:8px auto 22px;line-height:1.5;text-shadow:0 1px 2px rgba(0,0,0,.18);max-width:760px}
+      .ft-home .motto{display:block;font-size:clamp(17px,2vw,20px);font-weight:800;color:#fff !important;margin:4px auto 22px;line-height:1.5;text-shadow:0 1px 3px rgba(0,0,0,.45);max-width:760px;opacity:1 !important;visibility:visible !important}
       .ft-home-actions{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin:25px auto 0}
       .ft-home-actions .btn{min-width:240px;min-height:54px;padding:15px 22px}
       @media(max-width:600px){.ft-home-actions{flex-direction:column;align-items:stretch;padding:0 8px}.ft-home-actions .btn{width:100%;min-width:0}}
