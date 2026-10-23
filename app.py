@@ -260,14 +260,6 @@ SEO_PAGES = {
         "title": "FixTude | Calcolatore gratuito di sostenibilità dei debiti",
         "description": SEO_DEFAULT_DESCRIPTION,
     },
-    "/situazione-debitoria": {
-        "title": "La mia situazione debitoria | FixTude",
-        "description": "Descrivi la tua situazione debitoria e scegli se procedere con la registrazione o senza account. Primo orientamento, senza promesse di risultato.",
-    },
-    "/situazione-debitoria/avvia": {
-        "title": "Avvia la richiesta sulla tua situazione debitoria | FixTude",
-        "description": "Raccogli le informazioni essenziali su creditori, importi e comunicazioni ricevute per chiedere un primo contatto a FixTude.",
-    },
     "/misuratore": {
         "title": "Calcolatore gratuito di sostenibilità del debito | FixTude",
         "description": "Calcola gratuitamente il margine mensile e valuta in modo orientativo il peso delle rate rispetto a entrate e spese.",
@@ -334,7 +326,7 @@ def page(title, content, include_chat=True):
     seo_title = seo.get("title", f"{title} | FixTude")
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
-    noindex_paths = ("/situazione-debitoria/avvia", "/chat-staff", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
+    noindex_paths = ("/chat-staff", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
     robots = "noindex, nofollow" if path in noindex_paths or path.startswith("/api/") else "index, follow, max-image-preview:large"
     structured_data = None
     if path == "/":
@@ -589,14 +581,13 @@ def page(title, content, include_chat=True):
             .error {color:var(--red);font-weight:700}
             .entry-row {
               display:grid;
-              grid-template-columns:minmax(0,1.1fr) minmax(145px,1fr) minmax(110px,.8fr) minmax(125px,.9fr) auto;
+              grid-template-columns:minmax(0,1.25fr) minmax(110px,1fr) minmax(110px,1fr) auto;
               gap:10px;
               align-items:end;
               padding:12px 0;
               border-bottom:1px solid var(--line);
             }
             .entry-row .field {margin:0}
-            .entry-row select {width:100%;min-width:0;box-sizing:border-box}
             .traffic-light {
               display:flex;
               align-items:center;
@@ -755,7 +746,6 @@ def page(title, content, include_chat=True):
               .card {padding:18px}
               .entry-row {grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
               .entry-row .name-field {grid-column:1 / -1}
-              .entry-row .debt-type-field {grid-column:1 / -1}
               .entry-row .remove-button {grid-column:2;justify-self:end}
               .hero {border-radius:14px}
               .hero p {font-size:16px}
@@ -1201,266 +1191,76 @@ def page(title, content, include_chat=True):
 
 @app.route("/")
 def home():
-    content = r"""
+    content = """
     <style>
-      .ft-home{max-width:1120px;margin:0 auto}
-      .ft-hero{padding:clamp(24px,4vw,42px);border-radius:18px;background:linear-gradient(135deg,#102f5d,#2469ad);color:#fff;text-align:center}
-      .ft-hero h1{max-width:800px;margin:0 auto 14px;font-size:clamp(29px,4.6vw,44px);line-height:1.14;letter-spacing:-.5px}
-      .ft-hero h1 span{color:#bfe0ff}
-      .ft-lead{max-width:680px;margin:0 auto 10px;font-size:17px;line-height:1.55}
-      .ft-promise{margin:0 auto 22px;font-size:14px;line-height:1.5}
-      .ft-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;max-width:840px;margin:24px auto 0;align-items:start}
-      .ft-choice{display:flex;flex-direction:column;align-items:center;gap:8px;color:inherit;text-decoration:none;min-width:0;background:transparent;border:0;padding:0;cursor:pointer;font:inherit}
-      .ft-circle{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;width:clamp(112px,12vw,132px);height:clamp(112px,12vw,132px);box-sizing:border-box;padding:12px;border:2px solid rgba(255,255,255,.88);border-radius:50%;color:#fff;box-shadow:0 5px 0 var(--depth),0 8px 17px rgba(0,0,0,.17),inset 0 2px 4px rgba(255,255,255,.3);transition:transform .15s ease,outline .15s ease;text-align:center;overflow-wrap:anywhere}
-      .ft-choice:hover .ft-circle{transform:translateY(-2px)}
-      .ft-choice[aria-pressed="true"] .ft-circle{outline:3px solid #fff;outline-offset:4px;transform:translateY(-2px)}
-      .ft-circle b{font-size:clamp(12px,1.35vw,15px);line-height:1.15;letter-spacing:.02em}
-      .ft-circle span{font-size:clamp(11px,1.15vw,13px);line-height:1.2;font-weight:700}
-      .ft-red{--depth:#6d111b;background:linear-gradient(145deg,#ed5a60,#a91624)}
-      .ft-yellow{--depth:#80530b;background:linear-gradient(145deg,#f4d56e,#b47b13)}
-      .ft-green{--depth:#064b31;background:linear-gradient(145deg,#46bd88,#08704a)}
-      .ft-choice small{display:none}
-      .ft-next{max-width:690px;margin:25px auto 0;padding:20px;background:#fff;border:1px solid #dce5ef;border-radius:15px;box-shadow:0 7px 22px rgba(20,48,85,.06);text-align:center}
-      .ft-next h2{font-size:clamp(20px,2.6vw,25px);margin:0 0 7px;color:#17375f}
-      .ft-next p{display:none}
-      .ft-next-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-      .ft-next-btn{display:flex;align-items:center;justify-content:center;min-height:48px;padding:12px 16px;border-radius:10px;font-weight:800;text-decoration:none;line-height:1.3;box-sizing:border-box}
-      .ft-next-btn.primary{background:#174b91;color:#fff;border:2px solid #174b91}
-      .ft-next-btn.secondary{background:#fff;color:#174b91;border:2px solid #174b91}
-      .ft-next-btn:hover{filter:brightness(.97)}
-      .ft-home-note{max-width:690px;margin:16px auto 0;text-align:center;color:#66758a;font-size:12px;line-height:1.5}
-      .ft-selection-status{min-height:20px;margin:12px auto 0;color:#fff;font-size:13px;font-weight:700}
-      .ft-next-status{min-height:18px;margin:0 auto 10px;color:#a11b2b;font-size:13px;font-weight:700}
-      @media(max-width:520px){.ft-hero{padding:23px 12px;border-radius:14px}.ft-lead{font-size:15px}.ft-promise{display:none}.ft-buttons{gap:5px;margin-top:18px}.ft-circle{width:min(29vw,104px);height:min(29vw,104px);min-width:0;min-height:0;padding:8px;gap:5px}.ft-circle b{font-size:clamp(10px,3vw,13px)}.ft-circle span{font-size:clamp(9px,2.7vw,11px)}.ft-choice{gap:8px}.ft-next{padding:17px 13px;margin-top:23px}.ft-next-actions{grid-template-columns:1fr}.ft-next-btn{min-height:46px}}
+      .home-hero-layout{display:block;max-width:900px;margin:0 auto;align-items:start;text-align:center}
+      .home-hero-copy{max-width:820px;margin:0 auto}
+      .home-hero-copy h1{max-width:100%;margin-left:auto;margin-right:auto;text-align:center}
+      .home-hero-copy p{max-width:760px;margin-left:auto;margin-right:auto;text-align:center}
+      .home-hero-copy h1{font-size:clamp(30px,4vw,46px);line-height:1.1;margin:0 0 14px}
+      .home-hero-copy p{font-size:18px;line-height:1.55;max-width:680px}
+      .home-situation-panel{width:100%;max-width:900px;margin:0 auto;display:flex;flex-direction:column;align-items:center;text-align:center;box-sizing:border-box}
+      .home-situation-title{display:block;width:100%;max-width:820px;box-sizing:border-box;text-align:center;margin:10px auto 8px;padding:0 12px;align-self:center}
+      .home-situation-intro{display:block;width:100%;max-width:760px;box-sizing:border-box;text-align:center;margin:0 auto 12px;padding:0 12px;align-self:center}
+      .home-situation-options{display:grid;width:100%;box-sizing:border-box;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin:24px auto 8px;max-width:820px;align-items:start;justify-content:center;align-self:center}
+      .home-situation-option{display:flex;flex-direction:column;align-items:center;gap:15px;min-width:0}
+      .home-situation-choice{position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:clamp(98px,11.7vw,133px);height:clamp(98px,11.7vw,133px);padding:10px;border:1px solid rgba(255,255,255,.72);border-radius:50%;cursor:pointer;font:inherit;text-align:center;color:#fff;text-decoration:none;overflow:hidden;transform:translateY(-3px);box-shadow:0 5px 0 var(--button-depth),0 12px 22px rgba(15,23,42,.17),inset 0 1px 2px rgba(255,255,255,.72),inset 0 -7px 13px rgba(0,0,0,.24);transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;touch-action:manipulation;background-clip:padding-box}
+      .home-situation-choice:before{content:"";position:absolute;z-index:-1;left:12%;top:7%;width:76%;height:35%;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,.48),rgba(255,255,255,.08) 58%,transparent);filter:blur(.35px);pointer-events:none}
+      .home-situation-choice:after{content:"";position:absolute;inset:4px;border:1px solid rgba(255,255,255,.18);border-radius:50%;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+      .home-situation-choice:hover{filter:brightness(1.035);transform:translateY(-7px);box-shadow:0 9px 0 var(--button-depth),0 19px 25px rgba(15,23,42,.2),inset 0 1px 2px rgba(255,255,255,.72),inset 0 -7px 13px rgba(0,0,0,.24)}
+      .home-situation-choice:active{transform:translateY(2px) scale(.99);box-shadow:0 1px 0 var(--button-depth),0 4px 8px rgba(15,23,42,.16),inset 0 3px 8px rgba(0,0,0,.2);filter:brightness(.98)}
+      .home-situation-choice:focus-visible{outline:3px solid #1675d1;outline-offset:6px}
+      .home-situation-icon{font-size:24px;line-height:1.05;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.16)}
+      .home-situation-label{font-size:clamp(15px,1.6vw,19px);font-weight:850;line-height:1.05;text-shadow:0 1px 2px rgba(0,0,0,.18)}
+      .home-situation-subtitle{font-size:clamp(9px,1vw,11px);font-weight:800;letter-spacing:.055em;line-height:1.2;text-shadow:0 1px 2px rgba(0,0,0,.15)}
+      .home-situation-description{display:block;max-width:230px;text-align:center;font-size:13px;line-height:1.45;font-style:italic;margin:0 auto;overflow-wrap:break-word}
+      .home-situation-red{--button-depth:#720e17;background:radial-gradient(ellipse at 34% 20%,#e95a57 0%,#c9232b 38%,#a91420 72%,#790b15 100%);border-color:rgba(255,255,255,.58)}
+      .home-situation-yellow{--button-depth:#80500a;background:radial-gradient(ellipse at 34% 20%,#f4d878 0%,#d9a52c 38%,#b87d14 72%,#80500a 100%);border-color:rgba(255,255,255,.6)}
+      .home-situation-green{--button-depth:#06462d;background:radial-gradient(ellipse at 34% 20%,#48bd88 0%,#13845b 39%,#086544 73%,#06452f 100%);border-color:rgba(255,255,255,.58)}
+      @media(max-width:700px){.home-hero-layout{grid-template-columns:1fr;gap:18px}.home-hero-copy h1{font-size:clamp(27px,6vw,36px);line-height:1.12}.home-hero-copy p{font-size:16px;line-height:1.5}.home-situation-panel{width:100%;max-width:100%;padding:0 4px}.home-situation-title{font-size:clamp(21px,5vw,28px);margin-top:8px;padding:0 8px}.home-situation-intro{font-size:15px;line-height:1.4;padding:0 8px}.home-situation-options{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:20px;padding:0 2px}.home-situation-option{gap:9px}.home-situation-choice{width:min(18.2vw,86px);height:min(18.2vw,86px);min-width:68px;min-height:68px;padding:5px;border-width:1px;transform:translateY(-2px);box-shadow:0 3px 0 var(--button-depth),0 7px 11px rgba(15,23,42,.17),inset 0 1px 2px rgba(255,255,255,.7),inset 0 -4px 7px rgba(0,0,0,.22)}.home-situation-choice:hover{transform:translateY(-4px)}.home-situation-icon{font-size:17px}.home-situation-label{font-size:clamp(10px,2.7vw,13px)}.home-situation-subtitle{font-size:clamp(7px,2vw,9px)}.home-situation-description{max-width:100%;font-size:clamp(11px,2.9vw,13px);line-height:1.35}.home-situation-title{margin-top:8px}.home-situation-intro{font-size:15px;line-height:1.4}}
+      @media(prefers-reduced-motion:reduce){.home-situation-choice{transition:none}}
     </style>
-    <div class="ft-home">
-      <section class="ft-hero" aria-labelledby="ft-home-title">
-        <h1 id="ft-home-title">Non farti cercare dal recupero crediti.<br><span>Cerca tu la soluzione.</span></h1>
-        <p class="ft-lead">Fai chiarezza sulla tua situazione e scegli come muovere il primo passo.</p>
-
-        <div class="ft-buttons" role="group" aria-label="Seleziona la tua situazione">
-          <button class="ft-choice" type="button" data-situazione="urgente" aria-pressed="false">
-            <span class="ft-circle ft-red"><b>URGENZA</b><span>Ho ricevuto un atto</span></span>
-          </button>
-          <button class="ft-choice" type="button" data-situazione="difficolta" aria-pressed="false">
-            <span class="ft-circle ft-yellow"><b>DIFFICOLTÀ</b><span>Non riesco a pagare</span></span>
-          </button>
-          <button class="ft-choice" type="button" data-situazione="prevenzione" aria-pressed="false">
-            <span class="ft-circle ft-green"><b>PREVENZIONE</b><span>Voglio fare chiarezza</span></span>
-          </button>
+    <section class="hero">
+      <div class="home-hero-layout">
+        <div class="home-hero-copy">
+          <h1>Fai chiarezza sulla tua<br>situazione debitoria.</h1>
+          <p><strong>Semplice. Riservato. Senza registrazione.</strong></p>
         </div>
-        <div class="ft-selection-status" id="ft-selection-status" aria-live="polite">Seleziona una situazione per continuare.</div>
-      </section>
-      <section class="ft-next" aria-labelledby="ft-next-title">
-        <h2 id="ft-next-title">Come vuoi procedere?</h2>
-        <div class="ft-next-status" id="ft-next-status" role="status" aria-live="polite"></div>
-        <div class="ft-next-actions">
-          <a class="ft-next-btn primary" id="ft-register-link" href="/situazione-debitoria/avvia?modalita=registrazione">Procedi con la registrazione</a>
-          <a class="ft-next-btn secondary" id="ft-guest-link" href="/situazione-debitoria/avvia?modalita=senza-registrazione">Procedi senza registrazione</a>
+      </div>
+      <div class="home-situation-panel">
+      <h2 class="home-situation-title">Cominciamo.</h2>
+      <p class="home-situation-intro">Scegli il pulsante che descrive la tua situazione.<br>Il calcolatore ti fornirà un primo esito di sostenibilità.</p>
+      <div class="home-situation-options">
+        <div class="home-situation-option">
+          <a class="home-situation-choice home-situation-red" href="/misuratore?scenario=rosso#calculatorStart" aria-label="Emergenza: non riesco a pagare la rata di questo mese e ho già ricevuto solleciti">
+            <span class="home-situation-icon" aria-hidden="true">!</span><span class="home-situation-subtitle">EMERGENZA</span>
+          </a>
+          <em class="home-situation-description">Sto indietro con le rate.</em>
         </div>
-      </section>
-      <p class="ft-home-note">Il calcolatore di sostenibilità del debito resta disponibile dal menu principale. I dati economici inseriti nel calcolatore vengono elaborati nel browser.</p>
-    </div>
-    <script>
-    (() => {
-      const choices = Array.from(document.querySelectorAll(".ft-choice[data-situazione]"));
-      const registerLink = document.getElementById("ft-register-link");
-      const guestLink = document.getElementById("ft-guest-link");
-      const selectionStatus = document.getElementById("ft-selection-status");
-      const nextStatus = document.getElementById("ft-next-status");
-      let selectedSituation = "";
-      function updateLinks() {
-        for (const [link, percorso] of [[registerLink, "registrazione"], [guestLink, "senza-registrazione"]]) {
-          const params = new URLSearchParams({modalita: percorso});
-          if (selectedSituation) params.set("situazione", selectedSituation);
-          link.href = "/situazione-debitoria/avvia?" + params.toString();
-        }
-      }
-      choices.forEach(choice => choice.addEventListener("click", () => {
-        selectedSituation = choice.dataset.situazione || "";
-        const labels = {urgente:"Urgenza selezionata.",difficolta:"Difficoltà selezionata.",prevenzione:"Prevenzione selezionata."};
-        selectionStatus.textContent = labels[selectedSituation] || "Seleziona una situazione per continuare.";
-        nextStatus.textContent = "";
-        choices.forEach(item => {
-          const active = item === choice;
-          item.setAttribute("aria-pressed", active ? "true" : "false");
-        });
-        updateLinks();
-      }));
-      [registerLink, guestLink].forEach(link => link.addEventListener("click", event => {
-        if (!selectedSituation) {
-          event.preventDefault();
-          nextStatus.textContent = "Seleziona prima Urgenza, Difficoltà o Prevenzione.";
-          document.querySelector(".ft-hero").scrollIntoView({behavior:"smooth",block:"center"});
-        }
-      }));
-      updateLinks();
-    })();
-    </script>
+        <div class="home-situation-option">
+          <a class="home-situation-choice home-situation-yellow" href="/misuratore?scenario=giallo#calculatorStart" aria-label="Allerta: pago tutto ma faccio fatica e non mi rimane quasi nulla dello stipendio">
+            <span class="home-situation-icon" aria-hidden="true">!</span><span class="home-situation-subtitle">ALLERTA</span>
+          </a>
+          <em class="home-situation-description">Faccio fatica a pagare tutto.</em>
+        </div>
+        <div class="home-situation-option">
+          <a class="home-situation-choice home-situation-green" href="/misuratore?scenario=verde#calculatorStart" aria-label="Controllo: voglio verificare se i miei debiti sono sostenibili">
+            <span class="home-situation-icon" aria-hidden="true">✓</span><span class="home-situation-subtitle">CONTROLLO</span>
+          </a>
+          <em class="home-situation-description">Situazione gestibile.</em>
+        </div>
+      </div>
+      </div>
+    </section>
+    <section class="card start-card"><h2>Come funziona FixTude</h2><div class="grid">
+      <div><strong>1. Fai il calcolo</strong><p class="muted">Usa gratuitamente il calcolatore. I dati inseriti restano nel browser e non serve registrarsi.</p></div>
+      <div><strong>2. Valuta il risultato</strong><p class="muted">Ottieni una stima orientativa del margine mensile e del peso delle rate.</p></div>
+      <div><strong>3. Se vuoi, chiedi di parlare con un esperto</strong><p class="muted">Lascia i tuoi recapiti e una breve descrizione della situazione per chiedere il contatto di un esperto FixTude. Il contatto è facoltativo e non comporta obblighi.</p></div>
+      <div><strong>4. Hai una domanda?</strong><p class="muted">Apri la chat con un esperto FixTude in basso a destra per inviare un messaggio allo staff. La chat è disponibile senza registrazione.</p></div>
+    </div></section>
+    <p class="muted">Il calcolatore e i materiali gratuiti hanno finalità informative e orientative. Gli eventuali servizi di assistenza legale sono descritti nella sezione dedicata e vengono svolti da professionisti abilitati sulla base di uno specifico mandato. Nessun servizio garantisce l'accettazione di proposte da parte dei creditori o un esito giudiziario favorevole.</p>
     """
-    return page("Non farti cercare dal recupero crediti", content)
-
-
-# =========================================================
-# NUOVO PERCORSO CLIENTI: SITUAZIONE DEBITORIA
-# Prototipo di raccolta iniziale: nessun documento caricato e nessun
-# archivio pratica/account cliente viene creato in questa versione.
-# =========================================================
-
-@app.route("/situazione-debitoria", methods=["GET"])
-def situazione_debitoria():
-    modalita = (request.args.get("modalita", "") or "").strip().lower()
-    if modalita not in ("registrazione", "senza-registrazione"):
-        modalita = ""
-    mode_label = "con richiesta di registrazione" if modalita == "registrazione" else "senza registrazione"
-    content = f'''<style>
-      .intake-wrap{{max-width:850px;margin:0 auto}}
-      .intake-intro{{font-size:17px;max-width:760px}}
-      .intake-options{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:24px 0}}
-      .intake-option{{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:22px;border:1px solid #dce5ef;border-radius:16px;background:#fff;box-shadow:0 8px 22px rgba(18,58,114,.06)}}
-      .intake-option h2{{margin:0;font-size:22px;line-height:1.2}}
-      .intake-option p{{margin:0;color:#52647b}}
-      .intake-option .btn{{margin-top:auto;white-space:normal;text-align:center}}
-      .intake-icon{{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:#eaf2ff;color:#174b91;font-size:23px;font-weight:800}}
-      .intake-note{{font-size:13px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;padding:14px;border-radius:12px}}
-      .intake-form-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}}
-      .intake-form-grid .full{{grid-column:1/-1}}
-      .intake-type-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
-      .intake-type{{display:flex;align-items:flex-start;gap:9px;border:1px solid #dce5ef;border-radius:10px;padding:12px;background:#fff}}
-      .intake-type input{{margin-top:5px;flex-shrink:0}}
-      .intake-form-actions{{display:flex;gap:10px;flex-wrap:wrap;align-items:center}}
-      @media(max-width:650px){{.intake-options,.intake-form-grid,.intake-type-grid{{grid-template-columns:1fr}}.intake-form-grid .full{{grid-column:auto}}.intake-option{{padding:19px}}}}
-    </style>
-    <div class="intake-wrap">
-      <p class="muted">FIXTUDE · PRIMO ORIENTAMENTO</p>
-      <h1>La mia situazione debitoria</h1>
-      <p class="intake-intro">Hai ricevuto un sollecito, una cartella, una diffida o un altro documento relativo a un debito? Inizia da qui. Ti aiutiamo a mettere in ordine le informazioni essenziali e a individuare i prossimi passi da valutare.</p>
-      <section class="intake-options" aria-label="Scegli come procedere">
-        <article class="intake-option">
-          <div class="intake-icon" aria-hidden="true">♙</div>
-          <h2>Procedi con la registrazione</h2>
-          <p>Per chi desidera un percorso personale e vuole prepararsi a ritrovare le proprie richieste e gli aggiornamenti in un unico spazio.</p>
-          <a class="btn" href="/situazione-debitoria/avvia?modalita=registrazione">Procedi con la registrazione</a>
-          <p class="muted" style="font-size:12px">L'area personale e l'archivio delle pratiche sono in fase di attivazione: questa schermata non crea ancora un account.</p>
-        </article>
-        <article class="intake-option">
-          <div class="intake-icon" aria-hidden="true">➜</div>
-          <h2>Procedi senza registrazione</h2>
-          <p>Per chi vuole descrivere subito la propria situazione, senza creare un account e senza impostare una password.</p>
-          <a class="btn outline" href="/situazione-debitoria/avvia?modalita=senza-registrazione">Procedi senza registrazione</a>
-        </article>
-      </section>
-      <div class="intake-note"><strong>Prima di iniziare:</strong> non caricare documenti in questa versione e non inserire codici fiscali, coordinate bancarie, password o dati non necessari. Se hai ricevuto un atto con una scadenza, annota la data e valuta tempestivamente un confronto con un professionista abilitato. FixTude non promette cancellazioni del debito o risultati garantiti.</div>
-      <p class="muted" style="margin-top:20px">Puoi continuare anche con il <a href="/misuratore">calcolatore gratuito</a> oppure <a href="/consulenza">chiedere di essere ricontattato</a>.</p>
-    </div>'''
-    return page("La mia situazione debitoria", content)
-
-
-@app.route("/situazione-debitoria/avvia", methods=["GET"])
-def situazione_debitoria_avvia():
-    modalita = (request.args.get("modalita", "senza-registrazione") or "senza-registrazione").strip().lower()
-    if modalita not in ("registrazione", "senza-registrazione"):
-        modalita = "senza-registrazione"
-    situazione = (request.args.get("situazione", "") or "").strip().lower()
-    situazioni_valide = {
-        "urgente": ("Urgenza", "Ho ricevuto un sollecito o un atto."),
-        "difficolta": ("Difficoltà", "Sono in difficoltà e non riesco a pagare."),
-        "prevenzione": ("Prevenzione", "Voglio prevenire i problemi e trovare una soluzione."),
-    }
-    if situazione not in situazioni_valide:
-        situazione = ""
-    situazione_label, situazione_descrizione = situazioni_valide.get(
-        situazione, ("Non selezionata", "Nessuna situazione selezionata dalla Home.")
-    )
-    registrazione = modalita == "registrazione"
-    mode_label = "con richiesta di registrazione" if registrazione else "senza registrazione"
-    titolo = "Richiesta di avvio con registrazione" if registrazione else "Descrivi la tua situazione"
-    sottotitolo = ("Raccogliamo la tua richiesta per il percorso con registrazione. L'account personale non viene creato automaticamente in questa versione; ti contatteremo per i passaggi successivi." if registrazione else "Compila i campi che conosci. Non serve creare un account. Per ora non inviare allegati: ti chiediamo solo le informazioni iniziali necessarie.")
-    content = f'''<style>
-      .intake-wrap{{max-width:820px;margin:0 auto}}
-      .intake-form-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}}
-      .intake-form-grid .full{{grid-column:1/-1}}
-      .intake-type-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:9px;align-items:stretch}}
-      .intake-form-grid .field label.intake-type{{display:flex!important;flex-direction:row;align-items:flex-start;justify-content:flex-start;gap:10px;width:100%;min-width:0;min-height:0;margin:0;padding:13px 14px;border:1px solid #dce5ef;border-radius:10px;background:#fff;font-weight:400;line-height:1.4;cursor:pointer}}
-      .intake-form-grid .field label.intake-type:hover{{border-color:#8eafd9;background:#f8fbff}}
-      .intake-form-grid .field label.intake-type input[type=checkbox]{{display:block!important;appearance:auto;width:17px!important;min-width:17px;max-width:17px;height:17px!important;margin:3px 0 0!important;padding:0!important;flex:0 0 17px;border:initial;box-shadow:none}}
-      .intake-type span{{display:block;flex:1 1 auto;min-width:0;overflow-wrap:anywhere}}
-      .intake-type strong{{display:block;margin:0 0 4px;font-size:15px;color:#203047}}
-      .intake-type small{{display:block;font-size:13px;line-height:1.45;color:#65758b;font-weight:400}}
-      .intake-form-actions{{display:flex;gap:10px;flex-wrap:wrap;align-items:center}}
-      @media(max-width:650px){{.intake-form-grid,.intake-type-grid{{grid-template-columns:1fr}}.intake-form-grid .full{{grid-column:auto}}.intake-form-grid .field label.intake-type{{padding:12px}}}}
-    </style>
-    <div class="intake-wrap">
-      <p class="muted">LA MIA SITUAZIONE DEBITORIA · {mode_label.upper()}</p>
-      <div class="intake-note" style="margin:12px 0 18px"><strong>Percorso scelto:</strong> {escape(situazione_label)} — {escape(situazione_descrizione)}</div>
-      <h1>{titolo}</h1>
-      <p class="muted">{sottotitolo}</p>
-      <section class="card">
-        <form id="debtIntakeForm">
-          <input type="hidden" name="modalita_percorso" value="{escape(modalita)}">
-          <input type="hidden" name="situazione_home" value="{escape(situazione_label)}">
-          <input type="hidden" name="situazione_descrizione" value="{escape(situazione_descrizione)}">
-          <input type="hidden" name="subject" value="FixTude - nuova richiesta situazione debitoria">
-          <input type="hidden" name="from_name" value="FixTude - percorso situazione debitoria">
-          <div class="intake-form-grid">
-            <div class="field"><label for="di_name">Nome *</label><input id="di_name" name="name" maxlength="100" autocomplete="name" required></div>
-            <div class="field"><label for="di_email">Email *</label><input id="di_email" name="email" type="email" maxlength="254" autocomplete="email" required></div>
-            <div class="field"><label for="di_phone">Telefono (facoltativo)</label><input id="di_phone" name="phone" type="tel" maxlength="40" autocomplete="tel"></div>
-            <div class="field"><label for="di_count">Quante posizioni vuoi segnalare?</label><select id="di_count" name="numero_posizioni"><option value="1">Una</option><option value="2-3">Due o tre</option><option value="4 o più">Quattro o più</option><option value="Non so ancora">Non lo so ancora</option></select></div>
-            <div class="field full"><label>Che tipo di debito riguarda? Seleziona tutte le opzioni pertinenti *</label><div class="intake-type-grid">
-              <label class="intake-type"><input type="checkbox" name="tipi_debito" value="Utenze e servizi"><span><strong>Utenze e servizi</strong><br><small>Luce, gas, acqua, telefono, Internet, abbonamenti</small></span></label>
-              <label class="intake-type"><input type="checkbox" name="tipi_debito" value="Crediti finanziari"><span><strong>Crediti finanziari</strong><br><small>Prestiti, finanziamenti, carte, mutui, banca</small></span></label>
-              <label class="intake-type"><input type="checkbox" name="tipi_debito" value="Debiti fiscali e tributari"><span><strong>Debiti fiscali e tributari</strong><br><small>Cartelle, Agenzia Entrate-Riscossione, IMU, TARI, bollo</small></span></label>
-              <label class="intake-type"><input type="checkbox" name="tipi_debito" value="Altri debiti"><span><strong>Altri debiti</strong><br><small>Condominio, affitto, privati o debiti commerciali</small></span></label>
-            </div></div>
-            <div class="field"><label for="di_creditor">Creditore principale (se noto)</label><input id="di_creditor" name="creditore_principale" maxlength="180" placeholder="Es. società, banca, ente"></div>
-            <div class="field"><label for="di_amount">Importo indicativo complessivo (€)</label><input id="di_amount" name="importo_indicativo" inputmode="decimal" maxlength="30" placeholder="Facoltativo"></div>
-            <div class="field full"><label for="di_act">Hai ricevuto una comunicazione o un atto?</label><select id="di_act" name="documento_ricevuto"><option value="Non so / preferisco descriverlo">Non so / preferisco descriverlo</option><option value="Sollecito di pagamento">Sollecito di pagamento</option><option value="Messa in mora o diffida">Messa in mora o diffida</option><option value="Decreto ingiuntivo">Decreto ingiuntivo</option><option value="Atto di precetto">Atto di precetto</option><option value="Pignoramento">Pignoramento</option><option value="Cartella di pagamento">Cartella di pagamento</option><option value="Avviso di accertamento o atto fiscale">Avviso di accertamento o atto fiscale</option><option value="Intimazione di pagamento">Intimazione di pagamento</option><option value="Preavviso di fermo o ipoteca">Preavviso di fermo o ipoteca</option><option value="Piano di rateizzazione">Piano di rateizzazione</option><option value="Altro">Altro</option><option value="Nessun documento ricevuto">Nessun documento ricevuto</option></select></div>
-            <div class="field"><label for="di_date">Data di ricezione (se nota)</label><input id="di_date" name="data_ricezione" type="date"></div>
-            <div class="field"><label for="di_deadline">Scadenza indicata (se nota)</label><input id="di_deadline" name="scadenza_indicata" type="date"></div>
-            <div class="field full"><label for="di_notes">Descrizione breve (facoltativa)</label><textarea id="di_notes" name="descrizione" maxlength="1800" rows="4" placeholder="Descrivi in breve cosa è successo e cosa vorresti chiarire. Non inserire codici fiscali, coordinate bancarie o altri dati sensibili."></textarea></div>
-          </div>
-          <div style="position:absolute;left:-10000px" aria-hidden="true"><label for="di_website">Non compilare</label><input id="di_website" name="website" tabindex="-1" autocomplete="off"></div>
-          <label class="check" style="margin-top:16px"><input type="checkbox" name="privacy" value="Letta" required><span>Dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a> e chiedo di essere ricontattato per questa richiesta.</span></label>
-          <label class="check"><input type="checkbox" name="accept_terms" value="Accettati" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label>
-          <p class="intake-note" style="font-size:13px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;padding:13px;border-radius:10px">I dati saranno inviati al titolare via Web3Forms per gestire la richiesta; l'applicazione non salva una copia nel proprio database. In questa versione non è previsto il caricamento di documenti né un archivio pratica. Le richieste che riguardano atti con termini o scadenze potrebbero richiedere una valutazione professionale tempestiva.</p>
-          <div id="debtIntakeResult" role="status" aria-live="polite"></div>
-          <div class="intake-form-actions"><button class="btn" id="debtIntakeSubmit" type="submit">Invia la richiesta</button><a class="btn outline" href="/situazione-debitoria">Torna alla scelta</a></div>
-        </form>
-      </section>
-    </div>
-    <script>
-    (()=>{{
-      const form=document.getElementById('debtIntakeForm');
-      const result=document.getElementById('debtIntakeResult');
-      const button=document.getElementById('debtIntakeSubmit');
-      const checks=[...form.querySelectorAll('input[name="tipi_debito"]')];
-      form.addEventListener('submit',async e=>{{
-        e.preventDefault(); result.className=''; result.textContent='';
-        if(!form.reportValidity())return;
-        if(!checks.some(x=>x.checked)){{result.className='notice error';result.textContent='Seleziona almeno una categoria di debito.';return;}}
-        const values={{}};
-        for(const [key,value] of new FormData(form).entries()){{
-          if(key==='website'&&String(value).trim()){{result.className='notice success';result.textContent='Richiesta inviata. Grazie.';form.reset();return;}}
-          if(key==='tipi_debito'){{(values[key]||(values[key]=[])).push(value);}}
-          else if(key!=='website') values[key]=value;
-        }}
-        values.access_key='6cfd757e-6b16-49e0-96b5-e055a159f403';
-        values.botcheck='';
-        button.disabled=true;button.textContent='Invio in corso…';
-        try{{
-          const response=await fetch('https://api.web3forms.com/submit',{{method:'POST',headers:{{'Content-Type':'application/json','Accept':'application/json'}},body:JSON.stringify(values)}});
-          const data=await response.json();
-          if(!response.ok||data.success!==true)throw new Error(data.message||'Non è stato possibile inviare la richiesta. Riprova più tardi.');
-          result.className='notice success';
-          result.textContent='Richiesta inviata correttamente. Grazie. FixTude potrà ricontattarti usando i recapiti indicati.';
-          form.reset();
-        }}catch(err){{result.className='notice error';result.textContent=err.message||'Errore di connessione. Riprova più tardi.';}}
-        finally{{button.disabled=false;button.textContent='Invia la richiesta';}}
-      }});
-    }})();
-    </script>'''
-    return page(titolo, content)
+    return page("Fai chiarezza", content)
 
 
 # =========================================================
@@ -1775,20 +1575,7 @@ def misuratore():
           return {field, input};
         }
         const primary = makeAmountField(type === "debt" ? "Debito residuo (€)" : "Importo mensile (€)", amount, type === "debt" ? "Importo residuo del debito in euro" : "Importo mensile in euro");
-        row.appendChild(nameField);
-        if (type === "debt") {
-          const typeField = document.createElement("div");
-          typeField.className = "field debt-type-field";
-          const typeLabel = document.createElement("label");
-          typeLabel.textContent = "Tipo di debito";
-          typeField.appendChild(typeLabel);
-          const typeSelect = document.createElement("select");
-          typeSelect.setAttribute("aria-label", "Tipo di debito");
-          typeSelect.innerHTML = '<option value="Utenze e servizi">Utenze e servizi</option><option value="Prestiti e finanziamenti">Prestiti e finanziamenti</option><option value="Carte e conto corrente">Carte e conto corrente</option><option value="Mutuo">Mutuo</option><option value="Affitto e condominio">Affitto e condominio</option><option value="Debiti fiscali e tributi">Debiti fiscali e tributi</option><option value="Debiti verso privati">Debiti verso privati</option><option value="Altro">Altro</option>';
-          typeField.appendChild(typeSelect);
-          row.appendChild(typeField);
-        }
-        row.appendChild(primary.field);
+        row.append(nameField, primary.field);
         if (type === "debt") {
           const installment = makeAmountField("Rata mensile già in corso (€)", payment, "Rata mensile già in corso in euro");
           row.appendChild(installment.field);
@@ -3206,7 +2993,7 @@ def shop():
       <div class="shop-book-description"><h2>NIENTE PANICO</h2><p>Una guida pratica per mettere ordine nella situazione debitoria, leggere meglio le proprie possibilità e prepararsi ad affrontare i creditori con maggiore lucidità.</p><p><strong>Formato:</strong> libro digitale PDF.</p><p class="muted">Prima di acquistare, puoi leggere gratuitamente il primo capitolo. Il libro completo sarà disponibile dopo la conferma del pagamento.</p><p><a class="btn outline" href="/shop/anteprima" target="_blank" rel="noopener">Leggi il primo capitolo gratuitamente</a></p><p class="muted">Dopo la conferma del pagamento potrai scaricare il PDF completo dalla pagina di conferma. Non è necessaria la registrazione.</p><div class="price">€ 6,99</div><form method="post" action="/shop/acquista"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">Acquista il libro digitale</button></form></div>
     </section>
     <section class="card product-card" aria-labelledby="guida-saldo-title">
-      <div class="shop-book-cover"><img src="/static/Guida%20al%20Saldo%20e%20Stralcio%20FixTude.png" alt="Copertina della guida FixTude Saldo e stralcio"></div>
+      <div class="shop-book-cover"><img src="/static/guida_saldo_stralcio_cover.png" alt="Copertina della guida FixTude Saldo e stralcio"></div>
       <div class="shop-book-description">
         <h2 id="guida-saldo-title">GUIDA AL SALDO E STRALCIO</h2>
         <p>Tutto quello che c'è da sapere sul saldo e stralcio: come funziona, quali sono i possibili vantaggi e i limiti di una pratica utilizzata per tentare la chiusura bonaria di una posizione debitoria.</p>
