@@ -1193,18 +1193,24 @@ def page(title, content, include_chat=True):
 def home():
     content = """
     <style>
-      .ft-home{max-width:850px;margin:0 auto;text-align:center;padding:24px 8px 30px}
-      .ft-home h1{font-size:clamp(30px,4.5vw,48px);line-height:1.12;margin:0 auto 20px;max-width:800px}
-      .ft-home .lead{font-size:clamp(17px,2vw,21px);line-height:1.6;max-width:740px;margin:0 auto 14px}
-      .ft-home .motto{display:block;font-size:clamp(17px,2vw,20px);font-weight:800;color:#fff !important;margin:4px auto 22px;line-height:1.5;text-shadow:0 1px 3px rgba(0,0,0,.45);max-width:760px;opacity:1 !important;visibility:visible !important}
-      .ft-home-actions{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin:25px auto 0}
-      .ft-home-actions .btn{min-width:240px;min-height:54px;padding:15px 22px}
-      @media(max-width:600px){.ft-home-actions{flex-direction:column;align-items:stretch;padding:0 8px}.ft-home-actions .btn{width:100%;min-width:0}}
+      .ft-home{width:100%;max-width:850px;margin:0 auto;text-align:center;padding:clamp(18px,4vw,32px) 12px 30px;box-sizing:border-box}
+      .ft-home h1{font-size:clamp(30px,5vw,48px);line-height:1.12;letter-spacing:-.025em;margin:0 auto 18px;max-width:800px;text-wrap:balance;overflow-wrap:normal}
+      .ft-home h1 span{display:block}
+      .ft-home .lead{font-size:clamp(17px,2.2vw,21px);line-height:1.45;max-width:660px;margin:0 auto 14px;text-wrap:pretty}
+      .ft-home-actions{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin:25px auto 0;max-width:680px}
+      .ft-home-actions .btn{min-width:240px;min-height:54px;padding:15px 22px;box-sizing:border-box}
+      @media(max-width:600px){
+        .ft-home{padding:18px 16px 26px}
+        .ft-home h1{font-size:clamp(29px,8vw,36px);line-height:1.12;letter-spacing:-.03em;margin-bottom:16px;max-width:360px}
+        .ft-home .lead{font-size:17px;line-height:1.45;max-width:340px;margin-bottom:12px}
+        .ft-home-actions{flex-direction:column;align-items:stretch;gap:10px;padding:0;margin-top:22px}
+        .ft-home-actions .btn{width:100%;min-width:0;max-width:380px;margin:0 auto;padding:14px 16px}
+      }
+      @media(max-width:360px){.ft-home h1{font-size:28px}.ft-home .lead{font-size:16px}}
     </style>
     <section class="hero ft-home">
-      <h1>Hai un debito.<br>Non devi affrontarlo da solo.</h1>
-      <p class="motto">Non farti cercare dal recupero crediti, cerca tu stesso la soluzione.</p>
-      <p class="lead">Fai chiarezza sulla tua situazione, scopri cosa puoi sostenere e trova la strada per ripartire, con il supporto di un consulente.</p>
+      <h1><span>Hai un debito?</span><span>Non affrontarlo da solo.</span></h1>
+      <p class="lead">Scopri cosa puoi sostenere e trova la strada per ripartire.</p>
       <div class="ft-home-actions">
         <a class="btn" href="/consulenza?percorso=registrazione">Procedi con la registrazione</a>
         <a class="btn outline" href="/consulenza?percorso=senza-registrazione">Procedi senza registrazione</a>
