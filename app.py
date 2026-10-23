@@ -1203,8 +1203,8 @@ def home():
     </style>
     <section class="hero ft-home">
       <h1>Hai un debito. Non devi affrontarlo da solo.</h1>
-      <p class="lead">FixTude ti aiuta a fare chiarezza sulla tua situazione e a valutare le possibili soluzioni, con il supporto di un consulente.</p>
-      <p class="motto">Non farti cercare dal recupero crediti, cerca tu la soluzione.</p>
+      <p class="motto">Non farti cercare dal recupero crediti, cerca tu stesso la soluzione.</p>
+      <p class="lead">Fai chiarezza sulla tua situazione, scopri cosa puoi sostenere e trova la strada per ripartire, con il supporto di un consulente.</p>
       <div class="ft-home-actions">
         <a class="btn" href="/consulenza?percorso=registrazione">Procedi con la registrazione</a>
         <a class="btn outline" href="/consulenza?percorso=senza-registrazione">Procedi senza registrazione</a>
@@ -1859,75 +1859,84 @@ def misuratore():
 
 @app.route("/consulenza")
 def consulenza():
-    content = """
-    <h1>Facciamo chiarezza sulla tua situazione</h1>
-    <p class="muted">
-      Compila il modulo soltanto se desideri essere ricontattato. La richiesta è gratuita e non ti obbliga a proseguire.
-    </p>
-    <p class="muted" id="ft-registration-note"></p>
-    <script>
-      (function(){var p=new URLSearchParams(window.location.search).get('percorso');var n=document.getElementById('ft-registration-note');if(!n)return;if(p==='registrazione'){n.textContent='Hai scelto il percorso con registrazione. La creazione automatica di un account non è ancora attiva: puoi inviare una richiesta di contatto tramite questo modulo.';}else if(p==='senza-registrazione'){n.textContent='Puoi proseguire senza creare un account: compila il modulo solo se desideri essere ricontattato.';}})();
-    </script>
+    content = r"""
+    <style>
+      .ft-form-intro{margin-bottom:18px;line-height:1.6}
+      .ft-form-section{border-top:1px solid var(--border,#d8dee8);padding-top:18px;margin-top:20px}
+      .ft-form-section h2{font-size:20px;margin:0 0 12px}
+      .ft-form-section .muted{line-height:1.5}
+      .ft-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
+      .ft-form-grid .field{min-width:0}
+      .ft-form-grid input,.ft-form-grid select,.ft-form-grid textarea{width:100%;box-sizing:border-box}
+      .ft-path-panel[hidden]{display:none!important}
+      @media(max-width:650px){.ft-form-grid{grid-template-columns:1fr}}
+    </style>
+    <h1 id="ft-contact-title">Facciamo chiarezza sulla tua situazione</h1>
+    <p class="muted ft-form-intro">Scegli il percorso più adatto a te. La richiesta è gratuita e non ti obbliga a proseguire.</p>
+    <p class="notice" id="ft-registration-note" aria-live="polite"></p>
 
     <section class="card">
       <form id="contactForm">
-        <div class="field">
-          <label for="name">Nome</label>
-          <input id="name" name="name" maxlength="100"
-                 autocomplete="name" required>
-        </div>
-        <div class="grid">
-          <div class="field">
-            <label for="email">Email</label>
-            <input id="email" name="email" type="email"
-                   maxlength="254" autocomplete="email" required>
+        <input type="hidden" name="percorso" id="ft-path-value" value="senza-registrazione">
+
+        <div id="ft-registered-panel" class="ft-path-panel" hidden>
+          <div class="ft-form-section" style="border-top:0;padding-top:0;margin-top:0">
+            <h2>1. I tuoi dati</h2>
+            <p class="muted">Compila i dati necessari per permetterci di esaminare la richiesta e ricontattarti.</p>
+            <div class="ft-form-grid">
+              <div class="field"><label for="reg_name">Nome</label><input id="reg_name" name="nome" maxlength="80" autocomplete="given-name" data-required="true"></div>
+              <div class="field"><label for="reg_surname">Cognome</label><input id="reg_surname" name="cognome" maxlength="100" autocomplete="family-name" data-required="true"></div>
+              <div class="field"><label for="reg_email">Email</label><input id="reg_email" name="email" type="email" maxlength="254" autocomplete="email" data-required="true"></div>
+              <div class="field"><label for="reg_phone">Telefono</label><input id="reg_phone" name="telefono" type="tel" maxlength="40" autocomplete="tel" data-required="true"></div>
+              <div class="field"><label for="reg_city">Comune di residenza</label><input id="reg_city" name="comune_residenza" maxlength="100" autocomplete="address-level2" data-required="true"></div>
+              <div class="field"><label for="reg_contact_time">Quando preferisci essere contattato?</label><select id="reg_contact_time" name="fascia_contatto" data-required="true"><option value="">Seleziona</option><option>Mattina</option><option>Pomeriggio</option><option>Indifferente</option></select></div>
+            </div>
           </div>
-          <div class="field">
-            <label for="phone">Telefono (facoltativo)</label>
-            <input id="phone" name="phone" type="tel"
-                   maxlength="40" autocomplete="tel">
+
+          <div class="ft-form-section">
+            <h2>2. Che tipo di debito hai?</h2>
+            <p class="muted">Se hai più debiti, seleziona la categoria principale e indicane gli altri nel campo dedicato.</p>
+            <div class="ft-form-grid">
+              <div class="field"><label for="reg_debt_type">Categoria del debito</label><select id="reg_debt_type" name="tipo_debito" data-required="true"><option value="">Seleziona il tipo di debito</option><option>Utenze: luce, gas, acqua</option><option>Telefonia e Internet</option><option>Finanziario: prestito personale</option><option>Finanziario: carta di credito / revolving</option><option>Finanziario: mutuo o finanziamento garantito</option><option>Finanziario: cessione del quinto</option><option>Fiscale o tributario</option><option>Condominio</option><option>Affitto o locazione</option><option>Acquisti o rate con negozi / società commerciali</option><option>Debito verso privati</option><option>Altro / non so identificarlo</option></select></div>
+              <div class="field"><label for="reg_other_debts">Hai anche altri tipi di debito?</label><select id="reg_other_debts" name="altri_tipi_debito"><option value="no">No</option><option value="si">Sì</option><option value="non_so">Non saprei</option></select></div>
+              <div class="field"><label for="reg_creditor">Creditore o società che ti ha contattato</label><input id="reg_creditor" name="creditore" maxlength="180" placeholder="Se lo conosci"></div>
+              <div class="field"><label for="reg_total_debt">Importo complessivo indicativo (€)</label><input id="reg_total_debt" name="importo_debito" type="number" min="0" step="0.01" inputmode="decimal" data-required="true"></div>
+              <div class="field"><label for="reg_debt_count">Numero indicativo dei debiti</label><select id="reg_debt_count" name="numero_debiti" data-required="true"><option value="">Seleziona</option><option>1</option><option>2–3</option><option>4–5</option><option>Più di 5</option><option>Non so</option></select></div>
+              <div class="field"><label for="reg_monthly_payment">Stai già pagando una rata mensile?</label><select id="reg_monthly_payment" name="rata_attuale" data-required="true"><option value="">Seleziona</option><option value="no">No</option><option value="si">Sì</option><option value="parziale">Pago in modo irregolare</option><option value="non_so">Non applicabile / non so</option></select></div>
+              <div class="field"><label for="reg_monthly_amount">Importo totale delle rate attuali (€ al mese)</label><input id="reg_monthly_amount" name="importo_rate_mensili" type="number" min="0" step="0.01" inputmode="decimal" value="0"></div>
+            </div>
+            <div class="field"><label for="reg_other_debt_details">Se hai altri debiti, di che tipo sono?</label><input id="reg_other_debt_details" name="dettaglio_altri_debiti" maxlength="300" placeholder="Es. bollette, prestito, carta di credito"></div>
           </div>
+
+          <div class="ft-form-section">
+            <h2>3. A che punto sei?</h2>
+            <div class="ft-form-grid">
+              <div class="field"><label for="reg_status">Qual è la situazione attuale?</label><select id="reg_status" name="fase_debito" data-required="true"><option value="">Seleziona</option><option>Temo di non riuscire a pagare</option><option>Ho saltato una o più rate</option><option>Ho ricevuto solleciti di pagamento</option><option>Mi ha contattato una società di recupero crediti</option><option>Ho ricevuto una diffida o una comunicazione legale</option><option>Ho ricevuto atti giudiziari o di esecuzione</option><option>Ho già un piano di rientro</option><option>Vorrei prevenire problemi futuri</option><option>Altro / non so</option></select></div>
+              <div class="field"><label for="reg_documents">Hai ricevuto comunicazioni scritte?</label><select id="reg_documents" name="comunicazioni_ricevute" data-required="true"><option value="">Seleziona</option><option>No</option><option>Sì, solleciti o email</option><option>Sì, raccomandata o PEC</option><option>Sì, comunicazioni legali o atti giudiziari</option><option>Non so riconoscerle</option></select></div>
+              <div class="field"><label for="reg_income_range">Entrate nette mensili del nucleo (fascia indicativa)</label><select id="reg_income_range" name="fascia_entrate" data-required="true"><option value="">Seleziona</option><option>Meno di € 1.000</option><option>€ 1.000–1.500</option><option>€ 1.501–2.000</option><option>€ 2.001–3.000</option><option>Oltre € 3.000</option><option>Preferisco non indicarlo ora</option></select></div>
+              <div class="field"><label for="reg_affordable">Quanto pensi di poter destinare al debito ogni mese? (€)</label><input id="reg_affordable" name="quota_sostenibile" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Se non lo sai, lascia vuoto"></div>
+            </div>
+            <div class="field"><label for="reg_message">Descrivi brevemente la tua situazione (facoltativo)</label><textarea id="reg_message" name="descrizione_situazione" maxlength="1800" rows="5" placeholder="Indica ciò che ritieni utile. Non inserire password, dati completi di carte o conti, codici fiscali di terzi o allegati/documenti. "></textarea></div>
+          </div>
+          <p class="muted" style="font-size:13px">Questa richiesta non crea ancora un account personale: serve a raccogliere le informazioni necessarie per il primo contatto. Non allegare documenti in questa fase.</p>
         </div>
-        <div class="field">
-          <label for="message">Messaggio (facoltativo)</label>
-          <textarea id="message" name="message" maxlength="2000"
-                    placeholder="Scrivi qui come preferisci essere ricontattato. Non inserire dati bancari o documenti."></textarea>
+
+        <div id="ft-no-registration-panel" class="ft-path-panel">
+          <div class="field"><label for="name">Nome</label><input id="name" name="name" maxlength="100" autocomplete="name" required></div>
+          <div class="ft-form-grid">
+            <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" maxlength="254" autocomplete="email" required></div>
+            <div class="field"><label for="phone">Telefono (facoltativo)</label><input id="phone" name="phone" type="tel" maxlength="40" autocomplete="tel"></div>
+          </div>
+          <div class="field"><label for="message">Messaggio (facoltativo)</label><textarea id="message" name="message" maxlength="2000" placeholder="Scrivi qui come preferisci essere ricontattato. Non inserire dati bancari o documenti."></textarea></div>
         </div>
 
-        <div style="position:absolute;left:-10000px" aria-hidden="true">
-          <label for="website">Non compilare questo campo</label>
-          <input id="website" name="website" tabindex="-1"
-                 autocomplete="off">
-        </div>
-        <input type="checkbox" name="botcheck" tabindex="-1"
-               autocomplete="off" style="display:none" aria-hidden="true">
-
-        <label class="check">
-          <input type="checkbox" name="privacy" required>
-          <span>
-            Dichiaro di aver letto l'
-            <a href="/privacy" target="_blank" rel="noopener">
-              informativa privacy
-            </a>
-            e chiedo di essere ricontattato.
-          </span>
-        </label>
-
-        <label class="check">
-          <input type="checkbox" name="accept_terms" value="yes" required>
-          <span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span>
-        </label>
-
-        <p class="muted" style="font-size:13px">
-          I dati del modulo vengono inviati via email per gestire
-          la tua richiesta. L'applicazione non conserva una copia
-          in un database.
-        </p>
-
+        <div style="position:absolute;left:-10000px" aria-hidden="true"><label for="website">Non compilare questo campo</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+        <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" style="display:none" aria-hidden="true">
+        <label class="check"><input type="checkbox" name="privacy" required><span>Dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">informativa privacy</a> e chiedo di essere ricontattato.</span></label>
+        <label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label>
+        <p class="muted" style="font-size:13px">I dati vengono inviati via email per gestire la richiesta. L'applicazione non conserva una copia in un database.</p>
         <div id="contactResult" role="status" aria-live="polite"></div>
-        <button class="btn" id="contactSubmit" type="submit">
-          Invia richiesta
-        </button>
+        <button class="btn" id="contactSubmit" type="submit">Invia richiesta</button>
       </form>
     </section>
 
@@ -1937,57 +1946,63 @@ def consulenza():
       const result = document.getElementById("contactResult");
       const button = document.getElementById("contactSubmit");
       const accessKey = "6cfd757e-6b16-49e0-96b5-e055a159f403";
+      const params = new URLSearchParams(window.location.search);
+      const registered = params.get("percorso") === "registrazione";
+      const registeredPanel = document.getElementById("ft-registered-panel");
+      const simplePanel = document.getElementById("ft-no-registration-panel");
+      const note = document.getElementById("ft-registration-note");
+      document.getElementById("ft-path-value").value = registered ? "registrazione" : "senza-registrazione";
+      registeredPanel.hidden = !registered;
+      simplePanel.hidden = registered;
+      registeredPanel.querySelectorAll("input,select,textarea").forEach(el => {
+        el.disabled = !registered;
+        if (el.hasAttribute("data-required")) el.required = registered;
+      });
+      simplePanel.querySelectorAll("input,select,textarea").forEach(el => {
+        el.disabled = registered;
+        el.required = !registered && el.id !== "phone" && el.id !== "message";
+      });
+      if (registered) {
+        document.getElementById("ft-contact-title").textContent = "Registrazione della tua richiesta FixTude";
+        note.textContent = "Percorso completo: indicaci i tuoi dati, il tipo di debito e la fase in cui ti trovi. L'invio non crea ancora un account personale.";
+      } else {
+        document.getElementById("ft-contact-title").textContent = "Facciamo chiarezza sulla tua situazione";
+        note.textContent = "Percorso rapido senza registrazione: lascia i recapiti essenziali se desideri essere ricontattato.";
+      }
 
       form.addEventListener("submit", async e => {
         e.preventDefault();
         result.className = "";
         result.textContent = "";
-
         if (!form.reportValidity()) return;
-
         const values = Object.fromEntries(new FormData(form).entries());
-
-        // Honeypot: se compilato da un bot, mostra un esito neutro senza inviare.
         if (String(values.website || "").trim()) {
           result.className = "notice success";
-          result.textContent =
-            "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
+          result.textContent = "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
           form.reset();
           return;
         }
-
         values.access_key = accessKey;
-        values.subject = "FixTude - nuova richiesta di ricontatto";
+        values.subject = registered ? "FixTude - richiesta completa con registrazione" : "FixTude - richiesta senza registrazione";
         values.from_name = "FixTude - modulo di ricontatto";
         values.botcheck = values.botcheck || "";
         delete values.website;
-
         button.disabled = true;
         button.textContent = "Invio in corso…";
-
         try {
           const response = await fetch("https://api.web3forms.com/submit", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "application/json"
-            },
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
             body: JSON.stringify(values)
           });
-
           const data = await response.json();
-          if (!response.ok || data.success !== true) {
-            throw new Error(data.message || "Non è stato possibile inviare la richiesta.");
-          }
-
+          if (!response.ok || data.success !== true) throw new Error(data.message || "Non è stato possibile inviare la richiesta.");
           result.className = "notice success";
-          result.textContent =
-            "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
+          result.textContent = "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
           form.reset();
         } catch (err) {
           result.className = "notice error";
-          result.textContent = err.message ||
-            "Errore di connessione. Riprova più tardi.";
+          result.textContent = err.message || "Errore di connessione. Riprova più tardi.";
         } finally {
           button.disabled = false;
           button.textContent = "Invia richiesta";
@@ -1996,8 +2011,7 @@ def consulenza():
     })();
     </script>
     """
-    return page("Ricontatto", content)
-
+    return page("Richiesta FixTude", content)
 
 @app.route("/api/contact", methods=["POST"])
 def contact_send():
