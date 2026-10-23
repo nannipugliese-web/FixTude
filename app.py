@@ -1193,74 +1193,25 @@ def page(title, content, include_chat=True):
 def home():
     content = """
     <style>
-      .home-hero-layout{display:block;max-width:900px;margin:0 auto;align-items:start;text-align:center}
-      .home-hero-copy{max-width:820px;margin:0 auto}
-      .home-hero-copy h1{max-width:100%;margin-left:auto;margin-right:auto;text-align:center}
-      .home-hero-copy p{max-width:760px;margin-left:auto;margin-right:auto;text-align:center}
-      .home-hero-copy h1{font-size:clamp(30px,4vw,46px);line-height:1.1;margin:0 0 14px}
-      .home-hero-copy p{font-size:18px;line-height:1.55;max-width:680px}
-      .home-situation-panel{width:100%;max-width:900px;margin:0 auto;display:flex;flex-direction:column;align-items:center;text-align:center;box-sizing:border-box}
-      .home-situation-title{display:block;width:100%;max-width:820px;box-sizing:border-box;text-align:center;margin:10px auto 8px;padding:0 12px;align-self:center}
-      .home-situation-intro{display:block;width:100%;max-width:760px;box-sizing:border-box;text-align:center;margin:0 auto 12px;padding:0 12px;align-self:center}
-      .home-situation-options{display:grid;width:100%;box-sizing:border-box;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin:24px auto 8px;max-width:820px;align-items:start;justify-content:center;align-self:center}
-      .home-situation-option{display:flex;flex-direction:column;align-items:center;gap:15px;min-width:0}
-      .home-situation-choice{position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:clamp(98px,11.7vw,133px);height:clamp(98px,11.7vw,133px);padding:10px;border:1px solid rgba(255,255,255,.72);border-radius:50%;cursor:pointer;font:inherit;text-align:center;color:#fff;text-decoration:none;overflow:hidden;transform:translateY(-3px);box-shadow:0 5px 0 var(--button-depth),0 12px 22px rgba(15,23,42,.17),inset 0 1px 2px rgba(255,255,255,.72),inset 0 -7px 13px rgba(0,0,0,.24);transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;touch-action:manipulation;background-clip:padding-box}
-      .home-situation-choice:before{content:"";position:absolute;z-index:-1;left:12%;top:7%;width:76%;height:35%;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,.48),rgba(255,255,255,.08) 58%,transparent);filter:blur(.35px);pointer-events:none}
-      .home-situation-choice:after{content:"";position:absolute;inset:4px;border:1px solid rgba(255,255,255,.18);border-radius:50%;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
-      .home-situation-choice:hover{filter:brightness(1.035);transform:translateY(-7px);box-shadow:0 9px 0 var(--button-depth),0 19px 25px rgba(15,23,42,.2),inset 0 1px 2px rgba(255,255,255,.72),inset 0 -7px 13px rgba(0,0,0,.24)}
-      .home-situation-choice:active{transform:translateY(2px) scale(.99);box-shadow:0 1px 0 var(--button-depth),0 4px 8px rgba(15,23,42,.16),inset 0 3px 8px rgba(0,0,0,.2);filter:brightness(.98)}
-      .home-situation-choice:focus-visible{outline:3px solid #1675d1;outline-offset:6px}
-      .home-situation-icon{font-size:24px;line-height:1.05;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.16)}
-      .home-situation-label{font-size:clamp(15px,1.6vw,19px);font-weight:850;line-height:1.05;text-shadow:0 1px 2px rgba(0,0,0,.18)}
-      .home-situation-subtitle{font-size:clamp(9px,1vw,11px);font-weight:800;letter-spacing:.055em;line-height:1.2;text-shadow:0 1px 2px rgba(0,0,0,.15)}
-      .home-situation-description{display:block;max-width:230px;text-align:center;font-size:13px;line-height:1.45;font-style:italic;margin:0 auto;overflow-wrap:break-word}
-      .home-situation-red{--button-depth:#720e17;background:radial-gradient(ellipse at 34% 20%,#e95a57 0%,#c9232b 38%,#a91420 72%,#790b15 100%);border-color:rgba(255,255,255,.58)}
-      .home-situation-yellow{--button-depth:#80500a;background:radial-gradient(ellipse at 34% 20%,#f4d878 0%,#d9a52c 38%,#b87d14 72%,#80500a 100%);border-color:rgba(255,255,255,.6)}
-      .home-situation-green{--button-depth:#06462d;background:radial-gradient(ellipse at 34% 20%,#48bd88 0%,#13845b 39%,#086544 73%,#06452f 100%);border-color:rgba(255,255,255,.58)}
-      @media(max-width:700px){.home-hero-layout{grid-template-columns:1fr;gap:18px}.home-hero-copy h1{font-size:clamp(27px,6vw,36px);line-height:1.12}.home-hero-copy p{font-size:16px;line-height:1.5}.home-situation-panel{width:100%;max-width:100%;padding:0 4px}.home-situation-title{font-size:clamp(21px,5vw,28px);margin-top:8px;padding:0 8px}.home-situation-intro{font-size:15px;line-height:1.4;padding:0 8px}.home-situation-options{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:20px;padding:0 2px}.home-situation-option{gap:9px}.home-situation-choice{width:min(18.2vw,86px);height:min(18.2vw,86px);min-width:68px;min-height:68px;padding:5px;border-width:1px;transform:translateY(-2px);box-shadow:0 3px 0 var(--button-depth),0 7px 11px rgba(15,23,42,.17),inset 0 1px 2px rgba(255,255,255,.7),inset 0 -4px 7px rgba(0,0,0,.22)}.home-situation-choice:hover{transform:translateY(-4px)}.home-situation-icon{font-size:17px}.home-situation-label{font-size:clamp(10px,2.7vw,13px)}.home-situation-subtitle{font-size:clamp(7px,2vw,9px)}.home-situation-description{max-width:100%;font-size:clamp(11px,2.9vw,13px);line-height:1.35}.home-situation-title{margin-top:8px}.home-situation-intro{font-size:15px;line-height:1.4}}
-      @media(prefers-reduced-motion:reduce){.home-situation-choice{transition:none}}
+      .ft-home{max-width:850px;margin:0 auto;text-align:center;padding:24px 8px 30px}
+      .ft-home h1{font-size:clamp(30px,4.5vw,48px);line-height:1.12;margin:0 auto 20px;max-width:800px}
+      .ft-home .lead{font-size:clamp(17px,2vw,21px);line-height:1.6;max-width:740px;margin:0 auto 14px}
+      .ft-home .motto{font-size:16px;font-weight:800;color:var(--blue);margin:22px auto 28px}
+      .ft-home-actions{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin:25px auto 0}
+      .ft-home-actions .btn{min-width:240px;min-height:54px;padding:15px 22px}
+      @media(max-width:600px){.ft-home-actions{flex-direction:column;align-items:stretch;padding:0 8px}.ft-home-actions .btn{width:100%;min-width:0}}
     </style>
-    <section class="hero">
-      <div class="home-hero-layout">
-        <div class="home-hero-copy">
-          <h1>Fai chiarezza sulla tua<br>situazione debitoria.</h1>
-          <p><strong>Semplice. Riservato. Senza registrazione.</strong></p>
-        </div>
-      </div>
-      <div class="home-situation-panel">
-      <h2 class="home-situation-title">Cominciamo.</h2>
-      <p class="home-situation-intro">Scegli il pulsante che descrive la tua situazione.<br>Il calcolatore ti fornirà un primo esito di sostenibilità.</p>
-      <div class="home-situation-options">
-        <div class="home-situation-option">
-          <a class="home-situation-choice home-situation-red" href="/misuratore?scenario=rosso#calculatorStart" aria-label="Emergenza: non riesco a pagare la rata di questo mese e ho già ricevuto solleciti">
-            <span class="home-situation-icon" aria-hidden="true">!</span><span class="home-situation-subtitle">EMERGENZA</span>
-          </a>
-          <em class="home-situation-description">Sto indietro con le rate.</em>
-        </div>
-        <div class="home-situation-option">
-          <a class="home-situation-choice home-situation-yellow" href="/misuratore?scenario=giallo#calculatorStart" aria-label="Allerta: pago tutto ma faccio fatica e non mi rimane quasi nulla dello stipendio">
-            <span class="home-situation-icon" aria-hidden="true">!</span><span class="home-situation-subtitle">ALLERTA</span>
-          </a>
-          <em class="home-situation-description">Faccio fatica a pagare tutto.</em>
-        </div>
-        <div class="home-situation-option">
-          <a class="home-situation-choice home-situation-green" href="/misuratore?scenario=verde#calculatorStart" aria-label="Controllo: voglio verificare se i miei debiti sono sostenibili">
-            <span class="home-situation-icon" aria-hidden="true">✓</span><span class="home-situation-subtitle">CONTROLLO</span>
-          </a>
-          <em class="home-situation-description">Situazione gestibile.</em>
-        </div>
-      </div>
+    <section class="hero ft-home">
+      <h1>Hai un debito. Non devi affrontarlo da solo.</h1>
+      <p class="lead">FixTude ti aiuta a fare chiarezza sulla tua situazione e a valutare le possibili soluzioni, con il supporto di un consulente.</p>
+      <p class="motto">Non farti cercare dal recupero crediti, cerca tu la soluzione.</p>
+      <div class="ft-home-actions">
+        <a class="btn" href="/consulenza?percorso=registrazione">Procedi con la registrazione</a>
+        <a class="btn outline" href="/consulenza?percorso=senza-registrazione">Procedi senza registrazione</a>
       </div>
     </section>
-    <section class="card start-card"><h2>Come funziona FixTude</h2><div class="grid">
-      <div><strong>1. Fai il calcolo</strong><p class="muted">Usa gratuitamente il calcolatore. I dati inseriti restano nel browser e non serve registrarsi.</p></div>
-      <div><strong>2. Valuta il risultato</strong><p class="muted">Ottieni una stima orientativa del margine mensile e del peso delle rate.</p></div>
-      <div><strong>3. Se vuoi, chiedi di parlare con un esperto</strong><p class="muted">Lascia i tuoi recapiti e una breve descrizione della situazione per chiedere il contatto di un esperto FixTude. Il contatto è facoltativo e non comporta obblighi.</p></div>
-      <div><strong>4. Hai una domanda?</strong><p class="muted">Apri la chat con un esperto FixTude in basso a destra per inviare un messaggio allo staff. La chat è disponibile senza registrazione.</p></div>
-    </div></section>
-    <p class="muted">Il calcolatore e i materiali gratuiti hanno finalità informative e orientative. Gli eventuali servizi di assistenza legale sono descritti nella sezione dedicata e vengono svolti da professionisti abilitati sulla base di uno specifico mandato. Nessun servizio garantisce l'accettazione di proposte da parte dei creditori o un esito giudiziario favorevole.</p>
     """
-    return page("Fai chiarezza", content)
+    return page("Fai chiarezza sulla tua situazione", content)
 
 
 # =========================================================
@@ -1279,6 +1230,39 @@ def misuratore():
       quota indicativa destinabile al debito e possibili scenari di rientro.
       Tutti i calcoli sono eseguiti nel browser: gli importi non vengono inviati al server.
     </p>
+
+    <style>
+      .ft-scenarios{margin:24px 0 22px}
+      .ft-scenarios h2{text-align:center;margin-bottom:8px}
+      .ft-scenarios .intro{text-align:center;max-width:760px;margin:0 auto 18px}
+      .ft-scenario-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;max-width:820px;margin:0 auto 24px}
+      .ft-scenario-option{text-align:center;min-width:0}
+      .ft-scenario-button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:clamp(100px,12vw,132px);height:clamp(100px,12vw,132px);margin:0 auto 10px;border-radius:50%;color:#fff;text-decoration:none;font-weight:800;box-shadow:0 5px 0 rgba(0,0,0,.18),0 10px 20px rgba(15,23,42,.12);border:2px solid rgba(255,255,255,.8)}
+      .ft-scenario-button strong{font-size:clamp(12px,1.5vw,16px)}
+      .ft-scenario-red{background:linear-gradient(145deg,#e95a57,#a91420)}
+      .ft-scenario-yellow{background:linear-gradient(145deg,#f4d878,#a96d08);color:#fff}
+      .ft-scenario-green{background:linear-gradient(145deg,#48bd88,#086544)}
+      .ft-scenario-option p{font-size:14px;line-height:1.4;margin:0 auto;max-width:220px}
+      .ft-how-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0 0 24px}
+      .ft-how-card{padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--surface,#fff)}
+      .ft-how-card p{margin:7px 0 0}
+      @media(max-width:600px){.ft-scenario-options{gap:7px}.ft-scenario-button{width:min(25vw,92px);height:min(25vw,92px)}.ft-scenario-option p{font-size:12px}.ft-how-grid{grid-template-columns:1fr}}
+    </style>
+    <section class="ft-scenarios">
+      <h2>Da dove vuoi cominciare?</h2>
+      <p class="muted intro">Scegli il pulsante che descrive meglio la tua situazione. Puoi poi utilizzare il calcolatore per fare chiarezza sui numeri.</p>
+      <div class="ft-scenario-options">
+        <div class="ft-scenario-option"><a class="ft-scenario-button ft-scenario-red" href="/misuratore?scenario=rosso#calculatorStart" aria-label="Emergenza"><span aria-hidden="true">!</span><strong>EMERGENZA</strong></a><p>Sto indietro con le rate o ho ricevuto un sollecito.</p></div>
+        <div class="ft-scenario-option"><a class="ft-scenario-button ft-scenario-yellow" href="/misuratore?scenario=giallo#calculatorStart" aria-label="Allerta"><span aria-hidden="true">!</span><strong>ALLERTA</strong></a><p>Faccio fatica a pagare tutto e mi resta poco.</p></div>
+        <div class="ft-scenario-option"><a class="ft-scenario-button ft-scenario-green" href="/misuratore?scenario=verde#calculatorStart" aria-label="Controllo"><span aria-hidden="true">✓</span><strong>CONTROLLO</strong></a><p>Voglio verificare se i miei debiti sono sostenibili.</p></div>
+      </div>
+      <div class="ft-how-grid">
+        <div class="ft-how-card"><strong>1. Fai il calcolo</strong><p class="muted">Inserisci entrate, spese e debiti per ottenere una prima fotografia della situazione.</p></div>
+        <div class="ft-how-card"><strong>2. Valuta il risultato</strong><p class="muted">Esamina il margine mensile e il peso delle rate con una stima orientativa.</p></div>
+        <div class="ft-how-card"><strong>3. Valuta i prossimi passi</strong><p class="muted">Usa i risultati per ragionare su un percorso realistico e sostenibile.</p></div>
+        <div class="ft-how-card"><strong>4. Chiedi un contatto, se lo desideri</strong><p class="muted">Puoi richiedere di essere ricontattato da FixTude senza obbligo di proseguire.</p></div>
+      </div>
+    </section>
 
     <section class="card" id="calculatorStart">
       <h2>1. Entrate nette mensili</h2>
@@ -1876,11 +1860,14 @@ def misuratore():
 @app.route("/consulenza")
 def consulenza():
     content = """
-    <h1>Richiedi di essere contattato da un esperto FixTude</h1>
+    <h1>Facciamo chiarezza sulla tua situazione</h1>
     <p class="muted">
-      Compila il modulo soltanto se desideri ricevere un contatto.
-      La richiesta è gratuita e non ti obbliga a proseguire.
+      Compila il modulo soltanto se desideri essere ricontattato. La richiesta è gratuita e non ti obbliga a proseguire.
     </p>
+    <p class="muted" id="ft-registration-note"></p>
+    <script>
+      (function(){var p=new URLSearchParams(window.location.search).get('percorso');var n=document.getElementById('ft-registration-note');if(!n)return;if(p==='registrazione'){n.textContent='Hai scelto il percorso con registrazione. La creazione automatica di un account non è ancora attiva: puoi inviare una richiesta di contatto tramite questo modulo.';}else if(p==='senza-registrazione'){n.textContent='Puoi proseguire senza creare un account: compila il modulo solo se desideri essere ricontattato.';}})();
+    </script>
 
     <section class="card">
       <form id="contactForm">
