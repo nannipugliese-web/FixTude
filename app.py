@@ -2769,7 +2769,7 @@ def educazione_finanziaria():
     </section>
     <section class="card education-article-card" aria-labelledby="guide-cambiali">
       <a class="education-article-image-link" href="/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro" aria-label="Leggi la guida sul piano di rientro con cambiali">
-        <img class="education-article-image" src="/static/piano-rientro-cambiali-fixtude.png" alt="Piano di rientro con cambiali: documenti, calendario e scadenze" loading="lazy">
+        <img class="education-article-image" src="/static/Piano%20di%20rientro%20con%20cambiali_%20pro%20e%20contro.png" alt="Piano di rientro con cambiali: documenti, calendario e scadenze" loading="lazy">
       </a>
       <div class="education-article-copy">
         <p class="muted">GUIDA PRATICA · 9–11 MINUTI DI LETTURA</p>
@@ -2917,7 +2917,7 @@ def articolo_piano_rientro_cambiali():
       <h1>Piano di rientro con cambiali: pro, contro e rischi da conoscere prima di firmare</h1>
       <p class="article-subtitle">Accettare un piano di rientro può aiutarti a gestire un debito senza dover pagare tutto subito. Ma cosa succede se le rate sono garantite da cambiali? Scopri vantaggi, rischi, conseguenze del mancato pagamento e quali verifiche fare prima di firmare.</p>
       <p class="muted article-byline">Redazione - FixTude · Educazione finanziaria</p></div>
-      <figure class="article-hero-image"><img src="/static/piano-rientro-cambiali-fixtude.png" alt="Piano di rientro con cambiali: documenti, calendario e scadenze da verificare prima di firmare" fetchpriority="high"><figcaption>Prima di firmare, verifica importi, scadenze e condizioni dell’accordo.</figcaption></figure></div>
+      <figure class="article-hero-image"><img src="/static/Piano%20di%20rientro%20con%20cambiali_%20pro%20e%20contro.png" alt="Piano di rientro con cambiali: documenti, calendario e scadenze da verificare prima di firmare" fetchpriority="high"><figcaption>Prima di firmare, verifica importi, scadenze e condizioni dell’accordo.</figcaption></figure></div>
       <div class="cambiali-layout"><div class="cambiali-main"><div class="article-intro">
       <p>Quando un debito diventa difficile da gestire, ricevere una proposta di pagamento rateale può sembrare finalmente una via d’uscita. Il creditore è disposto a concedere più tempo, le rate sembrano accessibili e la possibilità di regolarizzare la propria posizione restituisce un po’ di tranquillità.</p>
       <p>A volte, però, insieme alla proposta di rateizzazione arriva una richiesta precisa: firmare delle cambiali.</p>
