@@ -1198,7 +1198,10 @@ def home():
       .ft-home h1 span{display:block}
       .ft-home .lead{font-size:clamp(17px,2.2vw,21px);line-height:1.45;max-width:660px;margin:0 auto 14px;text-wrap:pretty}
       .ft-home-actions{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin:25px auto 0;max-width:680px}
-      .ft-home-actions .btn{min-width:240px;min-height:54px;padding:15px 22px;box-sizing:border-box}
+      .ft-home-actions .btn{min-width:240px;min-height:54px;padding:15px 22px;box-sizing:border-box;color:#fff!important;border:0!important}
+      .ft-home .ft-home-red{background:#c93636!important}
+      .ft-home .ft-home-yellow{background:#d99a16!important;color:#17212b!important}
+      .ft-home .ft-home-green{background:#27865b!important}
       @media(max-width:600px){
         .ft-home{padding:18px 16px 26px}
         .ft-home h1{font-size:clamp(29px,8vw,36px);line-height:1.12;letter-spacing:-.03em;margin-bottom:16px;max-width:360px}
@@ -1212,12 +1215,81 @@ def home():
       <h1><span>Hai un debito?</span><span>Non affrontarlo da solo.</span></h1>
       <p class="lead">Scopri cosa puoi sostenere e trova la strada per ripartire.</p>
       <div class="ft-home-actions">
-        <a class="btn" href="/consulenza?percorso=registrazione">Procedi con la registrazione</a>
-        <a class="btn outline" href="/consulenza?percorso=senza-registrazione">Procedi senza registrazione</a>
+        <a class="btn ft-home-red" href="/contatto/rosso">Ho ricevuto un atto o un sollecito</a>
+        <a class="btn ft-home-yellow" href="/contatto/giallo">Sono in difficoltà con i pagamenti</a>
+        <a class="btn ft-home-green" href="/contatto/verde">Voglio informazioni e prevenire</a>
       </div>
     </section>
     """
     return page("Fai chiarezza sulla tua situazione", content)
+
+
+# =========================================================
+# MODULI CONTATTO DIFFERENZIATI PER SITUAZIONE
+# =========================================================
+@app.route("/contatto/<scenario>")
+def contatto_scenario(scenario):
+    scenario = (scenario or "").strip().lower()
+    cfgs = {
+      "rosso": {"title":"Hai ricevuto un sollecito o un atto?", "subtitle":"Raccontaci che cosa hai ricevuto e quali iniziative sono già state intraprese.", "color":"#c93636", "ink":"#ffffff", "subject":"FixTude - richiesta urgente: atto o sollecito", "fields":[
+        ("tipo_atto","Che cosa hai ricevuto?","select",["Sollecito di pagamento","Diffida o messa in mora","Decreto ingiuntivo","Atto di precetto","Pignoramento o atto esecutivo","Atto giudiziario di altro tipo","Non so identificarlo"],True),
+        ("data_ricezione","Quando l'hai ricevuto?","date",[],False),
+        ("mittente","Chi ti ha inviato la comunicazione?","text",[],False),
+        ("modalita_ricezione","Come ti è stata notificata?","select",["Posta ordinaria","Raccomandata","PEC","Ufficiale giudiziario","Consegna a mano","Altro / non so"],False),
+        ("azioni_intraprese","Sono già state intraprese azioni?","select",["Nessuna, per ora","Ho contattato il creditore","Ho chiesto una rateizzazione","Ho concordato un piano di rientro","Mi sono rivolto a un professionista","È già iniziata un'azione legale o esecutiva","Altro / non so"],True),
+        ("termine_indicato","È indicata una scadenza o un termine?","select",["Sì","No","Non so"],False),
+        ("dettagli_atto","Altre informazioni utili","textarea",[],False)]},
+      "giallo": {"title":"Stai facendo fatica a pagare?", "subtitle":"Indicaci quali comunicazioni hai ricevuto e a che punto è la situazione.", "color":"#d99a16", "ink":"#17212b", "subject":"FixTude - richiesta per difficoltà nei pagamenti", "fields":[
+        ("ricezione_solleciti","Hai ricevuto solleciti di pagamento?","select",["No","Sì, uno","Sì, da 2 a 3","Sì, più di 3","Non ricordo / non so"],True),
+        ("periodo_solleciti","Da quanto tempo ricevi solleciti?","select",["Da meno di un mese","Da 1 a 3 mesi","Da oltre 3 mesi","Non so"],False),
+        ("costituzione_mora","Hai ricevuto una costituzione in mora?","select",["Sì","No","Non so riconoscerla"],True),
+        ("diffida_legale","Hai ricevuto una diffida legale?","select",["Sì","No","Non so riconoscerla"],True),
+        ("creditore","Creditore o società che ti contatta","text",[],False),
+        ("tipo_debito","Tipo di debito","select",["Utenze: luce, gas, acqua","Telefonia e Internet","Finanziario","Fiscale o tributario","Condominio","Affitto","Commerciale","Privati","Altro / non so"],True),
+        ("importo_indicativo","Importo indicativo del debito (€)","number",[],False),
+        ("dettagli_situazione","Vuoi aggiungere qualche dettaglio?","textarea",[],False)]},
+      "verde": {"title":"Parliamone con calma", "subtitle":"Lascia i tuoi recapiti e spiegaci brevemente come possiamo aiutarti.", "color":"#27865b", "ink":"#ffffff", "subject":"FixTude - richiesta di informazioni", "fields":[
+        ("argomento","Di che cosa vorresti parlare?","select",["Vorrei capire la mia situazione","Vorrei prevenire difficoltà future","Vorrei informazioni sui servizi FixTude","Altro"],False),
+        ("messaggio","Messaggio (facoltativo)","textarea",[],False)]}
+    }
+    cfg = cfgs.get(scenario)
+    if not cfg:
+        return redirect(url_for("home"))
+    def make_field(item):
+        name,label,kind,opts,required=item
+        rid="field_"+name
+        req=" required" if required else ""
+        if kind=="select":
+            options='<option value="">Seleziona</option>'+''.join('<option>'+escape(v)+'</option>' for v in opts)
+            control=f'<select id="{rid}" name="{name}"{req}>{options}</select>'
+        elif kind=="textarea":
+            control=f'<textarea id="{rid}" name="{name}" rows="4" maxlength="1800" placeholder="Non inserire dati bancari o documenti."></textarea>'
+        else:
+            control=f'<input id="{rid}" name="{name}" type="{kind}" maxlength="180"'+(' min="0" step="0.01" inputmode="decimal"' if kind=="number" else '')+f'{req}>'
+        return f'<div class="field"><label for="{rid}">{escape(label)}</label>{control}</div>'
+    fields=''.join(make_field(x) for x in cfg["fields"])
+    content=f'''<style>
+      .ft-scenario-form{{max-width:760px;margin:0 auto;border-top:6px solid {cfg['color']}}}
+      .ft-scenario-banner{{background:{cfg['color']};color:{cfg['ink']};padding:20px;border-radius:12px;margin-bottom:20px}}
+      .ft-scenario-banner h1,.ft-scenario-banner p{{color:{cfg['ink']};margin-top:0}}
+      .ft-scenario-banner h1{{font-size:clamp(25px,5vw,34px);line-height:1.2;margin-bottom:8px}}
+      .ft-scenario-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}}
+      .ft-scenario-grid .field{{min-width:0}}.ft-scenario-grid input,.ft-scenario-grid select,.ft-scenario-grid textarea{{width:100%;box-sizing:border-box}}
+      .ft-scenario-submit{{background:{cfg['color']}!important;color:{cfg['ink']}!important;border:0!important;width:100%;min-height:50px;font-weight:700}}
+      @media(max-width:620px){{.ft-scenario-grid{{grid-template-columns:1fr}}.ft-scenario-banner{{padding:17px}}}}
+    </style>
+    <section class="card ft-scenario-form"><div class="ft-scenario-banner"><h1>{cfg['title']}</h1><p>{cfg['subtitle']}</p></div>
+      <form id="scenarioContactForm"><input type="hidden" name="tipo_percorso" value="{scenario}">
+      <div class="ft-scenario-grid"><div class="field"><label for="nome">Nome e cognome</label><input id="nome" name="nome" maxlength="160" autocomplete="name" required></div>
+      <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" maxlength="254" autocomplete="email" required></div>
+      <div class="field"><label for="telefono">Telefono (facoltativo)</label><input id="telefono" name="telefono" type="tel" maxlength="40" autocomplete="tel"></div>{fields}</div>
+      <div style="position:absolute;left:-10000px" aria-hidden="true"><label for="website">Non compilare questo campo</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+      <label class="check"><input type="checkbox" name="privacy" value="Sì" required><span>Ho letto l’<a href="/privacy" target="_blank" rel="noopener">informativa privacy</a> e chiedo di essere ricontattato.</span></label>
+      <label class="check"><input type="checkbox" name="accept_terms" value="Sì" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label>
+      <p class="muted" style="font-size:13px">Non allegare documenti e non inserire password o dati bancari. La richiesta viene inoltrata via email e non viene salvata in un database FixTude.</p>
+      <div id="scenarioResult" role="status" aria-live="polite"></div><button class="btn ft-scenario-submit" id="scenarioSubmit" type="submit">Invia richiesta</button></form></section>
+    <script>(()=>{{const form=document.getElementById('scenarioContactForm'),result=document.getElementById('scenarioResult'),button=document.getElementById('scenarioSubmit');form.addEventListener('submit',async e=>{{e.preventDefault();if(!form.reportValidity())return;const values=Object.fromEntries(new FormData(form).entries());if(String(values.website||'').trim())return;values.access_key='6cfd757e-6b16-49e0-96b5-e055a159f403';values.subject={json.dumps(cfg['subject'])};values.from_name='FixTude - modulo {scenario}';values.botcheck='';delete values.website;button.disabled=true;button.textContent='Invio in corso…';try{{const r=await fetch('https://api.web3forms.com/submit',{{method:'POST',headers:{{'Content-Type':'application/json','Accept':'application/json'}},body:JSON.stringify(values)}}),d=await r.json();if(!r.ok||d.success!==true)throw new Error(d.message||'Invio non riuscito. Riprova più tardi.');result.className='notice success';result.textContent='Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.';form.reset();}}catch(err){{result.className='notice error';result.textContent=err.message||'Errore di connessione. Riprova più tardi.';}}finally{{button.disabled=false;button.textContent='Invia richiesta';}}}});}})();</script>'''
+    return page("Contatto FixTude - " + scenario.capitalize(), content)
 
 
 # =========================================================
