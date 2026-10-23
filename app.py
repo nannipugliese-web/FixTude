@@ -1193,51 +1193,51 @@ def page(title, content, include_chat=True):
 def home():
     content = """
     <style>
-      /* Home FixTude: sfondo chiaro, pulito e leggibile su smartphone */
+      /* Home FixTude: proporzioni compatte, azzurro tenue e pulsanti 3D */
       .ft-home{
-        width:100%;max-width:980px;margin:0 auto;padding:clamp(18px,4vw,36px) 14px 30px;
+        width:calc(100% - 32px);max-width:800px;margin:24px auto 30px;padding:30px 26px 26px;
         box-sizing:border-box;text-align:center;position:relative;isolation:isolate;
-        background:radial-gradient(ellipse at 50% 0%,rgba(210,237,255,.88) 0%,rgba(242,248,253,.92) 48%,rgba(255,255,255,.98) 100%);
-        border-radius:22px;overflow:hidden
+        background:radial-gradient(ellipse at 50% 0%,rgba(210,237,255,.88) 0%,rgba(242,248,253,.94) 48%,rgba(255,255,255,.98) 100%);
+        border-radius:20px;overflow:hidden
       }
-      .ft-home h1{font-size:clamp(30px,5.2vw,49px);line-height:1.1;letter-spacing:-.03em;margin:0 auto 15px;max-width:820px;color:#103b78;text-wrap:balance}
+      .ft-home h1{font-size:clamp(30px,3.4vw,42px);line-height:1.12;letter-spacing:-.025em;margin:0 auto 12px;max-width:680px;color:#103b78;text-wrap:balance}
       .ft-home h1 span{display:block}
-      .ft-home .lead{font-size:clamp(17px,2.2vw,22px);line-height:1.4;max-width:660px;margin:0 auto 18px;color:#174b91;text-wrap:pretty}
-      .ft-home-motto{max-width:760px;margin:0 auto 24px;padding:15px 20px;border-radius:18px;background:linear-gradient(135deg,#0d438d,#0874d9);color:#fff!important;font-size:clamp(16px,2.1vw,21px);font-weight:800;line-height:1.35;box-shadow:0 5px 0 #073675,0 10px 20px rgba(12,54,108,.2)}
+      .ft-home .lead{font-size:clamp(16px,1.6vw,19px);line-height:1.45;max-width:570px;margin:0 auto 16px;color:#174b91;text-wrap:pretty}
+      .ft-home-motto{max-width:600px;margin:0 auto 22px;padding:12px 18px;border-radius:14px;background:linear-gradient(110deg,#0d438d,#0874d9);color:#fff!important;font-size:clamp(14px,1.45vw,17px);font-weight:800;line-height:1.35;box-shadow:0 4px 0 #073675,0 8px 16px rgba(12,54,108,.16)}
       .ft-home-motto *{color:#fff!important}
-      .ft-home-actions{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:15px;margin:25px auto 32px;max-width:810px}
+      .ft-home-actions{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;margin:22px auto 26px;max-width:590px}
       .ft-home-actions .btn{
         display:flex;align-items:center;justify-content:center;text-align:center;
-        width:100%;max-width:790px;min-height:76px;padding:17px 24px;box-sizing:border-box;
-        border:2px solid rgba(255,255,255,.68)!important;border-radius:24px;
-        font-size:clamp(17px,2.3vw,22px);font-weight:800;line-height:1.25;text-decoration:none;
+        width:100%;max-width:560px;min-height:60px;padding:13px 20px;box-sizing:border-box;
+        border:2px solid rgba(255,255,255,.72)!important;border-radius:19px;
+        font-size:clamp(16px,1.6vw,19px);font-weight:800;line-height:1.25;text-decoration:none;
         transition:transform .15s ease,filter .15s ease,box-shadow .15s ease;
       }
       .ft-home-actions .btn:hover{filter:brightness(1.04);transform:translateY(-2px)}
       .ft-home-actions .btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.25)!important}
-      .ft-home .ft-home-red{color:#fff!important;background:linear-gradient(180deg,#ff6565 0%,#f11b25 48%,#c90b19 100%)!important;box-shadow:0 7px 0 #990b15,0 12px 18px rgba(151,17,26,.23),inset 0 2px 2px rgba(255,255,255,.7)!important}
-      .ft-home .ft-home-yellow{color:#173d75!important;background:linear-gradient(180deg,#fff06a 0%,#ffc51c 48%,#ed9700 100%)!important;box-shadow:0 7px 0 #b86e00,0 12px 18px rgba(158,104,0,.2),inset 0 2px 2px rgba(255,255,255,.75)!important}
-      .ft-home .ft-home-green{color:#fff!important;background:linear-gradient(180deg,#38e99b 0%,#08b96a 48%,#07824b 100%)!important;box-shadow:0 7px 0 #05663b,0 12px 18px rgba(5,110,65,.22),inset 0 2px 2px rgba(255,255,255,.68)!important}
-      .ft-home-benefits{margin:8px auto 0;max-width:880px}
-      .ft-home-benefits h2{color:#103b78;font-size:clamp(22px,3vw,29px);line-height:1.2;margin:0 0 20px}
-      .ft-home-benefit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-      .ft-home-benefit{padding:17px 12px;border:1px solid #d9e8f8;border-radius:16px;background:rgba(255,255,255,.82);color:#173f78;line-height:1.4;font-weight:600}
-      .ft-home-benefit .ft-home-icon{display:block;font-size:30px;line-height:1;margin-bottom:10px;color:#0874d9}
-      .ft-home-footer{margin:24px auto 0;padding:14px 16px;border-radius:16px;background:linear-gradient(90deg,#e6f4ff,#d8edff);color:#174b91;font-weight:700;line-height:1.35}
+      .ft-home .ft-home-red{color:#fff!important;background:linear-gradient(180deg,#ff6565 0%,#f11b25 48%,#c90b19 100%)!important;box-shadow:0 5px 0 #990b15,0 8px 14px rgba(151,17,26,.19),inset 0 2px 2px rgba(255,255,255,.7)!important}
+      .ft-home .ft-home-yellow{color:#173d75!important;background:linear-gradient(180deg,#fff06a 0%,#ffc51c 48%,#ed9700 100%)!important;box-shadow:0 5px 0 #b86e00,0 8px 14px rgba(158,104,0,.16),inset 0 2px 2px rgba(255,255,255,.75)!important}
+      .ft-home .ft-home-green{color:#fff!important;background:linear-gradient(180deg,#38e99b 0%,#08b96a 48%,#07824b 100%)!important;box-shadow:0 5px 0 #05663b,0 8px 14px rgba(5,110,65,.17),inset 0 2px 2px rgba(255,255,255,.68)!important}
+      .ft-home-benefits{margin:4px auto 0;max-width:700px}
+      .ft-home-benefits h2{color:#103b78;font-size:clamp(20px,2.2vw,24px);line-height:1.2;margin:0 0 14px}
+      .ft-home-benefit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+      .ft-home-benefit{padding:13px 10px;border:1px solid #d9e8f8;border-radius:14px;background:rgba(255,255,255,.82);color:#173f78;line-height:1.35;font-weight:600;font-size:14px}
+      .ft-home-benefit .ft-home-icon{display:block;font-size:25px;line-height:1;margin-bottom:8px;color:#0874d9}
+      .ft-home-footer{margin:18px auto 0;padding:11px 14px;border-radius:13px;background:linear-gradient(90deg,#e6f4ff,#d8edff);color:#174b91;font-weight:700;line-height:1.35;font-size:14px}
       @media(max-width:600px){
-        .ft-home{padding:18px 13px 24px;border-radius:16px}
-        .ft-home h1{font-size:clamp(29px,8.1vw,36px);line-height:1.12;max-width:360px;margin-bottom:13px}
-        .ft-home .lead{font-size:17px;line-height:1.42;max-width:340px;margin-bottom:16px}
-        .ft-home-motto{font-size:16px;line-height:1.35;padding:14px 13px;border-radius:14px;margin-bottom:22px}
-        .ft-home-actions{gap:13px;margin:22px auto 30px;padding:0 2px}
-        .ft-home-actions .btn{min-height:68px;padding:15px 13px;border-radius:20px;font-size:17px;max-width:430px}
-        .ft-home-benefits h2{font-size:23px;margin-bottom:14px}
-        .ft-home-benefit-grid{grid-template-columns:1fr;gap:9px}
-        .ft-home-benefit{display:flex;align-items:center;text-align:left;gap:13px;padding:13px 15px;font-size:15px}
-        .ft-home-benefit .ft-home-icon{font-size:27px;min-width:32px;margin:0;text-align:center}
-        .ft-home-footer{margin-top:17px;padding:13px 12px;font-size:14px}
+        .ft-home{width:calc(100% - 20px);margin:12px auto 20px;padding:22px 14px 18px;border-radius:16px}
+        .ft-home h1{font-size:clamp(28px,7.6vw,34px);line-height:1.12;max-width:340px;margin-bottom:11px}
+        .ft-home .lead{font-size:16px;line-height:1.4;max-width:330px;margin-bottom:14px}
+        .ft-home-motto{font-size:14px;line-height:1.35;padding:11px 12px;border-radius:12px;margin-bottom:18px}
+        .ft-home-actions{gap:11px;margin:18px auto 24px;padding:0;max-width:100%}
+        .ft-home-actions .btn{min-height:56px;padding:12px 11px;border-radius:16px;font-size:16px;max-width:100%}
+        .ft-home-benefits h2{font-size:21px;margin-bottom:12px}
+        .ft-home-benefit-grid{grid-template-columns:1fr;gap:8px}
+        .ft-home-benefit{display:flex;align-items:center;text-align:left;gap:12px;padding:11px 13px;font-size:14px}
+        .ft-home-benefit .ft-home-icon{font-size:24px;min-width:28px;margin:0;text-align:center}
+        .ft-home-footer{margin-top:14px;padding:11px 10px;font-size:13px}
       }
-      @media(max-width:360px){.ft-home h1{font-size:28px}.ft-home .lead{font-size:16px}.ft-home-actions .btn{font-size:16px;min-height:64px}}
+      @media(max-width:360px){.ft-home{padding-left:11px;padding-right:11px}.ft-home h1{font-size:27px}.ft-home .lead{font-size:15px}.ft-home-actions .btn{font-size:15px;min-height:53px}}
       @media(prefers-reduced-motion:reduce){.ft-home-actions .btn{transition:none}}
     </style>
     <section class="hero ft-home">
