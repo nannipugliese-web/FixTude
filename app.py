@@ -1197,25 +1197,143 @@ def page(title, content, include_chat=True):
 def home():
     content = """
     <style>
-      .ft-home{max-width:850px;margin:0 auto;text-align:center;padding:24px 8px 30px}
-      .ft-home h1{font-size:clamp(30px,4.5vw,48px);line-height:1.12;margin:0 auto 20px;max-width:800px}
-      .ft-home .lead{font-size:clamp(17px,2vw,21px);line-height:1.6;max-width:740px;margin:0 auto 14px}
-      .ft-home .motto{font-size:16px;font-weight:800;color:var(--blue);margin:22px auto 28px}
-      .ft-home-actions{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin:25px auto 0}
-      .ft-home-actions .btn{min-width:240px;min-height:54px;padding:15px 22px}
-      @media(max-width:600px){.ft-home-actions{flex-direction:column;align-items:stretch;padding:0 8px}.ft-home-actions .btn{width:100%;min-width:0}}
+      /* Home FixTude: proporzioni compatte, azzurro tenue e pulsanti 3D */
+      .ft-home{
+        width:calc(100% - 32px);max-width:800px;margin:24px auto 30px;padding:30px 26px 26px;
+        box-sizing:border-box;text-align:center;position:relative;isolation:isolate;
+        background:radial-gradient(ellipse at 50% 0%,rgba(210,237,255,.88) 0%,rgba(242,248,253,.94) 48%,rgba(255,255,255,.98) 100%);
+        border-radius:20px;overflow:hidden
+      }
+      .ft-home h1{font-size:clamp(30px,3.4vw,42px);line-height:1.12;letter-spacing:-.025em;margin:0 auto 12px;max-width:680px;color:#103b78;text-wrap:balance}
+      .ft-home h1 span{display:block}
+      .ft-home .lead{font-size:clamp(16px,1.6vw,19px);line-height:1.45;max-width:570px;margin:0 auto 16px;color:#174b91;text-wrap:pretty}
+      .ft-home p.ft-home-motto{display:block;width:calc(100% - 8px);max-width:600px;box-sizing:border-box;margin:0 auto 22px!important;padding:12px 18px;border-radius:14px;background:linear-gradient(110deg,#0d438d,#0874d9);color:#fff!important;font-size:clamp(14px,1.45vw,17px);font-weight:800;line-height:1.35;text-align:center!important;position:relative;left:auto!important;right:auto!important;transform:none!important;float:none!important;box-shadow:0 4px 0 #073675,0 8px 16px rgba(12,54,108,.16)}
+      .ft-home-motto *{color:#fff!important}
+      .ft-home-motto span{display:block}
+      .ft-home-motto span+span{margin-top:2px}
+      .ft-home-actions{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;margin:22px auto 26px;max-width:590px}
+      .ft-home-actions .btn{
+        display:flex;align-items:center;justify-content:center;text-align:center;
+        width:100%;max-width:560px;min-height:60px;padding:13px 20px;box-sizing:border-box;
+        border:2px solid rgba(255,255,255,.72)!important;border-radius:19px;
+        font-size:clamp(16px,1.6vw,19px);font-weight:800;line-height:1.25;text-decoration:none;
+        transition:transform .15s ease,filter .15s ease,box-shadow .15s ease;
+      }
+      .ft-home-actions .btn:hover{filter:brightness(1.04);transform:translateY(-2px)}
+      .ft-home-actions .btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.25)!important}
+      .ft-home .ft-home-red{color:#fff!important;background:linear-gradient(180deg,#ff6565 0%,#f11b25 48%,#c90b19 100%)!important;box-shadow:0 5px 0 #990b15,0 8px 14px rgba(151,17,26,.19),inset 0 2px 2px rgba(255,255,255,.7)!important}
+      .ft-home .ft-home-yellow{color:#173d75!important;background:linear-gradient(180deg,#fff06a 0%,#ffc51c 48%,#ed9700 100%)!important;box-shadow:0 5px 0 #b86e00,0 8px 14px rgba(158,104,0,.16),inset 0 2px 2px rgba(255,255,255,.75)!important}
+      .ft-home .ft-home-green{color:#fff!important;background:linear-gradient(180deg,#38e99b 0%,#08b96a 48%,#07824b 100%)!important;box-shadow:0 5px 0 #05663b,0 8px 14px rgba(5,110,65,.17),inset 0 2px 2px rgba(255,255,255,.68)!important}
+      .ft-home-benefits{margin:4px auto 0;max-width:700px}
+      .ft-home-benefits h2{color:#103b78;font-size:clamp(20px,2.2vw,24px);line-height:1.2;margin:0 0 14px}
+      .ft-home-benefit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+      .ft-home-benefit{padding:13px 10px;border:1px solid #d9e8f8;border-radius:14px;background:rgba(255,255,255,.82);color:#173f78;line-height:1.35;font-weight:600;font-size:14px}
+      .ft-home-benefit .ft-home-icon{display:block;font-size:25px;line-height:1;margin-bottom:8px;color:#0874d9}
+      .ft-home-footer{margin:18px auto 0;padding:11px 14px;border-radius:13px;background:linear-gradient(90deg,#e6f4ff,#d8edff);color:#174b91;font-weight:700;line-height:1.35;font-size:14px}
+      @media(max-width:600px){
+        .ft-home{width:calc(100% - 20px);margin:12px auto 20px;padding:22px 14px 18px;border-radius:16px}
+        .ft-home h1{font-size:clamp(28px,7.6vw,34px);line-height:1.12;max-width:340px;margin-bottom:11px}
+        .ft-home .lead{font-size:16px;line-height:1.4;max-width:330px;margin-bottom:14px}
+        .ft-home p.ft-home-motto{width:100%;max-width:600px;margin:0 auto 18px!important;font-size:14px;line-height:1.35;padding:11px 12px;border-radius:12px;text-align:center!important}
+        .ft-home-actions{gap:11px;margin:18px auto 24px;padding:0;max-width:100%}
+        .ft-home-actions .btn{min-height:56px;padding:12px 11px;border-radius:16px;font-size:16px;max-width:100%}
+        .ft-home-benefits h2{font-size:21px;margin-bottom:12px}
+        .ft-home-benefit-grid{grid-template-columns:1fr;gap:8px}
+        .ft-home-benefit{display:flex;align-items:center;text-align:left;gap:12px;padding:11px 13px;font-size:14px}
+        .ft-home-benefit .ft-home-icon{font-size:24px;min-width:28px;margin:0;text-align:center}
+        .ft-home-footer{margin-top:14px;padding:11px 10px;font-size:13px}
+      }
+      @media(max-width:360px){.ft-home{padding-left:11px;padding-right:11px}.ft-home h1{font-size:27px}.ft-home .lead{font-size:15px}.ft-home-actions .btn{font-size:15px;min-height:53px}}
+      @media(prefers-reduced-motion:reduce){.ft-home-actions .btn{transition:none}}
     </style>
     <section class="hero ft-home">
-      <h1>Hai un debito. Non devi affrontarlo da solo.</h1>
-      <p class="motto">Non farti cercare dal recupero crediti, cerca tu stesso la soluzione.</p>
-      <p class="lead">Fai chiarezza sulla tua situazione, scopri cosa puoi sostenere e trova la strada per ripartire, con il supporto di un consulente.</p>
-      <div class="ft-home-actions">
-        <a class="btn" href="/consulenza?percorso=registrazione">Procedi con la registrazione</a>
-        <a class="btn outline" href="/consulenza?percorso=senza-registrazione">Procedi senza registrazione</a>
+      <h1><span>Hai un debito?</span><span>Non affrontarlo da solo.</span></h1>
+      <p class="lead">Scopri cosa puoi sostenere e trova la strada per ripartire.</p>
+      <p class="ft-home-motto"><span>Non farti cercare dal recupero crediti,</span><span>cerca tu stesso la soluzione.</span></p>
+      <div class="ft-home-actions" aria-label="Scegli il percorso di contatto">
+        <a class="btn ft-home-red" href="/contatto/rosso">Ho ricevuto un atto o un sollecito</a>
+        <a class="btn ft-home-yellow" href="/contatto/giallo">Sono in difficoltà con i pagamenti</a>
+        <a class="btn ft-home-green" href="/contatto/verde">Voglio informazioni e prevenire</a>
       </div>
+      <section class="ft-home-benefits" aria-labelledby="ft-home-benefits-title">
+        <h2 id="ft-home-benefits-title">Come può aiutarti FixTude</h2>
+        <div class="ft-home-benefit-grid">
+          <div class="ft-home-benefit"><span class="ft-home-icon" aria-hidden="true">⌕</span><span>Fare chiarezza sulla situazione</span></div>
+          <div class="ft-home-benefit"><span class="ft-home-icon" aria-hidden="true">✓</span><span>Valutare una soluzione sostenibile</span></div>
+          <div class="ft-home-benefit"><span class="ft-home-icon" aria-hidden="true">♙</span><span>Richiedere il supporto di un consulente</span></div>
+        </div>
+      </section>
+      <div class="ft-home-footer">Il tuo percorso, la nostra priorità.</div>
     </section>
     """
     return page("Fai chiarezza sulla tua situazione", content)
+
+# =========================================================
+# MODULI CONTATTO DIFFERENZIATI PER SITUAZIONE
+# =========================================================
+@app.route("/contatto/<scenario>")
+def contatto_scenario(scenario):
+    scenario = (scenario or "").strip().lower()
+    cfgs = {
+      "rosso": {"title":"Hai ricevuto un sollecito o un atto?", "subtitle":"Raccontaci che cosa hai ricevuto e quali iniziative sono già state intraprese.", "color":"#c93636", "ink":"#ffffff", "subject":"FixTude - richiesta urgente: atto o sollecito", "fields":[
+        ("tipo_atto","Che cosa hai ricevuto?","select",["Sollecito di pagamento","Diffida o messa in mora","Decreto ingiuntivo","Atto di precetto","Pignoramento o atto esecutivo","Atto giudiziario di altro tipo","Non so identificarlo"],True),
+        ("data_ricezione","Quando l'hai ricevuto?","date",[],False),
+        ("mittente","Chi ti ha inviato la comunicazione?","text",[],False),
+        ("modalita_ricezione","Come ti è stata notificata?","select",["Posta ordinaria","Raccomandata","PEC","Ufficiale giudiziario","Consegna a mano","Altro / non so"],False),
+        ("azioni_intraprese","Sono già state intraprese azioni?","select",["Nessuna, per ora","Ho contattato il creditore","Ho chiesto una rateizzazione","Ho concordato un piano di rientro","Mi sono rivolto a un professionista","È già iniziata un'azione legale o esecutiva","Altro / non so"],True),
+        ("termine_indicato","È indicata una scadenza o un termine?","select",["Sì","No","Non so"],False),
+        ("dettagli_atto","Altre informazioni utili","textarea",[],False)]},
+      "giallo": {"title":"Stai facendo fatica a pagare?", "subtitle":"Indicaci quali comunicazioni hai ricevuto e a che punto è la situazione.", "color":"#d99a16", "ink":"#17212b", "subject":"FixTude - richiesta per difficoltà nei pagamenti", "fields":[
+        ("ricezione_solleciti","Hai ricevuto solleciti di pagamento?","select",["No","Sì, uno","Sì, da 2 a 3","Sì, più di 3","Non ricordo / non so"],True),
+        ("periodo_solleciti","Da quanto tempo ricevi solleciti?","select",["Da meno di un mese","Da 1 a 3 mesi","Da oltre 3 mesi","Non so"],False),
+        ("costituzione_mora","Hai ricevuto una costituzione in mora?","select",["Sì","No","Non so riconoscerla"],True),
+        ("diffida_legale","Hai ricevuto una diffida legale?","select",["Sì","No","Non so riconoscerla"],True),
+        ("creditore","Creditore o società che ti contatta","text",[],False),
+        ("tipo_debito","Tipo di debito","select",["Utenze: luce, gas, acqua","Telefonia e Internet","Finanziario","Fiscale o tributario","Condominio","Affitto","Commerciale","Privati","Altro / non so"],True),
+        ("importo_indicativo","Importo indicativo del debito (€)","number",[],False),
+        ("dettagli_situazione","Vuoi aggiungere qualche dettaglio?","textarea",[],False)]},
+      "verde": {"title":"Parliamone con calma", "subtitle":"Lascia i tuoi recapiti e spiegaci brevemente come possiamo aiutarti.", "color":"#27865b", "ink":"#ffffff", "subject":"FixTude - richiesta di informazioni", "fields":[
+        ("argomento","Di che cosa vorresti parlare?","select",["Vorrei capire la mia situazione","Vorrei prevenire difficoltà future","Vorrei informazioni sui servizi FixTude","Altro"],False),
+        ("messaggio","Messaggio (facoltativo)","textarea",[],False)]}
+    }
+    cfg = cfgs.get(scenario)
+    if not cfg:
+        return redirect(url_for("home"))
+    def make_field(item):
+        name,label,kind,opts,required=item
+        rid="field_"+name
+        req=" required" if required else ""
+        if kind=="select":
+            options='<option value="">Seleziona</option>'+''.join('<option>'+escape(v)+'</option>' for v in opts)
+            control=f'<select id="{rid}" name="{name}"{req}>{options}</select>'
+        elif kind=="textarea":
+            control=f'<textarea id="{rid}" name="{name}" rows="4" maxlength="1800" placeholder="Non inserire dati bancari o documenti."></textarea>'
+        else:
+            control=f'<input id="{rid}" name="{name}" type="{kind}" maxlength="180"'+(' min="0" step="0.01" inputmode="decimal"' if kind=="number" else '')+f'{req}>'
+        return f'<div class="field"><label for="{rid}">{escape(label)}</label>{control}</div>'
+    fields=''.join(make_field(x) for x in cfg["fields"])
+    content=f'''<style>
+      .ft-scenario-form{{max-width:760px;margin:0 auto;border-top:6px solid {cfg['color']}}}
+      .ft-scenario-banner{{background:{cfg['color']};color:{cfg['ink']};padding:20px;border-radius:12px;margin-bottom:20px}}
+      .ft-scenario-banner h1,.ft-scenario-banner p{{color:{cfg['ink']};margin-top:0}}
+      .ft-scenario-banner h1{{font-size:clamp(25px,5vw,34px);line-height:1.2;margin-bottom:8px}}
+      .ft-scenario-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}}
+      .ft-scenario-grid .field{{min-width:0}}.ft-scenario-grid input,.ft-scenario-grid select,.ft-scenario-grid textarea{{width:100%;box-sizing:border-box}}
+      .ft-scenario-submit{{background:{cfg['color']}!important;color:{cfg['ink']}!important;border:0!important;width:100%;min-height:50px;font-weight:700}}
+      @media(max-width:620px){{.ft-scenario-grid{{grid-template-columns:1fr}}.ft-scenario-banner{{padding:17px}}}}
+    </style>
+    <section class="card ft-scenario-form"><div class="ft-scenario-banner"><h1>{cfg['title']}</h1><p>{cfg['subtitle']}</p></div>
+      <form id="scenarioContactForm"><input type="hidden" name="tipo_percorso" value="{scenario}">
+      <div class="ft-scenario-grid"><div class="field"><label for="nome">Nome e cognome</label><input id="nome" name="nome" maxlength="160" autocomplete="name" required></div>
+      <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" maxlength="254" autocomplete="email" required></div>
+      <div class="field"><label for="telefono">Telefono (facoltativo)</label><input id="telefono" name="telefono" type="tel" maxlength="40" autocomplete="tel"></div>{fields}</div>
+      <div style="position:absolute;left:-10000px" aria-hidden="true"><label for="website">Non compilare questo campo</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+      <label class="check"><input type="checkbox" name="privacy" value="Sì" required><span>Ho letto l’<a href="/privacy" target="_blank" rel="noopener">informativa privacy</a> e chiedo di essere ricontattato.</span></label>
+      <label class="check"><input type="checkbox" name="accept_terms" value="Sì" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label>
+      <p class="muted" style="font-size:13px">Non allegare documenti e non inserire password o dati bancari. La richiesta viene inoltrata via email e non viene salvata in un database FixTude.</p>
+      <div id="scenarioResult" role="status" aria-live="polite"></div><button class="btn ft-scenario-submit" id="scenarioSubmit" type="submit">Invia richiesta</button></form></section>
+    <script>(()=>{{const form=document.getElementById('scenarioContactForm'),result=document.getElementById('scenarioResult'),button=document.getElementById('scenarioSubmit');form.addEventListener('submit',async e=>{{e.preventDefault();if(!form.reportValidity())return;const values=Object.fromEntries(new FormData(form).entries());if(String(values.website||'').trim())return;values.access_key='6cfd757e-6b16-49e0-96b5-e055a159f403';values.subject={json.dumps(cfg['subject'])};values.from_name='FixTude - modulo {scenario}';values.botcheck='';delete values.website;button.disabled=true;button.textContent='Invio in corso…';try{{const r=await fetch('https://api.web3forms.com/submit',{{method:'POST',headers:{{'Content-Type':'application/json','Accept':'application/json'}},body:JSON.stringify(values)}}),d=await r.json();if(!r.ok||d.success!==true)throw new Error(d.message||'Invio non riuscito. Riprova più tardi.');result.className='notice success';result.textContent='Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.';form.reset();}}catch(err){{result.className='notice error';result.textContent=err.message||'Errore di connessione. Riprova più tardi.';}}finally{{button.disabled=false;button.textContent='Invia richiesta';}}}});}})();</script>'''
+    return page("Contatto FixTude - " + scenario.capitalize(), content)
 
 
 # =========================================================
