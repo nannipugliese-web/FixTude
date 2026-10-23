@@ -1205,6 +1205,8 @@ def home():
       .ft-home .lead{font-size:clamp(16px,1.6vw,19px);line-height:1.45;max-width:570px;margin:0 auto 16px;color:#174b91;text-wrap:pretty}
       .ft-home p.ft-home-motto{display:block;width:calc(100% - 8px);max-width:600px;box-sizing:border-box;margin:0 auto 22px!important;padding:12px 18px;border-radius:14px;background:linear-gradient(110deg,#0d438d,#0874d9);color:#fff!important;font-size:clamp(14px,1.45vw,17px);font-weight:800;line-height:1.35;text-align:center!important;position:relative;left:auto!important;right:auto!important;transform:none!important;float:none!important;box-shadow:0 4px 0 #073675,0 8px 16px rgba(12,54,108,.16)}
       .ft-home-motto *{color:#fff!important}
+      .ft-home-motto span{display:block}
+      .ft-home-motto span+span{margin-top:2px}
       .ft-home-actions{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;margin:22px auto 26px;max-width:590px}
       .ft-home-actions .btn{
         display:flex;align-items:center;justify-content:center;text-align:center;
@@ -1243,7 +1245,7 @@ def home():
     <section class="hero ft-home">
       <h1><span>Hai un debito?</span><span>Non affrontarlo da solo.</span></h1>
       <p class="lead">Scopri cosa puoi sostenere e trova la strada per ripartire.</p>
-      <p class="ft-home-motto">Non farti cercare dal recupero crediti, cerca tu stesso la soluzione.</p>
+      <p class="ft-home-motto"><span>Non farti cercare dal recupero crediti,</span><span>cerca tu stesso la soluzione.</span></p>
       <div class="ft-home-actions" aria-label="Scegli il percorso di contatto">
         <a class="btn ft-home-red" href="/contatto/rosso">Ho ricevuto un atto o un sollecito</a>
         <a class="btn ft-home-yellow" href="/contatto/giallo">Sono in difficoltà con i pagamenti</a>
