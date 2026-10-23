@@ -284,6 +284,10 @@ SEO_PAGES = {
         "title": "Saldo e stralcio: cos'è, come funziona e quando conviene | FixTude",
         "description": "Saldo e stralcio dei debiti: come funziona la trattativa, quali rischi controllare, cosa scrivere nell'accordo e come evitare errori prima di pagare.",
     },
+    "/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro": {
+        "title": "Piano di rientro con cambiali: pro, contro e rischi | FixTude",
+        "description": "Piano di rientro con cambiali: scopri vantaggi, rischi, conseguenze del mancato pagamento e cosa controllare prima di firmare.",
+    },
     "/sic": {
         "title": "Sistemi di informazione creditizia (SIC) | FixTude",
         "description": "Informazioni orientative sui sistemi di informazione creditizia e sulla consultazione dei dati relativi alla propria posizione.",
@@ -1193,143 +1197,25 @@ def page(title, content, include_chat=True):
 def home():
     content = """
     <style>
-      /* Home FixTude: proporzioni compatte, azzurro tenue e pulsanti 3D */
-      .ft-home{
-        width:calc(100% - 32px);max-width:800px;margin:24px auto 30px;padding:30px 26px 26px;
-        box-sizing:border-box;text-align:center;position:relative;isolation:isolate;
-        background:radial-gradient(ellipse at 50% 0%,rgba(210,237,255,.88) 0%,rgba(242,248,253,.94) 48%,rgba(255,255,255,.98) 100%);
-        border-radius:20px;overflow:hidden
-      }
-      .ft-home h1{font-size:clamp(30px,3.4vw,42px);line-height:1.12;letter-spacing:-.025em;margin:0 auto 12px;max-width:680px;color:#103b78;text-wrap:balance}
-      .ft-home h1 span{display:block}
-      .ft-home .lead{font-size:clamp(16px,1.6vw,19px);line-height:1.45;max-width:570px;margin:0 auto 16px;color:#174b91;text-wrap:pretty}
-      .ft-home p.ft-home-motto{display:block;width:calc(100% - 8px);max-width:600px;box-sizing:border-box;margin:0 auto 22px!important;padding:12px 18px;border-radius:14px;background:linear-gradient(110deg,#0d438d,#0874d9);color:#fff!important;font-size:clamp(14px,1.45vw,17px);font-weight:800;line-height:1.35;text-align:center!important;position:relative;left:auto!important;right:auto!important;transform:none!important;float:none!important;box-shadow:0 4px 0 #073675,0 8px 16px rgba(12,54,108,.16)}
-      .ft-home-motto *{color:#fff!important}
-      .ft-home-motto span{display:block}
-      .ft-home-motto span+span{margin-top:2px}
-      .ft-home-actions{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;margin:22px auto 26px;max-width:590px}
-      .ft-home-actions .btn{
-        display:flex;align-items:center;justify-content:center;text-align:center;
-        width:100%;max-width:560px;min-height:60px;padding:13px 20px;box-sizing:border-box;
-        border:2px solid rgba(255,255,255,.72)!important;border-radius:19px;
-        font-size:clamp(16px,1.6vw,19px);font-weight:800;line-height:1.25;text-decoration:none;
-        transition:transform .15s ease,filter .15s ease,box-shadow .15s ease;
-      }
-      .ft-home-actions .btn:hover{filter:brightness(1.04);transform:translateY(-2px)}
-      .ft-home-actions .btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.25)!important}
-      .ft-home .ft-home-red{color:#fff!important;background:linear-gradient(180deg,#ff6565 0%,#f11b25 48%,#c90b19 100%)!important;box-shadow:0 5px 0 #990b15,0 8px 14px rgba(151,17,26,.19),inset 0 2px 2px rgba(255,255,255,.7)!important}
-      .ft-home .ft-home-yellow{color:#173d75!important;background:linear-gradient(180deg,#fff06a 0%,#ffc51c 48%,#ed9700 100%)!important;box-shadow:0 5px 0 #b86e00,0 8px 14px rgba(158,104,0,.16),inset 0 2px 2px rgba(255,255,255,.75)!important}
-      .ft-home .ft-home-green{color:#fff!important;background:linear-gradient(180deg,#38e99b 0%,#08b96a 48%,#07824b 100%)!important;box-shadow:0 5px 0 #05663b,0 8px 14px rgba(5,110,65,.17),inset 0 2px 2px rgba(255,255,255,.68)!important}
-      .ft-home-benefits{margin:4px auto 0;max-width:700px}
-      .ft-home-benefits h2{color:#103b78;font-size:clamp(20px,2.2vw,24px);line-height:1.2;margin:0 0 14px}
-      .ft-home-benefit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-      .ft-home-benefit{padding:13px 10px;border:1px solid #d9e8f8;border-radius:14px;background:rgba(255,255,255,.82);color:#173f78;line-height:1.35;font-weight:600;font-size:14px}
-      .ft-home-benefit .ft-home-icon{display:block;font-size:25px;line-height:1;margin-bottom:8px;color:#0874d9}
-      .ft-home-footer{margin:18px auto 0;padding:11px 14px;border-radius:13px;background:linear-gradient(90deg,#e6f4ff,#d8edff);color:#174b91;font-weight:700;line-height:1.35;font-size:14px}
-      @media(max-width:600px){
-        .ft-home{width:calc(100% - 20px);margin:12px auto 20px;padding:22px 14px 18px;border-radius:16px}
-        .ft-home h1{font-size:clamp(28px,7.6vw,34px);line-height:1.12;max-width:340px;margin-bottom:11px}
-        .ft-home .lead{font-size:16px;line-height:1.4;max-width:330px;margin-bottom:14px}
-        .ft-home p.ft-home-motto{width:100%;max-width:600px;margin:0 auto 18px!important;font-size:14px;line-height:1.35;padding:11px 12px;border-radius:12px;text-align:center!important}
-        .ft-home-actions{gap:11px;margin:18px auto 24px;padding:0;max-width:100%}
-        .ft-home-actions .btn{min-height:56px;padding:12px 11px;border-radius:16px;font-size:16px;max-width:100%}
-        .ft-home-benefits h2{font-size:21px;margin-bottom:12px}
-        .ft-home-benefit-grid{grid-template-columns:1fr;gap:8px}
-        .ft-home-benefit{display:flex;align-items:center;text-align:left;gap:12px;padding:11px 13px;font-size:14px}
-        .ft-home-benefit .ft-home-icon{font-size:24px;min-width:28px;margin:0;text-align:center}
-        .ft-home-footer{margin-top:14px;padding:11px 10px;font-size:13px}
-      }
-      @media(max-width:360px){.ft-home{padding-left:11px;padding-right:11px}.ft-home h1{font-size:27px}.ft-home .lead{font-size:15px}.ft-home-actions .btn{font-size:15px;min-height:53px}}
-      @media(prefers-reduced-motion:reduce){.ft-home-actions .btn{transition:none}}
+      .ft-home{max-width:850px;margin:0 auto;text-align:center;padding:24px 8px 30px}
+      .ft-home h1{font-size:clamp(30px,4.5vw,48px);line-height:1.12;margin:0 auto 20px;max-width:800px}
+      .ft-home .lead{font-size:clamp(17px,2vw,21px);line-height:1.6;max-width:740px;margin:0 auto 14px}
+      .ft-home .motto{font-size:16px;font-weight:800;color:var(--blue);margin:22px auto 28px}
+      .ft-home-actions{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin:25px auto 0}
+      .ft-home-actions .btn{min-width:240px;min-height:54px;padding:15px 22px}
+      @media(max-width:600px){.ft-home-actions{flex-direction:column;align-items:stretch;padding:0 8px}.ft-home-actions .btn{width:100%;min-width:0}}
     </style>
     <section class="hero ft-home">
-      <h1><span>Hai un debito?</span><span>Non affrontarlo da solo.</span></h1>
-      <p class="lead">Scopri cosa puoi sostenere e trova la strada per ripartire.</p>
-      <p class="ft-home-motto"><span>Non farti cercare dal recupero crediti,</span><span>cerca tu stesso la soluzione.</span></p>
-      <div class="ft-home-actions" aria-label="Scegli il percorso di contatto">
-        <a class="btn ft-home-red" href="/contatto/rosso">Ho ricevuto un atto o un sollecito</a>
-        <a class="btn ft-home-yellow" href="/contatto/giallo">Sono in difficoltà con i pagamenti</a>
-        <a class="btn ft-home-green" href="/contatto/verde">Voglio informazioni e prevenire</a>
+      <h1>Hai un debito. Non devi affrontarlo da solo.</h1>
+      <p class="motto">Non farti cercare dal recupero crediti, cerca tu stesso la soluzione.</p>
+      <p class="lead">Fai chiarezza sulla tua situazione, scopri cosa puoi sostenere e trova la strada per ripartire, con il supporto di un consulente.</p>
+      <div class="ft-home-actions">
+        <a class="btn" href="/consulenza?percorso=registrazione">Procedi con la registrazione</a>
+        <a class="btn outline" href="/consulenza?percorso=senza-registrazione">Procedi senza registrazione</a>
       </div>
-      <section class="ft-home-benefits" aria-labelledby="ft-home-benefits-title">
-        <h2 id="ft-home-benefits-title">Come può aiutarti FixTude</h2>
-        <div class="ft-home-benefit-grid">
-          <div class="ft-home-benefit"><span class="ft-home-icon" aria-hidden="true">⌕</span><span>Fare chiarezza sulla situazione</span></div>
-          <div class="ft-home-benefit"><span class="ft-home-icon" aria-hidden="true">✓</span><span>Valutare una soluzione sostenibile</span></div>
-          <div class="ft-home-benefit"><span class="ft-home-icon" aria-hidden="true">♙</span><span>Richiedere il supporto di un consulente</span></div>
-        </div>
-      </section>
-      <div class="ft-home-footer">Il tuo percorso, la nostra priorità.</div>
     </section>
     """
     return page("Fai chiarezza sulla tua situazione", content)
-
-# =========================================================
-# MODULI CONTATTO DIFFERENZIATI PER SITUAZIONE
-# =========================================================
-@app.route("/contatto/<scenario>")
-def contatto_scenario(scenario):
-    scenario = (scenario or "").strip().lower()
-    cfgs = {
-      "rosso": {"title":"Hai ricevuto un sollecito o un atto?", "subtitle":"Raccontaci che cosa hai ricevuto e quali iniziative sono già state intraprese.", "color":"#c93636", "ink":"#ffffff", "subject":"FixTude - richiesta urgente: atto o sollecito", "fields":[
-        ("tipo_atto","Che cosa hai ricevuto?","select",["Sollecito di pagamento","Diffida o messa in mora","Decreto ingiuntivo","Atto di precetto","Pignoramento o atto esecutivo","Atto giudiziario di altro tipo","Non so identificarlo"],True),
-        ("data_ricezione","Quando l'hai ricevuto?","date",[],False),
-        ("mittente","Chi ti ha inviato la comunicazione?","text",[],False),
-        ("modalita_ricezione","Come ti è stata notificata?","select",["Posta ordinaria","Raccomandata","PEC","Ufficiale giudiziario","Consegna a mano","Altro / non so"],False),
-        ("azioni_intraprese","Sono già state intraprese azioni?","select",["Nessuna, per ora","Ho contattato il creditore","Ho chiesto una rateizzazione","Ho concordato un piano di rientro","Mi sono rivolto a un professionista","È già iniziata un'azione legale o esecutiva","Altro / non so"],True),
-        ("termine_indicato","È indicata una scadenza o un termine?","select",["Sì","No","Non so"],False),
-        ("dettagli_atto","Altre informazioni utili","textarea",[],False)]},
-      "giallo": {"title":"Stai facendo fatica a pagare?", "subtitle":"Indicaci quali comunicazioni hai ricevuto e a che punto è la situazione.", "color":"#d99a16", "ink":"#17212b", "subject":"FixTude - richiesta per difficoltà nei pagamenti", "fields":[
-        ("ricezione_solleciti","Hai ricevuto solleciti di pagamento?","select",["No","Sì, uno","Sì, da 2 a 3","Sì, più di 3","Non ricordo / non so"],True),
-        ("periodo_solleciti","Da quanto tempo ricevi solleciti?","select",["Da meno di un mese","Da 1 a 3 mesi","Da oltre 3 mesi","Non so"],False),
-        ("costituzione_mora","Hai ricevuto una costituzione in mora?","select",["Sì","No","Non so riconoscerla"],True),
-        ("diffida_legale","Hai ricevuto una diffida legale?","select",["Sì","No","Non so riconoscerla"],True),
-        ("creditore","Creditore o società che ti contatta","text",[],False),
-        ("tipo_debito","Tipo di debito","select",["Utenze: luce, gas, acqua","Telefonia e Internet","Finanziario","Fiscale o tributario","Condominio","Affitto","Commerciale","Privati","Altro / non so"],True),
-        ("importo_indicativo","Importo indicativo del debito (€)","number",[],False),
-        ("dettagli_situazione","Vuoi aggiungere qualche dettaglio?","textarea",[],False)]},
-      "verde": {"title":"Parliamone con calma", "subtitle":"Lascia i tuoi recapiti e spiegaci brevemente come possiamo aiutarti.", "color":"#27865b", "ink":"#ffffff", "subject":"FixTude - richiesta di informazioni", "fields":[
-        ("argomento","Di che cosa vorresti parlare?","select",["Vorrei capire la mia situazione","Vorrei prevenire difficoltà future","Vorrei informazioni sui servizi FixTude","Altro"],False),
-        ("messaggio","Messaggio (facoltativo)","textarea",[],False)]}
-    }
-    cfg = cfgs.get(scenario)
-    if not cfg:
-        return redirect(url_for("home"))
-    def make_field(item):
-        name,label,kind,opts,required=item
-        rid="field_"+name
-        req=" required" if required else ""
-        if kind=="select":
-            options='<option value="">Seleziona</option>'+''.join('<option>'+escape(v)+'</option>' for v in opts)
-            control=f'<select id="{rid}" name="{name}"{req}>{options}</select>'
-        elif kind=="textarea":
-            control=f'<textarea id="{rid}" name="{name}" rows="4" maxlength="1800" placeholder="Non inserire dati bancari o documenti."></textarea>'
-        else:
-            control=f'<input id="{rid}" name="{name}" type="{kind}" maxlength="180"'+(' min="0" step="0.01" inputmode="decimal"' if kind=="number" else '')+f'{req}>'
-        return f'<div class="field"><label for="{rid}">{escape(label)}</label>{control}</div>'
-    fields=''.join(make_field(x) for x in cfg["fields"])
-    content=f'''<style>
-      .ft-scenario-form{{max-width:760px;margin:0 auto;border-top:6px solid {cfg['color']}}}
-      .ft-scenario-banner{{background:{cfg['color']};color:{cfg['ink']};padding:20px;border-radius:12px;margin-bottom:20px}}
-      .ft-scenario-banner h1,.ft-scenario-banner p{{color:{cfg['ink']};margin-top:0}}
-      .ft-scenario-banner h1{{font-size:clamp(25px,5vw,34px);line-height:1.2;margin-bottom:8px}}
-      .ft-scenario-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}}
-      .ft-scenario-grid .field{{min-width:0}}.ft-scenario-grid input,.ft-scenario-grid select,.ft-scenario-grid textarea{{width:100%;box-sizing:border-box}}
-      .ft-scenario-submit{{background:{cfg['color']}!important;color:{cfg['ink']}!important;border:0!important;width:100%;min-height:50px;font-weight:700}}
-      @media(max-width:620px){{.ft-scenario-grid{{grid-template-columns:1fr}}.ft-scenario-banner{{padding:17px}}}}
-    </style>
-    <section class="card ft-scenario-form"><div class="ft-scenario-banner"><h1>{cfg['title']}</h1><p>{cfg['subtitle']}</p></div>
-      <form id="scenarioContactForm"><input type="hidden" name="tipo_percorso" value="{scenario}">
-      <div class="ft-scenario-grid"><div class="field"><label for="nome">Nome e cognome</label><input id="nome" name="nome" maxlength="160" autocomplete="name" required></div>
-      <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" maxlength="254" autocomplete="email" required></div>
-      <div class="field"><label for="telefono">Telefono (facoltativo)</label><input id="telefono" name="telefono" type="tel" maxlength="40" autocomplete="tel"></div>{fields}</div>
-      <div style="position:absolute;left:-10000px" aria-hidden="true"><label for="website">Non compilare questo campo</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
-      <label class="check"><input type="checkbox" name="privacy" value="Sì" required><span>Ho letto l’<a href="/privacy" target="_blank" rel="noopener">informativa privacy</a> e chiedo di essere ricontattato.</span></label>
-      <label class="check"><input type="checkbox" name="accept_terms" value="Sì" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label>
-      <p class="muted" style="font-size:13px">Non allegare documenti e non inserire password o dati bancari. La richiesta viene inoltrata via email e non viene salvata in un database FixTude.</p>
-      <div id="scenarioResult" role="status" aria-live="polite"></div><button class="btn ft-scenario-submit" id="scenarioSubmit" type="submit">Invia richiesta</button></form></section>
-    <script>(()=>{{const form=document.getElementById('scenarioContactForm'),result=document.getElementById('scenarioResult'),button=document.getElementById('scenarioSubmit');form.addEventListener('submit',async e=>{{e.preventDefault();if(!form.reportValidity())return;const values=Object.fromEntries(new FormData(form).entries());if(String(values.website||'').trim())return;values.access_key='6cfd757e-6b16-49e0-96b5-e055a159f403';values.subject={json.dumps(cfg['subject'])};values.from_name='FixTude - modulo {scenario}';values.botcheck='';delete values.website;button.disabled=true;button.textContent='Invio in corso…';try{{const r=await fetch('https://api.web3forms.com/submit',{{method:'POST',headers:{{'Content-Type':'application/json','Accept':'application/json'}},body:JSON.stringify(values)}}),d=await r.json();if(!r.ok||d.success!==true)throw new Error(d.message||'Invio non riuscito. Riprova più tardi.');result.className='notice success';result.textContent='Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.';form.reset();}}catch(err){{result.className='notice error';result.textContent=err.message||'Errore di connessione. Riprova più tardi.';}}finally{{button.disabled=false;button.textContent='Invia richiesta';}}}});}})();</script>'''
-    return page("Contatto FixTude - " + scenario.capitalize(), content)
 
 
 # =========================================================
@@ -2881,6 +2767,17 @@ def educazione_finanziaria():
         <a class="btn" href="/educazione-finanziaria/guida-saldo-e-stralcio">Leggi l'articolo</a>
       </div>
     </section>
+    <section class="card education-article-card" aria-labelledby="guide-cambiali">
+      <a class="education-article-image-link" href="/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro" aria-label="Leggi la guida sul piano di rientro con cambiali">
+        <img class="education-article-image" src="/static/piano-rientro-cambiali-fixtude.png" alt="Piano di rientro con cambiali: documenti, calendario e scadenze" loading="lazy">
+      </a>
+      <div class="education-article-copy">
+        <p class="muted">GUIDA PRATICA · 9–11 MINUTI DI LETTURA</p>
+        <h2 id="guide-cambiali"><a href="/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro">Piano di rientro con cambiali: pro, contro e rischi da conoscere prima di firmare</a></h2>
+        <p>Prima di accettare un piano di rientro con cambiali, è importante conoscere i vantaggi, le conseguenze del mancato pagamento e i controlli da fare per valutare se l’accordo è davvero sostenibile.</p>
+        <a class="btn" href="/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro">Leggi l’articolo</a>
+      </div>
+    </section>
     <style>
       .education-article-card{display:grid;grid-template-columns:minmax(150px,230px) minmax(0,1fr);gap:20px;align-items:center}
       .education-article-image-link{display:block;max-width:230px}
@@ -3010,6 +2907,146 @@ def articolo_saldo_e_stralcio():
     </style>'''
     return page("Saldo e stralcio: guida pratica", content)
 
+
+
+@app.route("/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro")
+def articolo_piano_rientro_cambiali():
+    content = r'''<article class="card article-content cambiali-article">
+      <nav class="article-breadcrumb" aria-label="Percorso di navigazione"><a href="/">Home</a> › <a href="/educazione-finanziaria">Educazione finanziaria</a> › <span>Piano di rientro con cambiali</span></nav>
+      <div class="cambiali-hero-grid"><div><p class="article-kicker">GUIDA PRATICA · 9–11 MINUTI DI LETTURA</p>
+      <h1>Piano di rientro con cambiali: pro, contro e rischi da conoscere prima di firmare</h1>
+      <p class="article-subtitle">Accettare un piano di rientro può aiutarti a gestire un debito senza dover pagare tutto subito. Ma cosa succede se le rate sono garantite da cambiali? Scopri vantaggi, rischi, conseguenze del mancato pagamento e quali verifiche fare prima di firmare.</p>
+      <p class="muted article-byline">Redazione - FixTude · Educazione finanziaria</p></div>
+      <figure class="article-hero-image"><img src="/static/piano-rientro-cambiali-fixtude.png" alt="Piano di rientro con cambiali: documenti, calendario e scadenze da verificare prima di firmare" fetchpriority="high"><figcaption>Prima di firmare, verifica importi, scadenze e condizioni dell’accordo.</figcaption></figure></div>
+      <div class="cambiali-layout"><div class="cambiali-main"><div class="article-intro">
+      <p>Quando un debito diventa difficile da gestire, ricevere una proposta di pagamento rateale può sembrare finalmente una via d’uscita. Il creditore è disposto a concedere più tempo, le rate sembrano accessibili e la possibilità di regolarizzare la propria posizione restituisce un po’ di tranquillità.</p>
+      <p>A volte, però, insieme alla proposta di rateizzazione arriva una richiesta precisa: firmare delle cambiali.</p>
+      <p>È proprio in questo momento che conviene fermarsi a riflettere. Un piano di rientro con cambiali può essere uno strumento utile per organizzare il pagamento di un debito, ma non è equivalente a un semplice accordo per versare rate mensili. Le cambiali hanno caratteristiche giuridiche specifiche e possono offrire al creditore una tutela particolarmente efficace in caso di mancato pagamento.</p>
+      <aside class="article-callout"><strong>La domanda da porsi non è soltanto se puoi pagare la prima rata, ma se sarai in grado di rispettare l’intero piano fino alla sua conclusione.</strong></aside>
+      <p>In questa guida di FixTude vediamo come funziona un piano di rientro con cambiali, quali sono i principali vantaggi, quali rischi è importante conoscere e come valutare un accordo prima di sottoscriverlo.</p></div>
+      <div class="article-body"><p>Quando un debito diventa difficile da gestire, ricevere una proposta di pagamento rateale può sembrare finalmente una via d&#x27;uscita. Il creditore è disposto a concedere più tempo, le rate sembrano accessibili e la possibilità di regolarizzare la propria posizione restituisce un po&#x27; di tranquillità.</p>
+      <p>A volte, però, insieme alla proposta di rateizzazione arriva una richiesta precisa: firmare delle cambiali.</p>
+      <p>È proprio in questo momento che conviene fermarsi a riflettere. Un piano di rientro con cambiali può essere uno strumento utile per organizzare il pagamento di un debito, ma non è equivalente a un semplice accordo per versare rate mensili. Le cambiali hanno caratteristiche giuridiche specifiche e possono offrire al creditore una tutela particolarmente efficace in caso di mancato pagamento.</p>
+      <p>La domanda da porsi non è soltanto se puoi pagare la prima rata, ma se sarai in grado di rispettare l&#x27;intero piano fino alla sua conclusione.</p>
+      <p>In questa guida di FixTude vediamo come funziona un piano di rientro con cambiali, quali sono i principali vantaggi, quali rischi è importante conoscere e come valutare un accordo prima di sottoscriverlo.</p>
+      <h2 id="sezione-1">Che cos&#x27;è un piano di rientro con cambiali?</h2>
+      <p>Un piano di rientro è un accordo attraverso il quale il debitore e il creditore stabiliscono modalità e tempi per il pagamento di una somma dovuta.</p>
+      <p>Invece di chiedere il pagamento immediato dell&#x27;intero importo, il creditore può accettare una suddivisione in più rate, con scadenze definite.</p>
+      <p>Facciamo un esempio.</p>
+      <p>Immagina di avere un debito di 6.000 euro e di non disporre della liquidità necessaria per saldarlo in un&#x27;unica soluzione. Dopo una trattativa, il creditore accetta di ricevere 500 euro al mese per dodici mesi.</p>
+      <p>Questa è una possibile struttura di rientro. Se il pagamento viene concordato mediante bonifici, il debitore verserà le rate secondo le condizioni stabilite nell&#x27;accordo. Se, invece, il creditore richiede dodici cambiali, il piano sarà accompagnato da titoli di credito con le rispettive scadenze.</p>
+      <p>La differenza non è soltanto formale.</p>
+      <p>La cambiale è disciplinata dal Regio decreto 5 dicembre 1933, n. 1669, e può costituire un titolo esecutivo quando ricorrono i requisiti previsti dalla legge. L&#x27;articolo 474 del Codice di procedura civile include espressamente le cambiali tra i titoli sui quali può fondarsi l&#x27;esecuzione forzata.</p>
+      <p>Puoi consultare i testi normativi ufficiali su Normattiva – disciplina della cambiale e Normattiva – articolo 474 del Codice di procedura civile.</p>
+      <p>In termini pratici, se una cambiale valida e utilizzabile come titolo esecutivo non viene pagata, il creditore può, nel rispetto degli adempimenti richiesti, procedere alla notifica del precetto e successivamente avviare un&#x27;esecuzione forzata, per esempio mediante pignoramento.</p>
+      <p>Questo non significa che il pignoramento sia automatico a ogni ritardo. Significa, però, che sottoscrivere cambiali è un impegno da valutare con attenzione.</p>
+      <h2 id="sezione-2">Quali sono i vantaggi di un piano di rientro con cambiali?</h2>
+      <p>Nonostante i rischi, una soluzione di questo tipo può avere una sua utilità. Tutto dipende dalle condizioni concordate e dalla reale capacità del debitore di rispettarle.</p>
+      <p class="check-item">1. Permette di distribuire il debito nel tempo</p>
+      <p>Il vantaggio più evidente è la possibilità di evitare, quando il creditore accetta la dilazione, un pagamento immediato dell&#x27;intera somma.</p>
+      <p>Una rateizzazione può rendere più gestibile una posizione che, in assenza di accordo, richiederebbe risorse economiche non disponibili.</p>
+      <p>È importante, tuttavia, non confondere la dilazione con una riduzione del debito: se il creditore concede soltanto più tempo, l&#x27;importo complessivo da pagare potrebbe rimanere invariato o aumentare per effetto degli oneri previsti.</p>
+      <p class="check-item">2. Aiuta a programmare le uscite</p>
+      <p>Conoscere in anticipo gli importi e le scadenze consente di pianificare meglio il bilancio familiare.</p>
+      <p>Chi deve pagare diverse rate può predisporre un calendario, verificare le entrate attese e organizzare le spese necessarie.</p>
+      <p>Questo vantaggio diventa concreto soltanto quando la rata è compatibile con il reddito disponibile anche nei mesi meno favorevoli.</p>
+      <p>Una scadenza regolare non rende sostenibile un impegno che, nei fatti, supera le possibilità economiche della famiglia.</p>
+      <p class="check-item">3. Può favorire una soluzione concordata</p>
+      <p>Quando il debitore affronta tempestivamente il problema e il creditore è disponibile a trattare, un piano di rientro può contribuire a evitare che la situazione si aggravi.</p>
+      <p>L&#x27;accordo può stabilire tempi, importi e modalità di pagamento, riducendo l&#x27;incertezza per entrambe le parti.</p>
+      <p>Occorre però verificare cosa prevede il documento sulle eventuali iniziative di recupero già avviate. Non è corretto presumere che la semplice firma di un piano sospenda automaticamente un precetto, un pignoramento o altre procedure in corso.</p>
+      <p>Se è già presente una procedura esecutiva, la questione deve essere affrontata espressamente nell&#x27;accordo e valutata con un professionista.</p>
+      <p class="check-item">4. Può offrire una soluzione concreta a un debito verificato</p>
+      <p>Se la somma richiesta è corretta, il debitore riconosce la propria obbligazione e le rate sono sostenibili, un accordo può rappresentare un percorso ordinato verso la chiusura della posizione.</p>
+      <p>Il punto fondamentale è che l&#x27;accordo risolva davvero il problema, anziché rinviarlo.</p>
+      <p>Prima di accettare, è quindi opportuno sapere esattamente quanto si deve, quanto si pagherà complessivamente e quali condizioni porteranno all&#x27;estinzione del debito.</p>
+      <h2 id="sezione-3">I rischi delle cambiali: cosa succede se non paghi?</h2>
+      <p>Questa è la parte che merita maggiore attenzione.</p>
+      <p>Una cambiale non è una semplice promessa informale di pagamento. Quando possiede i requisiti richiesti dalla legge, può consentire al creditore di intraprendere un percorso esecutivo senza dover ottenere prima una sentenza di condanna sul credito incorporato nel titolo.</p>
+      <p>Vediamo le conseguenze principali.</p>
+      <p class="check-item">1. Il creditore può avviare un&#x27;esecuzione forzata</p>
+      <p>Se una cambiale non viene pagata, il creditore può valutare le iniziative previste dalla legge.</p>
+      <p>In presenza di un titolo esecutivo valido e di un credito esigibile, il percorso può comprendere la notifica di un atto di precetto e, successivamente, il pignoramento dei beni o dei crediti del debitore, nel rispetto delle condizioni e delle procedure applicabili.</p>
+      <p>A seconda del caso, possono essere coinvolti beni, conti correnti o crediti verso terzi, come determinate somme dovute dal datore di lavoro.</p>
+      <p>Naturalmente, non ogni situazione produce automaticamente queste conseguenze: contano la validità del titolo, il debito residuo, gli atti notificati e le circostanze concrete.</p>
+      <p>Il dato essenziale è che la cambiale può offrire al creditore uno strumento di tutela più immediato rispetto a un semplice accordo non assistito da un titolo esecutivo.</p>
+      <p class="check-item">2. Una rata non pagata può compromettere l&#x27;intero accordo</p>
+      <p>Immagina di aver concordato dodici rate mensili e di averne pagate regolarmente otto. Poi, a causa di una spesa imprevista, non riesci a pagare la nona cambiale.</p>
+      <p>Il problema non riguarda soltanto la rata scaduta. Bisogna verificare se il piano prevede clausole che consentono al creditore di chiedere il pagamento anticipato delle somme residue.</p>
+      <p>Queste clausole possono disciplinare la decadenza dal beneficio del termine, ma i loro effetti dipendono dal contenuto dell&#x27;accordo e dalla normativa applicabile.</p>
+      <p>Per questo motivo, prima di firmare, chiediti cosa accadrebbe se dovessi perdere il lavoro, affrontare una spesa sanitaria o subire una riduzione delle entrate.</p>
+      <p>Non si tratta di essere pessimisti. Si tratta di valutare un impegno finanziario sulla base di ciò che potrebbe realmente accadere.</p>
+      <p class="check-item">3. Potrebbero aumentare le spese</p>
+      <p>Un mancato pagamento può comportare ulteriori costi, secondo la situazione concreta e le disposizioni applicabili.</p>
+      <p>Possono assumere rilievo gli interessi dovuti, le spese previste dall&#x27;accordo e gli eventuali costi legali o esecutivi legittimamente richiesti.</p>
+      <p>Ecco perché non basta controllare l&#x27;importo scritto su ogni cambiale. Occorre capire quale sia il costo complessivo dell&#x27;operazione e quali conseguenze siano previste in caso di inadempimento.</p>
+      <p class="check-item">4. Firmare può avere conseguenze sul riconoscimento del debito</p>
+      <p>Questo aspetto è particolarmente importante quando l&#x27;importo richiesto è contestato o quando esistono dubbi sulla prescrizione.</p>
+      <p>L&#x27;articolo 2944 del Codice civile stabilisce che il riconoscimento del diritto da parte di chi lo subisce può interrompere la prescrizione. La rilevanza concreta di una firma o di una dichiarazione dipende, tuttavia, dal contenuto dell&#x27;atto e dalle circostanze.</p>
+      <p>Se ritieni che il debito sia prescritto, che una parte degli importi non sia dovuta o che il credito sia stato calcolato in modo errato, è prudente far verificare la posizione prima di firmare.</p>
+      <p>Puoi consultare il testo ufficiale dell&#x27;articolo 2944 del Codice civile.</p>
+      <h2 id="sezione-4">Piano di rientro con cambiali o rateizzazione ordinaria: quale scegliere?</h2>
+      <p>Non esiste una risposta valida per tutti. Le due soluzioni devono essere confrontate sulla base delle garanzie richieste, delle conseguenze del mancato pagamento e delle condizioni effettivamente sottoscritte.</p>
+      <p>Una rateizzazione ordinaria può prevedere pagamenti tramite bonifico, addebito bancario o altre modalità concordate. In caso di mancato pagamento, il creditore dovrà valutare gli strumenti di tutela disponibili, tenendo conto degli eventuali titoli esecutivi già esistenti.</p>
+      <p>Nel piano con cambiali, invece, ciascun titolo può assumere un&#x27;autonoma rilevanza giuridica e, se valido e utilizzabile a fini esecutivi, offrire al creditore una via per procedere più rapidamente.</p>
+      <p>Prima di accettare una delle due proposte, confronta almeno questi elementi:</p>
+      <p>Importo totale: quanto dovrai pagare alla fine del piano?</p>
+      <p>Durata: quante rate sono previste e quando scadono?</p>
+      <p>Garanzie: il creditore richiede cambiali o altre forme di garanzia?</p>
+      <p>Inadempimento: quali conseguenze sono previste in caso di ritardo o mancato pagamento?</p>
+      <p>Procedure in corso: l&#x27;accordo stabilisce cosa accade a eventuali iniziative di recupero già avviate?</p>
+      <p>Estinzione: quando e a quali condizioni il debito sarà considerato integralmente saldato?</p>
+      <p>Una proposta con una rata più bassa non è necessariamente migliore se comporta un costo totale molto più elevato o condizioni particolarmente onerose.</p>
+      <p>Allo stesso modo, una rata più alta potrebbe essere accettabile per chi dispone di entrate stabili e di un margine sufficiente, ma diventare rischiosa per chi vive già in equilibrio precario.</p>
+      <h2 id="sezione-5">Come capire se la rata è davvero sostenibile</h2>
+      <p>Uno degli errori più comuni è valutare un piano di rientro guardando soltanto alla rata mensile.</p>
+      <p>Per capire se l&#x27;impegno è realistico, bisogna partire dall&#x27;intero bilancio familiare.</p>
+      <p>Prendiamo un esempio puramente illustrativo.</p>
+      <p>Una famiglia dispone di 1.800 euro netti al mese. Le spese essenziali, comprese abitazione, utenze, alimentazione, trasporti e necessità familiari, ammontano a 1.300 euro. Sono inoltre presenti altre rate per 200 euro mensili.</p>
+      <p>Il margine residuo è di 300 euro.</p>
+      <p>Accettare una nuova rata di 250 euro significherebbe lasciare soltanto 50 euro per far fronte a imprevisti e spese non considerate. Anche se il pagamento fosse tecnicamente possibile in un mese normale, il piano potrebbe rivelarsi fragile.</p>
+      <p>Una valutazione prudente deve considerare:</p>
+      <p>Le entrate nette effettivamente disponibili, non quelle soltanto ipotizzate.</p>
+      <p>Le spese essenziali che non possono essere rinviate.</p>
+      <p>Tutte le altre rate e obbligazioni finanziarie.</p>
+      <p>Le spese irregolari, come manutenzioni, assicurazioni e necessità sanitarie.</p>
+      <p>Un margine per gli imprevisti.</p>
+      <p>La Banca d&#x27;Italia, attraverso il portale educativo L&#x27;economia per tutti – Sovraindebitamento, raccomanda di pianificare entrate e uscite e di valutare la sostenibilità complessiva degli impegni finanziari.</p>
+      <p>Il principio è semplice: non devi dimostrare al creditore che riesci a pagare una rata per un mese. Devi verificare che puoi rispettarla per tutta la durata dell&#x27;accordo, senza compromettere le necessità fondamentali della tua famiglia.</p>
+      <h2 id="sezione-6">Cinque controlli da fare prima di firmare</h2>
+      <p>Prima di sottoscrivere un piano di rientro con cambiali, prenditi il tempo necessario per esaminare ogni elemento dell&#x27;accordo.</p>
+      <p class="check-item">1. Verifica il debito. Chiedi un prospetto aggiornato che distingua capitale, interessi, spese e altri importi richiesti. Se qualcosa non torna, chiedi chiarimenti prima di assumere un nuovo impegno.</p>
+      <p class="check-item">2. Leggi tutte le condizioni. Non limitarti a controllare le date e gli importi delle cambiali. Esamina anche le clausole relative al ritardo, al mancato pagamento e all&#x27;eventuale richiesta anticipata delle somme residue.</p>
+      <p class="check-item">3. Chiarisci cosa succede alle procedure in corso. Se hai già ricevuto un decreto ingiuntivo, un precetto o un atto di pignoramento, non presumere che l&#x27;accordo risolva automaticamente la situazione. Le conseguenze devono essere valutate sulla base degli atti e degli impegni assunti.</p>
+      <p class="check-item">4. Controlla la sostenibilità economica. Fai i conti con prudenza, considerando anche gli altri debiti. Se il piano lascia un margine troppo ridotto per vivere e affrontare gli imprevisti, valuta alternative prima di firmare.</p>
+      <p class="check-item">5. Fatti confermare per iscritto le condizioni finali. Se il creditore accetta una riduzione dell&#x27;importo o un saldo e stralcio, verifica che siano indicate con chiarezza la somma da versare e le condizioni per considerare estinto il debito. Conserva l&#x27;accordo, le ricevute e le prove di ogni pagamento.</p>
+      <p>Se hai dubbi sulla validità del credito, sulla prescrizione o sugli effetti di una cambiale, chiedere una valutazione professionale prima della firma può aiutarti a evitare decisioni difficili da correggere in seguito.</p>
+      <h2 id="sezione-7">Hai già firmato le cambiali e non riesci più a pagare?</h2>
+      <p>Se hai già sottoscritto un piano di rientro e ti accorgi che le rate non sono più sostenibili, la cosa più importante è non ignorare il problema.</p>
+      <p>Contatta il creditore tempestivamente e verifica se esiste la possibilità di rinegoziare le condizioni. Una modifica dell&#x27;accordo richiede il consenso delle parti quando previsto e deve essere formalizzata correttamente: non dare per scontato che una richiesta di proroga sospenda le scadenze o impedisca iniziative legali.</p>
+      <p>Se hai già ricevuto atti giudiziari o esecutivi, fai verificare subito i termini e le possibili iniziative da intraprendere.</p>
+      <p>Quando le difficoltà coinvolgono più debiti e non soltanto una singola rata, potrebbe essere necessario affrontare il problema in modo più ampio. In presenza dei requisiti previsti dalla legge, esistono procedure per la gestione delle situazioni di sovraindebitamento, con il supporto degli Organismi di composizione della crisi da sovraindebitamento (OCC).</p>
+      <p>La Banca d&#x27;Italia offre informazioni introduttive su queste possibilità nella propria guida dedicata al sovraindebitamento.</p>
+      <p>Non tutte le situazioni richiedono una procedura di questo tipo, ma quando i debiti sono diventati complessivamente insostenibili è importante conoscere le alternative disponibili, invece di sottoscrivere nuovi impegni senza una valutazione d&#x27;insieme.</p>
+      <h2 id="sezione-8">Conclusioni: prima di firmare, fai chiarezza</h2>
+      <p>Un piano di rientro con cambiali può essere una soluzione utile per chi deve regolarizzare un debito e dispone delle risorse necessarie per rispettare le scadenze concordate.</p>
+      <p>I vantaggi sono concreti quando la dilazione è sostenibile, le condizioni sono trasparenti e l&#x27;accordo permette di raggiungere un obiettivo preciso: chiudere la posizione debitoria.</p>
+      <p>I rischi, però, non devono essere sottovalutati. Una cambiale valida può consentire al creditore di intraprendere iniziative esecutive in caso di mancato pagamento. Un accordo poco chiaro o una rata superiore alle possibilità economiche possono trasformare una soluzione apparentemente utile in una nuova fonte di difficoltà.</p>
+      <p>Prima di firmare, verifica il debito, leggi tutte le clausole, confronta le alternative e considera il tuo bilancio familiare nel suo complesso.</p>
+      <p>Non accettare un piano soltanto perché ti permette di guadagnare tempo. Accettalo quando hai buone ragioni per ritenere di poterlo rispettare.</p>
+      <p>È da questa consapevolezza che può iniziare un percorso concreto per ritrovare equilibrio finanziario e affrontare i debiti con maggiore lucidità.</p>
+      <section class="notice"><strong>Nota informativa</strong><br>questo articolo ha finalità esclusivamente divulgative e non costituisce consulenza legale o finanziaria personalizzata. Le conseguenze di una cambiale e di un accordo di rientro dipendono dalla documentazione, dalla normativa applicabile e dalle circostanze specifiche. In caso di contestazioni o procedure in corso, è opportuno rivolgersi a un professionista qualificato.</section></div>
+      <section class="cambiali-sources"><h2>Fonti e approfondimenti</h2><ul>
+      <li><a href="https://www.normattiva.it/" target="_blank" rel="noopener noreferrer">Normattiva</a> – Regio decreto 5 dicembre 1933, n. 1669, disciplina della cambiale.</li>
+      <li><a href="https://www.normattiva.it/" target="_blank" rel="noopener noreferrer">Normattiva</a> – Codice di procedura civile, articolo 474, titolo esecutivo.</li>
+      <li><a href="https://economiapertutti.bancaditalia.it/" target="_blank" rel="noopener noreferrer">Banca d’Italia – L’economia per tutti</a> – informazioni su bilancio familiare e sovraindebitamento.</li></ul></section>
+      <div class="actions"><a class="btn" href="/misuratore">Valuta il tuo margine mensile</a><a class="btn outline" href="/educazione-finanziaria">Tutte le guide di educazione finanziaria</a></div>
+      <p class="cambiali-motto"><strong>FixTude – Fai chiarezza sulla tua situazione debitoria.</strong><br>Non farti cercare dal recupero crediti, cerca tu stesso la soluzione.</p>
+      </div><aside class="cambiali-sidebar"><div class="card sidebar-card"><h2>Argomenti dell’articolo</h2><ol>
+      <li><a href="#sezione-1">Che cos’è un piano di rientro con cambiali?</a></li><li><a href="#sezione-2">Vantaggi del piano di rientro</a></li><li><a href="#sezione-3">Rischi e mancato pagamento</a></li><li><a href="#sezione-4">Cambiali o rateizzazione ordinaria?</a></li><li><a href="#sezione-5">Sostenibilità della rata</a></li><li><a href="#sezione-6">Controlli prima di firmare</a></li><li><a href="#sezione-7">Se non riesci più a pagare</a></li><li><a href="#sezione-8">Conclusioni</a></li></ol><p class="muted">Contenuto informativo a cura della Redazione FixTude.</p></div></aside></div></article>
+      <style>
+      .cambiali-article{padding:clamp(18px,3vw,34px);max-width:1180px;margin:0 auto}.article-breadcrumb{font-size:.88rem;color:var(--muted);margin-bottom:24px}.article-breadcrumb a,.sidebar-card a{color:var(--blue);text-decoration:none}.cambiali-hero-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.9fr);gap:28px;align-items:center}.article-kicker{font-size:.82rem;font-weight:750;letter-spacing:.06em;color:var(--blue);margin-bottom:10px}.cambiali-article h1{font-size:clamp(2rem,4vw,3rem);line-height:1.13;letter-spacing:-.025em;margin:.1em 0 .5em;color:var(--navy,#102e52)}.cambiali-article .article-subtitle{font-size:1.08rem;line-height:1.7;color:#40536c}.article-byline{font-size:.9rem;margin-top:18px}.cambiali-article .article-hero-image{margin:0}.cambiali-article .article-hero-image img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:16px}.cambiali-article .article-hero-image figcaption{font-size:.82rem;color:var(--muted);margin-top:8px}.cambiali-layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:28px;margin-top:28px;align-items:start}.cambiali-main{min-width:0}.cambiali-article .article-body p,.cambiali-article .article-intro p{font-size:1.03rem;line-height:1.85;margin:0 0 1.1em}.cambiali-article h2{font-size:1.55rem;line-height:1.3;margin:1.5em 0 .65em;color:var(--navy,#102e52)}.article-callout{padding:18px 20px;margin:24px 0;background:#eef6ff;border-left:4px solid var(--blue,#1672c4);border-radius:10px;line-height:1.7}.cambiali-sidebar{position:sticky;top:20px}.sidebar-card{padding:20px;background:#f5f8fc;border:1px solid #e2eaf3;border-radius:14px}.sidebar-card h2{font-size:1.18rem;margin:0 0 12px}.sidebar-card ol{padding-left:22px;margin:0}.sidebar-card li{margin:0 0 12px;padding-left:3px;line-height:1.45}.cambiali-sources{margin-top:30px;padding-top:10px;border-top:1px solid var(--line,#e1e7ef)}.cambiali-sources li{margin-bottom:10px;line-height:1.6}.cambiali-motto{margin-top:28px;padding:18px;border-radius:12px;background:#f3f7fb;line-height:1.8}.cambiali-article .check-item{padding-left:8px}@media(max-width:850px){.cambiali-hero-grid,.cambiali-layout{grid-template-columns:1fr}.cambiali-sidebar{position:static;order:-1}.cambiali-article .article-hero-image img{aspect-ratio:16/9}}</style>'''
+    return page("Piano di rientro con cambiali: pro, contro e rischi | FixTude", content)
 
 @app.route("/sic")
 def sic_banche_dati():
@@ -3482,7 +3519,7 @@ def sitemap_xml():
     """Sitemap XML delle pagine pubbliche principali di FixTude."""
     paths = [
         "/", "/misuratore", "/consulenza", "/moduli",
-        "/educazione-finanziaria", "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo", "/educazione-finanziaria/guida-saldo-e-stralcio", "/sic", "/assistenza-legale", "/professionisti", "/shop",
+        "/educazione-finanziaria", "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo", "/educazione-finanziaria/guida-saldo-e-stralcio", "/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro", "/sic", "/assistenza-legale", "/professionisti", "/shop",
         "/disclaimer", "/termini", "/privacy", "/cookie",
     ]
     urls = "".join(
