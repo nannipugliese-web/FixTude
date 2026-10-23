@@ -1193,36 +1193,74 @@ def page(title, content, include_chat=True):
 def home():
     content = """
     <style>
-      .ft-home{width:100%;max-width:850px;margin:0 auto;text-align:center;padding:clamp(18px,4vw,32px) 12px 30px;box-sizing:border-box}
-      .ft-home h1{font-size:clamp(30px,5vw,48px);line-height:1.12;letter-spacing:-.025em;margin:0 auto 18px;max-width:800px;text-wrap:balance;overflow-wrap:normal}
-      .ft-home h1 span{display:block}
-      .ft-home .lead{font-size:clamp(17px,2.2vw,21px);line-height:1.45;max-width:660px;margin:0 auto 14px;text-wrap:pretty}
-      .ft-home-actions{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin:25px auto 0;max-width:680px}
-      .ft-home-actions .btn{min-width:240px;min-height:54px;padding:15px 22px;box-sizing:border-box;color:#fff!important;border:0!important}
-      .ft-home .ft-home-red{background:#c93636!important}
-      .ft-home .ft-home-yellow{background:#d99a16!important;color:#17212b!important}
-      .ft-home .ft-home-green{background:#27865b!important}
-      @media(max-width:600px){
-        .ft-home{padding:18px 16px 26px}
-        .ft-home h1{font-size:clamp(29px,8vw,36px);line-height:1.12;letter-spacing:-.03em;margin-bottom:16px;max-width:360px}
-        .ft-home .lead{font-size:17px;line-height:1.45;max-width:340px;margin-bottom:12px}
-        .ft-home-actions{flex-direction:column;align-items:stretch;gap:10px;padding:0;margin-top:22px}
-        .ft-home-actions .btn{width:100%;min-width:0;max-width:380px;margin:0 auto;padding:14px 16px}
+      /* Home FixTude: sfondo chiaro, pulito e leggibile su smartphone */
+      .ft-home{
+        width:100%;max-width:980px;margin:0 auto;padding:clamp(18px,4vw,36px) 14px 30px;
+        box-sizing:border-box;text-align:center;position:relative;isolation:isolate;
+        background:radial-gradient(ellipse at 50% 0%,rgba(210,237,255,.88) 0%,rgba(242,248,253,.92) 48%,rgba(255,255,255,.98) 100%);
+        border-radius:22px;overflow:hidden
       }
-      @media(max-width:360px){.ft-home h1{font-size:28px}.ft-home .lead{font-size:16px}}
+      .ft-home h1{font-size:clamp(30px,5.2vw,49px);line-height:1.1;letter-spacing:-.03em;margin:0 auto 15px;max-width:820px;color:#103b78;text-wrap:balance}
+      .ft-home h1 span{display:block}
+      .ft-home .lead{font-size:clamp(17px,2.2vw,22px);line-height:1.4;max-width:660px;margin:0 auto 18px;color:#174b91;text-wrap:pretty}
+      .ft-home-motto{max-width:760px;margin:0 auto 24px;padding:15px 20px;border-radius:18px;background:linear-gradient(135deg,#0d438d,#0874d9);color:#fff!important;font-size:clamp(16px,2.1vw,21px);font-weight:800;line-height:1.35;box-shadow:0 5px 0 #073675,0 10px 20px rgba(12,54,108,.2)}
+      .ft-home-motto *{color:#fff!important}
+      .ft-home-actions{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:15px;margin:25px auto 32px;max-width:810px}
+      .ft-home-actions .btn{
+        display:flex;align-items:center;justify-content:center;text-align:center;
+        width:100%;max-width:790px;min-height:76px;padding:17px 24px;box-sizing:border-box;
+        border:2px solid rgba(255,255,255,.68)!important;border-radius:24px;
+        font-size:clamp(17px,2.3vw,22px);font-weight:800;line-height:1.25;text-decoration:none;
+        transition:transform .15s ease,filter .15s ease,box-shadow .15s ease;
+      }
+      .ft-home-actions .btn:hover{filter:brightness(1.04);transform:translateY(-2px)}
+      .ft-home-actions .btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.25)!important}
+      .ft-home .ft-home-red{color:#fff!important;background:linear-gradient(180deg,#ff6565 0%,#f11b25 48%,#c90b19 100%)!important;box-shadow:0 7px 0 #990b15,0 12px 18px rgba(151,17,26,.23),inset 0 2px 2px rgba(255,255,255,.7)!important}
+      .ft-home .ft-home-yellow{color:#173d75!important;background:linear-gradient(180deg,#fff06a 0%,#ffc51c 48%,#ed9700 100%)!important;box-shadow:0 7px 0 #b86e00,0 12px 18px rgba(158,104,0,.2),inset 0 2px 2px rgba(255,255,255,.75)!important}
+      .ft-home .ft-home-green{color:#fff!important;background:linear-gradient(180deg,#38e99b 0%,#08b96a 48%,#07824b 100%)!important;box-shadow:0 7px 0 #05663b,0 12px 18px rgba(5,110,65,.22),inset 0 2px 2px rgba(255,255,255,.68)!important}
+      .ft-home-benefits{margin:8px auto 0;max-width:880px}
+      .ft-home-benefits h2{color:#103b78;font-size:clamp(22px,3vw,29px);line-height:1.2;margin:0 0 20px}
+      .ft-home-benefit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+      .ft-home-benefit{padding:17px 12px;border:1px solid #d9e8f8;border-radius:16px;background:rgba(255,255,255,.82);color:#173f78;line-height:1.4;font-weight:600}
+      .ft-home-benefit .ft-home-icon{display:block;font-size:30px;line-height:1;margin-bottom:10px;color:#0874d9}
+      .ft-home-footer{margin:24px auto 0;padding:14px 16px;border-radius:16px;background:linear-gradient(90deg,#e6f4ff,#d8edff);color:#174b91;font-weight:700;line-height:1.35}
+      @media(max-width:600px){
+        .ft-home{padding:18px 13px 24px;border-radius:16px}
+        .ft-home h1{font-size:clamp(29px,8.1vw,36px);line-height:1.12;max-width:360px;margin-bottom:13px}
+        .ft-home .lead{font-size:17px;line-height:1.42;max-width:340px;margin-bottom:16px}
+        .ft-home-motto{font-size:16px;line-height:1.35;padding:14px 13px;border-radius:14px;margin-bottom:22px}
+        .ft-home-actions{gap:13px;margin:22px auto 30px;padding:0 2px}
+        .ft-home-actions .btn{min-height:68px;padding:15px 13px;border-radius:20px;font-size:17px;max-width:430px}
+        .ft-home-benefits h2{font-size:23px;margin-bottom:14px}
+        .ft-home-benefit-grid{grid-template-columns:1fr;gap:9px}
+        .ft-home-benefit{display:flex;align-items:center;text-align:left;gap:13px;padding:13px 15px;font-size:15px}
+        .ft-home-benefit .ft-home-icon{font-size:27px;min-width:32px;margin:0;text-align:center}
+        .ft-home-footer{margin-top:17px;padding:13px 12px;font-size:14px}
+      }
+      @media(max-width:360px){.ft-home h1{font-size:28px}.ft-home .lead{font-size:16px}.ft-home-actions .btn{font-size:16px;min-height:64px}}
+      @media(prefers-reduced-motion:reduce){.ft-home-actions .btn{transition:none}}
     </style>
     <section class="hero ft-home">
       <h1><span>Hai un debito?</span><span>Non affrontarlo da solo.</span></h1>
       <p class="lead">Scopri cosa puoi sostenere e trova la strada per ripartire.</p>
-      <div class="ft-home-actions">
+      <p class="ft-home-motto">Non farti cercare dal recupero crediti, cerca tu stesso la soluzione.</p>
+      <div class="ft-home-actions" aria-label="Scegli il percorso di contatto">
         <a class="btn ft-home-red" href="/contatto/rosso">Ho ricevuto un atto o un sollecito</a>
         <a class="btn ft-home-yellow" href="/contatto/giallo">Sono in difficoltà con i pagamenti</a>
         <a class="btn ft-home-green" href="/contatto/verde">Voglio informazioni e prevenire</a>
       </div>
+      <section class="ft-home-benefits" aria-labelledby="ft-home-benefits-title">
+        <h2 id="ft-home-benefits-title">Come può aiutarti FixTude</h2>
+        <div class="ft-home-benefit-grid">
+          <div class="ft-home-benefit"><span class="ft-home-icon" aria-hidden="true">⌕</span><span>Fare chiarezza sulla situazione</span></div>
+          <div class="ft-home-benefit"><span class="ft-home-icon" aria-hidden="true">✓</span><span>Valutare una soluzione sostenibile</span></div>
+          <div class="ft-home-benefit"><span class="ft-home-icon" aria-hidden="true">♙</span><span>Richiedere il supporto di un consulente</span></div>
+        </div>
+      </section>
+      <div class="ft-home-footer">Il tuo percorso, la nostra priorità.</div>
     </section>
     """
     return page("Fai chiarezza sulla tua situazione", content)
-
 
 # =========================================================
 # MODULI CONTATTO DIFFERENZIATI PER SITUAZIONE
