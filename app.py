@@ -1203,7 +1203,7 @@ def home():
       .ft-home h1{font-size:clamp(30px,3.4vw,42px);line-height:1.12;letter-spacing:-.025em;margin:0 auto 12px;max-width:680px;color:#103b78;text-wrap:balance}
       .ft-home h1 span{display:block}
       .ft-home .lead{font-size:clamp(16px,1.6vw,19px);line-height:1.45;max-width:570px;margin:0 auto 16px;color:#174b91;text-wrap:pretty}
-      .ft-home-motto{max-width:600px;margin:0 auto 22px;padding:12px 18px;border-radius:14px;background:linear-gradient(110deg,#0d438d,#0874d9);color:#fff!important;font-size:clamp(14px,1.45vw,17px);font-weight:800;line-height:1.35;box-shadow:0 4px 0 #073675,0 8px 16px rgba(12,54,108,.16)}
+      .ft-home p.ft-home-motto{display:block;width:calc(100% - 8px);max-width:600px;box-sizing:border-box;margin:0 auto 22px!important;padding:12px 18px;border-radius:14px;background:linear-gradient(110deg,#0d438d,#0874d9);color:#fff!important;font-size:clamp(14px,1.45vw,17px);font-weight:800;line-height:1.35;text-align:center!important;position:relative;left:auto!important;right:auto!important;transform:none!important;float:none!important;box-shadow:0 4px 0 #073675,0 8px 16px rgba(12,54,108,.16)}
       .ft-home-motto *{color:#fff!important}
       .ft-home-actions{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;margin:22px auto 26px;max-width:590px}
       .ft-home-actions .btn{
@@ -1228,7 +1228,7 @@ def home():
         .ft-home{width:calc(100% - 20px);margin:12px auto 20px;padding:22px 14px 18px;border-radius:16px}
         .ft-home h1{font-size:clamp(28px,7.6vw,34px);line-height:1.12;max-width:340px;margin-bottom:11px}
         .ft-home .lead{font-size:16px;line-height:1.4;max-width:330px;margin-bottom:14px}
-        .ft-home-motto{font-size:14px;line-height:1.35;padding:11px 12px;border-radius:12px;margin-bottom:18px}
+        .ft-home p.ft-home-motto{width:100%;max-width:600px;margin:0 auto 18px!important;font-size:14px;line-height:1.35;padding:11px 12px;border-radius:12px;text-align:center!important}
         .ft-home-actions{gap:11px;margin:18px auto 24px;padding:0;max-width:100%}
         .ft-home-actions .btn{min-height:56px;padding:12px 11px;border-radius:16px;font-size:16px;max-width:100%}
         .ft-home-benefits h2{font-size:21px;margin-bottom:12px}
