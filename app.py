@@ -1196,13 +1196,13 @@ def home():
       .ft-home{max-width:850px;margin:0 auto;text-align:center;padding:24px 8px 30px}
       .ft-home h1{font-size:clamp(30px,4.5vw,48px);line-height:1.12;margin:0 auto 20px;max-width:800px}
       .ft-home .lead{font-size:clamp(17px,2vw,21px);line-height:1.6;max-width:740px;margin:0 auto 14px}
-      .ft-home .motto{font-size:16px;font-weight:800;color:var(--blue);margin:22px auto 28px}
+      .ft-home .motto{font-size:clamp(17px,2vw,20px);font-weight:800;color:#fff;margin:8px auto 22px;line-height:1.5;text-shadow:0 1px 2px rgba(0,0,0,.18);max-width:760px}
       .ft-home-actions{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin:25px auto 0}
       .ft-home-actions .btn{min-width:240px;min-height:54px;padding:15px 22px}
       @media(max-width:600px){.ft-home-actions{flex-direction:column;align-items:stretch;padding:0 8px}.ft-home-actions .btn{width:100%;min-width:0}}
     </style>
     <section class="hero ft-home">
-      <h1>Hai un debito. Non devi affrontarlo da solo.</h1>
+      <h1>Hai un debito.<br>Non devi affrontarlo da solo.</h1>
       <p class="motto">Non farti cercare dal recupero crediti, cerca tu stesso la soluzione.</p>
       <p class="lead">Fai chiarezza sulla tua situazione, scopri cosa puoi sostenere e trova la strada per ripartire, con il supporto di un consulente.</p>
       <div class="ft-home-actions">
