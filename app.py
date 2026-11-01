@@ -1226,19 +1226,19 @@ def home():
       .ft-field-help{display:block;color:#718096;font-size:12px;line-height:1.4;margin-top:7px}
       .ft-traffic{margin:25px auto 14px;text-align:center}
       .ft-traffic-title{font-weight:900;letter-spacing:.08em;color:#203047;font-size:14px;margin-bottom:13px}
-      .ft-lights{display:flex;flex-direction:column;justify-content:center;gap:9px;background:linear-gradient(145deg,#454d59,#111722 48%,#303846);border:4px solid #778292;border-radius:25px;padding:13px 14px;width:max-content;max-width:100%;margin:auto;box-shadow:inset 0 4px 8px #ffffff22,0 12px 24px #14253a38,0 5px 0 #080c12}
+      .ft-lights{display:flex;flex-direction:row;justify-content:center;gap:9px;background:linear-gradient(145deg,#454d59,#111722 48%,#303846);border:4px solid #778292;border-radius:25px;padding:13px 14px;width:max-content;max-width:100%;margin:auto;box-shadow:inset 0 4px 8px #ffffff22,0 12px 24px #14253a38,0 5px 0 #080c12}
       .ft-light{position:relative;width:65px;height:65px;border-radius:50%;background:radial-gradient(circle at 34% 25%,#626a75 0%,#333a45 48%,#151b24 100%);border:4px solid #10151d;box-shadow:inset 0 5px 10px #000b,0 2px 4px #0008;transition:all .22s}
       .ft-light:after{content:"";position:absolute;left:17%;top:9%;width:57%;height:27%;border-radius:50%;background:linear-gradient(#ffffff55,#ffffff00);filter:blur(2px);pointer-events:none}
       .ft-light.on.red{background:radial-gradient(circle at 32% 25%,#ffc0c0 0%,#ff3939 40%,#a9000b 82%);box-shadow:0 0 12px #ff2937,0 0 32px #ff293788,inset 0 4px 9px #fff9}
       .ft-light.on.yellow{background:radial-gradient(circle at 32% 25%,#fff9bd 0%,#ffdf24 40%,#b57900 82%);box-shadow:0 0 12px #ffdf24,0 0 32px #ffdf2488,inset 0 4px 9px #fff9}
       .ft-light.on.green{background:radial-gradient(circle at 32% 25%,#c1ffda 0%,#21e879 40%,#00733d 82%);box-shadow:0 0 12px #21e879,0 0 32px #21e87988,inset 0 4px 9px #fff9}
       .ft-countdown{min-height:32px;margin:12px auto 0;font-size:24px;font-weight:900;color:#174b91;text-align:center;letter-spacing:.04em}
-      @media(max-width:520px){.ft-light{width:57px;height:57px}.ft-lights{gap:8px;padding:11px}}
+      @media(max-width:520px){.ft-light{width:48px;height:48px}.ft-lights{flex-direction:row;gap:8px;padding:10px 12px}}
       .ft-status{min-height:24px;margin:12px 0 0;font-weight:800;font-size:14px}
       .ft-submit{width:100%;margin-top:15px;min-height:54px;font-size:16px}
       .ft-submit:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
       .ft-note{text-align:center;font-size:12px;color:#748197;margin:13px auto 0;max-width:540px}
-      @media(max-width:520px){.ft-field{padding:13px}.ft-light{width:43px;height:43px}.ft-lights{gap:10px;padding:10px 14px}.ft-tagline{font-size:26px}}
+      @media(max-width:520px){.ft-field{padding:13px}.ft-light{width:43px;height:43px}.ft-lights{flex-direction:row;gap:8px;padding:9px 11px}.ft-tagline{font-size:26px}}
     </style>
     <section class="ft-v1">
       <h1 class="ft-tagline">Non farti cercare<span>dal recupero crediti, cerca tu stesso la soluzione.</span></h1>
@@ -1284,7 +1284,13 @@ def home():
       fields.forEach(x=>x.addEventListener('input',evaluate));evaluate();
       form.addEventListener('submit',async e=>{if(busy)return;const v=fields.map(x=>Number(x.value));if(!v.every(Number.isFinite)||v[0]<=0||v[1]<0||v[2]<0)return;e.preventDefault();busy=true;submit.disabled=true;Object.values(lights).forEach(x=>x.className='ft-light');status.textContent='Preparazione del risultato…';
         const [income,expenses,debt]=v,balance=income-expenses,margin=balance/income;
-        const color=balance<=0?'rosso':(margin<.20?'giallo':'verde');const cls={rosso:'red',giallo:'yellow',verde:'green'};
+        const available=Math.max(0,balance);
+        const greenQuota=available*.30, yellowQuota=available*.25;
+        let color='rosso';
+        if(debt<=0){color='verde';}
+        else if(balance>0 && margin>=.20 && greenQuota>0 && debt/greenQuota<=6){color='verde';}
+        else if(balance>0 && yellowQuota>0 && debt/yellowQuota<=12){color='giallo';}
+        const cls={rosso:'red',giallo:'yellow',verde:'green'};
         countdown.textContent='PRONTI…';beep(520,.14);
         for(let n=3;n>=1;n--){countdown.textContent=String(n);beep(n===1?1080:760,.14);await new Promise(r=>setTimeout(r,850));}
         countdown.textContent='VIA!';beep(1320,.24);lights[color].className='ft-light on '+cls[color];status.textContent=({rosso:'ROSSO · situazione critica',giallo:'GIALLO · attenzione',verde:'VERDE · margine più favorevole'}[color]);await new Promise(r=>setTimeout(r,650));form.submit();
@@ -1316,153 +1322,130 @@ def analisi_v2():
 
 
 def calcola_semaforo(entrate, uscite, debiti):
-    """V4: il colore dipende esclusivamente dal margine mensile.
+    """V5: valuta insieme margine mensile e durata massima del piano.
 
-    ROSSO: saldo nullo o negativo.
-    GIALLO: saldo positivo ma inferiore al 20% delle entrate nette.
-    VERDE: saldo pari o superiore al 20% delle entrate nette.
+    Verde: margine almeno pari al 20% delle entrate e debito rimborsabile
+           teoricamente entro 6 mesi destinando il 30% del margine.
+    Giallo: margine positivo e debito rimborsabile entro 12 mesi destinando
+            al massimo il 30% del margine.
+    Rosso: saldo nullo/negativo oppure debito non compatibile con 12 mesi.
 
-    Il 20% è una soglia convenzionale interna FixTude, non normativa.
-    Il debito complessivo orienta gli scenari negoziali, ma non cambia il colore.
+    Sono soglie orientative interne FixTude, non standard normativi.
     """
     saldo = round(entrate - uscite, 2)
     percentuale_margine = round((saldo / entrate) * 100, 2) if entrate > 0 else 0.0
     margine = max(0.0, saldo)
-    if saldo <= 0:
+    quota_verde = round(margine * 0.30, 2)
+    quota_gialla = round(margine * 0.25, 2)
+    mesi_verdi = round(debiti / quota_verde, 1) if quota_verde > 0 and debiti > 0 else 0.0
+    mesi_gialli = round(debiti / quota_gialla, 1) if quota_gialla > 0 and debiti > 0 else None
+
+    if debiti <= 0:
+        colore = "verde"
+        etichetta = "Non risulta un debito da rimborsare nei dati inseriti."
+        criterio = "nessun_debito"
+    elif saldo <= 0:
         colore = "rosso"
         etichetta = "Le uscite assorbono tutte le entrate: non emerge una capacità mensile di rimborso."
-    elif percentuale_margine < 20:
-        colore = "giallo"
-        etichetta = "Esiste un margine positivo, ma è contenuto rispetto alle entrate e richiede una trattativa prudente."
-    else:
+        criterio = "assenza_margine"
+    elif percentuale_margine >= 20 and quota_verde > 0 and mesi_verdi <= 6:
         colore = "verde"
-        etichetta = "Il bilancio presenta un margine mensile più consistente, sul quale si può valutare una quota prudenziale di rimborso."
+        etichetta = "Margine più favorevole: il debito rientra teoricamente in un piano breve, entro 6 mesi, con una quota prudenziale del margine."
+        criterio = "piano_breve_6_mesi"
+    elif quota_gialla > 0 and mesi_gialli is not None and mesi_gialli <= 12:
+        colore = "giallo"
+        etichetta = "Margine o durata richiedono prudenza: il debito può rientrare teoricamente entro 12 mesi con una quota ridotta del margine."
+        criterio = "piano_prudenziale_12_mesi"
+    else:
+        colore = "rosso"
+        etichetta = "Il debito non risulta compatibile con un normale piano di rientro entro 12 mesi sulla base del margine dichiarato. Serve un approfondimento prima di formulare impegni."
+        criterio = "debito_oltre_12_mesi"
+
+    quota = quota_verde if colore == "verde" else quota_gialla if colore == "giallo" else 0.0
+    mesi_teorici = round(debiti / quota, 1) if quota > 0 and debiti > 0 else None
     rapporto_debito_reddito = round(debiti / (entrate * 12), 2) if entrate > 0 else None
-    mesi_debito = round(debiti / entrate, 2) if entrate > 0 else None
     return {
-        "saldo": saldo,
-        "margine": margine,
+        "saldo": saldo, "margine": margine,
         "percentuale_margine": percentuale_margine,
         "rapporto_debito_reddito": rapporto_debito_reddito,
-        "mesi_debito": mesi_debito,
-        "colore": colore,
-        "etichetta": etichetta,
-        "criterio_semaforo": "margine_20_v4",
+        "mesi_debito": round(debiti / entrate, 2) if entrate > 0 else None,
+        "mesi_verdi": mesi_verdi if debiti > 0 else None,
+        "mesi_gialli": mesi_gialli,
+        "quota_verde": quota_verde, "quota_gialla": quota_gialla,
+        "colore": colore, "etichetta": etichetta,
+        "criterio_semaforo": criterio,
     }
 
 
 def genera_piano_negoziale(entrate, uscite, debiti, risultato):
-    """Genera scenari negoziali coerenti con i tre importi dichiarati.
-
-    È un motore decisionale deterministico: non consulta un LLM e non invia
-    dati economici a servizi esterni. Le percentuali sono ipotesi interne,
-    non statistiche di accettazione né promesse di risultato.
-    """
+    """Scenari brevi: 3, 6 o al massimo 12 mesi. Nessuna dilazione lunga automatica."""
     colore = risultato["colore"]
-    saldo = risultato["saldo"]
     margine = risultato["margine"]
     if colore == "verde":
         percentuale_quota = 30.0
-        descrizione_margine = "margine mensile consistente"
-        titolo = "Puoi impostare una trattativa con una quota periodica prudenziale"
+        quota = risultato["quota_verde"]
+        titolo = "Puoi valutare una proposta di rientro breve"
     elif colore == "giallo":
-        percentuale_quota = 10.0
-        descrizione_margine = "margine mensile ridotto"
-        titolo = "La trattativa deve proteggere il margine residuo"
+        percentuale_quota = 25.0
+        quota = risultato["quota_gialla"]
+        titolo = "La proposta deve restare entro una quota prudenziale"
     else:
         percentuale_quota = 0.0
-        descrizione_margine = "assenza di margine mensile"
-        titolo = "Prima di assumere nuovi impegni serve una valutazione qualificata"
+        quota = 0.0
+        titolo = "Prima di assumere impegni serve un approfondimento"
 
-    quota = round(margine * percentuale_quota / 100.0, 2)
     mesi_teorici = round(debiti / quota, 1) if quota > 0 and debiti > 0 else None
-    rate = {str(n): round(debiti / n, 2) if n else 0.0 for n in (3, 6, 12, 18, 24, 36)}
-    compatibili = [int(n) for n, rata in rate.items() if quota > 0 and rata <= quota]
+    rate = {str(n): round(debiti / n, 2) if n else 0.0 for n in (3, 6, 12)}
+    compatibili = [n for n in (3, 6, 12) if quota > 0 and rate[str(n)] <= quota]
     durata_compatibile = min(compatibili) if compatibili else None
     offerta_45 = round(debiti * 0.45, 2)
     offerta_60 = round(debiti * 0.60, 2)
 
     if debiti <= 0:
-        titolo = "Non risulta un debito da rimborsare nei dati inseriti"
-        testo = ("Hai indicato un debito complessivo pari a zero. Non è quindi necessario formulare "
-                 "una proposta di rientro sulla base di questi dati. Verifica soltanto che non vi siano "
-                 "importi scaduti, interessi o spese non compresi nel totale.")
-        azioni = [
-            "Controlla che il totale dei debiti sia aggiornato e comprenda eventuali interessi e spese.",
-            "Conserva le quietanze e le comunicazioni di estinzione dei rapporti già chiusi.",
-        ]
+        quota = 0.0
+        percentuale_quota = 0.0
+        mesi_teorici = None
+        titolo = "Non risulta un debito da rimborsare"
+        testo = "Hai indicato un debito complessivo pari a zero. Verifica soltanto che non vi siano importi scaduti, interessi o spese non compresi nel totale."
+        azioni = ["Controlla che il totale sia aggiornato e comprenda eventuali interessi e spese.", "Conserva le quietanze e le comunicazioni di estinzione."]
     elif colore == "verde":
-        if durata_compatibile and durata_compatibile <= 6:
-            piano = f"Con la quota stimata, il debito inserito potrebbe essere ripartito matematicamente in circa {durata_compatibile} mesi. Puoi quindi valutare una richiesta di piano breve, ad esempio 3 o 6 mesi, purché la rata effettiva resti entro € {quota:.2f} mensili."
-        else:
-            piano = (f"Le rate teoriche a 3 e 6 mesi sarebbero rispettivamente € {rate['3']:.2f} e € {rate['6']:.2f}; "
-                     f"non risultano compatibili con la quota prudenziale di € {quota:.2f}. È più realistico chiedere "
-                     "una durata maggiore, da concordare sulla base delle rate effettive e delle condizioni del creditore.")
-        testo = (f"Il calcolo evidenzia un {descrizione_margine}. Come ipotesi prudenziale FixTude, "
-                 f"si considera il {percentuale_quota:.0f}% del margine mensile, pari a € {quota:.2f}, "
-                 f"senza destinare tutto il saldo al debito. {piano} "
-                 f"Se disponi di liquidità immediata documentabile, puoi anche valutare una proposta una tantum "
-                 f"pari al 45% del debito indicato (€ {offerta_45:.2f}), chiedendo che l'accordo scritto "
-                 "preveda l'estinzione integrale della posizione dopo il pagamento.")
-        azioni = [
-            f"Usa € {quota:.2f} al mese come limite iniziale di trattativa, non come obbligo automatico.",
-            "Chiedi al creditore un conteggio aggiornato e una proposta scritta con importi, scadenze e conseguenze del pagamento.",
-            f"Valuta il saldo e stralcio al 45% (€ {offerta_45:.2f}) soltanto se puoi realmente reperire la somma in un'unica soluzione.",
-            "Non pagare un accordo transattivo prima di averne ricevuto e verificato le condizioni scritte.",
-        ]
+        durata = durata_compatibile or 6
+        testo = (f"Il margine consente, in via puramente matematica, di valutare una proposta breve. "
+                 f"La quota prudenziale ipotizzata è € {quota:.2f} al mese. "
+                 f"La prima durata compatibile tra 3, 6 e 12 mesi è {durata} mesi. "
+                 f"La rata teorica a 3 mesi è € {rate['3']:.2f}, a 6 mesi € {rate['6']:.2f} e a 12 mesi € {rate['12']:.2f}. "
+                 f"Se hai liquidità immediata documentabile, puoi valutare anche una proposta una tantum pari al 45% del debito (€ {offerta_45:.2f}), da negoziare per iscritto.")
+        azioni = [f"Usa € {quota:.2f} mensili come limite iniziale di trattativa, non come obbligo automatico.", "Chiedi un conteggio aggiornato e una proposta scritta con importi e scadenze.", f"Valuta il saldo e stralcio al 45% (€ {offerta_45:.2f}) soltanto se la somma è realmente disponibile.", "Non pagare prima di aver verificato l'accordo scritto e i suoi effetti estintivi."]
     elif colore == "giallo":
-        durata_gialla = next((n for n in (12, 18, 24, 36) if rate[str(n)] <= quota), None)
-        if durata_gialla:
-            piano = f"Tra gli scenari teorici, una durata di {durata_gialla} mesi rientra nella quota stimata; puoi chiedere una dilazione di 12/18 mesi o più lunga, scegliendo la durata la cui rata non superi € {quota:.2f}."
-        else:
-            piano = (f"Le rate teoriche a 12 e 18 mesi sarebbero € {rate['12']:.2f} e € {rate['18']:.2f}; "
-                     f"superano la quota prudenziale di € {quota:.2f}. Chiedi una durata ancora più lunga, "
-                     "una riduzione dell'importo concordato o una diversa struttura della proposta, senza assumere rate che non puoi mantenere.")
-        testo = (f"Il margine è positivo ma contenuto. Per non assorbire le risorse necessarie alle spese correnti, "
-                 f"l'ipotesi prudenziale FixTude limita la quota al {percentuale_quota:.0f}% del margine, pari a € {quota:.2f} al mese. "
-                 f"{piano} Se hai una somma una tantum disponibile, puoi valutare una proposta di saldo e stralcio "
-                 f"pari al 60% del debito indicato (€ {offerta_60:.2f}); in alternativa si può discutere un piano "
-                 "con cambiali, ma soltanto dopo aver fatto verificare da un legale il titolo, le scadenze, gli importi "
-                 "e le conseguenze di un eventuale mancato pagamento.")
-        azioni = [
-            f"Non superare inizialmente € {quota:.2f} mensili nella proposta, salvo un nuovo calcolo completo delle spese.",
-            "Chiedi una dilazione di 12/18 mesi o più lunga se le rate di tale durata eccedono la quota disponibile.",
-            f"Se hai liquidità immediata, valuta il saldo e stralcio al 60% (€ {offerta_60:.2f}) come proposta da negoziare, non come esito atteso.",
-            "Considera le cambiali solo dopo una verifica legale: possono costituire titoli esecutivi e aumentare il rischio in caso di insolvenza.",
-        ]
+        testo = (f"Il margine disponibile o la dimensione del debito impongono cautela. "
+                 f"La quota prudenziale ipotizzata è € {quota:.2f} al mese. "
+                 f"La rata teorica a 12 mesi è € {rate['12']:.2f}; se supera la quota, non è prudente prometterla. "
+                 f"Puoi valutare una dilazione fino a 12 mesi soltanto se la rata effettiva è sostenibile. "
+                 f"In alternativa, se disponi di liquidità, puoi negoziare un saldo e stralcio ipotetico al 60% (€ {offerta_60:.2f}).")
+        azioni = [f"Non superare inizialmente € {quota:.2f} mensili senza un nuovo esame del bilancio.", "Valuta 3, 6 o 12 mesi: non proporre automaticamente durate superiori.", f"Il 60% del debito equivale a € {offerta_60:.2f}: è soltanto una possibile base di negoziazione, non un esito garantito.", "Considera eventuali cambiali soltanto dopo una verifica legale indipendente: possono avere efficacia esecutiva."]
     else:
-        testo = ("Con i dati inseriti non emerge un margine mensile da destinare al rimborso. Non è prudente promettere "
-                 "una rata o sottoscrivere cambiali facendo affidamento su entrate non certe. Prima di trattare, "
-                 "la situazione richiede una valutazione legale della documentazione da parte di un avvocato esperto in diritto bancario/credito; occorre inoltre valutare, "
-                 "se ne ricorrono i presupposti, l'accesso a un Organismo di composizione della crisi (OCC). "
-                 "Dopo la ricostruzione completa della posizione si potranno valutare un piano di rientro di lunga durata, "
-                 "una proposta di saldo e stralcio sostenibile o gli strumenti previsti dal Codice della crisi.")
-        azioni = [
-            "Non assumere nuove rate, non firmare cambiali e non effettuare pagamenti parziali senza aver verificato gli effetti sull'intera posizione.",
-            "Raccogli contratti, estratti conto, conteggi, solleciti, decreti ingiuntivi, precetti e atti di pignoramento.",
-            "Contatta tempestivamente un avvocato specializzato in credito/diritto bancario; se la situazione è di sovraindebitamento, verifica con un OCC le procedure applicabili.",
-            "Solo dopo la verifica legale e contabile valuta un piano di lungo periodo o una proposta transattiva, senza presumere che il creditore debba accettarla.",
-        ]
+        if risultato.get("criterio_semaforo") == "assenza_margine":
+            motivo = "Non emerge un margine mensile da destinare al rimborso."
+        else:
+            motivo = "Il debito eccede la capacità di rimborso stimata entro 12 mesi, anche applicando una quota prudenziale del margine."
+        testo = (motivo + " Non è prudente promettere rate, sottoscrivere cambiali o fare affidamento su entrate non certe. "
+                 "Occorre ricostruire la posizione e valutare con un avvocato o un professionista competente le opzioni disponibili, compreso se ne ricorrono i presupposti il ricorso a un OCC. "
+                 "Un eventuale piano più lungo o una proposta transattiva potranno essere esaminati soltanto dopo questa verifica, non suggeriti automaticamente dal calcolatore.")
+        azioni = ["Non assumere nuove rate né firmare cambiali prima di una verifica della posizione.", "Raccogli conteggi aggiornati, contratti, solleciti e gli eventuali atti giudiziari ricevuti.", "In presenza di precetti, pignoramenti o termini di opposizione, contatta tempestivamente un avvocato.", "Valuta con un professionista l'eventuale accesso a un OCC se ricorrono i presupposti."]
 
-    cautela = (
-        "Le percentuali del 45% e del 60% indicano, rispettivamente, una possibile somma offerta pari al 45% o al 60% del debito dichiarato: "
-        "non sono percentuali standard di mercato, soglie di legge o previsioni di accettazione. Il creditore è libero di rifiutare o formulare una controproposta. "
-        "Le rate teoriche non includono interessi, spese, penali o costi legali. Per confronto, la Banca d'Italia indica come criterio pratico generale di evitare che le rate superino il 30% delle entrate nette stabili: è un parametro diverso dalla quota FixTude, calcolata sul margine. "
-        "Il calcolo usa soltanto entrate, uscite e debito complessivo; non conosce numero dei creditori, rate già in corso, tipo di debito, anzianità, garanzie, atti notificati, patrimonio o disponibilità una tantum."
-    )
+    cautela = ("Le percentuali del 45% e del 60% sono esempi di somme offerte sul debito dichiarato, non percentuali standard di mercato, soglie di legge o previsioni di accettazione. "
+               "Il creditore può rifiutare o formulare una controproposta. Le rate teoriche non includono interessi, spese, penali o costi legali. "
+               "Il calcolo usa soltanto entrate, uscite e debito complessivo: non conosce rate già in corso, tipo di debito, creditori, scadenze, garanzie, atti notificati o disponibilità una tantum.")
     return {
         "quota_percentuale_margine": percentuale_quota,
         "quota_mensile_suggerita": quota,
         "mesi_teorici": mesi_teorici,
         "rate_teoriche": rate,
         "durata_compatibile": durata_compatibile,
-        "offerta_45": offerta_45,
-        "offerta_60": offerta_60,
-        "titolo_negoziale": titolo,
-        "testo_negoziale": testo,
-        "azioni_negoziali": azioni,
-        "avvertenza_negoziale": cautela,
-        "motore_versione": "FixTude V4 - motore decisionale deterministico",
+        "offerta_45": offerta_45, "offerta_60": offerta_60,
+        "titolo_negoziale": titolo, "testo_negoziale": testo,
+        "azioni_negoziali": azioni, "avvertenza_negoziale": cautela,
+        "motore_versione": "FixTude V5 - motore decisionale deterministico",
     }
 
 
@@ -1476,16 +1459,16 @@ def checkout_v2():
     actions_html = "".join(f"<li>{escape(str(item))}</li>" for item in data.get("azioni_negoziali", []))
     rate_html = "".join(
         f"<tr><td>{n} mesi</td><td>€ {data.get('rate_teoriche', {}).get(str(n), 0):.2f}</td></tr>"
-        for n in (3, 6, 12, 18, 24, 36)
+        for n in (3, 6, 12)
     )
     quota = data.get("quota_mensile_suggerita", 0.0)
     percentuale_quota = data.get("quota_percentuale_margine", 0.0)
     mesi = data.get("mesi_teorici")
     mesi_label = f"{mesi:.1f} mesi" if mesi is not None else "non calcolabile"
     content = f"""<section class="card">
-      <p class="muted">ANALISI COMPLETATA · FIXTUDE V4</p>
+      <p class="muted">ANALISI COMPLETATA · FIXTUDE V5</p>
       <h1>Il tuo semaforo: <span style="color:{color_hex}">{escape(data['colore'].upper())}</span></h1>
-      <div style="display:flex;justify-content:center;margin:18px auto 22px"><div style="display:flex;flex-direction:column;gap:9px;padding:12px 14px;border-radius:22px;border:4px solid #778292;background:linear-gradient(145deg,#454d59,#111722 48%,#303846);box-shadow:inset 0 4px 8px #ffffff22,0 12px 24px #14253a38,0 5px 0 #080c12">{''.join(f'<span style="display:block;width:58px;height:58px;border-radius:50%;border:4px solid #10151d;background:{('#f12632' if data['colore']=='rosso' else '#343a43') if c=='rosso' else ('#ffd52e' if data['colore']=='giallo' else '#343a43') if c=='giallo' else ('#20c66b' if data['colore']=='verde' else '#343a43')};box-shadow:{('0 0 12px #ff2937,0 0 28px #ff293788' if c=='rosso' else 'inset 0 4px 9px #000b') if c=='rosso' else ('0 0 12px #ffdf24,0 0 28px #ffdf2488' if c=='giallo' else 'inset 0 4px 9px #000b') if c=='giallo' else ('0 0 12px #21e879,0 0 28px #21e87988' if c=='verde' else 'inset 0 4px 9px #000b')}"></span>' for c in ['rosso','giallo','verde'])}</div></div>
+      <div style="display:flex;justify-content:center;margin:18px auto 22px"><div style="display:flex;flex-direction:row;gap:9px;padding:12px 14px;border-radius:22px;border:4px solid #778292;background:linear-gradient(145deg,#454d59,#111722 48%,#303846);box-shadow:inset 0 4px 8px #ffffff22,0 12px 24px #14253a38,0 5px 0 #080c12">{''.join(f'<span style="display:block;width:58px;height:58px;border-radius:50%;border:4px solid #10151d;background:{('#f12632' if data['colore']=='rosso' else '#343a43') if c=='rosso' else ('#ffd52e' if data['colore']=='giallo' else '#343a43') if c=='giallo' else ('#20c66b' if data['colore']=='verde' else '#343a43')};box-shadow:{('0 0 12px #ff2937,0 0 28px #ff293788' if c=='rosso' else 'inset 0 4px 9px #000b') if c=='rosso' else ('0 0 12px #ffdf24,0 0 28px #ffdf2488' if c=='giallo' else 'inset 0 4px 9px #000b') if c=='giallo' else ('0 0 12px #21e879,0 0 28px #21e87988' if c=='verde' else 'inset 0 4px 9px #000b')}"></span>' for c in ['rosso','giallo','verde'])}</div></div>
       <p>{escape(data['etichetta'])}</p>
       <div class="v4-summary">
         <p><strong>Margine mensile:</strong> € {data['margine']:.2f} ({data['percentuale_margine']:.1f}% delle entrate)</p>
@@ -1498,7 +1481,7 @@ def checkout_v2():
       <h3>Rate teoriche sull'intero debito</h3>
       <div class="table-wrap"><table class="result-table"><thead><tr><th>Durata</th><th>Rata mensile teorica</th></tr></thead><tbody>{rate_html}</tbody></table></div>
       <p class="notice">{escape(data.get('avvertenza_negoziale', ''))}</p>
-      <p class="muted">Il semaforo dipende dal margine mensile: rosso se il saldo è nullo o negativo; giallo se il margine è positivo ma inferiore al 20% delle entrate; verde se è almeno il 20%. Il 20%, il 30% e il 10% sono parametri convenzionali interni FixTude, non soglie di legge.</p>
+      <p class="muted">Il semaforo considera sia il margine mensile sia il debito complessivo: verde se il piano teorico rientra entro 6 mesi con quota pari al 30% del margine e margine almeno del 20%; giallo se rientra entro 12 mesi con quota pari al 25%; rosso se manca margine o il debito supera l’orizzonte di 12 mesi. Sono criteri convenzionali interni FixTude, non soglie di legge.</p>
       <p class="muted">Riferimenti di orientamento: <a href="https://economiapertutti.bancaditalia.it/aree-tematiche/prestiti/sovraindebitamento/index.html" target="_blank" rel="noopener">Banca d'Italia – Sovraindebitamento</a> · <a href="https://www.giustizia.it/giustizia/it/mg_3_14_1.wp" target="_blank" rel="noopener">Ministero della Giustizia – OCC</a> · <a href="https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=033U1669" target="_blank" rel="noopener">Legge cambiaria</a>.</p>
       {annullato}
       <h2>Il tuo Kit FixTude – € 1,99</h2>
@@ -1513,7 +1496,7 @@ def checkout_v2():
     </section>
     <p class="muted">Pagamento gestito da Stripe. Nessuna registrazione FixTude.</p>
     <style>.book-choice{{border:1px solid #dce5ef;border-radius:12px;padding:17px;margin:13px 0;background:#fbfdff}}.book-choice label{{display:block;cursor:pointer}}.book-choice input{{margin-right:9px;accent-color:#174b91}}.check{{display:flex;gap:10px;align-items:flex-start;margin:20px 0;font-size:14px}}.v4-summary{{background:#f4f8fd;border:1px solid #dce5ef;border-radius:13px;padding:12px 16px;margin:16px 0}}.v4-summary p{{margin:7px 0}}.result-table{{width:100%;border-collapse:collapse}}.result-table th,.result-table td{{padding:9px;border-bottom:1px solid #dce5ef;text-align:left}}</style>"""
-    return page("Kit FixTude – analisi V4, report e libro digitale", content)
+    return page("Kit FixTude – analisi V5, report e libro digitale", content)
 
 
 @app.route("/checkout/crea", methods=["POST"])
@@ -1554,13 +1537,13 @@ def checkout_crea_v2():
 
 def _pdf_report(data):
     lines = [
-        "FIXTUDE - REPORT DI ORIENTAMENTO V4", "",
+        "FIXTUDE - REPORT DI ORIENTAMENTO V5", "",
         "SEMAFORO: " + data["colore"].upper(), data["etichetta"],
         "", "DATI INSERITI",
         f"Entrate mensili nette: EUR {data['entrate']:.2f}",
         f"Uscite mensili: EUR {data['uscite']:.2f}",
         f"Situazione debitoria complessiva dichiarata: EUR {data['debiti']:.2f}",
-        "", "ELABORAZIONE MATEMATICA V4",
+        "", "ELABORAZIONE MATEMATICA V5",
         f"Saldo mensile: EUR {data['saldo']:.2f}",
         f"Margine mensile: EUR {data['margine']:.2f}",
         f"Margine in rapporto alle entrate: {data['percentuale_margine']:.2f}%",
@@ -1575,10 +1558,10 @@ def _pdf_report(data):
     lines.extend("- " + str(item) for item in data.get("azioni_negoziali", []))
     lines.extend([
         "", "RATE TEORICHE SULL'INTERO DEBITO (ESCLUSE SPESE E INTERESSI)",
-        *[f"{n} mesi: EUR {data.get('rate_teoriche', {}).get(str(n), 0):.2f} al mese" for n in (3, 6, 12, 18, 24, 36)],
+        *[f"{n} mesi: EUR {data.get('rate_teoriche', {}).get(str(n), 0):.2f} al mese" for n in (3, 6, 12)],
         "", "AVVERTENZE IMPORTANTI", data.get("avvertenza_negoziale", ""),
-        "Il semaforo è rosso se il saldo mensile è nullo o negativo; giallo se il margine positivo è inferiore al 20% delle entrate; verde se è almeno il 20%.",
-        "Le percentuali del 20%, 30% e 10% sono parametri convenzionali interni FixTude e non soglie normative.",
+        "Il semaforo V5 considera margine e debito: verde entro 6 mesi con quota del 30% del margine e margine almeno del 20%; giallo entro 12 mesi con quota del 25%; rosso in assenza di margine o oltre 12 mesi.",
+        "La soglia del 20%, le quote del 30% e 25% e gli orizzonti di 6 e 12 mesi sono parametri convenzionali interni FixTude e non soglie normative.",
         "Le ipotesi di saldo e stralcio al 45% o al 60% sono somme offerte sul debito dichiarato, non percentuali standard o garantite.",
         "Una cambiale in regola con i requisiti e il bollo può avere efficacia di titolo esecutivo: prima di sottoscriverla è necessaria una valutazione legale indipendente.",
         "La Banca d'Italia indica, come criterio pratico generale, di evitare che le rate superino il 30% delle entrate nette stabili; il 30% FixTude è invece calcolato sul margine mensile, quindi è un parametro diverso e interno.",
@@ -1604,7 +1587,7 @@ def _pdf_report(data):
     def esc(text):
         text = unicodedata.normalize("NFKD", str(text)).encode("ascii", "ignore").decode("ascii")
         return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-    # Paginated text PDF: avoid cutting off long V4 recommendations after the first page.
+    # Paginated text PDF: avoid cutting off long V5 recommendations after the first page.
     page_lines = [lines[i:i + 48] for i in range(0, len(lines), 48)] or [[]]
     objects = [b"<< /Type /Catalog /Pages 2 0 R >>"]
     page_ids = []
@@ -2060,7 +2043,7 @@ def misuratore():
       };
       const labels = {income:"Entrata", expense:"Spesa", debt:"Debito"};
       const RESERVE = 200;
-      const QUOTA_FACTOR = 0.50;
+      const QUOTA_FACTOR = 0.30;
       const money = n => Number(n || 0).toLocaleString("it-IT", {style:"currency", currency:"EUR"});
       const safeNumber = input => {
         const n = Number(input.value);
@@ -2136,7 +2119,9 @@ def misuratore():
         const lumpSum = safeNumber(document.getElementById("lumpSum"));
         const balance = income - expenses - payments;
         const margin = Math.max(0, balance - RESERVE);
-        const quota = margin * QUOTA_FACTOR;
+        const greenQuota = margin * QUOTA_FACTOR;
+        const yellowQuota = margin * 0.25;
+        let quota = 0;
         const expenseRowsPresent = document.querySelectorAll("#expenseRows .entry-row").length > 0;
         const hasExpenseAmount = expenses > 0;
         const debtRowsPresent = document.querySelectorAll("#debtRows .entry-row").length > 0;
@@ -2175,19 +2160,34 @@ def misuratore():
         }
 
         dataQuality.textContent = "Controllo completezza: ricontrolla che le spese siano mensili, che le rate inserite non siano già comprese nelle spese e che il debito indicato sia aggiornato.";
-        if (balance <= 0) {
+        const monthsGreen = greenQuota > 0 ? debt / greenQuota : Infinity;
+        const monthsYellow = yellowQuota > 0 ? debt / yellowQuota : Infinity;
+        if (debt <= 0) {
+          quota = 0;
+          setTrafficLight("green", "VERDE — Nessun debito residuo indicato", "Non risulta un importo da rimborsare nei dati inseriti.");
+          assessment.textContent = "Hai indicato un debito residuo pari a zero. Verifica che non vi siano importi scaduti, interessi o spese non compresi nel totale.";
+          nextStep.textContent = "Controlla che i dati siano aggiornati.";
+        } else if (balance <= 0) {
           setTrafficLight("red", "ROSSO — Disavanzo mensile", "Le uscite e le rate in corso assorbono tutte le entrate o le superano. Non viene suggerita una nuova rata.");
-          assessment.textContent = "Il bilancio presenta un disavanzo di " + money(Math.abs(balance)) + " al mese. La priorità è verificare le spese, le entrate e le urgenze; non è prudente ipotizzare un nuovo impegno mensile sulla base di questi dati.";
-          nextStep.textContent = "È opportuno un approfondimento prima di formulare proposte ai creditori. Verifica anche eventuali spese straordinarie, entrate variabili e scadenze urgenti.";
-        } else if (balance < 400 || quota < 100) {
-          setTrafficLight("yellow", "GIALLO — Margine limitato", "Il saldo è positivo, ma la quota prudenziale è contenuta. Una rata va valutata con cautela.");
-          assessment.textContent = "Dopo le spese e le rate già in corso restano " + money(balance) + " al mese. Applicando la riserva di " + money(RESERVE) + ", il margine prudenziale è " + money(margin) + " e la quota iniziale suggerita è " + money(quota) + ". Un importo inferiore a 100 € non viene presentato come rata automaticamente sostenibile.";
-          nextStep.textContent = "Controlla la stabilità del reddito e le spese non mensili. Se il quadro resta incerto, richiedi un approfondimento prima di impegnarti.";
+          assessment.textContent = "Il bilancio presenta un disavanzo di " + money(Math.abs(balance)) + " al mese. Non è prudente ipotizzare un nuovo impegno mensile.";
+          nextStep.textContent = "È opportuno un approfondimento prima di formulare proposte ai creditori.";
+        } else if (margin > 0 && balance / income >= 0.20 && monthsGreen <= 6) {
+          quota = greenQuota;
+          setTrafficLight("green", "VERDE — Rientro breve teoricamente compatibile", "Il debito rientra entro 6 mesi con una quota prudenziale del 30% del margine. La proposta resta da negoziare.");
+          assessment.textContent = "Dopo la riserva di " + money(RESERVE) + ", il margine prudenziale è " + money(margin) + ". La quota teorica è il 30% del margine, pari a " + money(quota) + ", e il debito rientra entro 6 mesi in via matematica.";
+          nextStep.textContent = "Valuta una proposta di 3 o 6 mesi, verificando che la rata sia sostenibile e che il creditore la accetti per iscritto.";
+        } else if (margin > 0 && monthsYellow <= 12) {
+          quota = yellowQuota;
+          setTrafficLight("yellow", "GIALLO — Rientro da valutare con prudenza", "Il debito rientra teoricamente entro 12 mesi soltanto destinando una quota ridotta del margine.");
+          assessment.textContent = "Il margine prudenziale è " + money(margin) + ". La quota iniziale cautelativa è il 25% del margine, pari a " + money(quota) + ". Una dilazione fino a 12 mesi va valutata soltanto se la rata è sostenibile.";
+          nextStep.textContent = "Non assumere impegni superiori alla quota disponibile. Se anche 12 mesi non sono realistici, serve un approfondimento.";
         } else {
-          setTrafficLight("green", "VERDE — Margine potenzialmente compatibile", "I dati inseriti mostrano un margine compatibile con una possibile valutazione di rientro, senza garanzia di accettazione.");
-          assessment.textContent = "Il saldo mensile è " + money(balance) + ". Sottraendo la riserva di " + money(RESERVE) + ", il margine prudenziale è " + money(margin) + "; il 50% di tale margine, pari a " + money(quota) + ", è la quota iniziale da confrontare con le rate teoriche. Non è una certificazione di solvibilità.";
-          nextStep.textContent = "Confronta gli scenari di durata con la quota suggerita. Prima di inviare una proposta, verifica il saldo aggiornato del debito e tutte le condizioni del creditore.";
+          quota = 0;
+          setTrafficLight("red", "ROSSO — Debito non compatibile con un piano breve", "Il debito supera la capacità teorica di rimborso entro 12 mesi. Non viene suggerita una dilazione lunga automatica.");
+          assessment.textContent = "Anche destinando una quota prudenziale del margine, il debito non rientra entro 12 mesi. Prima di formulare impegni occorre una valutazione completa della posizione.";
+          nextStep.textContent = "Raccogli i conteggi aggiornati e valuta un approfondimento con un professionista competente.";
         }
+        setText("suggestedQuota", money(quota));
         renderPlans(debt, quota, true);
         renderSettlement(debt, lumpSum);
       }
@@ -2200,12 +2200,12 @@ def misuratore():
           summary.textContent = "Senza un importo di debito non è possibile calcolare le rate teoriche.";
           return;
         }
-        const durations = [6, 12, 24];
+        const durations = [3, 6, 12];
         body.replaceChildren();
         let anyFit = false;
         durations.forEach(months => {
           const installment = debt / months;
-          const fit = dataComplete && quota >= 100 && installment <= quota;
+          const fit = dataComplete && quota > 0 && installment <= quota;
           anyFit = anyFit || fit;
           const tr = document.createElement("tr");
           const tdMonths = document.createElement("td"); tdMonths.textContent = months + " mesi";
@@ -2213,7 +2213,7 @@ def misuratore():
           const tdStatus = document.createElement("td");
           if (!dataComplete) { tdStatus.textContent = "Completa prima i dati del bilancio"; tdStatus.className = "status-caution"; }
           else if (fit) { tdStatus.textContent = "Compatibile in via teorica"; tdStatus.className = "status-good"; }
-          else if (quota < 100) { tdStatus.textContent = "Margine insufficiente per una proposta automatica"; tdStatus.className = "status-caution"; }
+          else if (quota <= 0) { tdStatus.textContent = "Nessuna quota disponibile"; tdStatus.className = "status-caution"; }
           else { tdStatus.textContent = "Supera la quota prudenziale"; tdStatus.className = "status-bad"; }
           tr.append(tdMonths, tdRate, tdStatus); body.appendChild(tr);
         });
@@ -3692,8 +3692,8 @@ def legal_page(title, body):
 def legal_disclaimer():
     body = """<p>Questo Disclaimer descrive la natura e i limiti degli strumenti e dei contenuti disponibili su FixTude. Si applica in particolare al calcolatore di sostenibilità del debito, ai materiali informativi gratuiti e alle eventuali richieste di contatto.</p>
     <h2>1. Natura del servizio</h2><p>FixTude è un servizio informativo e di orientamento che propone strumenti per organizzare i dati economici, comprendere alcune possibili opzioni e preparare domande o comunicazioni da sottoporre ai soggetti competenti. L'utilizzo del sito, del calcolatore, della chat o dei moduli gratuiti non costituisce di per sé conferimento di un incarico professionale, mandato a rappresentare l'utente o instaurazione automatica di un rapporto di consulenza.</p>
-    <h2>2. Calcolatore e semaforo V4</h2><p>Il sistema calcola il saldo mensile come differenza tra entrate nette e uscite. Il semaforo è rosso quando il saldo è pari o inferiore a zero; giallo quando è positivo ma inferiore al 20% delle entrate; verde quando è pari o superiore al 20%. La soglia del 20% è un parametro convenzionale interno FixTude, non una soglia normativa o una certificazione. In presenza di margine, il sistema ipotizza una quota prudenziale pari al 30% del margine nel verde e al 10% nel giallo; in rosso non suggerisce una quota di rimborso. Anche queste percentuali sono ipotesi interne FixTude, non regole ufficiali. Le uscite devono comprendere le rate e gli impegni mensili ricorrenti.</p>
-    <h2>3. Simulazioni di rientro e saldo e stralcio</h2><p>Le rate a 6, 12 e 24 mesi sono calcoli teorici basati sul debito inserito e non includono necessariamente interessi, commissioni, spese legali, penali o altri importi. Lo scenario di saldo e stralcio al 60% è un esempio matematico e negoziale, non una percentuale tipica o garantita. Soltanto il creditore può valutare e accettare una proposta; prima di effettuare pagamenti è necessario ottenere condizioni chiare e conferma scritta degli effetti dell'accordo.</p>
+    <h2>2. Calcolatore e semaforo V5</h2><p>Il sistema calcola il saldo mensile come differenza tra entrate nette e uscite. Il semaforo considera il margine e il debito complessivo: verde se il piano teorico rientra entro 6 mesi con quota del 30% del margine e margine almeno del 20%; giallo se rientra entro 12 mesi con quota del 25%; rosso se manca margine o il debito supera 12 mesi. Le soglie sono parametri convenzionali interni FixTude, non criteri normativi né certificazioni. In presenza di margine, il sistema ipotizza una quota prudenziale pari al 30% del margine nel verde e al 25% nel giallo; in rosso non suggerisce una quota di rimborso. Anche queste percentuali sono ipotesi interne FixTude, non regole ufficiali. Le uscite devono comprendere le rate e gli impegni mensili ricorrenti.</p>
+    <h2>3. Simulazioni di rientro e saldo e stralcio</h2><p>Le rate a 3, 6 e 12 mesi sono calcoli teorici basati sul debito inserito e non includono necessariamente interessi, commissioni, spese legali, penali o altri importi. Lo scenario di saldo e stralcio al 60% è un esempio matematico e negoziale, non una percentuale tipica o garantita. Soltanto il creditore può valutare e accettare una proposta; prima di effettuare pagamenti è necessario ottenere condizioni chiare e conferma scritta degli effetti dell'accordo.</p>
     <h2>4. Nessuna garanzia di risultato</h2><p>FixTude non garantisce riduzioni del debito, sospensioni di azioni di recupero, accettazione di piani, cancellazioni o rettifiche nelle banche dati creditizie, né tempi o risultati specifici. Un esito verde non certifica la solvibilità; un esito giallo o rosso non costituisce una decisione definitiva sulla situazione dell'utente.</p>
     <h2>5. Limiti e professionisti abilitati</h2><p>I contenuti generali del sito non sostituiscono una consulenza legale, fiscale, contabile o finanziaria personalizzata. FixTude non si presenta, in forza del solo uso del sito, come avvocato, commercialista, consulente finanziario abilitato, organismo di composizione della crisi o rappresentante del cliente. In presenza di saldo nullo o negativo, atti giudiziari, precetti, pignoramenti o termini di opposizione, è opportuno rivolgersi tempestivamente a un avvocato esperto in diritto bancario/credito. Nei casi di possibile sovraindebitamento può essere utile verificare con un professionista l'accesso a un Organismo di composizione della crisi (OCC) e alle procedure previste dal Codice della crisi. Eventuali attività ulteriori, se offerte, dovranno essere descritte e concordate separatamente prima del loro avvio.</p>
     <h2>6. Documenti e informazioni inseriti dall'utente</h2><p>L'utente è responsabile di verificare i dati inseriti, gli importi dei debiti, l'identità dei creditori, le scadenze e i documenti ricevuti. Non caricare o inviare tramite moduli o chat documenti integrali, credenziali bancarie o dati personali non necessari. In presenza di atti giudiziari, termini di opposizione, procedure esecutive o scadenze imminenti, richiedi tempestivamente assistenza qualificata.</p>
@@ -3706,7 +3706,7 @@ def legal_disclaimer():
 def legal_terms():
     body = """<p>I presenti Termini e Condizioni disciplinano l'uso del sito FixTude, dei suoi strumenti informativi e, quando attivo, l'acquisto del libro digitale <em>NIENTE PANICO</em>.</p>
     <h2>1. Denominazione del servizio, titolare e contatti</h2><p>FixTude è la denominazione del servizio e del progetto editoriale online. Il servizio è gestito da Giovanni Pugliese, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per comunicazioni: info@fixtude.it. FixTude è il nome del servizio e non indica, da solo, una società distinta dal titolare sopra identificato.</p>
-    <h2>2. Calcolatore gratuito V4</h2><p>Il calcolatore è accessibile senza registrazione e richiede tre importi: entrate mensili nette, uscite mensili e situazione debitoria complessiva. I dati sono trasmessi al server tramite HTTPS e mantenuti temporaneamente nella sessione tecnica necessaria a mostrare il risultato, completare il checkout e generare il report; non viene creato un account o un archivio economico permanente. Il semaforo è rosso se il saldo mensile è nullo o negativo, giallo se il margine positivo è inferiore al 20% delle entrate e verde se è almeno il 20%. Il motore ipotizza di destinare al rimborso il 30% del margine nel verde e il 10% nel giallo. Tutte queste percentuali sono parametri convenzionali FixTude, non standard universali né una certificazione di solvibilità. Leggi anche il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
+    <h2>2. Calcolatore gratuito V5</h2><p>Il calcolatore è accessibile senza registrazione e richiede tre importi: entrate mensili nette, uscite mensili e situazione debitoria complessiva. I dati sono trasmessi al server tramite HTTPS e mantenuti temporaneamente nella sessione tecnica necessaria a mostrare il risultato, completare il checkout e generare il report; non viene creato un account o un archivio economico permanente. Il semaforo considera anche l’importo del debito e la possibilità teorica di rientrare entro 6 o 12 mesi. Il motore ipotizza di destinare al rimborso il 30% nel verde e il 25% nel giallo. Tutte queste percentuali sono parametri convenzionali FixTude, non standard universali né una certificazione di solvibilità. Leggi anche il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
     <h2>3. Limiti delle informazioni</h2><p>I contenuti hanno finalità informative e organizzative. Non costituiscono consulenza legale, fiscale o finanziaria personalizzata, non sostituiscono un professionista abilitato e non garantiscono riduzioni del debito, cancellazioni da banche dati o accettazione di proposte da parte dei creditori. L'utente deve verificare i dati e adattare i modelli alla propria situazione. Per i dettagli sui limiti del calcolatore e delle simulazioni consulta il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
     <h2>4. Chat e richieste di contatto</h2><p>L'invio di una richiesta di contatto non comporta obbligo di acquistare servizi né garantisce tempi di risposta specifici. La chat non è un servizio di emergenza. Non inserire nella chat o nel modulo dati bancari, credenziali, documenti completi o dati personali non necessari.</p>
     <h2>5. Kit digitale e pagamenti</h2><p>Il Kit FixTude costa € 1,99 e comprende un report personalizzato generato automaticamente sulla base dei tre importi inseriti, i modelli fac-simile disponibili e un libro digitale PDF a scelta tra quelli proposti nella pagina di checkout: <em>NIENTE PANICO</em> oppure <em>Guida al Saldo e Stralcio</em>. Il pagamento è elaborato da Stripe; il download del pacchetto viene reso disponibile dopo la verifica della transazione e, se il servizio email è configurato, inviato all'indirizzo comunicato durante il checkout. Non inviare i dati della carta a FixTude via email.</p>
