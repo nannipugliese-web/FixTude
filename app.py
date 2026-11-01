@@ -1214,14 +1214,20 @@ def fixtude_v1_route_guard():
 def home():
     content = r"""
     <style>
+      body:has(.ft-v1){background:#050608!important;color:#f4f6fa!important}
+      body:has(.ft-v1) header{background:#090c11!important;border-bottom:1px solid #252b35!important}
+      body:has(.ft-v1) .brand{color:#f4f6fa!important}
+      body:has(.ft-v1) .menu-toggle{background:#171d27!important;color:#f4f6fa!important;border-color:#394454!important}
+      body:has(.ft-v1) .nav-menu{background:#111720!important;border-color:#394454!important}
+      body:has(.ft-v1) .nav-menu a{color:#f4f6fa!important}
+      body:has(.ft-v1) .nav-menu a:hover{background:#202b3a!important}
+      body:has(.ft-v1) footer{background:#090c11!important;border-top:1px solid #252b35!important;color:#aab5c4!important}
+      body:has(.ft-v1) footer a,body:has(.ft-v1) .cookie-footer-link{color:#8fc4ff!important}
       .ft-v1{max-width:760px;margin:0 auto;padding:12px 4px 32px}
-      .ft-tagline{text-align:center;margin:4px auto 22px;max-width:650px;font-weight:800;font-size:clamp(22px,4.4vw,35px);line-height:1.18;letter-spacing:-.6px;color:#174b91}
-      .ft-tagline span{display:block;color:#2471bd;margin-top:5px}
-      .ft-explain{text-align:center;color:#65758b;font-size:14px;margin:0 auto 22px;max-width:580px}
+      .ft-tagline{text-align:center;margin:4px auto 22px;max-width:650px;font-weight:800;font-size:clamp(22px,4.4vw,35px);line-height:1.18;letter-spacing:-.6px;color:#f5f7fb}
+      .ft-tagline span{display:block;color:#70b5ff;margin-top:5px}
+      .ft-explain{text-align:center;color:#d2d9e3;font-size:14px;line-height:1.65;margin:0 auto 22px;max-width:580px}
       .ft-calc-shell{max-width:520px;margin:0 auto;padding:17px;border-radius:27px;background:linear-gradient(145deg,#f8fbff,#dce6f2 48%,#eef4fa);border:1px solid #c7d4e4;box-shadow:0 20px 45px #18365b22,inset 0 2px 3px #fff}
-      .ft-calc-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 13px}
-      .ft-calc-brand{font-size:13px;font-weight:950;letter-spacing:.12em;color:#174b91}
-      .ft-calc-help{font-size:11px;color:#60728a;text-align:right}
       .ft-display-wrap{padding:13px;border-radius:17px;background:linear-gradient(145deg,#27384b,#101a28);box-shadow:inset 0 5px 12px #0009,0 4px 0 #aab8c8;margin-bottom:14px}
       .ft-display-label{color:#9eb6cc;font-size:11px;font-weight:850;letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px}
       .ft-display{height:64px;display:flex;align-items:center;justify-content:flex-end;overflow:hidden;padding:5px 10px;border-radius:10px;background:linear-gradient(180deg,#d9e8d6,#b7d1b3);color:#18351f;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:clamp(28px,7vw,42px);font-weight:900;letter-spacing:.02em;text-shadow:0 1px #fff8;box-shadow:inset 0 3px 8px #203b2455}
@@ -1245,30 +1251,27 @@ def home():
       .ft-value small{display:block;color:#687a90;font-size:9px;font-weight:850;letter-spacing:.04em}
       .ft-value strong{display:block;color:#203047;font-size:13px;overflow-wrap:anywhere;margin-top:3px}
       .ft-traffic{margin:30px auto 14px;text-align:center;scroll-margin-top:24px}
-      .ft-traffic-title{font-weight:900;letter-spacing:.08em;color:#203047;font-size:14px;margin-bottom:13px}
+      .ft-traffic-title{font-weight:900;letter-spacing:.08em;color:#f1f5fa;font-size:14px;margin-bottom:13px}
       .ft-lights{display:flex;flex-direction:row;justify-content:center;gap:9px;background:linear-gradient(145deg,#454d59,#111722 48%,#303846);border:4px solid #778292;border-radius:25px;padding:13px 14px;width:max-content;max-width:100%;margin:auto;box-shadow:inset 0 4px 8px #ffffff22,0 12px 24px #14253a38,0 5px 0 #080c12}
       .ft-light{position:relative;width:65px;height:65px;border-radius:50%;background:radial-gradient(circle at 34% 25%,#626a75 0%,#333a45 48%,#151b24 100%);border:4px solid #10151d;box-shadow:inset 0 5px 10px #000b,0 2px 4px #0008;transition:all .22s}
       .ft-light:after{content:"";position:absolute;left:17%;top:9%;width:57%;height:27%;border-radius:50%;background:linear-gradient(#ffffff55,#ffffff00);filter:blur(2px);pointer-events:none}
       .ft-light.on.red{background:radial-gradient(circle at 32% 25%,#ffc0c0 0%,#ff3939 40%,#a9000b 82%);box-shadow:0 0 12px #ff2937,0 0 32px #ff293788,inset 0 4px 9px #fff9}
       .ft-light.on.yellow{background:radial-gradient(circle at 32% 25%,#fff9bd 0%,#ffdf24 40%,#b57900 82%);box-shadow:0 0 12px #ffdf24,0 0 32px #ffdf2488,inset 0 4px 9px #fff9}
       .ft-light.on.green{background:radial-gradient(circle at 32% 25%,#c1ffda 0%,#21e879 40%,#00733d 82%);box-shadow:0 0 12px #21e879,0 0 32px #21e87988,inset 0 4px 9px #fff9}
-      .ft-countdown{min-height:32px;margin:12px auto 0;font-size:24px;font-weight:900;color:#174b91;text-align:center;letter-spacing:.04em}
-      .ft-status{min-height:24px;margin:12px 0 0;font-weight:800;font-size:14px}
-      .ft-submit{width:100%;margin-top:15px;min-height:54px;font-size:16px}
-      .ft-submit:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
-      .ft-note{text-align:center;font-size:12px;color:#748197;margin:13px auto 0;max-width:540px}
-      @media(max-width:520px){.ft-calc-shell{padding:12px;border-radius:21px}.ft-key{min-height:56px;font-size:22px}.ft-light{width:46px;height:46px}.ft-lights{gap:8px;padding:10px 12px}.ft-tagline{font-size:26px}.ft-calc-help{max-width:135px}}
+      .ft-countdown{min-height:32px;margin:12px auto 0;font-size:24px;font-weight:900;color:#8fc4ff;text-align:center;letter-spacing:.04em}
+      .ft-status{min-height:24px;margin:12px 0 0;font-weight:800;font-size:14px;color:#f4f6fa}
+      .ft-note{text-align:center;font-size:12px;color:#aab5c4;margin:13px auto 0;max-width:540px}
+      @media(max-width:520px){.ft-calc-shell{padding:12px;border-radius:21px}.ft-key{min-height:56px;font-size:22px}.ft-light{width:46px;height:46px}.ft-lights{gap:8px;padding:10px 12px}.ft-tagline{font-size:26px}}
       @media(prefers-reduced-motion:reduce){.ft-key,.ft-light{transition:none}}
     </style>
     <section class="ft-v1">
       <h1 class="ft-tagline">Non farti cercare<span>dal recupero crediti, cerca tu stesso la soluzione.</span></h1>
-      <p class="ft-explain">Inserisci i tre importi con la calcolatrice FixTude e scopri il colore del tuo semaforo di sostenibilità.</p>
+      <p class="ft-explain">Inserisci i tre importi con la calcolatrice FixTude<br>e scopri il colore del tuo semaforo di sostenibilità.</p>
       <form class="ft-fields" method="post" action="/analisi" id="ftCalculator" novalidate>
         <input type="hidden" id="entrate" name="entrate">
         <input type="hidden" id="uscite" name="uscite">
         <input type="hidden" id="debiti" name="debiti">
         <div class="ft-calc-shell" id="ftCalculatorPanel">
-          <div class="ft-calc-top"><span class="ft-calc-brand">FIXTUDE · CALCOLATRICE</span><span class="ft-calc-help">Usa i tasti per inserire gli importi in euro</span></div>
           <div class="ft-display-wrap">
             <div class="ft-display-label" id="ftDisplayLabel">ENTRATE MENSILI NETTE (€)</div>
             <div class="ft-display" id="ftDisplay" role="status" aria-live="polite">0</div>
@@ -1314,7 +1317,6 @@ def home():
           <div class="ft-countdown" id="ftCountdown" aria-live="assertive"></div>
           <div class="ft-status" id="ftStatus"></div>
         </div>
-        <button class="btn ft-submit" id="ftSubmit" type="submit" disabled>PROSEGUI CON L'ANALISI COMPLETA</button>
       </form>
       <p class="ft-note">Nessuna registrazione. Gli importi sono elaborati per il calcolo e non vengono archiviati in un profilo personale. Il risultato è orientativo.</p>
     </section>
@@ -1328,7 +1330,7 @@ def home():
       const steps=[...document.querySelectorAll('.ft-step')],keys=[...document.querySelectorAll('.ft-key')];
       const values=[0,1,2].map(i=>document.getElementById('ftValue'+i));
       const lights={rosso:document.getElementById('ftRed'),giallo:document.getElementById('ftYellow'),verde:document.getElementById('ftGreen')};
-      const status=document.getElementById('ftStatus'),submit=document.getElementById('ftSubmit'),countdown=document.getElementById('ftCountdown');
+      const status=document.getElementById('ftStatus'),countdown=document.getElementById('ftCountdown');
       const next=document.getElementById('ftNext'),equals=document.getElementById('ftEquals'),traffic=document.getElementById('ftTraffic');
       let current=0,buffer='',busy=false,audioCtx=null;
       const fmt=n=>new Intl.NumberFormat('it-IT',{maximumFractionDigits:2}).format(n);
@@ -1339,8 +1341,6 @@ def home():
         steps.forEach((b,i)=>{b.classList.toggle('active',i===current);b.classList.toggle('done',fields[i].value!=='');});
         values.forEach((el,i)=>el.textContent=fields[i].value===''?'—':fmt(Number(fields[i].value)));
         next.hidden=current===2;equals.hidden=current!==2;
-        const valid=fields.every(f=>f.value!==''&&Number.isFinite(Number(f.value))&&Number(f.value)>=0)&&Number(fields[0].value)>0;
-        submit.disabled=!valid;
       }
       function sound(){
         try{
