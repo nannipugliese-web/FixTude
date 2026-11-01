@@ -11,7 +11,10 @@ import secrets
 import hmac
 import struct
 import zlib
-from datetime import datetime
+import base64
+import urllib.parse
+import urllib.request
+from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from email.message import EmailMessage
 from html import escape
@@ -260,6 +263,10 @@ SEO_PAGES = {
         "title": "FixTude | Prevenzione e gestione consapevole dei debiti",
         "description": "FixTude: strumenti per prevenire l'indebitamento, valutare la sostenibilità delle rate, gestire le difficoltà e trovare informazioni pratiche.",
     },
+    "/scadenzario": {
+        "title": "Scadenzario personale: rate, bollette e promemoria | FixTude",
+        "description": "Organizza rate, bollette, finanziamenti e pagamenti in uno scadenzario personale con promemoria via email e SMS.",
+    },
     "/assistenza": {
         "title": "Richiedi assistenza per la tua situazione debitoria | FixTude",
         "description": "Hai ricevuto un sollecito o fai fatica a pagare? Scegli il percorso di contatto FixTude più adatto alla tua situazione.",
@@ -334,7 +341,7 @@ def page(title, content, include_chat=True):
     seo_title = seo.get("title", f"{title} | FixTude")
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
-    noindex_paths = ("/chat-staff", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
+    noindex_paths = ("/scadenzario", "/chat-staff", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
     robots = "noindex, nofollow" if path in noindex_paths or path.startswith("/api/") else "index, follow, max-image-preview:large"
     structured_data = None
     if path == "/":
@@ -793,6 +800,7 @@ def page(title, content, include_chat=True):
                 <a href="/">Home</a>
                 <a href="/assistenza">Richiedi assistenza</a>
                 <a href="/misuratore">Calcolatore</a>
+                <a href="/scadenzario">Scadenzario</a>
                 <a href="/consulenza">Contatta un esperto</a>
                 <a href="/moduli">Moduli gratuiti</a>
                 <a href="/educazione-finanziaria">Educazione finanziaria</a>
@@ -1225,8 +1233,14 @@ def home():
         box-shadow:0 5px 18px rgba(20,48,85,.045);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
       .ft-menu-card:hover{transform:translateY(-3px);border-color:#a9c8ec;box-shadow:0 12px 26px rgba(20,48,85,.10)}
       .ft-menu-card:focus-visible{outline:3px solid #8ab8ef;outline-offset:3px}
-      .ft-menu-icon{display:flex;align-items:center;justify-content:center;flex:0 0 48px;width:48px;height:48px;
-        border-radius:14px;background:#eaf3ff;color:#174b91;font-size:25px;font-weight:800}
+      .ft-menu-icon{display:flex;align-items:center;justify-content:center;flex:0 0 62px;width:62px;height:62px;
+        border-radius:18px;background:linear-gradient(145deg,#edf6ff,#d9eaff);color:#174b91;box-shadow:inset 0 1px 0 #fff,0 5px 12px rgba(23,75,145,.09)}
+      .ft-menu-icon svg{width:39px;height:39px;display:block;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+      .ft-menu-card:nth-child(2) .ft-menu-icon{background:linear-gradient(145deg,#e8f8f1,#ccefe0);color:#13764c}
+      .ft-menu-card:nth-child(3) .ft-menu-icon{background:linear-gradient(145deg,#fff4df,#ffe2ad);color:#9a5a00}
+      .ft-menu-card:nth-child(4) .ft-menu-icon{background:linear-gradient(145deg,#fff0f0,#ffd9dc);color:#b12b3a}
+      .ft-menu-card:nth-child(5) .ft-menu-icon{background:linear-gradient(145deg,#f1edff,#dfd8ff);color:#6046a8}
+      .ft-menu-card:nth-child(6) .ft-menu-icon{background:linear-gradient(145deg,#e8f4ff,#cfe6ff);color:#175d9e}
       .ft-menu-copy{min-width:0}
       .ft-menu-copy h3{margin:1px 0 7px;color:#174b91;font-size:19px;line-height:1.25}
       .ft-menu-copy p{margin:0;color:#65758b;font-size:14px;line-height:1.5}
@@ -1246,7 +1260,8 @@ def home():
         .ft-menu-hero h1{font-size:clamp(27px,8vw,35px)}
         .ft-menu-grid{grid-template-columns:1fr;gap:11px}
         .ft-menu-card{min-height:0;padding:17px 15px;gap:13px;border-radius:14px}
-        .ft-menu-icon{flex-basis:43px;width:43px;height:43px;font-size:22px}
+        .ft-menu-icon{flex-basis:52px;width:52px;height:52px;border-radius:15px}
+        .ft-menu-icon svg{width:33px;height:33px}
         .ft-menu-copy h3{font-size:18px}
       }
       @media(prefers-reduced-motion:reduce){.ft-menu-card{transition:none}}
@@ -1266,7 +1281,7 @@ def home():
 
         <div class="ft-menu-grid">
           <a class="ft-menu-card" href="/educazione-finanziaria">
-            <span class="ft-menu-icon" aria-hidden="true">↗</span>
+            <span class="ft-menu-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M8 34 19 23l7 7L40 15"/><path d="M29 15h11v11"/><path d="M8 11v27h32"/></svg></span>
             <span class="ft-menu-copy">
               <h3>Prevenire i debiti</h3>
               <p>Impara a organizzare entrate, spese e impegni prima che diventino un problema.</p>
@@ -1275,7 +1290,7 @@ def home():
           </a>
 
           <a class="ft-menu-card" href="/misuratore">
-            <span class="ft-menu-icon" aria-hidden="true">▤</span>
+            <span class="ft-menu-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="7" y="8" width="34" height="32" rx="5"/><path d="M14 31v-7m10 7V15m10 16V21"/><path d="M13 14h5"/></svg></span>
             <span class="ft-menu-copy">
               <h3>Check-up finanziario</h3>
               <p>Utilizza il calcolatore gratuito per valutare il margine mensile e il peso delle rate.</p>
@@ -1283,17 +1298,17 @@ def home():
             </span>
           </a>
 
-          <div class="ft-menu-card coming" aria-label="Scadenzario, servizio in preparazione">
-            <span class="ft-menu-icon" aria-hidden="true">▦</span>
+          <a class="ft-menu-card" href="/scadenzario">
+            <span class="ft-menu-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="7" y="10" width="34" height="31" rx="5"/><path d="M15 6v8m18-8v8M7 19h34"/><path d="M15 26h5m8 0h5m-18 8h5m8 0h5"/></svg></span>
             <span class="ft-menu-copy">
               <h3>Scadenzario</h3>
               <p>Uno spazio per tenere sotto controllo rate, pagamenti e impegni dei tuoi piani di rientro.</p>
-              <span class="ft-menu-status">In preparazione</span>
+              <span class="ft-menu-arrow">Organizza le tue scadenze →</span>
             </span>
-          </div>
+          </a>
 
           <a class="ft-menu-card" href="/assistenza">
-            <span class="ft-menu-icon" aria-hidden="true">!</span>
+            <span class="ft-menu-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 6 41 37H7L24 6Z"/><path d="M24 18v9m0 5h.01"/></svg></span>
             <span class="ft-menu-copy">
               <h3>Ho già dei debiti</h3>
               <p>Hai ricevuto un sollecito, fai fatica a pagare o vuoi parlare della tua situazione?</p>
@@ -1302,7 +1317,7 @@ def home():
           </a>
 
           <a class="ft-menu-card" href="/educazione-finanziaria">
-            <span class="ft-menu-icon" aria-hidden="true">▧</span>
+            <span class="ft-menu-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M10 8h21l7 7v25H10z"/><path d="M31 8v8h7M16 23h16M16 29h16M16 35h10"/></svg></span>
             <span class="ft-menu-copy">
               <h3>Educazione finanziaria</h3>
               <p>Leggi approfondimenti pratici per gestire il bilancio familiare e le decisioni economiche.</p>
@@ -1311,7 +1326,7 @@ def home():
           </a>
 
           <a class="ft-menu-card" href="/shop">
-            <span class="ft-menu-icon" aria-hidden="true">▣</span>
+            <span class="ft-menu-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M8 17h32v23H8z"/><path d="M6 17 11 8h26l5 9M17 25h14"/><path d="M20 17v-4h8v4"/></svg></span>
             <span class="ft-menu-copy">
               <h3>Guide e strumenti</h3>
               <p>Consulta le guide e i materiali FixTude per orientarti e affrontare le situazioni debitorie.</p>
@@ -3609,11 +3624,11 @@ def legal_terms():
 def privacy():
     body = """<p>Questa informativa descrive i principali trattamenti connessi alla versione attuale del sito FixTude. Viene aggiornata quando cambiano in modo rilevante le funzionalità, i fornitori o le modalità di trattamento.</p>
     <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è Giovanni Pugliese, che gestisce il servizio denominato FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per richieste relative ai dati personali: info@fixtude.it.</p>
-    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore:</strong> gli importi inseriti vengono elaborati nel browser e il codice del calcolatore non li invia agli endpoint applicativi.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio tramite Web3Forms. È presente anche l’endpoint alternativo <code>/api/contact</code>, che se invocato inoltra i dati tramite il server SMTP configurato dal titolare. L’applicazione non conserva una copia in un proprio database; i dati possono restare nei sistemi dei fornitori e nella casella email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Libro digitale:</strong> se l'acquisto è attivo, Stripe tratta i dati necessari a elaborare e verificare il pagamento. FixTude riceve le informazioni necessarie a verificare la transazione.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
+    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore:</strong> gli importi inseriti vengono elaborati nel browser e il codice del calcolatore non li invia agli endpoint applicativi.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio tramite Web3Forms. È presente anche l’endpoint alternativo <code>/api/contact</code>, che se invocato inoltra i dati tramite il server SMTP configurato dal titolare. L’applicazione non conserva una copia in un proprio database; i dati possono restare nei sistemi dei fornitori e nella casella email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Scadenzario personale:</strong> se l'utente crea un account, vengono trattati nome, email, password conservata in forma di hash, eventuale numero di cellulare, preferenze e consensi per i promemoria, oltre ai dati delle scadenze inserite (categoria, creditore/beneficiario, importo, data, frequenza e note facoltative). I dati sono conservati nel database SQLite applicativo su infrastruttura Render; l'utente può eliminare account e scadenze dall'area personale. I promemoria email utilizzano il servizio SMTP configurato; gli SMS, se attivati, sono inviati tramite Twilio. I dati dei messaggi sono comunicati ai relativi fornitori per la consegna. Prima del lancio pubblico devono essere completati gli accordi privacy con i fornitori e definito il periodo di conservazione.</li><li><strong>Libro digitale:</strong> se l'acquisto è attivo, Stripe tratta i dati necessari a elaborare e verificare il pagamento. FixTude riceve le informazioni necessarie a verificare la transazione.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
     <h2>3. Basi giuridiche</h2><p>Le richieste di contatto sono trattate per rispondere a una richiesta dell'interessato e adottare misure precontrattuali su sua richiesta. I dati relativi ad acquisti sono trattati per eseguire il contratto e adempiere agli obblighi di legge. Sicurezza e prevenzione abusi possono basarsi sul legittimo interesse, da valutare e documentare. Eventuali attività promozionali richiedono una valutazione e, ove necessario, un consenso separato.</p>
     <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l’hosting (se confermato in produzione), Web3Forms per il modulo visibile e le notifiche email della chat, il fornitore del servizio SMTP configurato per l’endpoint alternativo, Register per la casella email e Stripe per i pagamenti del libro, quando attivi. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
     <h2>5. Cookie e strumenti di tracciamento</h2><p>Google Analytics (ID di misurazione G-HMBBNLHC7E) viene caricato soltanto dopo la scelta esplicita della categoria statistiche nel pannello cookie. Se la categoria viene rifiutata o disattivata, il sito non avvia nuove richieste di misurazione e aggiorna lo stato di consenso di Google Analytics. I pixel pubblicitari non sono attivi. Prima del lancio definitivo occorre verificare tecnicamente i cookie effettivamente installati e aggiornare questa informativa in base ai risultati.</p>
-    <h2>6. Conservazione</h2><p>I messaggi chat sono temporanei secondo quanto descritto sopra. Le richieste di contatto possono restare nei sistemi del fornitore di invio e nella casella email del destinatario. I tempi effettivi di conservazione dei fornitori, della posta e dei log devono essere verificati e definiti dal titolare prima del lancio.</p>
+    <h2>6. Conservazione</h2><p>I messaggi chat sono temporanei secondo quanto descritto sopra. Le richieste di contatto possono restare nei sistemi del fornitore di invio e nella casella email del destinatario. I dati dello Scadenzario restano nel database fino alla cancellazione dell’account da parte dell’utente o a una richiesta di cancellazione verificata; i backup e i log tecnici possono seguire tempi separati da definire. I tempi effettivi di conservazione dei fornitori, della posta e dei log devono essere verificati e definiti dal titolare prima del lancio pubblico.</p>
     <h2>7. Diritti</h2><p>Nei limiti previsti dal GDPR è possibile chiedere accesso, rettifica, cancellazione, limitazione, opposizione e, ove applicabile, portabilità, scrivendo a info@fixtude.it. È possibile proporre reclamo al Garante per la protezione dei dati personali.</p>
     <h2>8. Sicurezza e aggiornamenti</h2><p>Il titolare deve verificare periodicamente le misure di sicurezza, l'accesso ai sistemi, la configurazione dei fornitori e la corrispondenza di questa informativa con i trattamenti reali. La pagina va aggiornata prima di introdurre nuove funzionalità o servizi di terze parti.</p>"""
     return legal_page("Informativa Privacy", body)
@@ -3764,6 +3779,7 @@ def robots_txt():
         "User-agent: *\n"
         "Allow: /\n"
         "Disallow: /chat-staff\n"
+        "Disallow: /scadenzario\n"
         "Disallow: /api/\n"
         f"Sitemap: {SEO_BASE_URL}/sitemap.xml\n"
     )
@@ -4061,6 +4077,513 @@ def professionisti_contratto():
 def bozza_incarico_legale():
     body = '''<article class="card doc"><div class="no-print"><p class="notice"><strong>Fac-simile informativo da completare e validare dall’avvocato incaricato.</strong> Non è un mandato già conferito e non sostituisce il preventivo, l’informativa sul trattamento dei dati o gli altri documenti richiesti nel caso concreto.</p><button class="btn" onclick="window.print()" type="button">Stampa / salva in PDF</button></div><h1>Fac-simile di conferimento dell’incarico professionale</h1><p><strong>Cliente:</strong> ______________________________________________</p><p>Codice fiscale: __________________________ Indirizzo: __________________________________________</p><p>Email/PEC per comunicazioni: _________________________________________________________________</p><p><strong>Avvocato incaricato:</strong> __________________________________________, C.F./P. IVA __________________</p><p>Ordine degli Avvocati di __________________________, studio in ____________________________________</p><h2>1. Oggetto dell’incarico</h2><p>Il Cliente conferisce all’Avvocato, che accetta, l’incarico limitato alle seguenti attività e posizioni debitorie: ______________________________________________________________________________________________.</p><p>Creditori/controparte e riferimenti dei documenti: __________________________________________________.</p><h2>2. Attività incluse e limiti</h2><p>Attività stragiudiziali incluse: ____________________________________________________________________.</p><p>Eventuale attività giudiziale, procedimento, autorità e grado inclusi: ___________________________________.</p><p>Restano escluse le attività non espressamente indicate, i nuovi procedimenti e i gradi successivi, salvo separato accordo scritto.</p><h2>3. Compenso, preventivo e spese</h2><p>Compenso concordato, criteri e scadenze: __________________________________________________________.</p><p>IVA, contributo previdenziale, spese generali, anticipazioni e spese vive: ________________________________.</p><p>Eventuali somme pagate a FixTude per prodotti o servizi distinti non costituiscono automaticamente compenso dell’Avvocato, salvo accordo espresso e documentato tra le parti interessate.</p><h2>4. Obblighi e autonomia</h2><p>L’Avvocato opera in autonomia e secondo le regole professionali applicabili, senza garantire il risultato. Il Cliente si impegna a fornire documenti veritieri e completi, comunicare tempestivamente atti e scadenze e informare l’Avvocato di ogni cambiamento rilevante.</p><h2>5. Informazioni, comunicazioni e privacy</h2><p>Canali concordati per le comunicazioni: ___________________________________________________________.</p><p>L’informativa privacy, le modalità di conservazione dei documenti, i soggetti autorizzati e le eventuali comunicazioni a terzi sono descritti nell’informativa separata consegnata al Cliente.</p><h2>6. Durata, revoca e rinuncia</h2><p>L’incarico decorre dalla sottoscrizione e termina con: __________________________________________________. Revoca e rinuncia sono disciplinate dalla legge e dalle regole professionali applicabili, con liquidazione delle attività svolte e delle spese dovute secondo l’accordo e la normativa.</p><h2>7. Documenti allegati</h2><p>☐ Preventivo dettagliato · ☐ Informativa privacy · ☐ Documenti del Cliente · ☐ Altro: _______________________</p><div class="signature"><div><div class="line">Luogo, data e firma del Cliente</div></div><div><div class="line">Luogo, data e firma dell’Avvocato</div></div></div><p class="muted">Il professionista deve adattare il fac-simile al caso concreto e verificare gli obblighi informativi e formali applicabili prima della sottoscrizione.</p></article>'''
     return pro_shell("Fac-simile incarico legale", body)
+
+
+# =========================================================
+# SCADENZARIO PERSONALE - ACCOUNT CLIENTE, PAGAMENTI E PROMEMORIA
+# SQLite: impostare FIXTUDE_DB_PATH su un disco persistente Render.
+# Email via SMTP; SMS via Twilio (credenziali in variabili d'ambiente).
+# =========================================================
+
+SCAD_DB_PATH = (os.environ.get("FIXTUDE_SCADENZARIO_DB_PATH", "").strip()
+                or os.environ.get("FIXTUDE_DB_PATH", "").strip()
+                or os.path.join(app.root_path, "fixtude_professionisti.sqlite3"))
+SCAD_CRON_SECRET = os.environ.get("SCADENZARIO_CRON_SECRET", "").strip()
+SCAD_DB_PERSISTENT = bool(os.environ.get("FIXTUDE_SCADENZARIO_DB_PATH", "").strip() or os.environ.get("FIXTUDE_DB_PATH", "").strip())
+TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "").strip()
+TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "").strip()
+TWILIO_FROM_NUMBER = os.environ.get("TWILIO_FROM_NUMBER", "").strip()
+
+
+def scad_db():
+    parent = os.path.dirname(SCAD_DB_PATH)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    db = sqlite3.connect(SCAD_DB_PATH, timeout=20)
+    db.row_factory = sqlite3.Row
+    db.execute("PRAGMA foreign_keys=ON")
+    db.execute("PRAGMA journal_mode=WAL")
+    db.execute('''CREATE TABLE IF NOT EXISTS scad_users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        phone TEXT NOT NULL DEFAULT '',
+        password_hash TEXT NOT NULL,
+        email_reminders INTEGER NOT NULL DEFAULT 1,
+        sms_reminders INTEGER NOT NULL DEFAULT 0,
+        email_consent_at TEXT NOT NULL DEFAULT '',
+        sms_consent_at TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+    )''')
+    db.execute('''CREATE TABLE IF NOT EXISTS scad_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        category TEXT NOT NULL,
+        creditor TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        amount_cents INTEGER NOT NULL DEFAULT 0,
+        due_date TEXT NOT NULL,
+        frequency TEXT NOT NULL DEFAULT 'unica',
+        status TEXT NOT NULL DEFAULT 'da_pagare',
+        notes TEXT NOT NULL DEFAULT '',
+        reminder_days INTEGER NOT NULL DEFAULT 3,
+        email_enabled INTEGER NOT NULL DEFAULT 1,
+        sms_enabled INTEGER NOT NULL DEFAULT 0,
+        last_auto_sent_on TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY(user_id) REFERENCES scad_users(id) ON DELETE CASCADE
+    )''')
+    db.execute("CREATE INDEX IF NOT EXISTS idx_scad_items_user_date ON scad_items(user_id,due_date,status)")
+    db.commit()
+    return db
+
+
+def scad_csrf():
+    token = session.get("scad_csrf")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["scad_csrf"] = token
+    return token
+
+
+def scad_csrf_ok():
+    supplied = str(request.form.get("csrf_token", ""))
+    expected = str(session.get("scad_csrf", ""))
+    return bool(supplied and expected and hmac.compare_digest(supplied, expected))
+
+
+def scad_current_user():
+    uid = session.get("scad_user_id")
+    if not uid:
+        return None
+    db = scad_db()
+    try:
+        return db.execute("SELECT * FROM scad_users WHERE id=?", (uid,)).fetchone()
+    finally:
+        db.close()
+
+
+def scad_euro(cents):
+    return (f"{(int(cents or 0) / 100):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+
+
+def scad_parse_amount(value):
+    raw = str(value or "").strip().replace("€", "").replace(" ", "")
+    if not raw:
+        raise ValueError("Inserisci l'importo.")
+    if "," in raw:
+        raw = raw.replace(".", "").replace(",", ".")
+    amount = float(raw)
+    if amount < 0 or amount > 10000000:
+        raise ValueError("Importo non valido.")
+    return int(round(amount * 100))
+
+
+def scad_send_email(to_email, subject, body):
+    if not all([SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SMTP_FROM]):
+        raise RuntimeError("Email non configurata: mancano le variabili SMTP su Render.")
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = SMTP_FROM
+    msg["To"] = to_email
+    msg.set_content(body)
+    context = ssl.create_default_context()
+    if SMTP_PORT == 465:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=20) as server:
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
+    else:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+            server.ehlo(); server.starttls(context=context); server.ehlo()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
+
+
+def scad_send_sms(to_phone, body):
+    if not all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER]):
+        raise RuntimeError("SMS non configurati: inserisci le credenziali Twilio nelle variabili di Render.")
+    phone = re.sub(r"[\s().-]", "", str(to_phone or ""))
+    if not re.fullmatch(r"\+[1-9]\d{7,14}", phone):
+        raise ValueError("Numero non valido: usa il formato internazionale, ad esempio +393331234567.")
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json"
+    payload = urllib.parse.urlencode({"To": phone, "From": TWILIO_FROM_NUMBER, "Body": body}).encode()
+    auth = base64.b64encode(f"{TWILIO_ACCOUNT_SID}:{TWILIO_AUTH_TOKEN}".encode()).decode()
+    req = urllib.request.Request(url, data=payload, headers={"Authorization": f"Basic {auth}", "Content-Type": "application/x-www-form-urlencoded"}, method="POST")
+    with urllib.request.urlopen(req, timeout=20) as response:
+        if response.status not in (200, 201):
+            raise RuntimeError("Il provider SMS non ha confermato l'invio.")
+        return json.loads(response.read().decode("utf-8"))
+
+
+def scad_reminder_text(user, item):
+    return (f"Promemoria FixTude: {item['creditor']} - {item['description'] or item['category']}. "
+            f"Scadenza: {datetime.strptime(item['due_date'], '%Y-%m-%d').strftime('%d/%m/%Y')}. "
+            f"Importo indicato: EUR {scad_euro(item['amount_cents'])}. Controlla i dati e il pagamento.")
+
+
+def scad_send_item_reminder(user, item, channels=None):
+    channels = channels or ["email"]
+    sent, errors = [], []
+    message = scad_reminder_text(user, item)
+    if "email" in channels:
+        if not user["email_reminders"] or not item["email_enabled"]:
+            errors.append("Email: promemoria non abilitato nelle preferenze.")
+        else:
+            try:
+                scad_send_email(user["email"], "FixTude - promemoria scadenza", message + "\n\nAccedi a FixTude per aggiornare il tuo scadenzario.")
+                sent.append("email")
+            except Exception as exc:
+                errors.append("Email: " + str(exc))
+    if "sms" in channels:
+        if not user["sms_reminders"] or not item["sms_enabled"]:
+            errors.append("SMS: promemoria non abilitato nelle preferenze o per questa scadenza.")
+        else:
+            try:
+                scad_send_sms(user["phone"], message)
+                sent.append("SMS")
+            except Exception as exc:
+                errors.append("SMS: " + str(exc))
+    return sent, errors
+
+
+def scad_shell(title, body):
+    return page(title, body, include_chat=False)
+
+
+@app.route("/scadenzario", methods=["GET", "POST"])
+def scadenzario():
+    user = scad_current_user()
+    if request.method == "POST" and not user:
+        if not scad_csrf_ok():
+            return scad_shell("Scadenzario", '<div class="card"><h1>Sessione scaduta</h1><p>Ricarica la pagina e riprova.</p></div>'), 400
+        action = request.form.get("action", "")
+        if action in ("login", "register") and rate_limited("scadenzario_auth", 12, 300):
+            return scad_shell("Riprova più tardi", '<div class="card"><h1>Troppi tentativi</h1><p>Per sicurezza attendi qualche minuto prima di riprovare.</p></div>'), 429
+        email = str(request.form.get("email", "")).strip().lower()
+        password = str(request.form.get("password", ""))
+        db = scad_db()
+        try:
+            if action == "register":
+                name = str(request.form.get("name", "")).strip()
+                phone = str(request.form.get("phone", "")).strip()
+                if len(name) < 2 or len(name) > 100 or not valid_email(email) or len(password) < 10:
+                    raise ValueError("Controlla nome, email e password: la password deve contenere almeno 10 caratteri.")
+                if request.form.get("privacy") != "on":
+                    raise ValueError("Per creare l'account devi confermare di aver letto Privacy e Termini.")
+                if phone and not re.fullmatch(r"\+?[0-9\s().-]{8,20}", phone):
+                    raise ValueError("Numero di telefono non valido.")
+                email_ok = request.form.get("email_reminders") == "on"
+                sms_ok = request.form.get("sms_reminders") == "on"
+                if sms_ok and (not phone or not phone.strip().startswith("+")):
+                    raise ValueError("Per i promemoria SMS inserisci il cellulare con prefisso internazionale, ad esempio +393331234567.")
+                now = datetime.now(ROME_TZ).isoformat()
+                db.execute("INSERT INTO scad_users(name,email,phone,password_hash,email_reminders,sms_reminders,email_consent_at,sms_consent_at,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
+                           (name,email,phone,generate_password_hash(password),int(email_ok),int(sms_ok),now if email_ok else "",now if sms_ok else "",now))
+                db.commit()
+                row = db.execute("SELECT id FROM scad_users WHERE email=?", (email,)).fetchone()
+                session.clear(); session["scad_user_id"] = row["id"]; session["scad_csrf"] = secrets.token_urlsafe(32)
+                return redirect("/scadenzario", code=303)
+            if action == "login":
+                row = db.execute("SELECT id,password_hash FROM scad_users WHERE email=?", (email,)).fetchone()
+                if not row or not check_password_hash(row["password_hash"], password):
+                    raise ValueError("Email o password non corretti.")
+                session.clear(); session["scad_user_id"] = row["id"]; session["scad_csrf"] = secrets.token_urlsafe(32)
+                return redirect("/scadenzario", code=303)
+            raise ValueError("Operazione non riconosciuta.")
+        except sqlite3.IntegrityError:
+            db.rollback(); error = "Esiste già un account con questa email. Accedi dal modulo di login."
+        except ValueError as exc:
+            error = str(exc)
+        except Exception:
+            db.rollback(); app.logger.exception("Errore registrazione/accesso scadenzario"); error = "Non è stato possibile completare l'operazione. Riprova."
+        finally:
+            db.close()
+        return scad_shell("Scadenzario personale", scad_auth_html(error)), 400
+
+    if not user:
+        return scad_shell("Scadenzario personale", scad_auth_html())
+
+    db = scad_db()
+    try:
+        items = db.execute("SELECT * FROM scad_items WHERE user_id=? ORDER BY CASE WHEN status='da_pagare' THEN 0 ELSE 1 END,due_date ASC", (user["id"],)).fetchall()
+    finally:
+        db.close()
+    today = datetime.now(ROME_TZ).date()
+    upcoming = [x for x in items if x["status"] == "da_pagare" and x["due_date"] >= today.isoformat()]
+    overdue = [x for x in items if x["status"] == "da_pagare" and x["due_date"] < today.isoformat()]
+    unpaid_total = sum(x["amount_cents"] for x in items if x["status"] == "da_pagare")
+    cards=[]
+    csrf=escape(scad_csrf(), quote=True)
+    for item in items:
+        d=date.fromisoformat(item["due_date"])
+        is_over=d < today and item["status"] == "da_pagare"
+        state="Scaduta" if is_over else ("Da pagare" if item["status"]=="da_pagare" else "Pagata")
+        color="#b42332" if is_over else ("#16804f" if item["status"]=="pagata" else "#174b91")
+        channels=[]
+        if item["email_enabled"] and user["email_reminders"]: channels.append("email")
+        if item["sms_enabled"] and user["sms_reminders"]: channels.append("SMS")
+        send_form=(f'''<form method="post" action="/scadenzario/promemoria/{item['id']}" class="inline-form"><input type="hidden" name="csrf_token" value="{csrf}"><button class="btn small" type="submit">Invia promemoria</button></form>''') if channels and item["status"]=="da_pagare" else ''
+        mark_form=(f'''<form method="post" action="/scadenzario/pagamento/{item['id']}" class="inline-form"><input type="hidden" name="csrf_token" value="{csrf}"><button class="btn small secondary" type="submit">Segna pagata</button></form>''') if item["status"]=="da_pagare" else ''
+        delete_form=(f'''<form method="post" action="/scadenzario/elimina/{item['id']}" class="inline-form" onsubmit="return confirm('Eliminare questa scadenza?')"><input type="hidden" name="csrf_token" value="{csrf}"><button class="btn small danger" type="submit">Elimina</button></form>''')
+        cards.append(f'''<article class="due-card" data-status="{item['status']}" data-search="{escape((item['category']+' '+item['creditor']+' '+item['description']).lower(), quote=True)}"><div class="due-top"><span class="due-category">{escape(item['category'])}</span><strong style="color:{color}">{state}</strong></div><h3>{escape(item['creditor'])}</h3><p>{escape(item['description'])}</p><div class="due-meta"><span>📅 {d.strftime('%d/%m/%Y')}</span><strong>€ {scad_euro(item['amount_cents'])}</strong></div><p class="muted due-small">Frequenza: {escape(item['frequency'])} · Promemoria: {item['reminder_days']} giorni prima · Canali: {', '.join(channels) if channels else 'non attivi'}</p><div class="due-actions">{send_form}{mark_form}{delete_form}</div><details style="margin-top:10px"><summary style="cursor:pointer;color:#174b91;font-weight:700;font-size:13px">Modifica scadenza</summary><form method="post" action="/scadenzario/modifica/{item['id']}" style="margin-top:10px"><input type="hidden" name="csrf_token" value="{csrf}"><div class="field"><label>Tipo</label><input name="category" maxlength="60" value="{escape(item['category'])}" required></div><div class="field"><label>Creditore / beneficiario</label><input name="creditor" maxlength="120" value="{escape(item['creditor'])}" required></div><div class="field"><label>Descrizione</label><input name="description" maxlength="180" value="{escape(item['description'])}"></div><div class="field"><label>Importo (€)</label><input name="amount" value="{scad_euro(item['amount_cents']).replace('.', '').replace(',', ',')}" required></div><div class="field"><label>Data</label><input type="date" name="due_date" value="{item['due_date']}" required></div><div class="field"><label>Frequenza</label><select name="frequency">{''.join(f'<option value="{v}" {"selected" if item["frequency"]==v else ""}>{lab}</option>' for v,lab in [("unica","Una sola volta"),("mensile","Mensile"),("bimestrale","Ogni 2 mesi"),("trimestrale","Ogni 3 mesi"),("semestrale","Ogni 6 mesi"),("annuale","Annuale")])}</select></div><div class="field"><label>Promemoria anticipato (giorni)</label><select name="reminder_days">{''.join(f'<option value="{v}" {"selected" if item["reminder_days"]==v else ""}>{lab}</option>' for v,lab in [(0,"Il giorno stesso"),(1,"1 giorno prima"),(3,"3 giorni prima"),(5,"5 giorni prima"),(7,"7 giorni prima"),(15,"15 giorni prima"),(30,"30 giorni prima")])}</select></div><div class="field"><label>Note</label><textarea name="notes" rows="2" maxlength="1000">{escape(item['notes'])}</textarea></div><div class="scad-checks"><label><input type="checkbox" name="email_enabled" {'checked' if item['email_enabled'] else ''}> Email</label><label><input type="checkbox" name="sms_enabled" {'checked' if item['sms_enabled'] else ''}> SMS</label></div><button class="btn small" type="submit">Salva modifiche</button></form></details></article>''')
+    sms_ready=bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER)
+    mail_ready=bool(SMTP_HOST and SMTP_USER and SMTP_PASSWORD and SMTP_FROM)
+    status_notice=("Email configurata" if mail_ready else "Email da configurare")+" · "+("SMS attivi" if sms_ready else "SMS non ancora configurati")+" · "+("Archivio persistente configurato" if SCAD_DB_PERSISTENT else "ATTENZIONE: archivio persistente da configurare su Render")
+    body=f'''<style>
+      .scad-wrap{{max-width:1000px;margin:8px auto 35px}}.scad-hero{{padding:26px 25px;border-radius:18px;background:linear-gradient(135deg,#123a72,#2873bf);color:#fff}}
+      .scad-hero h1{{margin:0 0 8px;font-size:clamp(27px,4vw,36px)}}.scad-hero p{{margin:0;color:#e6f1ff}}
+      .scad-stats{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:17px 0}}
+      .scad-stat{{background:#fff;border:1px solid #dce5ef;border-radius:14px;padding:16px}}.scad-stat strong{{display:block;font-size:24px;color:#174b91}}.scad-stat span{{font-size:13px;color:#65758b}}
+      .scad-layout{{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:17px;align-items:start}}
+      .scad-form-grid{{display:grid;grid-template-columns:1fr 1fr;gap:12px}}.scad-form-grid .field{{margin:0}}.scad-form-grid .wide{{grid-column:1/-1}}
+      .due-list{{display:grid;gap:12px}}.due-card{{background:#fff;border:1px solid #dce5ef;border-radius:14px;padding:17px;box-shadow:0 4px 14px rgba(20,48,85,.04)}}
+      .due-top,.due-meta,.due-actions{{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}}.due-category{{font-size:12px;font-weight:800;color:#174b91;background:#edf5ff;padding:5px 9px;border-radius:20px}}
+      .due-card h3{{margin:11px 0 2px;font-size:18px}}.due-card p{{margin:4px 0 10px}}.due-meta{{padding:9px 0;border-top:1px solid #edf1f5;border-bottom:1px solid #edf1f5}}
+      .due-small{{font-size:12px;margin:8px 0!important}}.due-actions{{justify-content:flex-start;margin-top:10px}}.inline-form{{display:inline-flex;margin:0}}
+      .btn.small{{min-height:36px;padding:8px 11px;font-size:12px}}.btn.secondary{{background:#edf3fa;color:#174b91;border:1px solid #d6e2f0}}.btn.danger{{background:#fff0f0;color:#a62929;border:1px solid #f2d0d0}}
+      .scad-checks{{display:grid;gap:8px;margin:8px 0 14px}}.scad-checks label{{display:flex;gap:9px;align-items:flex-start;font-weight:400;margin:0}}.scad-checks input{{width:auto;margin-top:4px}}
+      .scad-note{{font-size:12px;color:#65758b}}.scad-toolbar{{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}}
+      @media(max-width:720px){{.scad-layout{{grid-template-columns:1fr}}.scad-stats{{grid-template-columns:1fr 1fr}}.scad-stats .scad-stat:last-child{{grid-column:1/-1}}}}
+      @media(max-width:520px){{.scad-form-grid{{grid-template-columns:1fr}}.scad-form-grid .wide{{grid-column:auto}}.scad-hero{{padding:22px 18px}}.scad-stat{{padding:12px}}.scad-stat strong{{font-size:20px}}}}
+    </style>
+    <div class="scad-wrap"><section class="scad-hero"><div class="scad-toolbar"><div><h1>Il tuo Scadenzario</h1><p>Ciao {escape(user['name'])}, tieni sotto controllo pagamenti, rate e impegni.</p></div><form method="post" action="/scadenzario/logout"><input type="hidden" name="csrf_token" value="{csrf}"><button class="btn light" type="submit">Esci</button></form></div></section>
+    <div class="scad-stats"><div class="scad-stat"><strong>{len(upcoming)}</strong><span>Scadenze future</span></div><div class="scad-stat"><strong style="color:{'#b42332' if overdue else '#174b91'}">{len(overdue)}</strong><span>Scadenze da controllare</span></div><div class="scad-stat"><strong>€ {scad_euro(unpaid_total)}</strong><span>Totale ancora da pagare</span></div></div>
+    <div class="notice">{escape(status_notice)}. I promemoria automatici richiedono inoltre un'attività giornaliera Render Cron; fino alla sua attivazione puoi inviarli manualmente da questa pagina.</div>
+    <div class="scad-layout"><section class="card"><h2>＋ Aggiungi una scadenza</h2><p class="muted">Bastano pochi dati. Puoi modificare o eliminare le voci in qualsiasi momento.</p>
+    <form method="post" action="/scadenzario/aggiungi"><input type="hidden" name="csrf_token" value="{csrf}"><div class="scad-form-grid">
+      <div class="field"><label>Tipo di pagamento</label><select name="category" required><option value="Rata finanziamento">Rata finanziamento</option><option value="Piano di rientro">Piano di rientro</option><option value="Mutuo">Mutuo</option><option value="Carta di credito">Carta di credito</option><option value="Bolletta luce/gas">Bolletta luce/gas</option><option value="Telefono / Internet">Telefono / Internet</option><option value="Affitto">Affitto</option><option value="Condominio">Condominio</option><option value="Imposte e tributi">Imposte e tributi</option><option value="Assicurazione">Assicurazione</option><option value="Abbonamento">Abbonamento</option><option value="Altro">Altro</option></select></div>
+      <div class="field"><label>Creditore / beneficiario</label><input name="creditor" maxlength="120" placeholder="Es. Banca, fornitore, Agenzia Entrate" required></div>
+      <div class="field"><label>Importo (€)</label><input name="amount" inputmode="decimal" placeholder="Es. 125,50" required></div>
+      <div class="field"><label>Data di scadenza</label><input type="date" name="due_date" required></div>
+      <div class="field"><label>Frequenza</label><select name="frequency"><option value="unica">Una sola volta</option><option value="mensile">Mensile</option><option value="bimestrale">Ogni 2 mesi</option><option value="trimestrale">Ogni 3 mesi</option><option value="semestrale">Ogni 6 mesi</option><option value="annuale">Annuale</option></select></div>
+      <div class="field"><label>Promemoria anticipato</label><select name="reminder_days"><option value="0">Il giorno della scadenza</option><option value="1">1 giorno prima</option><option value="3" selected>3 giorni prima</option><option value="5">5 giorni prima</option><option value="7">7 giorni prima</option><option value="15">15 giorni prima</option><option value="30">30 giorni prima</option></select></div>
+      <div class="field wide"><label>Descrizione (facoltativa)</label><input name="description" maxlength="180" placeholder="Es. rata n. 4 del piano concordato"></div>
+      <div class="field wide"><label>Note personali (facoltative)</label><textarea name="notes" rows="2" maxlength="1000" placeholder="Riferimenti utili, modalità di pagamento, promemoria personale..."></textarea></div>
+    </div><div class="scad-checks"><label><input type="checkbox" name="email_enabled" checked> <span>Invia promemoria via email</span></label><label><input type="checkbox" name="sms_enabled" {'checked' if user['sms_reminders'] else ''}> <span>Invia promemoria via SMS {'(da attivare nelle preferenze / configurazione)' if not user['sms_reminders'] or not sms_ready else ''}</span></label></div><button class="btn" type="submit">Salva la scadenza</button></form></section>
+    <section class="card"><h2>Le tue scadenze</h2><p class="muted">Le voci sono ordinate per data. Puoi inviare un promemoria singolo oppure inviare in blocco quelli di tutte le scadenze ancora da pagare.</p>
+    <form method="post" action="/scadenzario/promemoria-multipli"><input type="hidden" name="csrf_token" value="{csrf}"><div class="scad-checks"><label><input type="checkbox" name="channel_email" checked> <span>Invia via email</span></label><label><input type="checkbox" name="channel_sms"> <span>Invia via SMS</span></label></div><button class="btn small" type="submit" onclick="return confirm('Inviare i promemoria per tutte le scadenze ancora da pagare?')">Invia promemoria di tutte le scadenze</button></form>
+    <div class="scad-form-grid" style="margin-top:16px"><div class="field"><label for="scad-search">Cerca</label><input id="scad-search" type="search" placeholder="Creditore, tipo, descrizione..."></div><div class="field"><label for="scad-filter">Mostra</label><select id="scad-filter"><option value="all">Tutte le scadenze</option><option value="da_pagare">Da pagare</option><option value="pagata">Pagate</option><option value="overdue">Scadute</option></select></div></div>
+    <div class="due-list" id="scad-due-list" style="margin-top:14px">{''.join(cards) if cards else '<p class="muted">Non hai ancora inserito scadenze. Aggiungi la prima dal modulo qui accanto.</p>'}</div><p id="scad-empty-filter" class="muted" hidden>Nessuna scadenza corrisponde ai filtri selezionati.</p>
+    <script>(function(){{const q=document.getElementById('scad-search'),f=document.getElementById('scad-filter'),cards=[...document.querySelectorAll('#scad-due-list .due-card')],empty=document.getElementById('scad-empty-filter');function apply(){{let visible=0;const term=(q.value||'').toLowerCase();cards.forEach(c=>{{const matchText=(c.dataset.search||'').includes(term);const matchStatus=f.value==='all'||(f.value==='overdue'?(c.dataset.status==='da_pagare'&&c.querySelector('.due-top strong')?.textContent==='Scaduta'):c.dataset.status===f.value);c.hidden=!(matchText&&matchStatus);if(!c.hidden)visible++}});empty.hidden=visible!==0}}q.addEventListener('input',apply);f.addEventListener('change',apply)}})();</script>
+    </section></div>
+    <section class="card"><h2>Recapiti e preferenze promemoria</h2><form method="post" action="/scadenzario/preferenze"><input type="hidden" name="csrf_token" value="{csrf}"><div class="scad-form-grid"><div class="field"><label>Email</label><input value="{escape(user['email'])}" disabled></div><div class="field"><label>Cellulare (formato internazionale)</label><input name="phone" value="{escape(user['phone'])}" placeholder="+393331234567"></div></div><div class="scad-checks"><label><input type="checkbox" name="email_reminders" {'checked' if user['email_reminders'] else ''}> <span>Desidero ricevere promemoria di servizio via email.</span></label><label><input type="checkbox" name="sms_reminders" {'checked' if user['sms_reminders'] else ''}> <span>Acconsento a ricevere promemoria di servizio via SMS sul numero indicato.</span></label></div><button class="btn secondary" type="submit">Salva preferenze</button></form><p class="scad-note">I recapiti sono utilizzati per i promemoria richiesti. Non inserire dati bancari, credenziali o informazioni non necessarie. Puoi disattivare i promemoria dalle preferenze.</p><hr style="border:0;border-top:1px solid #e4eaf1;margin:18px 0"><form method="post" action="/scadenzario/elimina-account" onsubmit="return confirm('Eliminare definitivamente account e tutte le scadenze? Questa operazione non può essere annullata.')"><input type="hidden" name="csrf_token" value="{csrf}"><button class="btn danger small" type="submit">Elimina account e dati</button></form></section>
+    </div>'''
+    return scad_shell("Scadenzario personale", body)
+
+
+def scad_auth_html(error=""):
+    csrf=escape(scad_csrf(), quote=True)
+    err=f'<div class="notice error">{escape(error)}</div>' if error else ''
+    sms_ready=bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER)
+    return f'''<style>.scad-auth{{max-width:850px;margin:20px auto;display:grid;grid-template-columns:1fr 1fr;gap:16px}}.scad-auth .card{{margin:0}}.scad-auth h1{{color:#174b91}}.scad-auth .field{{margin-bottom:13px}}.scad-auth .check{{display:flex;gap:9px;font-weight:400;align-items:flex-start}}.scad-auth .check input{{width:auto;margin-top:5px}}@media(max-width:650px){{.scad-auth{{grid-template-columns:1fr}}}}</style>
+    <section class="card" style="max-width:850px;margin:10px auto 18px;background:linear-gradient(135deg,#123a72,#2873bf);color:#fff"><h1 style="color:#fff;margin:0 0 8px">Il tuo Scadenzario personale</h1><p style="margin:0;color:#e8f2ff">Un unico spazio per organizzare rate, bollette, pagamenti e promemoria. Crea il tuo account gratuito.</p></section>{err}<div class="scad-auth"><section class="card"><h2>Accedi</h2><form method="post"><input type="hidden" name="csrf_token" value="{csrf}"><input type="hidden" name="action" value="login"><div class="field"><label>Email</label><input type="email" name="email" autocomplete="email" required></div><div class="field"><label>Password</label><input type="password" name="password" autocomplete="current-password" required></div><button class="btn" type="submit">Entra nello Scadenzario</button></form></section><section class="card"><h2>Crea un account</h2><form method="post"><input type="hidden" name="csrf_token" value="{csrf}"><input type="hidden" name="action" value="register"><div class="field"><label>Nome</label><input name="name" maxlength="100" autocomplete="name" required></div><div class="field"><label>Email</label><input type="email" name="email" autocomplete="email" required></div><div class="field"><label>Cellulare (facoltativo)</label><input name="phone" placeholder="+393331234567" autocomplete="tel"></div><div class="field"><label>Password (almeno 10 caratteri)</label><input type="password" name="password" minlength="10" autocomplete="new-password" required></div><div class="scad-checks"><label class="check"><input type="checkbox" name="email_reminders"><span>Desidero ricevere promemoria relativi alle scadenze via email.</span></label><label class="check"><input type="checkbox" name="sms_reminders"><span>Acconsento ai promemoria via SMS {'(servizio in attivazione)' if not sms_ready else ''}.</span></label><label class="check"><input type="checkbox" name="privacy" required><span>Dichiaro di aver letto l’<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a> e accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label></div><button class="btn" type="submit">Crea il mio account</button></form></section></div><p class="muted" style="max-width:850px;margin:0 auto">Lo Scadenzario è uno strumento organizzativo: non esegue pagamenti e non sostituisce le comunicazioni ufficiali dei creditori.</p>'''
+
+
+@app.route("/scadenzario/aggiungi", methods=["POST"])
+def scad_add():
+    user=scad_current_user()
+    if not user: return redirect("/scadenzario", code=303)
+    if not scad_csrf_ok(): return scad_shell("Sessione scaduta", '<div class="card"><h1>Sessione scaduta</h1><p>Ricarica e riprova.</p></div>'),400
+    try:
+        category=str(request.form.get("category","Altro"))[:60]
+        creditor=str(request.form.get("creditor","")).strip()[:120]
+        description=str(request.form.get("description","")).strip()[:180]
+        notes=str(request.form.get("notes","")).strip()[:1000]
+        amount=scad_parse_amount(request.form.get("amount"))
+        due=date.fromisoformat(request.form.get("due_date",""))
+        if not creditor: raise ValueError("Inserisci il creditore o beneficiario.")
+        frequency=request.form.get("frequency","unica")
+        if frequency not in ("unica","mensile","bimestrale","trimestrale","semestrale","annuale"): frequency="unica"
+        days=int(request.form.get("reminder_days","3")); days=days if days in (0,1,3,5,7,15,30) else 3
+        email_enabled=int(request.form.get("email_enabled")=="on")
+        sms_enabled=int(request.form.get("sms_enabled")=="on" and user["sms_reminders"])
+        now=datetime.now(ROME_TZ).isoformat()
+        db=scad_db()
+        try:
+            db.execute("INSERT INTO scad_items(user_id,category,creditor,description,amount_cents,due_date,frequency,notes,reminder_days,email_enabled,sms_enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",(user["id"],category,creditor,description,amount,due.isoformat(),frequency,notes,days,email_enabled,sms_enabled,now,now))
+            db.commit()
+        finally: db.close()
+        return redirect("/scadenzario",code=303)
+    except Exception as exc:
+        app.logger.warning("Inserimento scadenza non riuscito: %s",type(exc).__name__)
+        return scad_shell("Dati non validi",f'<div class="card"><h1>Controlla i dati inseriti</h1><p>{escape(str(exc))}</p><a class="btn" href="/scadenzario">Torna allo Scadenzario</a></div>'),400
+
+
+@app.route("/scadenzario/modifica/<int:item_id>", methods=["POST"])
+def scad_edit(item_id):
+    user=scad_current_user()
+    if not user: return redirect("/scadenzario",code=303)
+    if not scad_csrf_ok(): return redirect("/scadenzario",code=303)
+    try:
+        category=str(request.form.get("category","Altro")).strip()[:60]
+        creditor=str(request.form.get("creditor","")).strip()[:120]
+        description=str(request.form.get("description","")).strip()[:180]
+        notes=str(request.form.get("notes","")).strip()[:1000]
+        amount=scad_parse_amount(request.form.get("amount"))
+        due=date.fromisoformat(request.form.get("due_date",""))
+        frequency=request.form.get("frequency","unica")
+        if frequency not in ("unica","mensile","bimestrale","trimestrale","semestrale","annuale"): frequency="unica"
+        days=int(request.form.get("reminder_days","3")); days=days if days in (0,1,3,5,7,15,30) else 3
+        email_enabled=int(request.form.get("email_enabled")=="on")
+        sms_enabled=int(request.form.get("sms_enabled")=="on" and user["sms_reminders"])
+        if not category or not creditor: raise ValueError("Inserisci tipo e creditore.")
+        db=scad_db()
+        try:
+            db.execute("UPDATE scad_items SET category=?,creditor=?,description=?,notes=?,amount_cents=?,due_date=?,frequency=?,reminder_days=?,email_enabled=?,sms_enabled=?,last_auto_sent_on='',updated_at=? WHERE id=? AND user_id=?",(category,creditor,description,notes,amount,due.isoformat(),frequency,days,email_enabled,sms_enabled,datetime.now(ROME_TZ).isoformat(),item_id,user["id"]))
+            db.commit()
+        finally: db.close()
+        return redirect("/scadenzario",code=303)
+    except Exception as exc:
+        app.logger.warning("Modifica scadenza non riuscita: %s",type(exc).__name__)
+        return scad_shell("Modifica non riuscita",f'<div class="card"><h1>Controlla i dati</h1><p>{escape(str(exc))}</p><a class="btn" href="/scadenzario">Torna allo Scadenzario</a></div>'),400
+
+
+@app.route("/scadenzario/preferenze", methods=["POST"])
+def scad_preferences():
+    user=scad_current_user()
+    if not user: return redirect("/scadenzario",code=303)
+    if not scad_csrf_ok(): return redirect("/scadenzario",code=303)
+    phone=str(request.form.get("phone","")).strip()
+    if phone and not re.fullmatch(r"\+?[0-9\s().-]{8,20}",phone):
+        return scad_shell("Numero non valido",'<div class="card"><h1>Numero non valido</h1><p>Inserisci il numero con prefisso internazionale, ad esempio +393331234567.</p><a class="btn" href="/scadenzario">Torna allo Scadenzario</a></div>'),400
+    sms_ok=int(request.form.get("sms_reminders")=="on" and bool(phone) and phone.startswith("+"))
+    if request.form.get("sms_reminders")=="on" and not sms_ok:
+        return scad_shell("Numero necessario",'<div class="card"><h1>Numero necessario</h1><p>Per attivare gli SMS inserisci il cellulare con prefisso internazionale, ad esempio +393331234567.</p><a class="btn" href="/scadenzario">Torna allo Scadenzario</a></div>'),400
+    email_ok=int(request.form.get("email_reminders")=="on")
+    now=datetime.now(ROME_TZ).isoformat()
+    db=scad_db()
+    try:
+        db.execute("UPDATE scad_users SET phone=?,email_reminders=?,sms_reminders=?,email_consent_at=?,sms_consent_at=? WHERE id=?",(phone,email_ok,sms_ok,now if email_ok else "",now if sms_ok else "",user["id"]))
+        db.commit()
+    finally: db.close()
+    return redirect("/scadenzario",code=303)
+
+
+@app.route("/scadenzario/promemoria/<int:item_id>", methods=["POST"])
+def scad_send_one(item_id):
+    user=scad_current_user()
+    if not user: return redirect("/scadenzario",code=303)
+    if not scad_csrf_ok(): return redirect("/scadenzario",code=303)
+    db=scad_db()
+    try: item=db.execute("SELECT * FROM scad_items WHERE id=? AND user_id=?",(item_id,user["id"])).fetchone()
+    finally: db.close()
+    if not item: return scad_shell("Scadenza non trovata",'<div class="card"><h1>Scadenza non trovata</h1></div>'),404
+    channels=[]
+    if item["email_enabled"]: channels.append("email")
+    if item["sms_enabled"]: channels.append("sms")
+    sent,errors=scad_send_item_reminder(user,item,channels)
+    msg=("Promemoria inviato tramite: "+", ".join(sent)+"." if sent else "Nessun promemoria inviato.")
+    if errors: msg+=" "+" ".join(errors)
+    return scad_shell("Esito promemoria",f'<div class="card"><h1>Esito invio</h1><p>{escape(msg)}</p><a class="btn" href="/scadenzario">Torna allo Scadenzario</a></div>')
+
+
+@app.route("/scadenzario/promemoria-multipli", methods=["POST"])
+def scad_send_many():
+    user=scad_current_user()
+    if not user: return redirect("/scadenzario",code=303)
+    if not scad_csrf_ok(): return redirect("/scadenzario",code=303)
+    channels=[]
+    if request.form.get("channel_email")=="on": channels.append("email")
+    if request.form.get("channel_sms")=="on": channels.append("sms")
+    if not channels: return redirect("/scadenzario",code=303)
+    db=scad_db()
+    try: items=db.execute("SELECT * FROM scad_items WHERE user_id=? AND status='da_pagare' ORDER BY due_date LIMIT 30",(user["id"],)).fetchall()
+    finally: db.close()
+    sent_count=0; errors=[]
+    for item in items:
+        sent,err=scad_send_item_reminder(user,item,channels)
+        if sent: sent_count+=1
+        errors.extend(err)
+    summary=f"Promemoria inviati per {sent_count} scadenze su {len(items)}."
+    if errors: summary+=" Alcuni canali non sono disponibili: "+" ".join(errors[:5])
+    return scad_shell("Esito invio promemoria",f'<div class="card"><h1>Invio completato</h1><p>{escape(summary)}</p><a class="btn" href="/scadenzario">Torna allo Scadenzario</a></div>')
+
+
+@app.route("/scadenzario/pagamento/<int:item_id>", methods=["POST"])
+def scad_mark_paid(item_id):
+    user=scad_current_user()
+    if not user: return redirect("/scadenzario",code=303)
+    if not scad_csrf_ok(): return redirect("/scadenzario",code=303)
+    db=scad_db()
+    try:
+        item=db.execute("SELECT * FROM scad_items WHERE id=? AND user_id=?",(item_id,user["id"])).fetchone()
+        if item:
+            if item["frequency"]!="unica":
+                base=date.fromisoformat(item["due_date"])
+                months={"mensile":1,"bimestrale":2,"trimestrale":3,"semestrale":6,"annuale":12}.get(item["frequency"],0)
+                month_index=base.month-1+months
+                year=base.year+month_index//12; month=month_index%12+1
+                import calendar
+                day=min(base.day,calendar.monthrange(year,month)[1])
+                next_date=date(year,month,day).isoformat()
+                db.execute("UPDATE scad_items SET due_date=?,last_auto_sent_on='',status='da_pagare',updated_at=? WHERE id=? AND user_id=?",(next_date,datetime.now(ROME_TZ).isoformat(),item_id,user["id"]))
+            else:
+                db.execute("UPDATE scad_items SET status='pagata',updated_at=? WHERE id=? AND user_id=?",(datetime.now(ROME_TZ).isoformat(),item_id,user["id"]))
+            db.commit()
+    finally: db.close()
+    return redirect("/scadenzario",code=303)
+
+
+@app.route("/scadenzario/elimina/<int:item_id>", methods=["POST"])
+def scad_delete(item_id):
+    user=scad_current_user()
+    if not user: return redirect("/scadenzario",code=303)
+    if not scad_csrf_ok(): return redirect("/scadenzario",code=303)
+    db=scad_db()
+    try:
+        db.execute("DELETE FROM scad_items WHERE id=? AND user_id=?",(item_id,user["id"]))
+        db.commit()
+    finally: db.close()
+    return redirect("/scadenzario",code=303)
+
+
+@app.route("/scadenzario/elimina-account", methods=["POST"])
+def scad_delete_account():
+    user=scad_current_user()
+    if not user: return redirect("/scadenzario",code=303)
+    if not scad_csrf_ok(): return redirect("/scadenzario",code=303)
+    db=scad_db()
+    try:
+        db.execute("DELETE FROM scad_users WHERE id=?",(user["id"],))
+        db.commit()
+    finally: db.close()
+    session.pop("scad_user_id",None); session.pop("scad_csrf",None)
+    return scad_shell("Account eliminato",'<div class="card"><h1>Account eliminato</h1><p>L’account e le relative scadenze sono stati eliminati dal database applicativo.</p><a class="btn" href="/">Torna a FixTude</a></div>')
+
+
+@app.route("/scadenzario/logout", methods=["POST"])
+def scad_logout():
+    if scad_csrf_ok():
+        session.pop("scad_user_id",None); session.pop("scad_csrf",None)
+    return redirect("/scadenzario",code=303)
+
+
+@app.route("/api/scadenzario/promemoria-automatici", methods=["POST"])
+def scad_automatic_reminders():
+    '''Endpoint da richiamare una volta al giorno tramite Render Cron Job.'''
+    supplied=request.headers.get("X-Cron-Secret","")
+    if not SCAD_CRON_SECRET or not supplied or not hmac.compare_digest(supplied,SCAD_CRON_SECRET):
+        return jsonify(error="Non autorizzato"),401
+    today=datetime.now(ROME_TZ).date()
+    db=scad_db()
+    try:
+        rows=db.execute("SELECT i.*,u.name,u.email,u.phone,u.email_reminders,u.sms_reminders FROM scad_items i JOIN scad_users u ON u.id=i.user_id WHERE i.status='da_pagare' AND i.last_auto_sent_on<>?",(today.isoformat(),)).fetchall()
+        sent_total=0
+        for item in rows:
+            try:
+                due=date.fromisoformat(item["due_date"])
+                if (due-today).days!=item["reminder_days"]: continue
+                user={"name":item["name"],"email":item["email"],"phone":item["phone"],"email_reminders":item["email_reminders"],"sms_reminders":item["sms_reminders"]}
+                sent,errors=scad_send_item_reminder(user,item,["email","sms"])
+                if sent: sent_total+=1
+                db.execute("UPDATE scad_items SET last_auto_sent_on=? WHERE id=?",(today.isoformat(),item["id"]))
+                if errors: app.logger.warning("Promemoria automatico scadenza %s: %s",item["id"],"; ".join(errors))
+            except Exception:
+                app.logger.exception("Promemoria automatico fallito per scadenza %s",item["id"])
+        db.commit()
+    finally: db.close()
+    return jsonify(ok=True, processed=len(rows), reminders_sent=sent_total, date=today.isoformat())
 
 
 @app.route("/health")
