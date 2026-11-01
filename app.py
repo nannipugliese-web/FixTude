@@ -256,18 +256,18 @@ def valid_email(value):
 
 SEO_BASE_URL = "https://www.fixtude.it"
 SEO_DEFAULT_DESCRIPTION = (
-    "FixTude è un sistema matematico-algoritmico automatizzato che elabora "
-    "entrate, uscite e situazione debitoria per restituire un'indicazione "
-    "orientativa attraverso un semaforo di sostenibilità."
+    "FixTude è uno strumento di orientamento con un sistema di valutazione "
+    "algoritmica che analizza entrate, uscite e debiti per individuare "
+    "un livello indicativo di sostenibilità economica."
 )
 SEO_PAGES = {
     "/": {
-        "title": "FixTude | Analisi matematica della situazione economica",
+        "title": "FixTude | Valutazione orientativa della sostenibilità economica",
         "description": SEO_DEFAULT_DESCRIPTION,
     },
     "/chi-siamo": {
-        "title": "Chi siamo | Il sistema matematico FixTude",
-        "description": "Scopri come funziona FixTude: un sistema digitale automatizzato che elabora dati economici e restituisce indicazioni matematiche, senza registrazione e senza promesse miracolose.",
+        "title": "Chi siamo | Il sistema di valutazione FixTude",
+        "description": "Scopri come funziona FixTude: uno strumento di orientamento con un sistema di valutazione algoritmica che analizza entrate, uscite e debiti, senza promesse di risultato.",
     },
     "/misuratore": {
         "title": "Calcolatore gratuito di sostenibilità del debito | FixTude",
@@ -808,7 +808,7 @@ def page(title, content, include_chat=False):
             {{ content|safe }}
           </main>
           <footer>
-            FixTude · Sistema matematico-algoritmico automatizzato.
+            FixTude · Strumento di orientamento con valutazione algoritmica della sostenibilità economica.
             <br><a href="/chi-siamo">Chi siamo</a> · Partita IVA 15990471003 ·
             <a href="/termini">Termini e Condizioni</a> ·
             <a href="/disclaimer">Disclaimer</a> ·
@@ -1662,7 +1662,7 @@ def _pdf_report(data):
         f"Entrate mensili nette: EUR {data['entrate']:.2f}",
         f"Uscite mensili: EUR {data['uscite']:.2f}",
         f"Situazione debitoria complessiva dichiarata: EUR {data['debiti']:.2f}",
-        "", "ELABORAZIONE MATEMATICA V6",
+        "", "VALUTAZIONE ALGORITMICA ORIENTATIVA V6",
         f"Saldo mensile: EUR {data['saldo']:.2f}",
         f"Margine mensile: EUR {data['margine']:.2f}",
         f"Margine in rapporto alle entrate: {data['percentuale_margine']:.2f}%",
@@ -1802,7 +1802,7 @@ def checkout_conferma_v2():
                 msg["Subject"] = "Il tuo report FixTude e i materiali acquistati"
                 msg["From"] = SMTP_FROM or SMTP_USER
                 msg["To"] = email
-                msg.set_content("Grazie per il tuo acquisto. In allegato trovi il report della tua analisi, il libro selezionato e i modelli fac-simile FixTude.\n\nFixTude - sistema matematico-algoritmico automatizzato.")
+                msg.set_content("Grazie per il tuo acquisto. In allegato trovi il report della tua analisi, il libro selezionato e i modelli fac-simile FixTude.\n\nFixTude - strumento di orientamento con valutazione algoritmica della sostenibilità economica.")
                 msg.add_attachment(package.getvalue(), maintype="application", subtype="zip", filename="FixTude_Report_e_Materiali.zip")
                 if SMTP_PORT == 465:
                     with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=20) as server:
@@ -1850,7 +1850,7 @@ def checkout_download_v2():
 
 @app.route("/chi-siamo")
 def chi_siamo_v2():
-    content = """<article class="card"><h1>Chi siamo</h1><p><strong>FixTude è un sistema matematico-algoritmico per l'analisi della sostenibilità economica personale.</strong></p><p>Non siamo uno studio di consulenza, non siamo un intermediario finanziario e non siamo uno studio legale. FixTude è uno strumento digitale progettato per elaborare le informazioni economiche inserite dall'utente attraverso un processo automatizzato che considera entrate, uscite e situazione debitoria complessiva.</p><p>Attraverso regole matematiche predeterminate, il sistema misura l'equilibrio mensile tra entrate e uscite e lo rappresenta con un semaforo rosso, giallo o verde. L'importo complessivo dei debiti viene riportato separatamente: da solo non permette di conoscere rate, interessi, arretrati o scadenze.</p><p><strong>Non promettiamo soluzioni miracolose. Non prendiamo decisioni al posto tuo. Non sostituiamo il giudizio di un professionista.</strong></p><p>Non è richiesta alcuna registrazione. I dati economici sono utilizzati per elaborare il risultato e predisporre il report acquistato; non viene creato un profilo personale o un archivio di bilancio.</p><p>Il risultato dipende dalla completezza e correttezza dei dati dichiarati. Il semaforo non certifica la sostenibilità del rimborso dei debiti: per questa valutazione servirebbero anche informazioni su rate, interessi, arretrati, scadenze e condizioni dei singoli creditori.</p><h2>Uno strumento intelligente, ma non umano.</h2><p>FixTude non interpreta emozioni, non formula giudizi personali e non garantisce risultati. Elabora numeri secondo criteri dichiarati e restituisce indicazioni matematiche.</p><p><strong>Elabora i numeri. Restituisce indicazioni. Lascia a te le decisioni.</strong></p></article>"""
+    content = """<article class="card"><h1>Chi siamo</h1><p><strong>FixTude è uno strumento di orientamento che utilizza un sistema di valutazione algoritmica per analizzare entrate, uscite e debiti e individuare un livello indicativo di sostenibilità economica.</strong></p><p>Non siamo uno studio di consulenza, non siamo un intermediario finanziario e non siamo uno studio legale. FixTude è uno strumento digitale progettato per elaborare le informazioni economiche inserite dall'utente attraverso regole e parametri predeterminati.</p><p>Il sistema confronta i dati dichiarati, applica criteri di calcolo prestabiliti e restituisce un'indicazione orientativa attraverso un semaforo rosso, giallo o verde. L'importo complessivo dei debiti viene considerato insieme al bilancio dichiarato, ma non consente da solo di conoscere rate, interessi, arretrati, scadenze o condizioni applicate dai singoli creditori.</p><p><strong>Non promettiamo soluzioni miracolose. Non prendiamo decisioni al posto tuo. Non sostituiamo il giudizio di un professionista.</strong></p><p>Non è richiesta alcuna registrazione. I dati economici sono utilizzati per elaborare il risultato e predisporre il report acquistato; non viene creato un profilo personale o un archivio di bilancio.</p><p>Il risultato dipende dalla completezza e correttezza dei dati dichiarati. Il semaforo è un'indicazione preliminare e non certifica la sostenibilità effettiva del rimborso dei debiti: per una valutazione completa servono anche informazioni su rate, interessi, arretrati, scadenze e condizioni dei singoli creditori.</p><h2>Uno strumento di orientamento, non un decisore.</h2><p>FixTude applica criteri dichiarati ai dati inseriti. Non interpreta emozioni, non formula giudizi personali, non effettua una valutazione professionale individuale e non garantisce risultati.</p><p><strong>Analizza i dati. Restituisce indicazioni orientative. Lascia a te le decisioni.</strong></p></article>"""
     return page("Chi siamo", content)
 
 
@@ -1957,7 +1957,7 @@ def misuratore():
 
     <section class="card">
       <h2>5. Simulazioni di piano di rientro</h2>
-      <p class="muted">Il confronto considera il debito complessivo dichiarato e non include eventuali interessi, spese, penali o condizioni contrattuali. La compatibilità matematica non significa che il creditore accetterà il piano.</p>
+      <p class="muted">Il confronto considera il debito complessivo dichiarato e non include eventuali interessi, spese, penali o condizioni contrattuali. La compatibilità teorica calcolata non significa che il creditore accetterà il piano.</p>
       <div class="table-wrap">
         <table class="result-table">
           <thead><tr><th>Durata</th><th>Rata mensile teorica</th><th>Confronto con la quota suggerita</th></tr></thead>
@@ -2293,7 +2293,7 @@ def misuratore():
         } else if (margin > 0 && balance / income >= 0.20 && monthsGreen <= 6) {
           quota = greenQuota;
           setTrafficLight("green", "VERDE — Rientro breve teoricamente compatibile", "Il debito rientra entro 6 mesi con una quota prudenziale del 30% del margine. La proposta resta da negoziare.");
-          assessment.textContent = "Dopo la riserva di " + money(RESERVE) + ", il margine prudenziale è " + money(margin) + ". La quota teorica è il 30% del margine, pari a " + money(quota) + ", e il debito rientra entro 6 mesi in via matematica.";
+          assessment.textContent = "Dopo la riserva di " + money(RESERVE) + ", il margine prudenziale è " + money(margin) + ". La quota teorica è il 30% del margine, pari a " + money(quota) + ", e, secondo i parametri applicati, il debito potrebbe rientrare entro 6 mesi.";
           nextStep.textContent = "Valuta una proposta di 3 o 6 mesi, verificando che la rata sia sostenibile e che il creditore la accetti per iscritto.";
         } else if (margin > 0 && monthsYellow <= 12) {
           quota = yellowQuota;
@@ -2336,7 +2336,7 @@ def misuratore():
           else { tdStatus.textContent = "Supera la quota prudenziale"; tdStatus.className = "status-bad"; }
           tr.append(tdMonths, tdRate, tdStatus); body.appendChild(tr);
         });
-        if (!dataComplete) summary.textContent = "Le rate sono soltanto matematiche: completa e verifica il bilancio prima di interpretare la compatibilità.";
+        if (!dataComplete) summary.textContent = "Le rate sono simulazioni teoriche: completa e verifica il bilancio prima di interpretare la compatibilità.";
         else if (anyFit) summary.textContent = "Almeno uno scenario rientra nella quota prudenziale calcolata. Restano da verificare interessi, costi, scadenze e accettazione del creditore.";
         else summary.textContent = "Nessuno degli scenari standard rientra nella quota prudenziale, oppure la quota è troppo contenuta per suggerire una rata. Non aumentare l'impegno per forzare il risultato.";
       }
@@ -2354,7 +2354,7 @@ def misuratore():
         if (lumpSum <= 0) {
           summary.textContent = "Per un debito di " + money(debt) + ", il 60% corrisponde a " + money(offer) + ". Non è stata indicata una somma una tantum disponibile, quindi la fattibilità finanziaria non è verificata.";
         } else if (lumpSum >= offer) {
-          summary.textContent = "La somma indicata copre matematicamente l'offerta ipotetica di " + money(offer) + ". Ciò non implica che il creditore accetti il 60%: occorre un accordo espresso e scritto che definisca gli effetti del pagamento.";
+          summary.textContent = "La somma indicata è sufficiente, in base al calcolo, a coprire l'offerta ipotetica di " + money(offer) + ". Ciò non implica che il creditore accetti il 60%: occorre un accordo espresso e scritto che definisca gli effetti del pagamento.";
         } else {
           summary.textContent = "La somma indicata (" + money(lumpSum) + ") è inferiore all'offerta teorica di " + money(offer) + ". La differenza è " + money(offer - lumpSum) + ". Non è possibile concludere che il creditore accetterà una cifra inferiore.";
         }
@@ -3810,9 +3810,9 @@ def legal_page(title, body):
 @app.route("/disclaimer")
 def legal_disclaimer():
     body = """<p>Questo Disclaimer descrive la natura e i limiti degli strumenti e dei contenuti disponibili su FixTude. Si applica in particolare al calcolatore di sostenibilità del debito, ai materiali informativi gratuiti e alle eventuali richieste di contatto.</p>
-    <h2>1. Natura del servizio</h2><p>FixTude è un servizio informativo e di orientamento che propone strumenti per organizzare i dati economici, comprendere alcune possibili opzioni e preparare domande o comunicazioni da sottoporre ai soggetti competenti. L'utilizzo del sito, del calcolatore, della chat o dei moduli gratuiti non costituisce di per sé conferimento di un incarico professionale, mandato a rappresentare l'utente o instaurazione automatica di un rapporto di consulenza.</p>
-    <h2>2. Calcolatore e semaforo V5</h2><p>Il sistema calcola il saldo mensile come differenza tra entrate nette e uscite. Il semaforo considera il margine e il debito complessivo: verde se il piano teorico rientra entro 6 mesi con quota del 30% del margine e margine almeno del 20%; giallo se rientra entro 12 mesi con quota del 25%; rosso se manca margine o il debito supera 12 mesi. Le soglie sono parametri convenzionali interni FixTude, non criteri normativi né certificazioni. In presenza di margine, il sistema ipotizza una quota prudenziale pari al 30% del margine nel verde e al 25% nel giallo; in rosso non suggerisce una quota di rimborso. Anche queste percentuali sono ipotesi interne FixTude, non regole ufficiali. Le uscite devono comprendere le rate e gli impegni mensili ricorrenti.</p>
-    <h2>3. Simulazioni di rientro e saldo e stralcio</h2><p>Le rate a 3, 6 e 12 mesi sono calcoli teorici basati sul debito inserito e non includono necessariamente interessi, commissioni, spese legali, penali o altri importi. Lo scenario di saldo e stralcio al 60% è un esempio matematico e negoziale, non una percentuale tipica o garantita. Soltanto il creditore può valutare e accettare una proposta; prima di effettuare pagamenti è necessario ottenere condizioni chiare e conferma scritta degli effetti dell'accordo.</p>
+    <h2>1. Natura del servizio</h2><p>FixTude è uno strumento informativo e di orientamento. Utilizza un <strong>sistema di valutazione algoritmica che analizza entrate, uscite e debiti per individuare un livello indicativo di sostenibilità economica</strong>. Il sistema applica regole e parametri di calcolo predeterminati ai dati inseriti dall'utente e restituisce simulazioni e indicazioni orientative. Non si tratta di una valutazione professionale personalizzata, di una certificazione di solvibilità o di una decisione sull'effettiva capacità di rimborso. L'utilizzo del sito, del calcolatore, della chat o dei moduli gratuiti non costituisce di per sé conferimento di un incarico professionale, mandato a rappresentare l'utente o instaurazione automatica di un rapporto di consulenza.</p>
+    <h2>2. Calcolatore e semaforo</h2><p>Il sistema elabora i dati dichiarati applicando criteri algoritmici e parametri convenzionali definiti da FixTude. Calcola il saldo mensile come differenza tra entrate nette e uscite e considera il margine disponibile insieme al debito complessivo dichiarato. In base ai parametri attualmente applicati, il semaforo è verde se il piano teorico rientra entro 6 mesi con una quota del 30% del margine e un margine almeno pari al 20% delle entrate; giallo se il rientro teorico è possibile entro 12 mesi con una quota del 25%; rosso se manca margine o il debito supera la capacità teorica di rientro entro 12 mesi. Le soglie e le percentuali sono parametri convenzionali interni FixTude, non criteri normativi, standard universali o certificazioni. Le uscite inserite devono comprendere le rate e gli impegni mensili ricorrenti. Il risultato è una prima indicazione automatizzata: non considera necessariamente tutte le circostanze personali, contrattuali e creditorie e deve essere verificato sulla base della documentazione completa.</p>
+    <h2>3. Simulazioni di rientro e saldo e stralcio</h2><p>Le rate a 3, 6 e 12 mesi sono calcoli teorici basati sul debito inserito e non includono necessariamente interessi, commissioni, spese legali, penali o altri importi. Lo scenario di saldo e stralcio al 60% è una simulazione numerica a scopo esemplificativo, non una percentuale tipica o garantita. Soltanto il creditore può valutare e accettare una proposta; prima di effettuare pagamenti è necessario ottenere condizioni chiare e conferma scritta degli effetti dell'accordo.</p>
     <h2>4. Nessuna garanzia di risultato</h2><p>FixTude non garantisce riduzioni del debito, sospensioni di azioni di recupero, accettazione di piani, cancellazioni o rettifiche nelle banche dati creditizie, né tempi o risultati specifici. Un esito verde non certifica la solvibilità; un esito giallo o rosso non costituisce una decisione definitiva sulla situazione dell'utente.</p>
     <h2>5. Limiti e professionisti abilitati</h2><p>I contenuti generali del sito non sostituiscono una consulenza legale, fiscale, contabile o finanziaria personalizzata. FixTude non si presenta, in forza del solo uso del sito, come avvocato, commercialista, consulente finanziario abilitato, organismo di composizione della crisi o rappresentante del cliente. In presenza di saldo nullo o negativo, atti giudiziari, precetti, pignoramenti o termini di opposizione, è opportuno rivolgersi tempestivamente a un avvocato esperto in diritto bancario/credito. Nei casi di possibile sovraindebitamento può essere utile verificare con un professionista l'accesso a un Organismo di composizione della crisi (OCC) e alle procedure previste dal Codice della crisi. Eventuali attività ulteriori, se offerte, dovranno essere descritte e concordate separatamente prima del loro avvio.</p>
     <h2>6. Documenti e informazioni inseriti dall'utente</h2><p>L'utente è responsabile di verificare i dati inseriti, gli importi dei debiti, l'identità dei creditori, le scadenze e i documenti ricevuti. Non caricare o inviare tramite moduli o chat documenti integrali, credenziali bancarie o dati personali non necessari. In presenza di atti giudiziari, termini di opposizione, procedure esecutive o scadenze imminenti, richiedi tempestivamente assistenza qualificata.</p>
