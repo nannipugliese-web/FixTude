@@ -3,7 +3,6 @@ import io
 import math
 import zipfile
 import unicodedata
-import textwrap
 import json
 import re
 import ssl
@@ -335,7 +334,7 @@ def page(title, content, include_chat=False):
     seo_title = seo.get("title", f"{title} | FixTude")
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
-    noindex_paths = ("/analisi", "/checkout", "/checkout/crea", "/checkout/conferma", "/checkout/download", "/chat-staff", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
+    noindex_paths = ("/chat-staff", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
     robots = "noindex, nofollow" if path in noindex_paths or path.startswith("/api/") else "index, follow, max-image-preview:large"
     structured_data = None
     if path == "/":
@@ -1203,16 +1202,6 @@ def fixtude_v1_route_guard():
         "/disclaimer", "/termini", "/privacy", "/cookie",
         "/robots.txt", "/sitemap.xml", "/favicon.svg", "/favicon-16.png", "/apple-touch-icon.png", "/favicon.ico", "/health",
     }
-    protected_static = {
-        "/static/pdf/NIENTE_PANICO.pdf",
-        "/static/pdf/FixTude_Guida_Saldo_e_Stralcio_EDIZIONE_RIVISTA_SEO.pdf",
-        "/static/FixTude_Modulo_Saldo_e_Stralcio_2_pagine.pdf",
-        "/static/FixTude_Modulo_Dilazione_Pagamento_2_pagine.pdf",
-        "/static/FixTude_Modulo_Piano_Rientro_con_Titoli_2_pagine.pdf",
-        "/static/FixTude_Libreria_Moduli_Richieste_Debitorie_6_pagine_v2.pdf",
-    }
-    if path in protected_static:
-        return ("Not Found", 404)
     if path in allowed or path.startswith("/static/"):
         return None
     if path.startswith("/api/") or path.startswith("/chat-") or path.startswith("/professionisti"):
@@ -1233,13 +1222,17 @@ def home():
       .ft-field label{display:block;font-weight:800;color:#203047;font-size:15px;margin-bottom:7px}
       .ft-field input{width:100%;border:1px solid #cbd7e5;border-radius:10px;padding:14px 13px;font-size:19px;font-weight:700;color:#203047;background:#fbfdff;outline:none}
       .ft-field input:focus{border-color:#2468b8;box-shadow:0 0 0 3px #2468b81c}
+      .ft-field-help{display:block;color:#718096;font-size:12px;line-height:1.4;margin-top:7px}
       .ft-traffic{margin:25px auto 14px;text-align:center}
       .ft-traffic-title{font-weight:900;letter-spacing:.08em;color:#203047;font-size:14px;margin-bottom:13px}
-      .ft-lights{display:flex;justify-content:center;gap:13px;background:#252b35;border:5px solid #161b23;border-radius:999px;padding:12px 18px;width:max-content;max-width:100%;margin:auto;box-shadow:inset 0 3px 8px #0008,0 8px 20px #14253a24}
-      .ft-light{width:49px;height:49px;border-radius:50%;background:#343a43;border:2px solid #171c23;box-shadow:inset 0 3px 7px #0009;transition:all .2s}
-      .ft-light.on.red{background:#f12632;box-shadow:0 0 9px #f12632,0 0 25px #f1263288,inset 0 2px 5px #fff8}
-      .ft-light.on.yellow{background:#ffd52e;box-shadow:0 0 9px #ffd52e,0 0 25px #ffd52e88,inset 0 2px 5px #fff9}
-      .ft-light.on.green{background:#20c66b;box-shadow:0 0 9px #20c66b,0 0 25px #20c66b88,inset 0 2px 5px #fff8}
+      .ft-lights{display:flex;flex-direction:column;justify-content:center;gap:9px;background:linear-gradient(145deg,#454d59,#111722 48%,#303846);border:4px solid #778292;border-radius:25px;padding:13px 14px;width:max-content;max-width:100%;margin:auto;box-shadow:inset 0 4px 8px #ffffff22,0 12px 24px #14253a38,0 5px 0 #080c12}
+      .ft-light{position:relative;width:65px;height:65px;border-radius:50%;background:radial-gradient(circle at 34% 25%,#626a75 0%,#333a45 48%,#151b24 100%);border:4px solid #10151d;box-shadow:inset 0 5px 10px #000b,0 2px 4px #0008;transition:all .22s}
+      .ft-light:after{content:"";position:absolute;left:17%;top:9%;width:57%;height:27%;border-radius:50%;background:linear-gradient(#ffffff55,#ffffff00);filter:blur(2px);pointer-events:none}
+      .ft-light.on.red{background:radial-gradient(circle at 32% 25%,#ffc0c0 0%,#ff3939 40%,#a9000b 82%);box-shadow:0 0 12px #ff2937,0 0 32px #ff293788,inset 0 4px 9px #fff9}
+      .ft-light.on.yellow{background:radial-gradient(circle at 32% 25%,#fff9bd 0%,#ffdf24 40%,#b57900 82%);box-shadow:0 0 12px #ffdf24,0 0 32px #ffdf2488,inset 0 4px 9px #fff9}
+      .ft-light.on.green{background:radial-gradient(circle at 32% 25%,#c1ffda 0%,#21e879 40%,#00733d 82%);box-shadow:0 0 12px #21e879,0 0 32px #21e87988,inset 0 4px 9px #fff9}
+      .ft-countdown{min-height:32px;margin:12px auto 0;font-size:24px;font-weight:900;color:#174b91;text-align:center;letter-spacing:.04em}
+      @media(max-width:520px){.ft-light{width:57px;height:57px}.ft-lights{gap:8px;padding:11px}}
       .ft-status{min-height:24px;margin:12px 0 0;font-weight:800;font-size:14px}
       .ft-submit{width:100%;margin-top:15px;min-height:54px;font-size:16px}
       .ft-submit:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
@@ -1247,7 +1240,8 @@ def home():
       @media(max-width:520px){.ft-field{padding:13px}.ft-light{width:43px;height:43px}.ft-lights{gap:10px;padding:10px 14px}.ft-tagline{font-size:26px}}
     </style>
     <section class="ft-v1">
-      <h1 class="ft-tagline">Non farti cercare dal recupero crediti,<span>cerca tu stesso la soluzione.</span></h1>
+      <h1 class="ft-tagline">Non farti cercare<span>dal recupero crediti, cerca tu stesso la soluzione.</span></h1>
+      <p class="ft-explain">Uno strumento intelligente, ma non umano: elabora i tuoi dati e restituisce un'indicazione matematica.</p>
       <form class="ft-fields" method="post" action="/analisi" id="ftCalculator" novalidate>
         <div class="ft-field">
           <label for="entrate">ENTRATE MENSILI NETTE (€)</label>
@@ -1256,6 +1250,7 @@ def home():
         <div class="ft-field">
           <label for="uscite">USCITE MENSILI (€)</label>
           <input id="uscite" name="uscite" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Es. 1.250" required>
+          <small class="ft-field-help">Includi anche le rate e gli impegni mensili che paghi regolarmente.</small>
         </div>
         <div class="ft-field">
           <label for="debiti">SITUAZIONE DEBITORIA COMPLESSIVA (€)</label>
@@ -1268,31 +1263,31 @@ def home():
             <span class="ft-light" id="ftYellow"></span>
             <span class="ft-light" id="ftGreen"></span>
           </div>
+          <div class="ft-countdown" id="ftCountdown" aria-live="assertive"></div>
           <div class="ft-status" id="ftStatus"></div>
         </div>
         <button class="btn ft-submit" id="ftSubmit" type="submit" disabled>ANALIZZA LA MIA SITUAZIONE</button>
       </form>
+      <p class="ft-note">Nessuna registrazione. I dati vengono elaborati per il calcolo e non sono archiviati in un profilo personale. Il risultato è orientativo e dipende dai valori inseriti.</p>
     </section>
     <script>
     (()=>{
+      const form=document.getElementById('ftCalculator');
       const fields=['entrate','uscite','debiti'].map(id=>document.getElementById(id));
       const lights={rosso:document.getElementById('ftRed'),giallo:document.getElementById('ftYellow'),verde:document.getElementById('ftGreen')};
-      const status=document.getElementById('ftStatus'),submit=document.getElementById('ftSubmit');
-      function evaluate(){
-        const values=fields.map(x=>x.value.trim()===''?null:Number(x.value));
-        const valid=values.every(v=>v!==null&&Number.isFinite(v)&&v>=0)&&values[0]>0;
-        Object.values(lights).forEach(x=>{x.className='ft-light'});status.textContent='';submit.disabled=!valid;
-        if(!valid)return;
-        const [income,expenses,debt]=values;
-        const surplus=income-expenses;
-        const reserve=Math.max(0,surplus-200);
-        const monthly=reserve*.5;
-        const months=debt<=0?0:(monthly>0?Math.ceil(debt/monthly):Infinity);
-        const color=(surplus<=0||months>60)?'rosso':(months>36?'giallo':'verde');
-        lights[color].className='ft-light on '+({rosso:'red',giallo:'yellow',verde:'green'}[color]);
-        status.textContent=({rosso:'ROSSO · criticità elevata',giallo:'GIALLO · situazione da monitorare',verde:'VERDE · margine potenzialmente sostenibile'}[color]);
-      }
+      const status=document.getElementById('ftStatus'),submit=document.getElementById('ftSubmit'),countdown=document.getElementById('ftCountdown');
+      let busy=false;
+      function evaluate(){const v=fields.map(x=>x.value.trim()===''?null:Number(x.value));const valid=v.every(n=>n!==null&&Number.isFinite(n)&&n>=0)&&v[0]>0;Object.values(lights).forEach(x=>x.className='ft-light');status.textContent='';submit.disabled=!valid;}
+      let audioCtx=null;
+      function beep(freq=850,duration=.12){try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!audioCtx)audioCtx=new AC();if(audioCtx.state==='suspended')audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(.0001,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.16,audioCtx.currentTime+.012);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+duration);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+duration+.025);}catch(e){}}
       fields.forEach(x=>x.addEventListener('input',evaluate));evaluate();
+      form.addEventListener('submit',async e=>{if(busy)return;const v=fields.map(x=>Number(x.value));if(!v.every(Number.isFinite)||v[0]<=0||v[1]<0||v[2]<0)return;e.preventDefault();busy=true;submit.disabled=true;Object.values(lights).forEach(x=>x.className='ft-light');status.textContent='Preparazione del risultato…';
+        const [income,expenses,debt]=v,balance=income-expenses,margin=balance/income,debtMonths=debt/income;
+        const color=(balance<=0||debtMonths>24)?'rosso':((margin<.20||debtMonths>6)?'giallo':'verde');const cls={rosso:'red',giallo:'yellow',verde:'green'};
+        countdown.textContent='PRONTI…';beep(520,.14);
+        for(let n=3;n>=1;n--){countdown.textContent=String(n);beep(n===1?1080:760,.14);await new Promise(r=>setTimeout(r,850));}
+        countdown.textContent='VIA!';beep(1320,.24);lights[color].className='ft-light on '+cls[color];status.textContent=({rosso:'ROSSO · situazione critica',giallo:'GIALLO · attenzione',verde:'VERDE · margine più favorevole'}[color]);await new Promise(r=>setTimeout(r,650));form.submit();
+      });
     })();
     </script>
     """
@@ -1300,7 +1295,7 @@ def home():
 
 
 @app.route("/analisi", methods=["POST"])
-def analisi_v1():
+def analisi_v2():
     def number(name):
         raw = (request.form.get(name) or "").strip().replace(",", ".")
         value = float(raw)
@@ -1314,86 +1309,124 @@ def analisi_v1():
     except (ValueError, TypeError):
         return page("Dati non validi", '<section class="card"><h1>Controlla i dati inseriti</h1><p>Inserisci tre importi numerici validi e un valore delle entrate superiore a zero.</p><a class="btn" href="/">Torna al calcolatore</a></section>'), 400
     risultato = calcola_semaforo(entrate, uscite, debiti)
-    session["fixtude_v1_calcolo"] = {"entrate": entrate, "uscite": uscite, "debiti": debiti, **risultato}
-    return redirect(url_for("checkout_v1"))
+    session["fixtude_v2_calcolo"] = {"entrate": entrate, "uscite": uscite, "debiti": debiti, **risultato}
+    return redirect(url_for("checkout_v2"))
 
 
 def calcola_semaforo(entrate, uscite, debiti):
+    """V3: combina margine mensile e peso del debito rispetto al reddito.
+    Rosso: saldo <= 0 oppure debito > 24 mensilità di entrate.
+    Giallo: saldo positivo con margine < 20%, oppure debito > 6 mensilità.
+    Verde: margine >= 20% e debito <= 6 mensilità.
+    Soglie convenzionali e orientative FixTude, non standard ufficiali.
+    """
     saldo = round(entrate - uscite, 2)
-    margine = max(0.0, saldo - 200.0)
-    rata_sostenibile = round(margine * 0.50, 2)
-    mesi = 0 if debiti <= 0 else (math.ceil(debiti / rata_sostenibile) if rata_sostenibile > 0 else None)
-    if saldo <= 0 or (debiti > 0 and (mesi is None or mesi > 60)):
-        colore, etichetta = "rosso", "Criticità elevata"
-    elif debiti > 0 and mesi > 36:
-        colore, etichetta = "giallo", "Situazione da monitorare"
+    percentuale_margine = round((saldo / entrate) * 100, 2) if entrate > 0 else 0.0
+    mesi_debito_raw = debiti / entrate if entrate > 0 else None
+    mesi_debito = round(mesi_debito_raw, 2) if mesi_debito_raw is not None else None
+    if saldo <= 0 or (mesi_debito_raw is not None and mesi_debito_raw > 24):
+        colore = "rosso"
+        etichetta = ("Le uscite sono pari o superiori alle entrate: non emerge un margine mensile positivo." if saldo <= 0 else "Il debito complessivo supera 24 mensilità di entrate: il suo peso relativo è molto elevato.")
+    elif percentuale_margine < 20 or (mesi_debito_raw is not None and mesi_debito_raw > 6):
+        colore = "giallo"
+        etichetta = ("Il saldo è positivo, ma il margine mensile è inferiore al 20% delle entrate." if percentuale_margine < 20 else "Il margine è positivo, ma il debito supera sei mensilità di entrate.")
     else:
-        colore, etichetta = "verde", "Margine potenzialmente sostenibile"
-    return {"saldo": saldo, "margine": margine, "rata_sostenibile": rata_sostenibile, "mesi_stimati": mesi, "colore": colore, "etichetta": etichetta}
+        colore = "verde"
+        etichetta = "Il margine è almeno il 20% delle entrate e il debito non supera sei mensilità."
+    rapporto_debito_reddito = round(debiti / (entrate * 12), 2) if entrate > 0 else None
+    return {"saldo":saldo,"margine":max(0.0,saldo),"percentuale_margine":percentuale_margine,"rapporto_debito_reddito":rapporto_debito_reddito,"mesi_debito":mesi_debito,"colore":colore,"etichetta":etichetta,"criterio_semaforo":"margine_20_debito_6_24_v3"}
 
 
 @app.route("/checkout", methods=["GET"])
-def checkout_v1():
-    data = session.get("fixtude_v1_calcolo")
+def checkout_v2():
+    data = session.get("fixtude_v2_calcolo")
     if not data:
         return redirect(url_for("home"))
-    annullato = "<p class='notice'>Il pagamento non è stato completato. Puoi scegliere nuovamente il prodotto.</p>" if request.args.get("annullato") else ""
-    content = f"""<section class="card"><p class="muted">ANALISI COMPLETATA</p><h1>Il tuo semaforo: <span style="color:{ {'rosso':'#c62828','giallo':'#b88600','verde':'#16834a'}[data['colore']] }">{data['colore'].upper()}</span></h1><p>{escape(data['etichetta'])}. Il report completo contiene il riepilogo dei dati, il calcolo del margine e una simulazione matematica.</p><p><strong>Margine mensile dopo la riserva:</strong> € {data['margine']:.2f}</p><p><strong>Quota mensile teoricamente destinabile:</strong> € {data['rata_sostenibile']:.2f}</p>{annullato}<h2>Scegli il libro da ricevere con il report</h2><form method="post" action="/checkout/crea"><div class="book-choice"><label><input type="radio" name="prodotto" value="niente_panico_pdf" required><strong>NIENTE PANICO</strong><br><span class="muted">Guida pratica per mettere ordine nella situazione debitoria · € 6,99</span></label></div><div class="book-choice"><label><input type="radio" name="prodotto" value="guida_saldo_stralcio_pdf" required><strong>GUIDA AL SALDO E STRALCIO</strong><br><span class="muted">Guida dedicata alla trattativa e alla chiusura dei debiti · € 6,99</span></label></div><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">PROCEDI AL PAGAMENTO</button></form></section><p class="muted">Il pagamento è gestito da Stripe. Non viene creato alcun account FixTude.</p><style>.book-choice{{border:1px solid #dce5ef;border-radius:12px;padding:17px;margin:13px 0;background:#fbfdff}}.book-choice label{{display:block;cursor:pointer}}.book-choice input{{margin-right:9px;accent-color:#174b91}}.check{{display:flex;gap:10px;align-items:flex-start;margin:20px 0;font-size:14px}}</style>"""
-    return page("Scelta del libro e pagamento", content)
+    color_hex = {"rosso": "#c62828", "giallo": "#b88600", "verde": "#16834a"}[data["colore"]]
+    annullato = "<p class='notice'>Il pagamento non è stato completato. Puoi riprovare.</p>" if request.args.get("annullato") else ""
+    content = f"""<section class="card">
+      <p class="muted">ANALISI COMPLETATA</p>
+      <h1>Il tuo semaforo: <span style="color:{color_hex}">{data['colore'].upper()}</span></h1>
+      <div style="display:flex;justify-content:center;margin:18px auto 22px"><div style="display:flex;flex-direction:column;gap:9px;padding:12px 14px;border-radius:22px;border:4px solid #778292;background:linear-gradient(145deg,#454d59,#111722 48%,#303846);box-shadow:inset 0 4px 8px #ffffff22,0 12px 24px #14253a38,0 5px 0 #080c12">{''.join(f'<span style="display:block;width:58px;height:58px;border-radius:50%;border:4px solid #10151d;background:{('#f12632' if data['colore']=='rosso' else '#343a43') if c=='rosso' else ('#ffd52e' if data['colore']=='giallo' else '#343a43') if c=='giallo' else ('#20c66b' if data['colore']=='verde' else '#343a43')};box-shadow:{('0 0 12px #ff2937,0 0 28px #ff293788' if c=='rosso' else 'inset 0 4px 9px #000b') if c=='rosso' else ('0 0 12px #ffdf24,0 0 28px #ffdf2488' if c=='giallo' else 'inset 0 4px 9px #000b') if c=='giallo' else ('0 0 12px #21e879,0 0 28px #21e87988' if c=='verde' else 'inset 0 4px 9px #000b')}"></span>' for c in ['rosso','giallo','verde'])}</div></div>
+      <p>{escape(data['etichetta'])}</p>
+      <p><strong>Margine mensile:</strong> € {data['margine']:.2f} ({data['percentuale_margine']:.1f}% delle entrate)</p>
+      <p class="muted">Il colore combina il margine mensile e il rapporto tra debito complessivo e reddito mensile. Le soglie sono convenzioni orientative FixTude, non criteri ufficiali o certificazioni di solvibilità.</p>
+      {annullato}
+      <h2>Il tuo Kit FixTude – € 1,99</h2>
+      <p>Il kit comprende il report personalizzato, i modelli fac-simile disponibili e <strong>un libro digitale a tua scelta, incluso nel prezzo</strong>.</p>
+      <form method="post" action="/checkout/crea">
+        <div class="book-choice"><label><input type="radio" name="prodotto" value="niente_panico_pdf" required><strong>NIENTE PANICO</strong><br><span class="muted">Guida pratica per mettere ordine nella situazione debitoria.</span></label></div>
+        <div class="book-choice"><label><input type="radio" name="prodotto" value="guida_saldo_stralcio_pdf" required><strong>GUIDA AL SALDO E STRALCIO</strong><br><span class="muted">Guida dedicata alla trattativa e alla chiusura dei debiti.</span></label></div>
+        <p><strong>Totale: € 1,99</strong> – un solo pagamento.</p>
+        <label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label>
+        <button class="btn" type="submit">ACQUISTA IL KIT – € 1,99</button>
+      </form>
+    </section>
+    <p class="muted">Pagamento gestito da Stripe. Nessuna registrazione FixTude.</p>
+    <style>.book-choice{{border:1px solid #dce5ef;border-radius:12px;padding:17px;margin:13px 0;background:#fbfdff}}.book-choice label{{display:block;cursor:pointer}}.book-choice input{{margin-right:9px;accent-color:#174b91}}.check{{display:flex;gap:10px;align-items:flex-start;margin:20px 0;font-size:14px}}</style>"""
+    return page("Kit FixTude – report e libro digitale", content)
 
 
 @app.route("/checkout/crea", methods=["POST"])
-def checkout_crea_v1():
-    data = session.get("fixtude_v1_calcolo")
+def checkout_crea_v2():
+    data = session.get("fixtude_v2_calcolo")
     if not data:
         return redirect(url_for("home"))
     if request.form.get("accept_terms") != "yes":
-        return redirect(url_for("checkout_v1"))
+        return redirect(url_for("checkout_v2"))
     products = {
-        "niente_panico_pdf": {"name": "NIENTE PANICO - libro digitale FixTude", "description": "Libro digitale PDF con report personalizzato e modelli fac-simile"},
-        "guida_saldo_stralcio_pdf": {"name": "Guida FixTude - Saldo e stralcio", "description": "Guida digitale PDF con report personalizzato e modelli fac-simile"},
+        "niente_panico_pdf": {"name": "Kit FixTude - Niente Panico incluso", "description": "Kit FixTude da 1,99 euro: report personalizzato, modelli fac-simile e un libro digitale a scelta"},
+        "guida_saldo_stralcio_pdf": {"name": "Kit FixTude - Guida Saldo e Stralcio inclusa", "description": "Kit FixTude da 1,99 euro: report personalizzato, modelli fac-simile e un libro digitale a scelta"},
     }
     product_id = (request.form.get("prodotto") or "").strip()
     product = products.get(product_id)
     secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
     if not product:
-        return redirect(url_for("checkout_v1"))
+        return redirect(url_for("checkout_v2"))
     if stripe is None or not secret_key:
         return page("Pagamento non disponibile", '<section class="card"><h1>Checkout temporaneamente non disponibile</h1><p>Il pagamento non è configurato. Non è stato effettuato alcun addebito.</p><a class="btn" href="/checkout">Torna alla scelta del libro</a></section>'), 503
     stripe.api_key = secret_key
     try:
         checkout = stripe.checkout.Session.create(
             mode="payment",
-            line_items=[{"price_data": {"currency": "eur", "unit_amount": 699, "product_data": {"name": product["name"], "description": product["description"]}}, "quantity": 1}],
+            line_items=[{"price_data": {"currency": "eur", "unit_amount": 199, "product_data": {"name": product["name"], "description": product["description"]}}, "quantity": 1}],
             success_url=request.host_url.rstrip("/") + "/checkout/conferma?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=request.host_url.rstrip("/") + "/checkout?annullato=1",
             billing_address_collection="auto",
             customer_creation="if_required",
-            metadata={"fixtude_product": product_id, "fixtude_flow": "v1_report"},
+            metadata={"fixtude_product": product_id, "fixtude_flow": "v2_kit_report"},
         )
-        session["fixtude_v1_product"] = product_id
+        session["fixtude_v2_product"] = product_id
         return redirect(checkout.url, code=303)
     except Exception:
-        app.logger.exception("Creazione checkout FixTude V1 non riuscita")
+        app.logger.exception("Creazione checkout FixTude V2 non riuscita")
         return page("Pagamento non disponibile", '<section class="card"><h1>Non è stato possibile avviare il pagamento</h1><p>Nessun pagamento è stato confermato. Riprova più tardi.</p><a class="btn" href="/checkout">Torna indietro</a></section>'), 502
 
 
 def _pdf_report(data):
     lines = [
-        "FIXTUDE - REPORT DI ANALISI MATEMATICA", "", "Esito: " + data["colore"].upper() + " - " + data["etichetta"],
-        "", "DATI INSERITI", f"Entrate mensili nette: EUR {data['entrate']:.2f}",
-        f"Uscite mensili: EUR {data['uscite']:.2f}", f"Situazione debitoria complessiva: EUR {data['debiti']:.2f}",
-        "", "ELABORAZIONE", f"Saldo mensile (entrate - uscite): EUR {data['saldo']:.2f}",
-        "Riserva prudenziale considerata: EUR 200.00", f"Margine oltre la riserva: EUR {data['margine']:.2f}",
-        f"Quota mensile teorica (50% del margine): EUR {data['rata_sostenibile']:.2f}",
-        "Tempo teorico: " + (f"{data['mesi_stimati']} mesi" if data["mesi_stimati"] is not None else "non stimabile con margine positivo"),
-        "", "CRITERI V1", "ROSSO: saldo non positivo oppure tempo teorico superiore a 60 mesi.",
-        "GIALLO: tempo teorico superiore a 36 e fino a 60 mesi.",
-        "VERDE: tempo teorico fino a 36 mesi, oppure debito dichiarato pari a zero.",
-        "", "Il calcolo è orientativo e usa esclusivamente i dati dichiarati dall'utente.",
-        "Non è una certificazione di solvibilità, una consulenza finanziaria o legale, né una promessa di accordo con i creditori.",
-        "La quota teorica non tiene conto di interessi, spese, priorità legali o condizioni contrattuali dei singoli debiti.",
-        "Verificare sempre i documenti e le scadenze con un professionista qualificato quando necessario.",
+        "FIXTUDE - REPORT DI ANALISI MATEMATICA V3", "",
+        "SEMAFORO: " + data["colore"].upper(), data["etichetta"],
+        "", "DATI INSERITI",
+        f"Entrate mensili nette: EUR {data['entrate']:.2f}",
+        f"Uscite mensili: EUR {data['uscite']:.2f}",
+        f"Situazione debitoria complessiva dichiarata: EUR {data['debiti']:.2f}",
+        "", "ELABORAZIONE MATEMATICA",
+        f"Saldo mensile (entrate meno uscite): EUR {data['saldo']:.2f}",
+        f"Margine mensile in rapporto alle entrate: {data['percentuale_margine']:.2f}%",
+        f"Debito espresso in mensilità di entrate: {data.get('mesi_debito', 0):.2f}",
+        "", "CRITERI DEL SEMAFORO V3",
+        "ROSSO: saldo <= 0 oppure debito superiore a 24 mensilità di entrate.",
+        "GIALLO: saldo positivo con margine < 20% oppure debito superiore a 6 mensilità.",
+        "VERDE: margine >= 20% e debito <= 6 mensilità.",
+        "Le soglie sono parametri interni orientativi FixTude, non soglie ufficiali o normative.",
+        "", "COME LEGGERE IL RISULTATO",
+        "Il semaforo combina il margine mensile e il peso del debito rispetto alle entrate mensili.",
+        "Tre soli importi non consentono di conoscere rate effettive, interessi, arretrati, scadenze, garanzie o priorità dei creditori.",
+        "Per questo il report non stima un tempo di rimborso né una rata sostenibile e non certifica la solvibilità.",
+        "Il risultato dipende dalla completezza e correttezza dei dati dichiarati dall'utente.",
+        "Non costituisce consulenza legale, fiscale, contabile o finanziaria personalizzata e non garantisce accordi con i creditori.",
+        "In presenza di atti giudiziari, termini o procedure esecutive, rivolgersi tempestivamente a un professionista qualificato.",
         "", "FixTude - sistema matematico-algoritmico automatizzato - www.fixtude.it",
     ]
     def esc(text):
@@ -1401,10 +1434,8 @@ def _pdf_report(data):
         return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
     commands = ["BT", "/F1 10 Tf", "50 790 Td", "14 TL"]
     for line in lines:
-        wrapped_lines = textwrap.wrap(line, width=88) if line else [""]
-        for wrapped in wrapped_lines:
-            commands.append(f"({esc(wrapped)}) Tj")
-            commands.append("T*")
+        commands.append(f"({esc(line)}) Tj")
+        commands.append("T*")
     commands.append("ET")
     stream = "\n".join(commands).encode("latin-1", "replace")
     objects = [
@@ -1417,8 +1448,7 @@ def _pdf_report(data):
     pdf = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
     offsets = [0]
     for i, obj in enumerate(objects, 1):
-        offsets.append(len(pdf))
-        pdf.extend(f"{i} 0 obj\n".encode()); pdf.extend(obj); pdf.extend(b"\nendobj\n")
+        offsets.append(len(pdf)); pdf.extend(f"{i} 0 obj\n".encode()); pdf.extend(obj); pdf.extend(b"\nendobj\n")
     xref = len(pdf)
     pdf.extend(f"xref\n0 {len(objects)+1}\n0000000000 65535 f \n".encode())
     for off in offsets[1:]: pdf.extend(f"{off:010d} 00000 n \n".encode())
@@ -1456,18 +1486,18 @@ def _get_paid_checkout(session_id):
     if data.get("payment_status") != "paid":
         return None
     metadata = data.get("metadata") or {}
-    if metadata.get("fixtude_flow") != "v1_report":
+    if metadata.get("fixtude_flow") != "v2_kit_report":
         return None
     return data
 
 
 @app.route("/checkout/conferma")
-def checkout_conferma_v1():
+def checkout_conferma_v2():
     session_id = (request.args.get("session_id") or "").strip()
     try:
         paid = _get_paid_checkout(session_id)
-        data = session.get("fixtude_v1_calcolo")
-        product_id = session.get("fixtude_v1_product")
+        data = session.get("fixtude_v2_calcolo")
+        product_id = session.get("fixtude_v2_product")
         if not paid or not data or not product_id:
             return page("Verifica pagamento", '<section class="card"><h1>Pagamento da verificare</h1><p>Non è stato possibile recuperare tutti i dati della sessione. Se il pagamento è stato effettuato, scrivi a info@fixtude.it indicando il riferimento della transazione.</p></section>'), 402
         package = _pacchetto_consegna(data, product_id)
@@ -1492,12 +1522,12 @@ def checkout_conferma_v1():
                 sent = True
             except Exception:
                 app.logger.exception("Invio email consegna FixTude non riuscito")
-        session.pop("fixtude_v1_calcolo", None)
-        session.pop("fixtude_v1_product", None)
+        session.pop("fixtude_v2_calcolo", None)
+        session.pop("fixtude_v2_product", None)
         content = f"""<section class="card"><h1>Pagamento confermato</h1><p>Il pagamento è stato verificato correttamente.</p><p>{'Il report e i materiali sono stati inviati all’indirizzo email indicato durante il checkout.' if sent else 'Il pacchetto è pronto. Puoi scaricarlo direttamente da questa pagina.'}</p><a class="btn" href="/checkout/download?session_id={escape(session_id, quote=True)}">SCARICA REPORT, LIBRO E FAC-SIMILE</a><p class="muted">Conserva il file ZIP sul tuo dispositivo. Non è stato creato un account FixTude.</p></section>"""
         # Keep the data in the signed session cookie until download in case SMTP is not configured.
-        session["fixtude_v1_calcolo"] = data
-        session["fixtude_v1_product"] = product_id
+        session["fixtude_v2_calcolo"] = data
+        session["fixtude_v2_product"] = product_id
         return page("Acquisto confermato", content)
     except FileNotFoundError as exc:
         app.logger.exception("Materiale FixTude non disponibile")
@@ -1508,12 +1538,12 @@ def checkout_conferma_v1():
 
 
 @app.route("/checkout/download")
-def checkout_download_v1():
+def checkout_download_v2():
     session_id = (request.args.get("session_id") or "").strip()
     try:
         paid = _get_paid_checkout(session_id)
-        data = session.get("fixtude_v1_calcolo")
-        product_id = session.get("fixtude_v1_product")
+        data = session.get("fixtude_v2_calcolo")
+        product_id = session.get("fixtude_v2_product")
         if not paid or not data or not product_id:
             return "Accesso non autorizzato o sessione scaduta", 403
         package = _pacchetto_consegna(data, product_id)
@@ -1527,8 +1557,8 @@ def checkout_download_v1():
 
 
 @app.route("/chi-siamo")
-def chi_siamo_v1():
-    content = """<article class="card"><h1>Chi siamo</h1><p><strong>FixTude è un sistema matematico-algoritmico per l'analisi della sostenibilità economica personale.</strong></p><p>Non siamo uno studio di consulenza, non siamo un intermediario finanziario e non siamo uno studio legale. FixTude è uno strumento digitale progettato per elaborare le informazioni economiche inserite dall'utente attraverso un processo automatizzato che considera entrate, uscite e situazione debitoria complessiva.</p><p>Attraverso regole matematiche predeterminate, il sistema restituisce un'indicazione sintetica della situazione, rappresentata da un semaforo rosso, giallo o verde.</p><p><strong>Non promettiamo soluzioni miracolose. Non prendiamo decisioni al posto tuo. Non sostituiamo il giudizio di un professionista.</strong></p><p>Non è richiesta alcuna registrazione. I dati economici sono utilizzati per elaborare il risultato e predisporre il report acquistato; non viene creato un profilo personale o un archivio di bilancio.</p><p>Il risultato dipende dalla completezza e correttezza dei dati dichiarati. Il sistema non verifica autonomamente i debiti, non considera automaticamente interessi, garanzie, prescrizioni, procedure o scadenze legali e non certifica la solvibilità.</p><h2>Uno strumento intelligente, ma non umano.</h2><p>FixTude non interpreta emozioni, non formula giudizi personali e non garantisce risultati. Elabora numeri secondo criteri dichiarati e restituisce indicazioni matematiche.</p><p><strong>Elabora i numeri. Restituisce indicazioni. Lascia a te le decisioni.</strong></p></article>"""
+def chi_siamo_v2():
+    content = """<article class="card"><h1>Chi siamo</h1><p><strong>FixTude è un sistema matematico-algoritmico per l'analisi della sostenibilità economica personale.</strong></p><p>Non siamo uno studio di consulenza, non siamo un intermediario finanziario e non siamo uno studio legale. FixTude è uno strumento digitale progettato per elaborare le informazioni economiche inserite dall'utente attraverso un processo automatizzato che considera entrate, uscite e situazione debitoria complessiva.</p><p>Attraverso regole matematiche predeterminate, il sistema misura l'equilibrio mensile tra entrate e uscite e lo rappresenta con un semaforo rosso, giallo o verde. L'importo complessivo dei debiti viene riportato separatamente: da solo non permette di conoscere rate, interessi, arretrati o scadenze.</p><p><strong>Non promettiamo soluzioni miracolose. Non prendiamo decisioni al posto tuo. Non sostituiamo il giudizio di un professionista.</strong></p><p>Non è richiesta alcuna registrazione. I dati economici sono utilizzati per elaborare il risultato e predisporre il report acquistato; non viene creato un profilo personale o un archivio di bilancio.</p><p>Il risultato dipende dalla completezza e correttezza dei dati dichiarati. Il semaforo non certifica la sostenibilità del rimborso dei debiti: per questa valutazione servirebbero anche informazioni su rate, interessi, arretrati, scadenze e condizioni dei singoli creditori.</p><h2>Uno strumento intelligente, ma non umano.</h2><p>FixTude non interpreta emozioni, non formula giudizi personali e non garantisce risultati. Elabora numeri secondo criteri dichiarati e restituisce indicazioni matematiche.</p><p><strong>Elabora i numeri. Restituisce indicazioni. Lascia a te le decisioni.</strong></p></article>"""
     return page("Chi siamo", content)
 
 
@@ -3076,7 +3106,7 @@ def educazione_finanziaria():
     </style>
     <section class="card" id="bilancio"><h2>Organizzare il bilancio familiare</h2><p>Annota le entrate nette effettivamente disponibili e separa le spese essenziali (casa, utenze, alimentazione, salute e trasporti) dalle spese flessibili. Inserisci poi rate, arretrati e scadenze. Il margine mensile è una stima: lascia un cuscinetto per gli imprevisti e non considerare sostenibile una rata che mette a rischio le necessità di base.</p><ul><li>Usa importi mensili omogenei.</li><li>Evita di contare entrate incerte come se fossero garantite.</li><li>Aggiorna il prospetto quando cambiano reddito o spese.</li></ul><p><a href="/">Prova il calcolatore gratuito di sostenibilità del debito</a>.</p></section>
     <section class="card" id="priorita"><h2>Dare priorità ai pagamenti</h2><p>Prima di distribuire il denaro tra i debiti, proteggi le necessità essenziali e valuta le scadenze concrete. Non esiste una priorità universale valida per ogni situazione: atti giudiziari, garanzie, utenze e debiti fiscali possono avere conseguenze differenti. Se hai ricevuto un atto con termini, chiedi tempestivamente una valutazione qualificata.</p><ul><li>Apri e conserva le comunicazioni ricevute.</li><li>Segna importo, creditore, scadenza e riferimento della pratica.</li><li>Non ignorare raccomandate, PEC o atti notificati.</li></ul></section>
-    <section class="card" id="creditori"><h2>Parlare con i creditori</h2><p>Una richiesta efficace è chiara, documentata e realistica. Indica il riferimento del rapporto, spiega brevemente la difficoltà, proponi un importo compatibile con il bilancio e chiedi conferma scritta delle condizioni. Non promettere pagamenti che non puoi sostenere e non considerare accettata una proposta finché non hai ricevuto una conferma verificabile.</p><p>Puoi approfondire i criteri e gli esempi nelle altre guide di educazione finanziaria.</p></section>
+    <section class="card" id="creditori"><h2>Parlare con i creditori</h2><p>Una richiesta efficace è chiara, documentata e realistica. Indica il riferimento del rapporto, spiega brevemente la difficoltà, proponi un importo compatibile con il bilancio e chiedi conferma scritta delle condizioni. Non promettere pagamenti che non puoi sostenere e non considerare accettata una proposta finché non hai ricevuto una conferma verificabile.</p><p>Puoi partire dai <a href="/educazione-finanziaria">moduli gratuiti FixTude</a> e personalizzarli.</p></section>
     <section class="card" id="errori"><h2>Errori da evitare</h2><ul><li>Pagare intermediari che promettono cancellazioni o risultati garantiti.</li><li>Firmare accordi senza aver letto importi, scadenze e conseguenze.</li><li>Inviare documenti personali a destinatari non verificati.</li><li>Contrarre nuovo debito senza valutare il costo totale e la sostenibilità.</li><li>Rimandare la richiesta di aiuto quando arrivano atti con termini precisi.</li></ul><p>Le informazioni di questa pagina sono generali e non sostituiscono una consulenza professionale.</p></section>'''
     return page("Educazione finanziaria", content)
 
@@ -3187,7 +3217,7 @@ def articolo_saldo_e_stralcio():
       <h2>In conclusione</h2>
       <p>Il saldo e stralcio può rappresentare un'opportunità di definizione concordata, ma non è uno sconto automatico e non elimina la necessità di verificare i documenti. Prima si ricostruisce la posizione, poi si valuta una proposta sostenibile; infine si controlla l'accordo scritto prima di pagare. Se ci sono procedure giudiziarie, più debitori, garanti o dubbi sull'importo richiesto, è prudente ottenere assistenza professionale.</p>
       <section class="notice"><strong>Nota informativa</strong><br>Questo articolo ha finalità generali di educazione finanziaria e non costituisce consulenza legale, fiscale o finanziaria personalizzata. Gli effetti di un accordo dipendono dal testo sottoscritto, dai soggetti coinvolti e dalle circostanze concrete. Non sono garantiti sconti, accettazioni o risultati.</section>
-      <div class="actions"><a class="btn" href="/">Torna al calcolatore FixTude</a><a class="btn outline" href="/">Calcola il tuo margine mensile</a><a class="btn outline" href="/educazione-finanziaria">Tutte le guide di educazione finanziaria</a></div>
+      <div class="actions"><a class="btn" href="/">Scopri la guida completa FixTude</a><a class="btn outline" href="/">Calcola il tuo margine mensile</a><a class="btn outline" href="/educazione-finanziaria">Tutte le guide di educazione finanziaria</a></div>
     </article>
     <style>
       .article-content h1{margin-top:0}.article-content h2{margin-top:30px}
@@ -3368,7 +3398,7 @@ def _crea_checkout_pdf(product_id, product_name, description, cancel_url):
     try:
         checkout = stripe.checkout.Session.create(
             mode="payment",
-            line_items=[{"price_data": {"currency": "eur", "unit_amount": 699, "product_data": {"name": product_name, "description": description}}, "quantity": 1}],
+            line_items=[{"price_data": {"currency": "eur", "unit_amount": 199, "product_data": {"name": product_name, "description": description}}, "quantity": 1}],
             success_url=request.host_url.rstrip("/") + "/shop/conferma?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=request.host_url.rstrip("/") + cancel_url,
             metadata={"fixtude_product": product_id, "terms_accepted": "yes", "terms_version": "2026-10-19"},
@@ -3451,7 +3481,7 @@ def shop_scarica():
 # DOCUMENTI LEGALI - IDENTIFICAZIONE DEL TITOLARE E INFORMATIVE
 # =========================================================
 
-LEGAL_VERSION = "2026-11-01"
+LEGAL_VERSION = "2026-10-19"
 LEGAL_OWNER_NAME = os.environ.get("FIXTUDE_TITOLARE_NOME", "Giovanni Pugliese").strip()
 LEGAL_OWNER_ADDRESS = os.environ.get("FIXTUDE_TITOLARE_INDIRIZZO", "Via Saronno 65, 00188 Roma, Italia").strip()
 LEGAL_VAT_NUMBER = os.environ.get("FIXTUDE_PARTITA_IVA", "15990471003").strip()
@@ -3465,45 +3495,50 @@ def legal_page(title, body):
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
     owner_line = f"{escape(LEGAL_OWNER_NAME)} · P. IVA {escape(LEGAL_VAT_NUMBER)} · {escape(LEGAL_OWNER_ADDRESS)} · {LEGAL_EMAIL}"
-    return Response(f"""<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123a72"><meta name="description" content="{escape(seo_description, quote=True)}"><meta name="robots" content="index, follow, max-image-preview:large"><link rel="canonical" href="{escape(canonical_url, quote=True)}"><link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261019" sizes="48x48"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=20261019"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20261019"><meta property="og:locale" content="it_IT"><meta property="og:type" content="website"><meta property="og:site_name" content="FixTude"><meta property="og:title" content="{escape(seo_title, quote=True)}"><meta property="og:description" content="{escape(seo_description, quote=True)}"><meta property="og:url" content="{escape(canonical_url, quote=True)}"><meta property="og:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><meta property="og:image:alt" content="Logo FixTude"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{escape(seo_title, quote=True)}"><meta name="twitter:description" content="{escape(seo_description, quote=True)}"><meta name="twitter:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><title>{escape(seo_title)}</title><style>body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.65 Arial,sans-serif}}main{{width:min(920px,calc(100% - 28px));margin:28px auto 50px}}.paper{{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:clamp(20px,4vw,38px)}}h1,h2{{line-height:1.25}}h1{{color:#174b91}}h2{{font-size:21px;margin-top:28px}}a{{color:#174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}footer{{border-top:1px solid #dce5ef;margin-top:28px;padding-top:16px;font-size:13px;color:#65758b}}.top{{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}}.brand{{font-size:24px;font-weight:800;color:#174b91;text-decoration:none}}</style></head><body><main><div class="top"><a class="brand" href="/">FixTude</a><a href="/">Torna al sito</a></div><article class="paper"><h1>{escape(title)}</h1><p class="muted">Versione {LEGAL_VERSION}</p><div class="notice"><strong>Denominazione del servizio:</strong> FixTude · <strong>Titolare:</strong> {escape(LEGAL_OWNER_NAME)} · <strong>P. IVA:</strong> {escape(LEGAL_VAT_NUMBER)}</div>{body}<footer><strong>Contatti:</strong> {owner_line}<br>Ultimo aggiornamento: 1 novembre 2026<br><button type="button" id="ft-cookie-reopen-footer" style="border:0;background:transparent;color:#174b91;text-decoration:underline;cursor:pointer;font:inherit">Preferenze cookie</button></footer></article></main></body></html>""", mimetype="text/html")
+    return Response(f"""<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123a72"><meta name="description" content="{escape(seo_description, quote=True)}"><meta name="robots" content="index, follow, max-image-preview:large"><link rel="canonical" href="{escape(canonical_url, quote=True)}"><link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261019" sizes="48x48"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=20261019"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20261019"><meta property="og:locale" content="it_IT"><meta property="og:type" content="website"><meta property="og:site_name" content="FixTude"><meta property="og:title" content="{escape(seo_title, quote=True)}"><meta property="og:description" content="{escape(seo_description, quote=True)}"><meta property="og:url" content="{escape(canonical_url, quote=True)}"><meta property="og:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><meta property="og:image:alt" content="Logo FixTude"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{escape(seo_title, quote=True)}"><meta name="twitter:description" content="{escape(seo_description, quote=True)}"><meta name="twitter:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><title>{escape(seo_title)}</title><style>body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.65 Arial,sans-serif}}main{{width:min(920px,calc(100% - 28px));margin:28px auto 50px}}.paper{{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:clamp(20px,4vw,38px)}}h1,h2{{line-height:1.25}}h1{{color:#174b91}}h2{{font-size:21px;margin-top:28px}}a{{color:#174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}footer{{border-top:1px solid #dce5ef;margin-top:28px;padding-top:16px;font-size:13px;color:#65758b}}.top{{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}}.brand{{font-size:24px;font-weight:800;color:#174b91;text-decoration:none}}</style></head><body><main><div class="top"><a class="brand" href="/">FixTude</a><a href="/">Torna al sito</a></div><article class="paper"><h1>{escape(title)}</h1><p class="muted">Versione {LEGAL_VERSION}</p><div class="notice"><strong>Denominazione del servizio:</strong> FixTude · <strong>Titolare:</strong> {escape(LEGAL_OWNER_NAME)} · <strong>P. IVA:</strong> {escape(LEGAL_VAT_NUMBER)}</div>{body}<footer><strong>Contatti:</strong> {owner_line}<br>Ultimo aggiornamento: 19 ottobre 2026<br><button type="button" id="ft-cookie-reopen-footer" style="border:0;background:transparent;color:#174b91;text-decoration:underline;cursor:pointer;font:inherit">Preferenze cookie</button></footer></article></main></body></html>""", mimetype="text/html")
 
 
 @app.route("/disclaimer")
 def legal_disclaimer():
-    body = """<p>FixTude è uno strumento digitale automatizzato che elabora tre valori dichiarati dall'utente: entrate mensili nette, uscite mensili e debiti complessivi residui. Il risultato è un'indicazione matematica orientativa, non una valutazione professionale o una certificazione di solvibilità.</p>
-    <h2>1. Regole di calcolo V1</h2><p>Il sistema calcola il saldo mensile sottraendo le uscite alle entrate. Dal saldo positivo sottrae una riserva prudenziale convenzionale di 200 euro; considera poi come quota teoricamente destinabile al debito il 50% del margine residuo. Divide l'importo complessivo dei debiti per tale quota e stima il numero di mesi teorici necessari.</p>
-    <h2>2. Semaforo</h2><p><strong>Rosso:</strong> saldo mensile nullo o negativo, quota teorica nulla oppure tempo teorico superiore a 60 mesi. <strong>Giallo:</strong> tempo teorico superiore a 36 e fino a 60 mesi. <strong>Verde:</strong> tempo teorico fino a 36 mesi oppure debito dichiarato pari a zero. La riserva, la percentuale e le soglie sono parametri convenzionali FixTude, non criteri ufficiali, soglie normative o garanzie di sostenibilità.</p>
-    <h2>3. Limiti</h2><p>Il calcolo non verifica l'esistenza o l'esattezza dei debiti e non considera automaticamente interessi, spese, rate contrattuali, garanzie, privilegi, prescrizioni, pignoramenti, procedure, scadenze o variazioni future di reddito e spesa. La quota teorica non è una proposta da inviare al creditore e non implica che un creditore accetti un piano o un saldo e stralcio.</p>
-    <h2>4. Natura del servizio</h2><p>FixTude non è uno studio legale, un intermediario finanziario o un consulente umano. Non promette soluzioni miracolose e non sostituisce il giudizio di professionisti abilitati. Un esito verde non certifica la solvibilità; un esito giallo o rosso non costituisce una decisione definitiva sulla situazione dell'utente.</p>
-    <h2>5. Dati e report acquistato</h2><p>I dati inseriti sono trasmessi al server per elaborare il risultato e mantenuti temporaneamente nella sessione tecnica del browser necessaria a completare il checkout e generare il report. Non viene creato un account né un profilo economico permanente. Dopo il pagamento, il report e i materiali acquistati sono preparati per il download e, se il servizio email è configurato, inviati all'indirizzo comunicato durante il checkout. Per i dettagli si rinvia all'<a href="/privacy">Informativa Privacy</a>.</p>
-    <h2>6. Decisioni e verifiche</h2><p>L'utente resta responsabile della correttezza dei dati inseriti e delle decisioni assunte. In presenza di atti giudiziari, termini di opposizione, procedure esecutive o scadenze imminenti è opportuno rivolgersi tempestivamente a un professionista qualificato. Per chiarimenti: info@fixtude.it.</p>"""
+    body = """<p>Questo Disclaimer descrive la natura e i limiti degli strumenti e dei contenuti disponibili su FixTude. Si applica in particolare al calcolatore di sostenibilità del debito, ai materiali informativi gratuiti e alle eventuali richieste di contatto.</p>
+    <h2>1. Natura del servizio</h2><p>FixTude è un servizio informativo e di orientamento che propone strumenti per organizzare i dati economici, comprendere alcune possibili opzioni e preparare domande o comunicazioni da sottoporre ai soggetti competenti. L'utilizzo del sito, del calcolatore, della chat o dei moduli gratuiti non costituisce di per sé conferimento di un incarico professionale, mandato a rappresentare l'utente o instaurazione automatica di un rapporto di consulenza.</p>
+    <h2>2. Calcolatore e semaforo V2</h2><p>Il sistema calcola il saldo mensile come differenza tra entrate e uscite. Il semaforo è rosso quando il saldo è pari o inferiore a zero; giallo quando è positivo ma inferiore al 15% delle entrate; verde quando è pari o superiore al 15%. La soglia del 15% è un parametro convenzionale informativo FixTude, non una soglia normativa o una certificazione. Le uscite devono includere anche le rate e gli impegni mensili ricorrenti. Il debito complessivo è riportato separatamente: il suo importo, da solo, non permette di conoscere rate, interessi, arretrati o scadenze e non consente di certificare la sostenibilità del rimborso.</p>
+    <h2>3. Simulazioni di rientro e saldo e stralcio</h2><p>Le rate a 6, 12 e 24 mesi sono calcoli teorici basati sul debito inserito e non includono necessariamente interessi, commissioni, spese legali, penali o altri importi. Lo scenario di saldo e stralcio al 60% è un esempio matematico e negoziale, non una percentuale tipica o garantita. Soltanto il creditore può valutare e accettare una proposta; prima di effettuare pagamenti è necessario ottenere condizioni chiare e conferma scritta degli effetti dell'accordo.</p>
+    <h2>4. Nessuna garanzia di risultato</h2><p>FixTude non garantisce riduzioni del debito, sospensioni di azioni di recupero, accettazione di piani, cancellazioni o rettifiche nelle banche dati creditizie, né tempi o risultati specifici. Un esito verde non certifica la solvibilità; un esito giallo o rosso non costituisce una decisione definitiva sulla situazione dell'utente.</p>
+    <h2>5. Limiti e professionisti abilitati</h2><p>I contenuti generali del sito non sostituiscono una consulenza legale, fiscale, contabile o finanziaria personalizzata. FixTude non si presenta, in forza del solo uso del sito, come avvocato, commercialista, consulente finanziario abilitato, organismo di composizione della crisi o rappresentante del cliente. Quando una situazione richiede una valutazione riservata a un professionista abilitato o a un organismo previsto dalla legge, l'utente dovrebbe rivolgersi al soggetto competente. Eventuali attività ulteriori, se offerte, dovranno essere descritte e concordate separatamente prima del loro avvio.</p>
+    <h2>6. Documenti e informazioni inseriti dall'utente</h2><p>L'utente è responsabile di verificare i dati inseriti, gli importi dei debiti, l'identità dei creditori, le scadenze e i documenti ricevuti. Non caricare o inviare tramite moduli o chat documenti integrali, credenziali bancarie o dati personali non necessari. In presenza di atti giudiziari, termini di opposizione, procedure esecutive o scadenze imminenti, richiedi tempestivamente assistenza qualificata.</p>
+    <h2>7. Elaborazione dei dati nel calcolatore</h2><p>Gli importi inseriti nel calcolatore sono trasmessi al server tramite HTTPS e conservati temporaneamente nella sessione tecnica firmata necessaria a mostrare il risultato, proseguire al checkout e generare il report dopo il pagamento. Non viene creato un account utente né un archivio permanente dei dati economici. I dati possono essere inclusi nel report scaricato e nel pacchetto inviato via email, se la consegna email è configurata. Per i dettagli sui dati del pagamento e sui fornitori consulta l'<a href="/privacy">Informativa Privacy</a>.</p>
+    <h2>8. Contatti e aggiornamenti</h2><p>Per chiarimenti sul servizio scrivi a info@fixtude.it. Questo Disclaimer può essere aggiornato quando cambiano le funzionalità o le condizioni del servizio. Le informazioni presenti sul sito non sostituiscono la lettura delle comunicazioni ufficiali ricevute dai creditori né la verifica della normativa applicabile al caso concreto.</p>"""
     return legal_page("Disclaimer", body)
 
 
 @app.route("/termini")
 def legal_terms():
-    body = """<p>I presenti Termini disciplinano l'utilizzo del sito FixTude, del calcolatore matematico e l'eventuale acquisto di libri digitali, report personalizzati e modelli fac-simile.</p>
-    <h2>1. Titolare e contatti</h2><p>FixTude è il nome del servizio digitale gestito da Giovanni Pugliese, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Contatti: info@fixtude.it.</p>
-    <h2>2. Utilizzo gratuito</h2><p>Il calcolatore è accessibile senza registrazione e richiede l'inserimento di entrate mensili nette, uscite mensili e situazione debitoria complessiva. Il sistema restituisce un semaforo e un'indicazione matematica orientativa. Le regole e i limiti sono descritti nel <a href="/disclaimer">Disclaimer</a> e nella pagina <a href="/chi-siamo">Chi siamo</a>.</p>
-    <h2>3. Prodotti digitali</h2><p>Dopo aver visualizzato il risultato, l'utente può selezionare uno dei libri digitali proposti. Il prezzo applicato è quello mostrato prima di procedere al checkout. L'acquisto comprende la preparazione del report basato sui dati inseriti, il libro selezionato e i modelli fac-simile FixTude disponibili per il pacchetto. I file sono forniti in formato digitale.</p>
-    <h2>4. Pagamento e consegna</h2><p>Il pagamento è elaborato da Stripe attraverso il relativo checkout sicuro. FixTude non riceve né conserva i dati completi della carta. Dopo la conferma del pagamento, i materiali sono resi disponibili tramite download e, se il servizio SMTP è correttamente configurato, inviati all'indirizzo email fornito al checkout. L'utente deve conservare la copia scaricata.</p>
-    <h2>5. Contenuti digitali e diritti del consumatore</h2><p>Restano fermi i diritti inderogabili riconosciuti dalla normativa applicabile. Prima di attivare la consegna immediata di contenuti digitali, il flusso di acquisto deve raccogliere le dichiarazioni espresse e le conferme richieste dalla disciplina sul diritto di recesso per i contenuti digitali. Le condizioni specifiche e le informazioni precontrattuali devono essere mostrate al consumatore prima del pagamento.</p>
-    <h2>6. Limiti del report</h2><p>Il report è una elaborazione automatizzata dei dati dichiarati. Non costituisce consulenza legale, fiscale, contabile o finanziaria personalizzata, non verifica documenti e non garantisce accordi, riduzioni, sospensioni o cancellazioni di debiti. I modelli fac-simile devono essere verificati e adattati al caso concreto.</p>
-    <h2>7. Uso corretto e proprietà intellettuale</h2><p>L'utente si impegna a fornire dati veritieri e a utilizzare il sito in modo lecito. Marchio, testi, grafica, libri e materiali originali sono protetti dalle norme applicabili. I modelli sono forniti per uso personale e non devono essere presentati come pareri professionali.</p>
-    <h2>8. Privacy e modifiche</h2><p>Il trattamento dei dati è descritto nell'<a href="/privacy">Informativa Privacy</a>. I Termini possono essere aggiornati per modifiche tecniche o normative; per gli acquisti conclusi restano fermi i diritti già acquisiti. Per assistenza: info@fixtude.it.</p>"""
+    body = """<p>I presenti Termini e Condizioni disciplinano l'uso del sito FixTude, dei suoi strumenti informativi e, quando attivo, l'acquisto del libro digitale <em>NIENTE PANICO</em>.</p>
+    <h2>1. Denominazione del servizio, titolare e contatti</h2><p>FixTude è la denominazione del servizio e del progetto editoriale online. Il servizio è gestito da Giovanni Pugliese, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per comunicazioni: info@fixtude.it. FixTude è il nome del servizio e non indica, da solo, una società distinta dal titolare sopra identificato.</p>
+    <h2>2. Calcolatore gratuito</h2><p>Il calcolatore è accessibile senza registrazione e richiede tre importi: entrate mensili nette, uscite mensili e situazione debitoria complessiva. I dati sono trasmessi al server tramite HTTPS e mantenuti temporaneamente nella sessione tecnica necessaria a mostrare il risultato, completare il checkout e generare il report; non viene creato un account o un archivio economico permanente. Il semaforo è un indicatore sintetico basato su una simulazione convenzionale che ipotizza di destinare ai debiti il 30% del saldo mensile positivo. Le soglie temporali sono parametri FixTude, non standard universali né una certificazione di solvibilità. Leggi anche il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
+    <h2>3. Limiti delle informazioni</h2><p>I contenuti hanno finalità informative e organizzative. Non costituiscono consulenza legale, fiscale o finanziaria personalizzata, non sostituiscono un professionista abilitato e non garantiscono riduzioni del debito, cancellazioni da banche dati o accettazione di proposte da parte dei creditori. L'utente deve verificare i dati e adattare i modelli alla propria situazione. Per i dettagli sui limiti del calcolatore e delle simulazioni consulta il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
+    <h2>4. Chat e richieste di contatto</h2><p>L'invio di una richiesta di contatto non comporta obbligo di acquistare servizi né garantisce tempi di risposta specifici. La chat non è un servizio di emergenza. Non inserire nella chat o nel modulo dati bancari, credenziali, documenti completi o dati personali non necessari.</p>
+    <h2>5. Kit digitale e pagamenti</h2><p>Il Kit FixTude costa € 1,99 e comprende un report personalizzato generato automaticamente sulla base dei tre importi inseriti, i modelli fac-simile disponibili e un libro digitale PDF a scelta tra quelli proposti nella pagina di checkout: <em>NIENTE PANICO</em> oppure <em>Guida al Saldo e Stralcio</em>. Il pagamento è elaborato da Stripe; il download del pacchetto viene reso disponibile dopo la verifica della transazione e, se il servizio email è configurato, inviato all'indirizzo comunicato durante il checkout. Non inviare i dati della carta a FixTude via email.</p>
+    <h2>6. Consumatori e recesso</h2><p>Restano fermi i diritti inderogabili riconosciuti ai consumatori dalla normativa applicabile. Per contenuti digitali forniti senza supporto materiale, l'eventuale perdita del diritto di recesso richiede che ricorrano tutte le condizioni previste dalla legge, incluse le dichiarazioni espresse richieste prima dell'inizio dell'esecuzione e la conferma su supporto durevole. Il flusso di acquisto deve prevedere le informazioni e le dichiarazioni espresse richieste dalla normativa prima dell'inizio della fornitura del contenuto digitale, oltre alla conferma su supporto durevole quando prevista.</p>
+    <h2>7. Uso corretto</h2><p>L'utente si impegna a usare il sito in modo lecito, a non tentare accessi non autorizzati, a non inviare spam e a non caricare dati di terzi senza una base legittima.</p>
+    <h2>8. Proprietà intellettuale</h2><p>Testi, grafica, marchio e materiali originali del sito sono protetti dalle norme applicabili. I modelli scaricabili possono essere utilizzati per esigenze personali, senza rimuovere avvertenze o presentare i contenuti come pareri professionali garantiti.</p>
+    <h2>9. Privacy</h2><p>Il trattamento dei dati personali è descritto nell'<a href="/privacy">Informativa Privacy</a>. L'accettazione dei presenti Termini non sostituisce l'informativa e non costituisce consenso generale a trattamenti facoltativi.</p>
+    <h2>10. Area Professionisti</h2><p>L’area professionisti è in fase di attivazione. La registrazione non comporta automaticamente la pubblicazione del profilo o l’attivazione di un abbonamento. I profili sono pubblicati solo dopo verifica e approvazione. Le eventuali funzionalità di inoltro richieste e i pacchetti di lead non sono pubblicati come offerta commerciale, non sono acquistabili e non saranno attivati fino alla definizione delle condizioni contrattuali e alla verifica legale e deontologica.</p><h2>11. Assistenza e modifiche</h2><p>Per richieste o reclami scrivere a info@fixtude.it. I termini potranno essere aggiornati per modifiche normative o tecniche; per gli acquisti conclusi restano fermi i diritti già acquisiti.</p>"""
     return legal_page("Termini e Condizioni", body)
 
 
 @app.route("/privacy")
 def privacy():
-    body = """<p>Questa informativa descrive i trattamenti connessi alla versione V1 di FixTude. Prima della pubblicazione definitiva il titolare deve verificare e completare i dati dei fornitori, i tempi di conservazione e gli accordi sul trattamento.</p>
-    <h2>1. Titolare del trattamento</h2><p>Il titolare è Giovanni Pugliese, gestore del servizio FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Contatto privacy: info@fixtude.it.</p>
-    <h2>2. Dati trattati</h2><ul><li><strong>Dati del calcolatore:</strong> entrate mensili, uscite mensili e debiti complessivi inseriti dall'utente. Sono trasmessi al server tramite HTTPS per eseguire il calcolo e mantenuti temporaneamente nella sessione tecnica firmata, necessaria a passare al checkout e generare il report. Non viene creato un account o un archivio permanente dei dati economici.</li><li><strong>Dati di acquisto:</strong> Stripe tratta i dati necessari al pagamento. FixTude riceve i dati della sessione e le informazioni di contatto comunicate al checkout, incluso l'indirizzo email quando fornito.</li><li><strong>Consegna digitale:</strong> il report, il libro selezionato e i modelli fac-simile sono assemblati temporaneamente in memoria per il download e, se SMTP è configurato, inviati come allegato ZIP all'indirizzo email del checkout. L'allegato contiene i valori economici inseriti e il relativo esito.</li><li><strong>Dati tecnici:</strong> il fornitore di hosting e l'infrastruttura possono trattare log, indirizzi IP, dati del browser e informazioni necessarie a sicurezza e funzionamento.</li><li><strong>Cookie:</strong> il sito utilizza cookie tecnici di sessione e, solo dopo il consenso, Google Analytics secondo le preferenze espresse nel pannello cookie.</li></ul>
-    <h2>3. Finalità e basi giuridiche</h2><p>I dati economici sono trattati per fornire il calcolo richiesto e, in caso di acquisto, preparare il report e i materiali digitali. I dati di pagamento e consegna sono trattati per eseguire il contratto e adempiere agli obblighi di legge. I dati tecnici sono trattati per sicurezza e funzionamento. Le statistiche sono attivate soltanto dopo il consenso, ove richiesto.</p>
-    <h2>4. Destinatari e fornitori</h2><p>I destinatari includono il fornitore di hosting (Render, se confermato nell'ambiente di produzione), Stripe per il checkout e il fornitore SMTP configurato per l'invio email. Google Analytics è attivato soltanto dopo consenso. Devono essere verificati i rispettivi accordi, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
-    <h2>5. Conservazione e assenza di account</h2><p>FixTude non richiede registrazione e non crea un profilo personale. I dati del calcolo sono conservati soltanto nella sessione tecnica necessaria a completare l'operazione; i dati della transazione restano nei sistemi di Stripe e i messaggi di consegna possono restare nella casella email del destinatario e nei sistemi SMTP secondo le relative regole. I log tecnici sono gestiti dal fornitore di hosting secondo le sue policy.</p>
-    <h2>6. Diritti dell'interessato</h2><p>Nei limiti previsti dal GDPR è possibile chiedere accesso, rettifica, cancellazione, limitazione, opposizione e, ove applicabile, portabilità, scrivendo a info@fixtude.it. È possibile proporre reclamo al Garante per la protezione dei dati personali.</p>
-    <h2>7. Sicurezza e aggiornamenti</h2><p>Il titolare verifica periodicamente la sicurezza del sito, i fornitori e la corrispondenza dell'informativa con i trattamenti effettivi. Non inserire dati relativi a terzi se non si dispone di un'idonea base giuridica. L'informativa sarà aggiornata in caso di variazioni rilevanti.</p>"""
+    body = """<p>Questa informativa descrive i principali trattamenti connessi alla versione attuale del sito FixTude. Viene aggiornata quando cambiano in modo rilevante le funzionalità, i fornitori o le modalità di trattamento.</p>
+    <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è Giovanni Pugliese, che gestisce il servizio denominato FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per richieste relative ai dati personali: info@fixtude.it.</p>
+    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio tramite Web3Forms. È presente anche l’endpoint alternativo <code>/api/contact</code>, che se invocato inoltra i dati tramite il server SMTP configurato dal titolare. L’applicazione non conserva una copia in un proprio database; i dati possono restare nei sistemi dei fornitori e nella casella email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude da € 1,99. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del pacchetto composto da report, un libro a scelta e modelli fac-simile.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
+    <h2>3. Basi giuridiche</h2><p>Le richieste di contatto sono trattate per rispondere a una richiesta dell'interessato e adottare misure precontrattuali su sua richiesta. I dati relativi ad acquisti sono trattati per eseguire il contratto e adempiere agli obblighi di legge. Sicurezza e prevenzione abusi possono basarsi sul legittimo interesse, da valutare e documentare. Eventuali attività promozionali richiedono una valutazione e, ove necessario, un consenso separato.</p>
+    <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l’hosting (se confermato in produzione), Web3Forms per il modulo visibile e le notifiche email della chat, il fornitore del servizio SMTP configurato per l’endpoint alternativo, Register per la casella email e Stripe per i pagamenti del libro, quando attivi. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
+    <h2>5. Cookie e strumenti di tracciamento</h2><p>Google Analytics (ID di misurazione G-HMBBNLHC7E) viene caricato soltanto dopo la scelta esplicita della categoria statistiche nel pannello cookie. Se la categoria viene rifiutata o disattivata, il sito non avvia nuove richieste di misurazione e aggiorna lo stato di consenso di Google Analytics. I pixel pubblicitari non sono attivi. Prima del lancio definitivo occorre verificare tecnicamente i cookie effettivamente installati e aggiornare questa informativa in base ai risultati.</p>
+    <h2>6. Conservazione</h2><p>I messaggi chat sono temporanei secondo quanto descritto sopra. Le richieste di contatto possono restare nei sistemi del fornitore di invio e nella casella email del destinatario. I tempi effettivi di conservazione dei fornitori, della posta e dei log devono essere verificati e definiti dal titolare prima del lancio.</p>
+    <h2>7. Diritti</h2><p>Nei limiti previsti dal GDPR è possibile chiedere accesso, rettifica, cancellazione, limitazione, opposizione e, ove applicabile, portabilità, scrivendo a info@fixtude.it. È possibile proporre reclamo al Garante per la protezione dei dati personali.</p>
+    <h2>8. Sicurezza e aggiornamenti</h2><p>Il titolare deve verificare periodicamente le misure di sicurezza, l'accesso ai sistemi, la configurazione dei fornitori e la corrispondenza di questa informativa con i trattamenti reali. La pagina va aggiornata prima di introdurre nuove funzionalità o servizi di terze parti.</p>"""
     return legal_page("Informativa Privacy", body)
 
 
@@ -3653,7 +3688,7 @@ def robots_txt():
         "Allow: /\n"
         "Disallow: /chat-staff\n"
         "Disallow: /api/\n"
-        "Disallow: /checkout\n"
+        "Disallow: /checkout/\n"
         f"Sitemap: {SEO_BASE_URL}/sitemap.xml\n"
     )
     return Response(body, mimetype="text/plain; charset=utf-8")
