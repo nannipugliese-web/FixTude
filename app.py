@@ -1,4 +1,9 @@
 import os
+import io
+import math
+import zipfile
+import unicodedata
+import textwrap
 import json
 import re
 import ssl
@@ -11,10 +16,7 @@ import secrets
 import hmac
 import struct
 import zlib
-import base64
-import urllib.parse
-import urllib.request
-from datetime import datetime, date, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 from email.message import EmailMessage
 from html import escape
@@ -254,22 +256,18 @@ def valid_email(value):
 
 SEO_BASE_URL = "https://www.fixtude.it"
 SEO_DEFAULT_DESCRIPTION = (
-    "FixTude ti aiuta a fare chiarezza sulla situazione debitoria con un "
-    "calcolatore gratuito di sostenibilità, materiali informativi e la "
-    "possibilità di chiedere un ricontatto."
+    "FixTude è un sistema matematico-algoritmico automatizzato che elabora "
+    "entrate, uscite e situazione debitoria per restituire un'indicazione "
+    "orientativa attraverso un semaforo di sostenibilità."
 )
 SEO_PAGES = {
     "/": {
-        "title": "FixTude | Prevenzione e gestione consapevole dei debiti",
-        "description": "FixTude: strumenti per prevenire l'indebitamento, valutare la sostenibilità delle rate, gestire le difficoltà e trovare informazioni pratiche.",
+        "title": "FixTude | Analisi matematica della situazione economica",
+        "description": SEO_DEFAULT_DESCRIPTION,
     },
-    "/scadenzario": {
-        "title": "Scadenzario personale: rate, bollette e promemoria | FixTude",
-        "description": "Organizza rate, bollette, finanziamenti e pagamenti in uno scadenzario personale con promemoria via email e SMS.",
-    },
-    "/assistenza": {
-        "title": "Richiedi assistenza per la tua situazione debitoria | FixTude",
-        "description": "Hai ricevuto un sollecito o fai fatica a pagare? Scegli il percorso di contatto FixTude più adatto alla tua situazione.",
+    "/chi-siamo": {
+        "title": "Chi siamo | Il sistema matematico FixTude",
+        "description": "Scopri come funziona FixTude: un sistema digitale automatizzato che elabora dati economici e restituisce indicazioni matematiche, senza registrazione e senza promesse miracolose.",
     },
     "/misuratore": {
         "title": "Calcolatore gratuito di sostenibilità del debito | FixTude",
@@ -294,10 +292,6 @@ SEO_PAGES = {
     "/educazione-finanziaria/guida-saldo-e-stralcio": {
         "title": "Saldo e stralcio: cos'è, come funziona e quando conviene | FixTude",
         "description": "Saldo e stralcio dei debiti: come funziona la trattativa, quali rischi controllare, cosa scrivere nell'accordo e come evitare errori prima di pagare.",
-    },
-    "/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro": {
-        "title": "Piano di rientro con cambiali: pro, contro e rischi | FixTude",
-        "description": "Piano di rientro con cambiali: scopri vantaggi, rischi, conseguenze del mancato pagamento e cosa controllare prima di firmare.",
     },
     "/sic": {
         "title": "Sistemi di informazione creditizia (SIC) | FixTude",
@@ -334,14 +328,14 @@ SEO_PAGES = {
 }
 
 
-def page(title, content, include_chat=True):
+def page(title, content, include_chat=False):
     """Layout comune, responsive, con metadati SEO e pulsante chat."""
     path = request.path or "/"
     seo = SEO_PAGES.get(path, {})
     seo_title = seo.get("title", f"{title} | FixTude")
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
-    noindex_paths = ("/scadenzario", "/chat-staff", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
+    noindex_paths = ("/analisi", "/checkout", "/checkout/crea", "/checkout/conferma", "/checkout/download", "/chat-staff", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
     robots = "noindex, nofollow" if path in noindex_paths or path.startswith("/api/") else "index, follow, max-image-preview:large"
     structured_data = None
     if path == "/":
@@ -797,17 +791,8 @@ def page(title, content, include_chat=True):
               <a class="brand" href="/" aria-label="FixTude, homepage">FixTude</a>
               <button class="menu-toggle" id="siteMenuToggle" type="button" aria-label="Apri menu" aria-expanded="false" aria-controls="siteMenu">☰</button>
               <nav class="nav-menu" id="siteMenu" aria-label="Menu principale">
-                <a href="/">Home</a>
-                <a href="/assistenza">Richiedi assistenza</a>
-                <a href="/misuratore">Calcolatore</a>
-                <a href="/scadenzario">Scadenzario</a>
-                <a href="/consulenza">Contatta un esperto</a>
-                <a href="/moduli">Moduli gratuiti</a>
                 <a href="/educazione-finanziaria">Educazione finanziaria</a>
-                <a href="/sic">Banche dati SIC</a>
-                <a href="/assistenza-legale">Assistenza Legale</a>
-                <a href="/professionisti">Area Professionisti</a>
-                <a href="/shop">Shop</a>
+                <a href="/chi-siamo">Chi siamo</a>
               </nav>
             </div>
             <script>
@@ -823,8 +808,8 @@ def page(title, content, include_chat=True):
             {{ content|safe }}
           </main>
           <footer>
-            FixTude · Informazione orientativa, senza impegno.
-            <br>Partita IVA 15990471003 ·
+            FixTude · Sistema matematico-algoritmico automatizzato.
+            <br><a href="/chi-siamo">Chi siamo</a> · Partita IVA 15990471003 ·
             <a href="/termini">Termini e Condizioni</a> ·
             <a href="/disclaimer">Disclaimer</a> ·
             <a href="/privacy">Privacy</a> ·
@@ -1207,286 +1192,344 @@ def page(title, content, include_chat=True):
 # HOME
 # =========================================================
 
-@app.route("/")
-def home():
-    content = """
-    <style>
-      .ft-menu-home{max-width:1040px;margin:18px auto 30px}
-      .ft-menu-hero{
-        text-align:center;padding:clamp(28px,5vw,48px) 24px 34px;
-        border-radius:22px;
-        background:radial-gradient(ellipse at 50% 0%,#dcefff 0%,#f3f8fd 58%,#fff 100%);
-        border:1px solid #dce9f7;
-      }
-      .ft-menu-kicker{display:inline-block;margin:0 0 12px;padding:6px 12px;border-radius:999px;
-        background:#e4f0ff;color:#174b91;font-size:12px;font-weight:800;letter-spacing:.07em}
-      .ft-menu-hero h1{max-width:790px;margin:0 auto 14px;color:#103b78;
-        font-size:clamp(29px,4.6vw,45px);line-height:1.12;letter-spacing:-.7px}
-      .ft-menu-hero p{max-width:680px;margin:0 auto;color:#435875;font-size:clamp(16px,1.8vw,19px);line-height:1.55}
-      .ft-menu-hero .ft-menu-emphasis{margin-top:12px;color:#174b91;font-weight:800}
-      .ft-menu-section{margin:28px 0 0}
-      .ft-menu-section h2{margin:0 0 7px;color:#173f78;font-size:clamp(21px,2.5vw,26px)}
-      .ft-menu-section-intro{margin:0 0 17px;color:#65758b}
-      .ft-menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-      .ft-menu-card{display:flex;gap:16px;align-items:flex-start;min-height:150px;padding:22px;
-        border:1px solid #dce5ef;border-radius:17px;background:#fff;text-decoration:none;color:#203047;
-        box-shadow:0 5px 18px rgba(20,48,85,.045);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
-      .ft-menu-card:hover{transform:translateY(-3px);border-color:#a9c8ec;box-shadow:0 12px 26px rgba(20,48,85,.10)}
-      .ft-menu-card:focus-visible{outline:3px solid #8ab8ef;outline-offset:3px}
-      .ft-menu-icon{display:flex;align-items:center;justify-content:center;flex:0 0 62px;width:62px;height:62px;
-        border-radius:18px;background:linear-gradient(145deg,#edf6ff,#d9eaff);color:#174b91;box-shadow:inset 0 1px 0 #fff,0 5px 12px rgba(23,75,145,.09)}
-      .ft-menu-icon svg{width:39px;height:39px;display:block;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-      .ft-menu-card:nth-child(2) .ft-menu-icon{background:linear-gradient(145deg,#e8f8f1,#ccefe0);color:#13764c}
-      .ft-menu-card:nth-child(3) .ft-menu-icon{background:linear-gradient(145deg,#fff4df,#ffe2ad);color:#9a5a00}
-      .ft-menu-card:nth-child(4) .ft-menu-icon{background:linear-gradient(145deg,#fff0f0,#ffd9dc);color:#b12b3a}
-      .ft-menu-card:nth-child(5) .ft-menu-icon{background:linear-gradient(145deg,#f1edff,#dfd8ff);color:#6046a8}
-      .ft-menu-card:nth-child(6) .ft-menu-icon{background:linear-gradient(145deg,#e8f4ff,#cfe6ff);color:#175d9e}
-      .ft-menu-copy{min-width:0}
-      .ft-menu-copy h3{margin:1px 0 7px;color:#174b91;font-size:19px;line-height:1.25}
-      .ft-menu-copy p{margin:0;color:#65758b;font-size:14px;line-height:1.5}
-      .ft-menu-arrow{display:block;margin-top:12px;color:#174b91;font-size:13px;font-weight:800}
-      .ft-menu-card.coming{background:#f8fafc;box-shadow:none;border-style:dashed;cursor:default}
-      .ft-menu-card.coming .ft-menu-icon{background:#edf0f4;color:#738197}
-      .ft-menu-card.coming .ft-menu-copy h3{color:#526176}
-      .ft-menu-status{display:inline-block;margin-top:10px;padding:4px 9px;border-radius:999px;
-        background:#eef1f5;color:#64748b;font-size:11px;font-weight:800}
-      .ft-menu-bottom{margin:24px 0 0;padding:19px 22px;border-radius:15px;background:#edf5ff;
-        color:#174b91;text-align:center}
-      .ft-menu-bottom strong{display:block;font-size:17px;margin-bottom:4px}
-      .ft-menu-bottom p{margin:0;font-size:14px}
-      @media(max-width:650px){
-        .ft-menu-home{margin:8px auto 22px}
-        .ft-menu-hero{padding:25px 17px 27px;border-radius:16px}
-        .ft-menu-hero h1{font-size:clamp(27px,8vw,35px)}
-        .ft-menu-grid{grid-template-columns:1fr;gap:11px}
-        .ft-menu-card{min-height:0;padding:17px 15px;gap:13px;border-radius:14px}
-        .ft-menu-icon{flex-basis:52px;width:52px;height:52px;border-radius:15px}
-        .ft-menu-icon svg{width:33px;height:33px}
-        .ft-menu-copy h3{font-size:18px}
-      }
-      @media(prefers-reduced-motion:reduce){.ft-menu-card{transition:none}}
-    </style>
-
-    <div class="ft-menu-home">
-      <section class="ft-menu-hero">
-        <span class="ft-menu-kicker">IL TUO SPAZIO DI ORIENTAMENTO ECONOMICO</span>
-        <h1>Gioca d'anticipo. Non lasciare che i debiti decidano per te.</h1>
-        <p>La tranquillità economica comincia dalla consapevolezza: controlla gli impegni, valuta le risorse e scegli con maggiore lucidità come muoverti.</p>
-        <p class="ft-menu-emphasis">Prevenire, capire, affrontare: scegli da dove cominciare.</p>
-      </section>
-
-      <section class="ft-menu-section" aria-labelledby="ft-menu-title">
-        <h2 id="ft-menu-title">Come possiamo aiutarti?</h2>
-        <p class="ft-menu-section-intro">Accedi direttamente al percorso più adatto alla tua situazione.</p>
-
-        <div class="ft-menu-grid">
-          <a class="ft-menu-card" href="/educazione-finanziaria">
-            <span class="ft-menu-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M8 34 19 23l7 7L40 15"/><path d="M29 15h11v11"/><path d="M8 11v27h32"/></svg></span>
-            <span class="ft-menu-copy">
-              <h3>Prevenire i debiti</h3>
-              <p>Impara a organizzare entrate, spese e impegni prima che diventino un problema.</p>
-              <span class="ft-menu-arrow">Scopri come prevenire →</span>
-            </span>
-          </a>
-
-          <a class="ft-menu-card" href="/misuratore">
-            <span class="ft-menu-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="7" y="8" width="34" height="32" rx="5"/><path d="M14 31v-7m10 7V15m10 16V21"/><path d="M13 14h5"/></svg></span>
-            <span class="ft-menu-copy">
-              <h3>Check-up finanziario</h3>
-              <p>Utilizza il calcolatore gratuito per valutare il margine mensile e il peso delle rate.</p>
-              <span class="ft-menu-arrow">Fai il check-up →</span>
-            </span>
-          </a>
-
-          <a class="ft-menu-card" href="/scadenzario">
-            <span class="ft-menu-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="7" y="10" width="34" height="31" rx="5"/><path d="M15 6v8m18-8v8M7 19h34"/><path d="M15 26h5m8 0h5m-18 8h5m8 0h5"/></svg></span>
-            <span class="ft-menu-copy">
-              <h3>Scadenzario</h3>
-              <p>Uno spazio per tenere sotto controllo rate, pagamenti e impegni dei tuoi piani di rientro.</p>
-              <span class="ft-menu-arrow">Organizza le tue scadenze →</span>
-            </span>
-          </a>
-
-          <a class="ft-menu-card" href="/assistenza">
-            <span class="ft-menu-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 6 41 37H7L24 6Z"/><path d="M24 18v9m0 5h.01"/></svg></span>
-            <span class="ft-menu-copy">
-              <h3>Ho già dei debiti</h3>
-              <p>Hai ricevuto un sollecito, fai fatica a pagare o vuoi parlare della tua situazione?</p>
-              <span class="ft-menu-arrow">Richiedi assistenza →</span>
-            </span>
-          </a>
-
-          <a class="ft-menu-card" href="/educazione-finanziaria">
-            <span class="ft-menu-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M10 8h21l7 7v25H10z"/><path d="M31 8v8h7M16 23h16M16 29h16M16 35h10"/></svg></span>
-            <span class="ft-menu-copy">
-              <h3>Educazione finanziaria</h3>
-              <p>Leggi approfondimenti pratici per gestire il bilancio familiare e le decisioni economiche.</p>
-              <span class="ft-menu-arrow">Leggi gli articoli →</span>
-            </span>
-          </a>
-
-          <a class="ft-menu-card" href="/shop">
-            <span class="ft-menu-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M8 17h32v23H8z"/><path d="M6 17 11 8h26l5 9M17 25h14"/><path d="M20 17v-4h8v4"/></svg></span>
-            <span class="ft-menu-copy">
-              <h3>Guide e strumenti</h3>
-              <p>Consulta le guide e i materiali FixTude per orientarti e affrontare le situazioni debitorie.</p>
-              <span class="ft-menu-arrow">Vai alle guide →</span>
-            </span>
-          </a>
-        </div>
-      </section>
-
-      <section class="ft-menu-bottom">
-        <strong>Hai bisogno di parlare con FixTude?</strong>
-        <p>Puoi inviare una richiesta di ricontatto oppure utilizzare la chat negli orari di disponibilità.</p>
-        <p style="margin-top:12px"><a class="btn" href="/consulenza">Contatta FixTude</a></p>
-      </section>
-    </div>
-    """
-    return page("Prevenzione e gestione dei debiti", content)
-
-
-@app.route("/assistenza")
-def home_assistenza():
-    content = """
-    <style>
-      /* Home FixTude: proporzioni compatte, azzurro tenue e pulsanti 3D */
-      .ft-home{
-        width:calc(100% - 32px);max-width:800px;margin:24px auto 30px;padding:30px 26px 26px;
-        box-sizing:border-box;text-align:center;position:relative;isolation:isolate;
-        background:radial-gradient(ellipse at 50% 0%,rgba(210,237,255,.88) 0%,rgba(242,248,253,.94) 48%,rgba(255,255,255,.98) 100%);
-        border-radius:20px;overflow:hidden
-      }
-      .ft-home h1{font-size:clamp(30px,3.4vw,42px);line-height:1.12;letter-spacing:-.025em;margin:0 auto 12px;max-width:680px;color:#103b78;text-wrap:balance}
-      .ft-home h1 span{display:block}
-      .ft-home .lead{font-size:clamp(16px,1.6vw,19px);line-height:1.45;max-width:570px;margin:0 auto 16px;color:#174b91;text-wrap:pretty}
-      .ft-home p.ft-home-motto{display:block;width:calc(100% - 8px);max-width:600px;box-sizing:border-box;margin:0 auto 22px!important;padding:12px 18px;border-radius:14px;background:linear-gradient(110deg,#0d438d,#0874d9);color:#fff!important;font-size:clamp(14px,1.45vw,17px);font-weight:800;line-height:1.35;text-align:center!important;position:relative;left:auto!important;right:auto!important;transform:none!important;float:none!important;box-shadow:0 4px 0 #073675,0 8px 16px rgba(12,54,108,.16)}
-      .ft-home-motto *{color:#fff!important}
-      .ft-home-motto span{display:block}
-      .ft-home-motto span+span{margin-top:2px}
-      .ft-home-actions{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;margin:22px auto 26px;max-width:590px}
-      .ft-home-actions .btn{
-        display:flex;align-items:center;justify-content:center;text-align:center;
-        width:100%;max-width:560px;min-height:60px;padding:13px 20px;box-sizing:border-box;
-        border:2px solid rgba(255,255,255,.72)!important;border-radius:19px;
-        font-size:clamp(16px,1.6vw,19px);font-weight:800;line-height:1.25;text-decoration:none;
-        transition:transform .15s ease,filter .15s ease,box-shadow .15s ease;
-      }
-      .ft-home-actions .btn:hover{filter:brightness(1.04);transform:translateY(-2px)}
-      .ft-home-actions .btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.25)!important}
-      .ft-home .ft-home-red{color:#fff!important;background:linear-gradient(180deg,#ff6565 0%,#f11b25 48%,#c90b19 100%)!important;box-shadow:0 5px 0 #990b15,0 8px 14px rgba(151,17,26,.19),inset 0 2px 2px rgba(255,255,255,.7)!important}
-      .ft-home .ft-home-yellow{color:#173d75!important;background:linear-gradient(180deg,#fff06a 0%,#ffc51c 48%,#ed9700 100%)!important;box-shadow:0 5px 0 #b86e00,0 8px 14px rgba(158,104,0,.16),inset 0 2px 2px rgba(255,255,255,.75)!important}
-      .ft-home .ft-home-green{color:#fff!important;background:linear-gradient(180deg,#38e99b 0%,#08b96a 48%,#07824b 100%)!important;box-shadow:0 5px 0 #05663b,0 8px 14px rgba(5,110,65,.17),inset 0 2px 2px rgba(255,255,255,.68)!important}
-      .ft-home-benefits{margin:4px auto 0;max-width:700px}
-      .ft-home-benefits h2{color:#103b78;font-size:clamp(20px,2.2vw,24px);line-height:1.2;margin:0 0 14px}
-      .ft-home-benefit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-      .ft-home-benefit{padding:13px 10px;border:1px solid #d9e8f8;border-radius:14px;background:rgba(255,255,255,.82);color:#173f78;line-height:1.35;font-weight:600;font-size:14px}
-      .ft-home-benefit .ft-home-icon{display:block;font-size:25px;line-height:1;margin-bottom:8px;color:#0874d9}
-      .ft-home-footer{margin:18px auto 0;padding:11px 14px;border-radius:13px;background:linear-gradient(90deg,#e6f4ff,#d8edff);color:#174b91;font-weight:700;line-height:1.35;font-size:14px}
-      @media(max-width:600px){
-        .ft-home{width:calc(100% - 20px);margin:12px auto 20px;padding:22px 14px 18px;border-radius:16px}
-        .ft-home h1{font-size:clamp(28px,7.6vw,34px);line-height:1.12;max-width:340px;margin-bottom:11px}
-        .ft-home .lead{font-size:16px;line-height:1.4;max-width:330px;margin-bottom:14px}
-        .ft-home p.ft-home-motto{width:100%;max-width:600px;margin:0 auto 18px!important;font-size:14px;line-height:1.35;padding:11px 12px;border-radius:12px;text-align:center!important}
-        .ft-home-actions{gap:11px;margin:18px auto 24px;padding:0;max-width:100%}
-        .ft-home-actions .btn{min-height:56px;padding:12px 11px;border-radius:16px;font-size:16px;max-width:100%}
-        .ft-home-benefits h2{font-size:21px;margin-bottom:12px}
-        .ft-home-benefit-grid{grid-template-columns:1fr;gap:8px}
-        .ft-home-benefit{display:flex;align-items:center;text-align:left;gap:12px;padding:11px 13px;font-size:14px}
-        .ft-home-benefit .ft-home-icon{font-size:24px;min-width:28px;margin:0;text-align:center}
-        .ft-home-footer{margin-top:14px;padding:11px 10px;font-size:13px}
-      }
-      @media(max-width:360px){.ft-home{padding-left:11px;padding-right:11px}.ft-home h1{font-size:27px}.ft-home .lead{font-size:15px}.ft-home-actions .btn{font-size:15px;min-height:53px}}
-      @media(prefers-reduced-motion:reduce){.ft-home-actions .btn{transition:none}}
-    </style>
-    <section class="hero ft-home">
-      <h1><span>Hai un debito?</span><span>Non affrontarlo da solo.</span></h1>
-      <p class="lead">Scopri cosa puoi sostenere e trova la strada per ripartire.</p>
-      <p class="ft-home-motto"><span>Non farti cercare dal recupero crediti,</span><span>cerca tu stesso la soluzione.</span></p>
-      <div class="ft-home-actions" aria-label="Scegli il percorso di contatto">
-        <a class="btn ft-home-red" href="/contatto/rosso">Ho ricevuto un atto o un sollecito</a>
-        <a class="btn ft-home-yellow" href="/contatto/giallo">Sono in difficoltà con i pagamenti</a>
-        <a class="btn ft-home-green" href="/contatto/verde">Voglio informazioni e prevenire</a>
-      </div>
-      <section class="ft-home-benefits" aria-labelledby="ft-home-benefits-title">
-        <h2 id="ft-home-benefits-title">Come può aiutarti FixTude</h2>
-        <div class="ft-home-benefit-grid">
-          <div class="ft-home-benefit"><span class="ft-home-icon" aria-hidden="true">⌕</span><span>Fare chiarezza sulla situazione</span></div>
-          <div class="ft-home-benefit"><span class="ft-home-icon" aria-hidden="true">✓</span><span>Valutare una soluzione sostenibile</span></div>
-          <div class="ft-home-benefit"><span class="ft-home-icon" aria-hidden="true">♙</span><span>Richiedere il supporto di un consulente</span></div>
-        </div>
-      </section>
-      <div class="ft-home-footer">Il tuo percorso, la nostra priorità.</div>
-    </section>
-    """
-    return page("Fai chiarezza sulla tua situazione", content)
-
-# =========================================================
-# MODULI CONTATTO DIFFERENZIATI PER SITUAZIONE
-# =========================================================
-@app.route("/contatto/<scenario>")
-def contatto_scenario(scenario):
-    scenario = (scenario or "").strip().lower()
-    cfgs = {
-      "rosso": {"title":"Hai ricevuto un sollecito o un atto?", "subtitle":"Raccontaci che cosa hai ricevuto e quali iniziative sono già state intraprese.", "color":"#c93636", "ink":"#ffffff", "subject":"FixTude - richiesta urgente: atto o sollecito", "fields":[
-        ("tipo_atto","Che cosa hai ricevuto?","select",["Sollecito di pagamento","Diffida o messa in mora","Decreto ingiuntivo","Atto di precetto","Pignoramento o atto esecutivo","Atto giudiziario di altro tipo","Non so identificarlo"],True),
-        ("data_ricezione","Quando l'hai ricevuto?","date",[],False),
-        ("mittente","Chi ti ha inviato la comunicazione?","text",[],False),
-        ("modalita_ricezione","Come ti è stata notificata?","select",["Posta ordinaria","Raccomandata","PEC","Ufficiale giudiziario","Consegna a mano","Altro / non so"],False),
-        ("azioni_intraprese","Sono già state intraprese azioni?","select",["Nessuna, per ora","Ho contattato il creditore","Ho chiesto una rateizzazione","Ho concordato un piano di rientro","Mi sono rivolto a un professionista","È già iniziata un'azione legale o esecutiva","Altro / non so"],True),
-        ("termine_indicato","È indicata una scadenza o un termine?","select",["Sì","No","Non so"],False),
-        ("dettagli_atto","Altre informazioni utili","textarea",[],False)]},
-      "giallo": {"title":"Stai facendo fatica a pagare?", "subtitle":"Indicaci quali comunicazioni hai ricevuto e a che punto è la situazione.", "color":"#d99a16", "ink":"#17212b", "subject":"FixTude - richiesta per difficoltà nei pagamenti", "fields":[
-        ("ricezione_solleciti","Hai ricevuto solleciti di pagamento?","select",["No","Sì, uno","Sì, da 2 a 3","Sì, più di 3","Non ricordo / non so"],True),
-        ("periodo_solleciti","Da quanto tempo ricevi solleciti?","select",["Da meno di un mese","Da 1 a 3 mesi","Da oltre 3 mesi","Non so"],False),
-        ("costituzione_mora","Hai ricevuto una costituzione in mora?","select",["Sì","No","Non so riconoscerla"],True),
-        ("diffida_legale","Hai ricevuto una diffida legale?","select",["Sì","No","Non so riconoscerla"],True),
-        ("creditore","Creditore o società che ti contatta","text",[],False),
-        ("tipo_debito","Tipo di debito","select",["Utenze: luce, gas, acqua","Telefonia e Internet","Finanziario","Fiscale o tributario","Condominio","Affitto","Commerciale","Privati","Altro / non so"],True),
-        ("importo_indicativo","Importo indicativo del debito (€)","number",[],False),
-        ("dettagli_situazione","Vuoi aggiungere qualche dettaglio?","textarea",[],False)]},
-      "verde": {"title":"Parliamone con calma", "subtitle":"Lascia i tuoi recapiti e spiegaci brevemente come possiamo aiutarti.", "color":"#27865b", "ink":"#ffffff", "subject":"FixTude - richiesta di informazioni", "fields":[
-        ("argomento","Di che cosa vorresti parlare?","select",["Vorrei capire la mia situazione","Vorrei prevenire difficoltà future","Vorrei informazioni sui servizi FixTude","Altro"],False),
-        ("messaggio","Messaggio (facoltativo)","textarea",[],False)]}
+@app.before_request
+def fixtude_v1_route_guard():
+    path = request.path or "/"
+    allowed = {
+        "/", "/analisi", "/checkout", "/checkout/crea", "/checkout/conferma", "/checkout/download",
+        "/chi-siamo", "/educazione-finanziaria",
+        "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo",
+        "/educazione-finanziaria/guida-saldo-e-stralcio",
+        "/disclaimer", "/termini", "/privacy", "/cookie",
+        "/robots.txt", "/sitemap.xml", "/favicon.svg", "/favicon-16.png", "/apple-touch-icon.png", "/favicon.ico", "/health",
     }
-    cfg = cfgs.get(scenario)
-    if not cfg:
-        return redirect(url_for("home"))
-    def make_field(item):
-        name,label,kind,opts,required=item
-        rid="field_"+name
-        req=" required" if required else ""
-        if kind=="select":
-            options='<option value="">Seleziona</option>'+''.join('<option>'+escape(v)+'</option>' for v in opts)
-            control=f'<select id="{rid}" name="{name}"{req}>{options}</select>'
-        elif kind=="textarea":
-            control=f'<textarea id="{rid}" name="{name}" rows="4" maxlength="1800" placeholder="Non inserire dati bancari o documenti."></textarea>'
-        else:
-            control=f'<input id="{rid}" name="{name}" type="{kind}" maxlength="180"'+(' min="0" step="0.01" inputmode="decimal"' if kind=="number" else '')+f'{req}>'
-        return f'<div class="field"><label for="{rid}">{escape(label)}</label>{control}</div>'
-    fields=''.join(make_field(x) for x in cfg["fields"])
-    content=f'''<style>
-      .ft-scenario-form{{max-width:760px;margin:0 auto;border-top:6px solid {cfg['color']}}}
-      .ft-scenario-banner{{background:{cfg['color']};color:{cfg['ink']};padding:20px;border-radius:12px;margin-bottom:20px}}
-      .ft-scenario-banner h1,.ft-scenario-banner p{{color:{cfg['ink']};margin-top:0}}
-      .ft-scenario-banner h1{{font-size:clamp(25px,5vw,34px);line-height:1.2;margin-bottom:8px}}
-      .ft-scenario-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}}
-      .ft-scenario-grid .field{{min-width:0}}.ft-scenario-grid input,.ft-scenario-grid select,.ft-scenario-grid textarea{{width:100%;box-sizing:border-box}}
-      .ft-scenario-submit{{background:{cfg['color']}!important;color:{cfg['ink']}!important;border:0!important;width:100%;min-height:50px;font-weight:700}}
-      @media(max-width:620px){{.ft-scenario-grid{{grid-template-columns:1fr}}.ft-scenario-banner{{padding:17px}}}}
+    protected_static = {
+        "/static/pdf/NIENTE_PANICO.pdf",
+        "/static/pdf/FixTude_Guida_Saldo_e_Stralcio_EDIZIONE_RIVISTA_SEO.pdf",
+        "/static/FixTude_Modulo_Saldo_e_Stralcio_2_pagine.pdf",
+        "/static/FixTude_Modulo_Dilazione_Pagamento_2_pagine.pdf",
+        "/static/FixTude_Modulo_Piano_Rientro_con_Titoli_2_pagine.pdf",
+        "/static/FixTude_Libreria_Moduli_Richieste_Debitorie_6_pagine_v2.pdf",
+    }
+    if path in protected_static:
+        return ("Not Found", 404)
+    if path in allowed or path.startswith("/static/"):
+        return None
+    if path.startswith("/api/") or path.startswith("/chat-") or path.startswith("/professionisti"):
+        return ("Not Found", 404)
+    return ("Not Found", 404)
+
+
+@app.route("/", methods=["GET"])
+def home():
+    content = r"""
+    <style>
+      .ft-v1{max-width:680px;margin:0 auto;padding:12px 4px 28px}
+      .ft-tagline{text-align:center;margin:4px auto 28px;max-width:650px;font-weight:800;font-size:clamp(22px,4.4vw,35px);line-height:1.18;letter-spacing:-.6px;color:#174b91}
+      .ft-tagline span{display:block;color:#2471bd;margin-top:5px}
+      .ft-explain{text-align:center;color:#65758b;font-size:14px;margin:-14px auto 24px;max-width:580px}
+      .ft-fields{display:grid;gap:14px}
+      .ft-field{background:#fff;border:1px solid #dce5ef;border-radius:14px;padding:15px 17px;text-align:left;box-shadow:0 4px 16px #18365b08}
+      .ft-field label{display:block;font-weight:800;color:#203047;font-size:15px;margin-bottom:7px}
+      .ft-field input{width:100%;border:1px solid #cbd7e5;border-radius:10px;padding:14px 13px;font-size:19px;font-weight:700;color:#203047;background:#fbfdff;outline:none}
+      .ft-field input:focus{border-color:#2468b8;box-shadow:0 0 0 3px #2468b81c}
+      .ft-traffic{margin:25px auto 14px;text-align:center}
+      .ft-traffic-title{font-weight:900;letter-spacing:.08em;color:#203047;font-size:14px;margin-bottom:13px}
+      .ft-lights{display:flex;justify-content:center;gap:13px;background:#252b35;border:5px solid #161b23;border-radius:999px;padding:12px 18px;width:max-content;max-width:100%;margin:auto;box-shadow:inset 0 3px 8px #0008,0 8px 20px #14253a24}
+      .ft-light{width:49px;height:49px;border-radius:50%;background:#343a43;border:2px solid #171c23;box-shadow:inset 0 3px 7px #0009;transition:all .2s}
+      .ft-light.on.red{background:#f12632;box-shadow:0 0 9px #f12632,0 0 25px #f1263288,inset 0 2px 5px #fff8}
+      .ft-light.on.yellow{background:#ffd52e;box-shadow:0 0 9px #ffd52e,0 0 25px #ffd52e88,inset 0 2px 5px #fff9}
+      .ft-light.on.green{background:#20c66b;box-shadow:0 0 9px #20c66b,0 0 25px #20c66b88,inset 0 2px 5px #fff8}
+      .ft-status{min-height:24px;margin:12px 0 0;font-weight:800;font-size:14px}
+      .ft-submit{width:100%;margin-top:15px;min-height:54px;font-size:16px}
+      .ft-submit:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+      .ft-note{text-align:center;font-size:12px;color:#748197;margin:13px auto 0;max-width:540px}
+      @media(max-width:520px){.ft-field{padding:13px}.ft-light{width:43px;height:43px}.ft-lights{gap:10px;padding:10px 14px}.ft-tagline{font-size:26px}}
     </style>
-    <section class="card ft-scenario-form"><div class="ft-scenario-banner"><h1>{cfg['title']}</h1><p>{cfg['subtitle']}</p></div>
-      <form id="scenarioContactForm"><input type="hidden" name="tipo_percorso" value="{scenario}">
-      <div class="ft-scenario-grid"><div class="field"><label for="nome">Nome e cognome</label><input id="nome" name="nome" maxlength="160" autocomplete="name" required></div>
-      <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" maxlength="254" autocomplete="email" required></div>
-      <div class="field"><label for="telefono">Telefono (facoltativo)</label><input id="telefono" name="telefono" type="tel" maxlength="40" autocomplete="tel"></div>{fields}</div>
-      <div style="position:absolute;left:-10000px" aria-hidden="true"><label for="website">Non compilare questo campo</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
-      <label class="check"><input type="checkbox" name="privacy" value="Sì" required><span>Ho letto l’<a href="/privacy" target="_blank" rel="noopener">informativa privacy</a> e chiedo di essere ricontattato.</span></label>
-      <label class="check"><input type="checkbox" name="accept_terms" value="Sì" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label>
-      <p class="muted" style="font-size:13px">Non allegare documenti e non inserire password o dati bancari. La richiesta viene inoltrata via email e non viene salvata in un database FixTude.</p>
-      <div id="scenarioResult" role="status" aria-live="polite"></div><button class="btn ft-scenario-submit" id="scenarioSubmit" type="submit">Invia richiesta</button></form></section>
-    <script>(()=>{{const form=document.getElementById('scenarioContactForm'),result=document.getElementById('scenarioResult'),button=document.getElementById('scenarioSubmit');form.addEventListener('submit',async e=>{{e.preventDefault();if(!form.reportValidity())return;const values=Object.fromEntries(new FormData(form).entries());if(String(values.website||'').trim())return;values.access_key='6cfd757e-6b16-49e0-96b5-e055a159f403';values.subject={json.dumps(cfg['subject'])};values.from_name='FixTude - modulo {scenario}';values.botcheck='';delete values.website;button.disabled=true;button.textContent='Invio in corso…';try{{const r=await fetch('https://api.web3forms.com/submit',{{method:'POST',headers:{{'Content-Type':'application/json','Accept':'application/json'}},body:JSON.stringify(values)}}),d=await r.json();if(!r.ok||d.success!==true)throw new Error(d.message||'Invio non riuscito. Riprova più tardi.');result.className='notice success';result.textContent='Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.';form.reset();}}catch(err){{result.className='notice error';result.textContent=err.message||'Errore di connessione. Riprova più tardi.';}}finally{{button.disabled=false;button.textContent='Invia richiesta';}}}});}})();</script>'''
-    return page("Contatto FixTude - " + scenario.capitalize(), content)
+    <section class="ft-v1">
+      <h1 class="ft-tagline">Non farti cercare dal recupero crediti,<span>cerca tu stesso la soluzione.</span></h1>
+      <form class="ft-fields" method="post" action="/analisi" id="ftCalculator" novalidate>
+        <div class="ft-field">
+          <label for="entrate">ENTRATE MENSILI NETTE (€)</label>
+          <input id="entrate" name="entrate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Es. 1.800" required>
+        </div>
+        <div class="ft-field">
+          <label for="uscite">USCITE MENSILI (€)</label>
+          <input id="uscite" name="uscite" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Es. 1.250" required>
+        </div>
+        <div class="ft-field">
+          <label for="debiti">SITUAZIONE DEBITORIA COMPLESSIVA (€)</label>
+          <input id="debiti" name="debiti" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Es. 12.000" required>
+        </div>
+        <div class="ft-traffic" aria-live="polite">
+          <div class="ft-traffic-title">IL TUO SEMAFORO</div>
+          <div class="ft-lights" role="img" aria-label="Semaforo di sostenibilità">
+            <span class="ft-light" id="ftRed"></span>
+            <span class="ft-light" id="ftYellow"></span>
+            <span class="ft-light" id="ftGreen"></span>
+          </div>
+          <div class="ft-status" id="ftStatus"></div>
+        </div>
+        <button class="btn ft-submit" id="ftSubmit" type="submit" disabled>ANALIZZA LA MIA SITUAZIONE</button>
+      </form>
+    </section>
+    <script>
+    (()=>{
+      const fields=['entrate','uscite','debiti'].map(id=>document.getElementById(id));
+      const lights={rosso:document.getElementById('ftRed'),giallo:document.getElementById('ftYellow'),verde:document.getElementById('ftGreen')};
+      const status=document.getElementById('ftStatus'),submit=document.getElementById('ftSubmit');
+      function evaluate(){
+        const values=fields.map(x=>x.value.trim()===''?null:Number(x.value));
+        const valid=values.every(v=>v!==null&&Number.isFinite(v)&&v>=0)&&values[0]>0;
+        Object.values(lights).forEach(x=>{x.className='ft-light'});status.textContent='';submit.disabled=!valid;
+        if(!valid)return;
+        const [income,expenses,debt]=values;
+        const surplus=income-expenses;
+        const reserve=Math.max(0,surplus-200);
+        const monthly=reserve*.5;
+        const months=debt<=0?0:(monthly>0?Math.ceil(debt/monthly):Infinity);
+        const color=(surplus<=0||months>60)?'rosso':(months>36?'giallo':'verde');
+        lights[color].className='ft-light on '+({rosso:'red',giallo:'yellow',verde:'green'}[color]);
+        status.textContent=({rosso:'ROSSO · criticità elevata',giallo:'GIALLO · situazione da monitorare',verde:'VERDE · margine potenzialmente sostenibile'}[color]);
+      }
+      fields.forEach(x=>x.addEventListener('input',evaluate));evaluate();
+    })();
+    </script>
+    """
+    return page("Analisi matematica della situazione economica", content)
+
+
+@app.route("/analisi", methods=["POST"])
+def analisi_v1():
+    def number(name):
+        raw = (request.form.get(name) or "").strip().replace(",", ".")
+        value = float(raw)
+        if not math.isfinite(value) or value < 0 or value > 100000000:
+            raise ValueError(name)
+        return round(value, 2)
+    try:
+        entrate, uscite, debiti = number("entrate"), number("uscite"), number("debiti")
+        if entrate <= 0:
+            raise ValueError("entrate")
+    except (ValueError, TypeError):
+        return page("Dati non validi", '<section class="card"><h1>Controlla i dati inseriti</h1><p>Inserisci tre importi numerici validi e un valore delle entrate superiore a zero.</p><a class="btn" href="/">Torna al calcolatore</a></section>'), 400
+    risultato = calcola_semaforo(entrate, uscite, debiti)
+    session["fixtude_v1_calcolo"] = {"entrate": entrate, "uscite": uscite, "debiti": debiti, **risultato}
+    return redirect(url_for("checkout_v1"))
+
+
+def calcola_semaforo(entrate, uscite, debiti):
+    saldo = round(entrate - uscite, 2)
+    margine = max(0.0, saldo - 200.0)
+    rata_sostenibile = round(margine * 0.50, 2)
+    mesi = 0 if debiti <= 0 else (math.ceil(debiti / rata_sostenibile) if rata_sostenibile > 0 else None)
+    if saldo <= 0 or (debiti > 0 and (mesi is None or mesi > 60)):
+        colore, etichetta = "rosso", "Criticità elevata"
+    elif debiti > 0 and mesi > 36:
+        colore, etichetta = "giallo", "Situazione da monitorare"
+    else:
+        colore, etichetta = "verde", "Margine potenzialmente sostenibile"
+    return {"saldo": saldo, "margine": margine, "rata_sostenibile": rata_sostenibile, "mesi_stimati": mesi, "colore": colore, "etichetta": etichetta}
+
+
+@app.route("/checkout", methods=["GET"])
+def checkout_v1():
+    data = session.get("fixtude_v1_calcolo")
+    if not data:
+        return redirect(url_for("home"))
+    annullato = "<p class='notice'>Il pagamento non è stato completato. Puoi scegliere nuovamente il prodotto.</p>" if request.args.get("annullato") else ""
+    content = f"""<section class="card"><p class="muted">ANALISI COMPLETATA</p><h1>Il tuo semaforo: <span style="color:{ {'rosso':'#c62828','giallo':'#b88600','verde':'#16834a'}[data['colore']] }">{data['colore'].upper()}</span></h1><p>{escape(data['etichetta'])}. Il report completo contiene il riepilogo dei dati, il calcolo del margine e una simulazione matematica.</p><p><strong>Margine mensile dopo la riserva:</strong> € {data['margine']:.2f}</p><p><strong>Quota mensile teoricamente destinabile:</strong> € {data['rata_sostenibile']:.2f}</p>{annullato}<h2>Scegli il libro da ricevere con il report</h2><form method="post" action="/checkout/crea"><div class="book-choice"><label><input type="radio" name="prodotto" value="niente_panico_pdf" required><strong>NIENTE PANICO</strong><br><span class="muted">Guida pratica per mettere ordine nella situazione debitoria · € 6,99</span></label></div><div class="book-choice"><label><input type="radio" name="prodotto" value="guida_saldo_stralcio_pdf" required><strong>GUIDA AL SALDO E STRALCIO</strong><br><span class="muted">Guida dedicata alla trattativa e alla chiusura dei debiti · € 6,99</span></label></div><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">PROCEDI AL PAGAMENTO</button></form></section><p class="muted">Il pagamento è gestito da Stripe. Non viene creato alcun account FixTude.</p><style>.book-choice{{border:1px solid #dce5ef;border-radius:12px;padding:17px;margin:13px 0;background:#fbfdff}}.book-choice label{{display:block;cursor:pointer}}.book-choice input{{margin-right:9px;accent-color:#174b91}}.check{{display:flex;gap:10px;align-items:flex-start;margin:20px 0;font-size:14px}}</style>"""
+    return page("Scelta del libro e pagamento", content)
+
+
+@app.route("/checkout/crea", methods=["POST"])
+def checkout_crea_v1():
+    data = session.get("fixtude_v1_calcolo")
+    if not data:
+        return redirect(url_for("home"))
+    if request.form.get("accept_terms") != "yes":
+        return redirect(url_for("checkout_v1"))
+    products = {
+        "niente_panico_pdf": {"name": "NIENTE PANICO - libro digitale FixTude", "description": "Libro digitale PDF con report personalizzato e modelli fac-simile"},
+        "guida_saldo_stralcio_pdf": {"name": "Guida FixTude - Saldo e stralcio", "description": "Guida digitale PDF con report personalizzato e modelli fac-simile"},
+    }
+    product_id = (request.form.get("prodotto") or "").strip()
+    product = products.get(product_id)
+    secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+    if not product:
+        return redirect(url_for("checkout_v1"))
+    if stripe is None or not secret_key:
+        return page("Pagamento non disponibile", '<section class="card"><h1>Checkout temporaneamente non disponibile</h1><p>Il pagamento non è configurato. Non è stato effettuato alcun addebito.</p><a class="btn" href="/checkout">Torna alla scelta del libro</a></section>'), 503
+    stripe.api_key = secret_key
+    try:
+        checkout = stripe.checkout.Session.create(
+            mode="payment",
+            line_items=[{"price_data": {"currency": "eur", "unit_amount": 699, "product_data": {"name": product["name"], "description": product["description"]}}, "quantity": 1}],
+            success_url=request.host_url.rstrip("/") + "/checkout/conferma?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=request.host_url.rstrip("/") + "/checkout?annullato=1",
+            billing_address_collection="auto",
+            customer_creation="if_required",
+            metadata={"fixtude_product": product_id, "fixtude_flow": "v1_report"},
+        )
+        session["fixtude_v1_product"] = product_id
+        return redirect(checkout.url, code=303)
+    except Exception:
+        app.logger.exception("Creazione checkout FixTude V1 non riuscita")
+        return page("Pagamento non disponibile", '<section class="card"><h1>Non è stato possibile avviare il pagamento</h1><p>Nessun pagamento è stato confermato. Riprova più tardi.</p><a class="btn" href="/checkout">Torna indietro</a></section>'), 502
+
+
+def _pdf_report(data):
+    lines = [
+        "FIXTUDE - REPORT DI ANALISI MATEMATICA", "", "Esito: " + data["colore"].upper() + " - " + data["etichetta"],
+        "", "DATI INSERITI", f"Entrate mensili nette: EUR {data['entrate']:.2f}",
+        f"Uscite mensili: EUR {data['uscite']:.2f}", f"Situazione debitoria complessiva: EUR {data['debiti']:.2f}",
+        "", "ELABORAZIONE", f"Saldo mensile (entrate - uscite): EUR {data['saldo']:.2f}",
+        "Riserva prudenziale considerata: EUR 200.00", f"Margine oltre la riserva: EUR {data['margine']:.2f}",
+        f"Quota mensile teorica (50% del margine): EUR {data['rata_sostenibile']:.2f}",
+        "Tempo teorico: " + (f"{data['mesi_stimati']} mesi" if data["mesi_stimati"] is not None else "non stimabile con margine positivo"),
+        "", "CRITERI V1", "ROSSO: saldo non positivo oppure tempo teorico superiore a 60 mesi.",
+        "GIALLO: tempo teorico superiore a 36 e fino a 60 mesi.",
+        "VERDE: tempo teorico fino a 36 mesi, oppure debito dichiarato pari a zero.",
+        "", "Il calcolo è orientativo e usa esclusivamente i dati dichiarati dall'utente.",
+        "Non è una certificazione di solvibilità, una consulenza finanziaria o legale, né una promessa di accordo con i creditori.",
+        "La quota teorica non tiene conto di interessi, spese, priorità legali o condizioni contrattuali dei singoli debiti.",
+        "Verificare sempre i documenti e le scadenze con un professionista qualificato quando necessario.",
+        "", "FixTude - sistema matematico-algoritmico automatizzato - www.fixtude.it",
+    ]
+    def esc(text):
+        text = unicodedata.normalize("NFKD", str(text)).encode("ascii", "ignore").decode("ascii")
+        return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+    commands = ["BT", "/F1 10 Tf", "50 790 Td", "14 TL"]
+    for line in lines:
+        wrapped_lines = textwrap.wrap(line, width=88) if line else [""]
+        for wrapped in wrapped_lines:
+            commands.append(f"({esc(wrapped)}) Tj")
+            commands.append("T*")
+    commands.append("ET")
+    stream = "\n".join(commands).encode("latin-1", "replace")
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
+    ]
+    pdf = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets = [0]
+    for i, obj in enumerate(objects, 1):
+        offsets.append(len(pdf))
+        pdf.extend(f"{i} 0 obj\n".encode()); pdf.extend(obj); pdf.extend(b"\nendobj\n")
+    xref = len(pdf)
+    pdf.extend(f"xref\n0 {len(objects)+1}\n0000000000 65535 f \n".encode())
+    for off in offsets[1:]: pdf.extend(f"{off:010d} 00000 n \n".encode())
+    pdf.extend(f"trailer\n<< /Size {len(objects)+1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF".encode())
+    return bytes(pdf)
+
+
+def _pacchetto_consegna(data, product_id):
+    prodotti = {
+        "niente_panico_pdf": (BOOK_FILE, "FixTude_NIENTE_PANICO.pdf"),
+        "guida_saldo_stralcio_pdf": (GUIDE_FILE, "FixTude_Guida_Saldo_e_Stralcio.pdf"),
+    }
+    selected = prodotti.get(product_id)
+    if not selected or not selected[0].is_file():
+        raise FileNotFoundError("Il libro digitale selezionato non è presente in static/pdf.")
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("FixTude_Report_Analisi.pdf", _pdf_report(data))
+        zf.write(selected[0], selected[1])
+        for slug, (filename, title) in MODULE_FILES.items():
+            path = MODULE_DIR / filename
+            if path.is_file():
+                zf.write(path, "Modelli_Fac_Simile/" + filename)
+    buffer.seek(0)
+    return buffer
+
+
+def _get_paid_checkout(session_id):
+    secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+    if not session_id or stripe is None or not secret_key:
+        return None
+    stripe.api_key = secret_key
+    checkout = stripe.checkout.Session.retrieve(session_id)
+    data = checkout.to_dict()
+    if data.get("payment_status") != "paid":
+        return None
+    metadata = data.get("metadata") or {}
+    if metadata.get("fixtude_flow") != "v1_report":
+        return None
+    return data
+
+
+@app.route("/checkout/conferma")
+def checkout_conferma_v1():
+    session_id = (request.args.get("session_id") or "").strip()
+    try:
+        paid = _get_paid_checkout(session_id)
+        data = session.get("fixtude_v1_calcolo")
+        product_id = session.get("fixtude_v1_product")
+        if not paid or not data or not product_id:
+            return page("Verifica pagamento", '<section class="card"><h1>Pagamento da verificare</h1><p>Non è stato possibile recuperare tutti i dati della sessione. Se il pagamento è stato effettuato, scrivi a info@fixtude.it indicando il riferimento della transazione.</p></section>'), 402
+        package = _pacchetto_consegna(data, product_id)
+        email = ((paid.get("customer_details") or {}).get("email") or paid.get("customer_email") or "").strip()
+        sent = False
+        metadata = paid.get("metadata") or {}
+        if email and SMTP_HOST and SMTP_USER and SMTP_PASSWORD and metadata.get("delivery_email_sent") != "yes":
+            try:
+                msg = EmailMessage()
+                msg["Subject"] = "Il tuo report FixTude e i materiali acquistati"
+                msg["From"] = SMTP_FROM or SMTP_USER
+                msg["To"] = email
+                msg.set_content("Grazie per il tuo acquisto. In allegato trovi il report della tua analisi, il libro selezionato e i modelli fac-simile FixTude.\n\nFixTude - sistema matematico-algoritmico automatizzato.")
+                msg.add_attachment(package.getvalue(), maintype="application", subtype="zip", filename="FixTude_Report_e_Materiali.zip")
+                if SMTP_PORT == 465:
+                    with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+                        server.login(SMTP_USER, SMTP_PASSWORD); server.send_message(msg)
+                else:
+                    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+                        server.starttls(); server.login(SMTP_USER, SMTP_PASSWORD); server.send_message(msg)
+                stripe.checkout.Session.modify(session_id, metadata={**metadata, "delivery_email_sent": "yes"})
+                sent = True
+            except Exception:
+                app.logger.exception("Invio email consegna FixTude non riuscito")
+        session.pop("fixtude_v1_calcolo", None)
+        session.pop("fixtude_v1_product", None)
+        content = f"""<section class="card"><h1>Pagamento confermato</h1><p>Il pagamento è stato verificato correttamente.</p><p>{'Il report e i materiali sono stati inviati all’indirizzo email indicato durante il checkout.' if sent else 'Il pacchetto è pronto. Puoi scaricarlo direttamente da questa pagina.'}</p><a class="btn" href="/checkout/download?session_id={escape(session_id, quote=True)}">SCARICA REPORT, LIBRO E FAC-SIMILE</a><p class="muted">Conserva il file ZIP sul tuo dispositivo. Non è stato creato un account FixTude.</p></section>"""
+        # Keep the data in the signed session cookie until download in case SMTP is not configured.
+        session["fixtude_v1_calcolo"] = data
+        session["fixtude_v1_product"] = product_id
+        return page("Acquisto confermato", content)
+    except FileNotFoundError as exc:
+        app.logger.exception("Materiale FixTude non disponibile")
+        return page("Materiale non disponibile", f'<section class="card"><h1>Pagamento confermato</h1><p>{escape(str(exc))} Contatta info@fixtude.it per ricevere assistenza.</p></section>'), 500
+    except Exception:
+        app.logger.exception("Verifica pagamento FixTude non riuscita")
+        return page("Verifica non riuscita", '<section class="card"><h1>Non è stato possibile verificare il pagamento</h1><p>Riprova più tardi o scrivi a info@fixtude.it.</p></section>'), 502
+
+
+@app.route("/checkout/download")
+def checkout_download_v1():
+    session_id = (request.args.get("session_id") or "").strip()
+    try:
+        paid = _get_paid_checkout(session_id)
+        data = session.get("fixtude_v1_calcolo")
+        product_id = session.get("fixtude_v1_product")
+        if not paid or not data or not product_id:
+            return "Accesso non autorizzato o sessione scaduta", 403
+        package = _pacchetto_consegna(data, product_id)
+        response = send_file(package, mimetype="application/zip", as_attachment=True, download_name="FixTude_Report_e_Materiali.zip")
+        response.headers["Cache-Control"] = "private, no-store"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+    except Exception:
+        app.logger.exception("Download pacchetto FixTude non riuscito")
+        return "Non è stato possibile preparare il download", 500
+
+
+@app.route("/chi-siamo")
+def chi_siamo_v1():
+    content = """<article class="card"><h1>Chi siamo</h1><p><strong>FixTude è un sistema matematico-algoritmico per l'analisi della sostenibilità economica personale.</strong></p><p>Non siamo uno studio di consulenza, non siamo un intermediario finanziario e non siamo uno studio legale. FixTude è uno strumento digitale progettato per elaborare le informazioni economiche inserite dall'utente attraverso un processo automatizzato che considera entrate, uscite e situazione debitoria complessiva.</p><p>Attraverso regole matematiche predeterminate, il sistema restituisce un'indicazione sintetica della situazione, rappresentata da un semaforo rosso, giallo o verde.</p><p><strong>Non promettiamo soluzioni miracolose. Non prendiamo decisioni al posto tuo. Non sostituiamo il giudizio di un professionista.</strong></p><p>Non è richiesta alcuna registrazione. I dati economici sono utilizzati per elaborare il risultato e predisporre il report acquistato; non viene creato un profilo personale o un archivio di bilancio.</p><p>Il risultato dipende dalla completezza e correttezza dei dati dichiarati. Il sistema non verifica autonomamente i debiti, non considera automaticamente interessi, garanzie, prescrizioni, procedure o scadenze legali e non certifica la solvibilità.</p><h2>Uno strumento intelligente, ma non umano.</h2><p>FixTude non interpreta emozioni, non formula giudizi personali e non garantisce risultati. Elabora numeri secondo criteri dichiarati e restituisce indicazioni matematiche.</p><p><strong>Elabora i numeri. Restituisce indicazioni. Lascia a te le decisioni.</strong></p></article>"""
+    return page("Chi siamo", content)
 
 
 # =========================================================
@@ -2134,84 +2177,75 @@ def misuratore():
 
 @app.route("/consulenza")
 def consulenza():
-    content = r"""
-    <style>
-      .ft-form-intro{margin-bottom:18px;line-height:1.6}
-      .ft-form-section{border-top:1px solid var(--border,#d8dee8);padding-top:18px;margin-top:20px}
-      .ft-form-section h2{font-size:20px;margin:0 0 12px}
-      .ft-form-section .muted{line-height:1.5}
-      .ft-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
-      .ft-form-grid .field{min-width:0}
-      .ft-form-grid input,.ft-form-grid select,.ft-form-grid textarea{width:100%;box-sizing:border-box}
-      .ft-path-panel[hidden]{display:none!important}
-      @media(max-width:650px){.ft-form-grid{grid-template-columns:1fr}}
-    </style>
-    <h1 id="ft-contact-title">Facciamo chiarezza sulla tua situazione</h1>
-    <p class="muted ft-form-intro">Scegli il percorso più adatto a te. La richiesta è gratuita e non ti obbliga a proseguire.</p>
-    <p class="notice" id="ft-registration-note" aria-live="polite"></p>
+    content = """
+    <h1>Facciamo chiarezza sulla tua situazione</h1>
+    <p class="muted">
+      Compila il modulo soltanto se desideri essere ricontattato. La richiesta è gratuita e non ti obbliga a proseguire.
+    </p>
+    <p class="muted" id="ft-registration-note"></p>
+    <script>
+      (function(){var p=new URLSearchParams(window.location.search).get('percorso');var n=document.getElementById('ft-registration-note');if(!n)return;if(p==='registrazione'){n.textContent='Hai scelto il percorso con registrazione. La creazione automatica di un account non è ancora attiva: puoi inviare una richiesta di contatto tramite questo modulo.';}else if(p==='senza-registrazione'){n.textContent='Puoi proseguire senza creare un account: compila il modulo solo se desideri essere ricontattato.';}})();
+    </script>
 
     <section class="card">
       <form id="contactForm">
-        <input type="hidden" name="percorso" id="ft-path-value" value="senza-registrazione">
-
-        <div id="ft-registered-panel" class="ft-path-panel" hidden>
-          <div class="ft-form-section" style="border-top:0;padding-top:0;margin-top:0">
-            <h2>1. I tuoi dati</h2>
-            <p class="muted">Compila i dati necessari per permetterci di esaminare la richiesta e ricontattarti.</p>
-            <div class="ft-form-grid">
-              <div class="field"><label for="reg_name">Nome</label><input id="reg_name" name="nome" maxlength="80" autocomplete="given-name" data-required="true"></div>
-              <div class="field"><label for="reg_surname">Cognome</label><input id="reg_surname" name="cognome" maxlength="100" autocomplete="family-name" data-required="true"></div>
-              <div class="field"><label for="reg_email">Email</label><input id="reg_email" name="email" type="email" maxlength="254" autocomplete="email" data-required="true"></div>
-              <div class="field"><label for="reg_phone">Telefono</label><input id="reg_phone" name="telefono" type="tel" maxlength="40" autocomplete="tel" data-required="true"></div>
-              <div class="field"><label for="reg_city">Comune di residenza</label><input id="reg_city" name="comune_residenza" maxlength="100" autocomplete="address-level2" data-required="true"></div>
-              <div class="field"><label for="reg_contact_time">Quando preferisci essere contattato?</label><select id="reg_contact_time" name="fascia_contatto" data-required="true"><option value="">Seleziona</option><option>Mattina</option><option>Pomeriggio</option><option>Indifferente</option></select></div>
-            </div>
+        <div class="field">
+          <label for="name">Nome</label>
+          <input id="name" name="name" maxlength="100"
+                 autocomplete="name" required>
+        </div>
+        <div class="grid">
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email"
+                   maxlength="254" autocomplete="email" required>
           </div>
-
-          <div class="ft-form-section">
-            <h2>2. Che tipo di debito hai?</h2>
-            <p class="muted">Se hai più debiti, seleziona la categoria principale e indicane gli altri nel campo dedicato.</p>
-            <div class="ft-form-grid">
-              <div class="field"><label for="reg_debt_type">Categoria del debito</label><select id="reg_debt_type" name="tipo_debito" data-required="true"><option value="">Seleziona il tipo di debito</option><option>Utenze: luce, gas, acqua</option><option>Telefonia e Internet</option><option>Finanziario: prestito personale</option><option>Finanziario: carta di credito / revolving</option><option>Finanziario: mutuo o finanziamento garantito</option><option>Finanziario: cessione del quinto</option><option>Fiscale o tributario</option><option>Condominio</option><option>Affitto o locazione</option><option>Acquisti o rate con negozi / società commerciali</option><option>Debito verso privati</option><option>Altro / non so identificarlo</option></select></div>
-              <div class="field"><label for="reg_other_debts">Hai anche altri tipi di debito?</label><select id="reg_other_debts" name="altri_tipi_debito"><option value="no">No</option><option value="si">Sì</option><option value="non_so">Non saprei</option></select></div>
-              <div class="field"><label for="reg_creditor">Creditore o società che ti ha contattato</label><input id="reg_creditor" name="creditore" maxlength="180" placeholder="Se lo conosci"></div>
-              <div class="field"><label for="reg_total_debt">Importo complessivo indicativo (€)</label><input id="reg_total_debt" name="importo_debito" type="number" min="0" step="0.01" inputmode="decimal" data-required="true"></div>
-              <div class="field"><label for="reg_debt_count">Numero indicativo dei debiti</label><select id="reg_debt_count" name="numero_debiti" data-required="true"><option value="">Seleziona</option><option>1</option><option>2–3</option><option>4–5</option><option>Più di 5</option><option>Non so</option></select></div>
-              <div class="field"><label for="reg_monthly_payment">Stai già pagando una rata mensile?</label><select id="reg_monthly_payment" name="rata_attuale" data-required="true"><option value="">Seleziona</option><option value="no">No</option><option value="si">Sì</option><option value="parziale">Pago in modo irregolare</option><option value="non_so">Non applicabile / non so</option></select></div>
-              <div class="field"><label for="reg_monthly_amount">Importo totale delle rate attuali (€ al mese)</label><input id="reg_monthly_amount" name="importo_rate_mensili" type="number" min="0" step="0.01" inputmode="decimal" value="0"></div>
-            </div>
-            <div class="field"><label for="reg_other_debt_details">Se hai altri debiti, di che tipo sono?</label><input id="reg_other_debt_details" name="dettaglio_altri_debiti" maxlength="300" placeholder="Es. bollette, prestito, carta di credito"></div>
+          <div class="field">
+            <label for="phone">Telefono (facoltativo)</label>
+            <input id="phone" name="phone" type="tel"
+                   maxlength="40" autocomplete="tel">
           </div>
-
-          <div class="ft-form-section">
-            <h2>3. A che punto sei?</h2>
-            <div class="ft-form-grid">
-              <div class="field"><label for="reg_status">Qual è la situazione attuale?</label><select id="reg_status" name="fase_debito" data-required="true"><option value="">Seleziona</option><option>Temo di non riuscire a pagare</option><option>Ho saltato una o più rate</option><option>Ho ricevuto solleciti di pagamento</option><option>Mi ha contattato una società di recupero crediti</option><option>Ho ricevuto una diffida o una comunicazione legale</option><option>Ho ricevuto atti giudiziari o di esecuzione</option><option>Ho già un piano di rientro</option><option>Vorrei prevenire problemi futuri</option><option>Altro / non so</option></select></div>
-              <div class="field"><label for="reg_documents">Hai ricevuto comunicazioni scritte?</label><select id="reg_documents" name="comunicazioni_ricevute" data-required="true"><option value="">Seleziona</option><option>No</option><option>Sì, solleciti o email</option><option>Sì, raccomandata o PEC</option><option>Sì, comunicazioni legali o atti giudiziari</option><option>Non so riconoscerle</option></select></div>
-              <div class="field"><label for="reg_income_range">Entrate nette mensili del nucleo (fascia indicativa)</label><select id="reg_income_range" name="fascia_entrate" data-required="true"><option value="">Seleziona</option><option>Meno di € 1.000</option><option>€ 1.000–1.500</option><option>€ 1.501–2.000</option><option>€ 2.001–3.000</option><option>Oltre € 3.000</option><option>Preferisco non indicarlo ora</option></select></div>
-              <div class="field"><label for="reg_affordable">Quanto pensi di poter destinare al debito ogni mese? (€)</label><input id="reg_affordable" name="quota_sostenibile" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Se non lo sai, lascia vuoto"></div>
-            </div>
-            <div class="field"><label for="reg_message">Descrivi brevemente la tua situazione (facoltativo)</label><textarea id="reg_message" name="descrizione_situazione" maxlength="1800" rows="5" placeholder="Indica ciò che ritieni utile. Non inserire password, dati completi di carte o conti, codici fiscali di terzi o allegati/documenti. "></textarea></div>
-          </div>
-          <p class="muted" style="font-size:13px">Questa richiesta non crea ancora un account personale: serve a raccogliere le informazioni necessarie per il primo contatto. Non allegare documenti in questa fase.</p>
+        </div>
+        <div class="field">
+          <label for="message">Messaggio (facoltativo)</label>
+          <textarea id="message" name="message" maxlength="2000"
+                    placeholder="Scrivi qui come preferisci essere ricontattato. Non inserire dati bancari o documenti."></textarea>
         </div>
 
-        <div id="ft-no-registration-panel" class="ft-path-panel">
-          <div class="field"><label for="name">Nome</label><input id="name" name="name" maxlength="100" autocomplete="name" required></div>
-          <div class="ft-form-grid">
-            <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" maxlength="254" autocomplete="email" required></div>
-            <div class="field"><label for="phone">Telefono (facoltativo)</label><input id="phone" name="phone" type="tel" maxlength="40" autocomplete="tel"></div>
-          </div>
-          <div class="field"><label for="message">Messaggio (facoltativo)</label><textarea id="message" name="message" maxlength="2000" placeholder="Scrivi qui come preferisci essere ricontattato. Non inserire dati bancari o documenti."></textarea></div>
+        <div style="position:absolute;left:-10000px" aria-hidden="true">
+          <label for="website">Non compilare questo campo</label>
+          <input id="website" name="website" tabindex="-1"
+                 autocomplete="off">
         </div>
+        <input type="checkbox" name="botcheck" tabindex="-1"
+               autocomplete="off" style="display:none" aria-hidden="true">
 
-        <div style="position:absolute;left:-10000px" aria-hidden="true"><label for="website">Non compilare questo campo</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
-        <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" style="display:none" aria-hidden="true">
-        <label class="check"><input type="checkbox" name="privacy" required><span>Dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">informativa privacy</a> e chiedo di essere ricontattato.</span></label>
-        <label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label>
-        <p class="muted" style="font-size:13px">I dati vengono inviati via email per gestire la richiesta. L'applicazione non conserva una copia in un database.</p>
+        <label class="check">
+          <input type="checkbox" name="privacy" required>
+          <span>
+            Dichiaro di aver letto l'
+            <a href="/privacy" target="_blank" rel="noopener">
+              informativa privacy
+            </a>
+            e chiedo di essere ricontattato.
+          </span>
+        </label>
+
+        <label class="check">
+          <input type="checkbox" name="accept_terms" value="yes" required>
+          <span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span>
+        </label>
+
+        <p class="muted" style="font-size:13px">
+          I dati del modulo vengono inviati via email per gestire
+          la tua richiesta. L'applicazione non conserva una copia
+          in un database.
+        </p>
+
         <div id="contactResult" role="status" aria-live="polite"></div>
-        <button class="btn" id="contactSubmit" type="submit">Invia richiesta</button>
+        <button class="btn" id="contactSubmit" type="submit">
+          Invia richiesta
+        </button>
       </form>
     </section>
 
@@ -2221,63 +2255,57 @@ def consulenza():
       const result = document.getElementById("contactResult");
       const button = document.getElementById("contactSubmit");
       const accessKey = "6cfd757e-6b16-49e0-96b5-e055a159f403";
-      const params = new URLSearchParams(window.location.search);
-      const registered = params.get("percorso") === "registrazione";
-      const registeredPanel = document.getElementById("ft-registered-panel");
-      const simplePanel = document.getElementById("ft-no-registration-panel");
-      const note = document.getElementById("ft-registration-note");
-      document.getElementById("ft-path-value").value = registered ? "registrazione" : "senza-registrazione";
-      registeredPanel.hidden = !registered;
-      simplePanel.hidden = registered;
-      registeredPanel.querySelectorAll("input,select,textarea").forEach(el => {
-        el.disabled = !registered;
-        if (el.hasAttribute("data-required")) el.required = registered;
-      });
-      simplePanel.querySelectorAll("input,select,textarea").forEach(el => {
-        el.disabled = registered;
-        el.required = !registered && el.id !== "phone" && el.id !== "message";
-      });
-      if (registered) {
-        document.getElementById("ft-contact-title").textContent = "Registrazione della tua richiesta FixTude";
-        note.textContent = "Percorso completo: indicaci i tuoi dati, il tipo di debito e la fase in cui ti trovi. L'invio non crea ancora un account personale.";
-      } else {
-        document.getElementById("ft-contact-title").textContent = "Facciamo chiarezza sulla tua situazione";
-        note.textContent = "Percorso rapido senza registrazione: lascia i recapiti essenziali se desideri essere ricontattato.";
-      }
 
       form.addEventListener("submit", async e => {
         e.preventDefault();
         result.className = "";
         result.textContent = "";
+
         if (!form.reportValidity()) return;
+
         const values = Object.fromEntries(new FormData(form).entries());
+
+        // Honeypot: se compilato da un bot, mostra un esito neutro senza inviare.
         if (String(values.website || "").trim()) {
           result.className = "notice success";
-          result.textContent = "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
+          result.textContent =
+            "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
           form.reset();
           return;
         }
+
         values.access_key = accessKey;
-        values.subject = registered ? "FixTude - richiesta completa con registrazione" : "FixTude - richiesta senza registrazione";
+        values.subject = "FixTude - nuova richiesta di ricontatto";
         values.from_name = "FixTude - modulo di ricontatto";
         values.botcheck = values.botcheck || "";
         delete values.website;
+
         button.disabled = true;
         button.textContent = "Invio in corso…";
+
         try {
           const response = await fetch("https://api.web3forms.com/submit", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            },
             body: JSON.stringify(values)
           });
+
           const data = await response.json();
-          if (!response.ok || data.success !== true) throw new Error(data.message || "Non è stato possibile inviare la richiesta.");
+          if (!response.ok || data.success !== true) {
+            throw new Error(data.message || "Non è stato possibile inviare la richiesta.");
+          }
+
           result.className = "notice success";
-          result.textContent = "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
+          result.textContent =
+            "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
           form.reset();
         } catch (err) {
           result.className = "notice error";
-          result.textContent = err.message || "Errore di connessione. Riprova più tardi.";
+          result.textContent = err.message ||
+            "Errore di connessione. Riprova più tardi.";
         } finally {
           button.disabled = false;
           button.textContent = "Invia richiesta";
@@ -2286,7 +2314,8 @@ def consulenza():
     })();
     </script>
     """
-    return page("Richiesta FixTude", content)
+    return page("Ricontatto", content)
+
 
 @app.route("/api/contact", methods=["POST"])
 def contact_send():
@@ -2998,7 +3027,7 @@ def download_modulo(slug):
                 Il documento non è al momento disponibile.
                 Riprova più tardi.
             </p>
-            <a class="btn" href="/moduli">
+            <a class="btn" href="/educazione-finanziaria">
                 Torna ai moduli gratuiti
             </a>
             ''',
@@ -3038,17 +3067,6 @@ def educazione_finanziaria():
         <a class="btn" href="/educazione-finanziaria/guida-saldo-e-stralcio">Leggi l'articolo</a>
       </div>
     </section>
-    <section class="card education-article-card" aria-labelledby="guide-cambiali">
-      <a class="education-article-image-link" href="/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro" aria-label="Leggi la guida sul piano di rientro con cambiali">
-        <img class="education-article-image" src="/static/Piano%20di%20rientro%20con%20cambiali_%20pro%20e%20contro.png" alt="Piano di rientro con cambiali: documenti, calendario e scadenze" loading="lazy">
-      </a>
-      <div class="education-article-copy">
-        <p class="muted">GUIDA PRATICA · 9–11 MINUTI DI LETTURA</p>
-        <h2 id="guide-cambiali"><a href="/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro">Piano di rientro con cambiali: pro, contro e rischi da conoscere prima di firmare</a></h2>
-        <p>Prima di accettare un piano di rientro con cambiali, è importante conoscere i vantaggi, le conseguenze del mancato pagamento e i controlli da fare per valutare se l’accordo è davvero sostenibile.</p>
-        <a class="btn" href="/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro">Leggi l’articolo</a>
-      </div>
-    </section>
     <style>
       .education-article-card{display:grid;grid-template-columns:minmax(150px,230px) minmax(0,1fr);gap:20px;align-items:center}
       .education-article-image-link{display:block;max-width:230px}
@@ -3056,9 +3074,9 @@ def educazione_finanziaria():
       .education-article-copy h2{margin-top:6px}
       @media(max-width:600px){.education-article-card{grid-template-columns:1fr;gap:12px}.education-article-image-link{width:100%;max-width:100%}.education-article-image{width:100%;max-height:210px;object-fit:contain;object-position:left center}.education-article-copy h2{font-size:1.25rem}}
     </style>
-    <section class="card" id="bilancio"><h2>Organizzare il bilancio familiare</h2><p>Annota le entrate nette effettivamente disponibili e separa le spese essenziali (casa, utenze, alimentazione, salute e trasporti) dalle spese flessibili. Inserisci poi rate, arretrati e scadenze. Il margine mensile è una stima: lascia un cuscinetto per gli imprevisti e non considerare sostenibile una rata che mette a rischio le necessità di base.</p><ul><li>Usa importi mensili omogenei.</li><li>Evita di contare entrate incerte come se fossero garantite.</li><li>Aggiorna il prospetto quando cambiano reddito o spese.</li></ul><p><a href="/misuratore">Prova il calcolatore gratuito di sostenibilità del debito</a>.</p></section>
+    <section class="card" id="bilancio"><h2>Organizzare il bilancio familiare</h2><p>Annota le entrate nette effettivamente disponibili e separa le spese essenziali (casa, utenze, alimentazione, salute e trasporti) dalle spese flessibili. Inserisci poi rate, arretrati e scadenze. Il margine mensile è una stima: lascia un cuscinetto per gli imprevisti e non considerare sostenibile una rata che mette a rischio le necessità di base.</p><ul><li>Usa importi mensili omogenei.</li><li>Evita di contare entrate incerte come se fossero garantite.</li><li>Aggiorna il prospetto quando cambiano reddito o spese.</li></ul><p><a href="/">Prova il calcolatore gratuito di sostenibilità del debito</a>.</p></section>
     <section class="card" id="priorita"><h2>Dare priorità ai pagamenti</h2><p>Prima di distribuire il denaro tra i debiti, proteggi le necessità essenziali e valuta le scadenze concrete. Non esiste una priorità universale valida per ogni situazione: atti giudiziari, garanzie, utenze e debiti fiscali possono avere conseguenze differenti. Se hai ricevuto un atto con termini, chiedi tempestivamente una valutazione qualificata.</p><ul><li>Apri e conserva le comunicazioni ricevute.</li><li>Segna importo, creditore, scadenza e riferimento della pratica.</li><li>Non ignorare raccomandate, PEC o atti notificati.</li></ul></section>
-    <section class="card" id="creditori"><h2>Parlare con i creditori</h2><p>Una richiesta efficace è chiara, documentata e realistica. Indica il riferimento del rapporto, spiega brevemente la difficoltà, proponi un importo compatibile con il bilancio e chiedi conferma scritta delle condizioni. Non promettere pagamenti che non puoi sostenere e non considerare accettata una proposta finché non hai ricevuto una conferma verificabile.</p><p>Puoi partire dai <a href="/moduli">moduli gratuiti FixTude</a> e personalizzarli.</p></section>
+    <section class="card" id="creditori"><h2>Parlare con i creditori</h2><p>Una richiesta efficace è chiara, documentata e realistica. Indica il riferimento del rapporto, spiega brevemente la difficoltà, proponi un importo compatibile con il bilancio e chiedi conferma scritta delle condizioni. Non promettere pagamenti che non puoi sostenere e non considerare accettata una proposta finché non hai ricevuto una conferma verificabile.</p><p>Puoi approfondire i criteri e gli esempi nelle altre guide di educazione finanziaria.</p></section>
     <section class="card" id="errori"><h2>Errori da evitare</h2><ul><li>Pagare intermediari che promettono cancellazioni o risultati garantiti.</li><li>Firmare accordi senza aver letto importi, scadenze e conseguenze.</li><li>Inviare documenti personali a destinatari non verificati.</li><li>Contrarre nuovo debito senza valutare il costo totale e la sostenibilità.</li><li>Rimandare la richiesta di aiuto quando arrivano atti con termini precisi.</li></ul><p>Le informazioni di questa pagina sono generali e non sostituiscono una consulenza professionale.</p></section>'''
     return page("Educazione finanziaria", content)
 
@@ -3097,13 +3115,13 @@ def articolo_gestione_stipendio():
       <p>Per una prima fotografia, puoi calcolare il margine mensile sottraendo alle entrate nette tutte le spese effettive, comprese le rate già in corso:</p>
       <p class="formula-box"><strong>Margine mensile = entrate nette − spese complessive</strong></p>
       <p>Il risultato va letto con prudenza: spese irregolari, imprevisti e variazioni di reddito possono ridurlo. Non tutto il margine apparente dovrebbe essere impegnato in una nuova rata. È opportuno proteggere prima le necessità essenziali e mantenere una riserva compatibile con la propria situazione.</p>
-      <p>Puoi fare una prima simulazione con il <a href="/misuratore">calcolatore gratuito di sostenibilità del debito FixTude</a>. I dati inseriti nel calcolatore vengono elaborati nel browser e lo strumento offre una valutazione orientativa, non una certificazione di solvibilità né una garanzia di accordo con i creditori.</p>
+      <p>Puoi fare una prima simulazione con il <a href="/">calcolatore gratuito di sostenibilità del debito FixTude</a>. I dati inseriti nel calcolatore vengono elaborati nel browser e lo strumento offre una valutazione orientativa, non una certificazione di solvibilità né una garanzia di accordo con i creditori.</p>
       <h2>Gli errori più comuni</h2>
       <ul><li>Usare percentuali rigide senza considerare il costo reale della casa e delle necessità.</li><li>Dimenticare spese annuali o irregolari.</li><li>Confondere il saldo temporaneo del conto con una disponibilità mensile stabile.</li><li>Impegnare tutto il margine in rate, senza lasciare spazio agli imprevisti.</li><li>Ricorrere a nuovo credito per coprire un deficit senza valutarne costo e sostenibilità.</li></ul>
       <h2>In sintesi</h2>
       <p>La regola 1/3, 1/3, 1/3 può aiutare a iniziare una conversazione sul proprio bilancio, ma non è un obiettivo da raggiungere a ogni costo. Il metodo più utile è quello che rispecchia le entrate, le spese e gli impegni reali, mette al sicuro le necessità fondamentali e viene aggiornato con regolarità.</p>
       <section class="notice"><strong>Nota informativa</strong><br>Questa guida ha finalità generali e informative. Non costituisce consulenza finanziaria, fiscale o legale personalizzata. Le scelte relative a debiti e pagamenti dipendono dalla situazione concreta e dagli eventuali atti o accordi applicabili.</section>
-      <div class="actions"><a class="btn" href="/misuratore">Prova il calcolatore gratuito</a><a class="btn outline" href="/educazione-finanziaria">Tutte le guide di educazione finanziaria</a></div>
+      <div class="actions"><a class="btn" href="/">Prova il calcolatore gratuito</a><a class="btn outline" href="/educazione-finanziaria">Tutte le guide di educazione finanziaria</a></div>
     </article>
     <style>
       .article-content h1{margin-top:0}.article-content h2{margin-top:30px}
@@ -3169,7 +3187,7 @@ def articolo_saldo_e_stralcio():
       <h2>In conclusione</h2>
       <p>Il saldo e stralcio può rappresentare un'opportunità di definizione concordata, ma non è uno sconto automatico e non elimina la necessità di verificare i documenti. Prima si ricostruisce la posizione, poi si valuta una proposta sostenibile; infine si controlla l'accordo scritto prima di pagare. Se ci sono procedure giudiziarie, più debitori, garanti o dubbi sull'importo richiesto, è prudente ottenere assistenza professionale.</p>
       <section class="notice"><strong>Nota informativa</strong><br>Questo articolo ha finalità generali di educazione finanziaria e non costituisce consulenza legale, fiscale o finanziaria personalizzata. Gli effetti di un accordo dipendono dal testo sottoscritto, dai soggetti coinvolti e dalle circostanze concrete. Non sono garantiti sconti, accettazioni o risultati.</section>
-      <div class="actions"><a class="btn" href="/shop">Scopri la guida completa FixTude</a><a class="btn outline" href="/misuratore">Calcola il tuo margine mensile</a><a class="btn outline" href="/educazione-finanziaria">Tutte le guide di educazione finanziaria</a></div>
+      <div class="actions"><a class="btn" href="/">Torna al calcolatore FixTude</a><a class="btn outline" href="/">Calcola il tuo margine mensile</a><a class="btn outline" href="/educazione-finanziaria">Tutte le guide di educazione finanziaria</a></div>
     </article>
     <style>
       .article-content h1{margin-top:0}.article-content h2{margin-top:30px}
@@ -3178,146 +3196,6 @@ def articolo_saldo_e_stralcio():
     </style>'''
     return page("Saldo e stralcio: guida pratica", content)
 
-
-
-@app.route("/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro")
-def articolo_piano_rientro_cambiali():
-    content = r'''<article class="card article-content cambiali-article">
-      <nav class="article-breadcrumb" aria-label="Percorso di navigazione"><a href="/">Home</a> › <a href="/educazione-finanziaria">Educazione finanziaria</a> › <span>Piano di rientro con cambiali</span></nav>
-      <div class="cambiali-hero-grid"><div><p class="article-kicker">GUIDA PRATICA · 9–11 MINUTI DI LETTURA</p>
-      <h1>Piano di rientro con cambiali: pro, contro e rischi da conoscere prima di firmare</h1>
-      <p class="article-subtitle">Accettare un piano di rientro può aiutarti a gestire un debito senza dover pagare tutto subito. Ma cosa succede se le rate sono garantite da cambiali? Scopri vantaggi, rischi, conseguenze del mancato pagamento e quali verifiche fare prima di firmare.</p>
-      <p class="muted article-byline">Redazione - FixTude · Educazione finanziaria</p></div>
-      <figure class="article-hero-image"><img src="/static/Piano%20di%20rientro%20con%20cambiali_%20pro%20e%20contro.png" alt="Piano di rientro con cambiali: documenti, calendario e scadenze da verificare prima di firmare" fetchpriority="high"><figcaption>Prima di firmare, verifica importi, scadenze e condizioni dell’accordo.</figcaption></figure></div>
-      <div class="cambiali-layout"><div class="cambiali-main"><div class="article-intro">
-      <p>Quando un debito diventa difficile da gestire, ricevere una proposta di pagamento rateale può sembrare finalmente una via d’uscita. Il creditore è disposto a concedere più tempo, le rate sembrano accessibili e la possibilità di regolarizzare la propria posizione restituisce un po’ di tranquillità.</p>
-      <p>A volte, però, insieme alla proposta di rateizzazione arriva una richiesta precisa: firmare delle cambiali.</p>
-      <p>È proprio in questo momento che conviene fermarsi a riflettere. Un piano di rientro con cambiali può essere uno strumento utile per organizzare il pagamento di un debito, ma non è equivalente a un semplice accordo per versare rate mensili. Le cambiali hanno caratteristiche giuridiche specifiche e possono offrire al creditore una tutela particolarmente efficace in caso di mancato pagamento.</p>
-      <aside class="article-callout"><strong>La domanda da porsi non è soltanto se puoi pagare la prima rata, ma se sarai in grado di rispettare l’intero piano fino alla sua conclusione.</strong></aside>
-      <p>In questa guida di FixTude vediamo come funziona un piano di rientro con cambiali, quali sono i principali vantaggi, quali rischi è importante conoscere e come valutare un accordo prima di sottoscriverlo.</p></div>
-      <div class="article-body"><p>Quando un debito diventa difficile da gestire, ricevere una proposta di pagamento rateale può sembrare finalmente una via d&#x27;uscita. Il creditore è disposto a concedere più tempo, le rate sembrano accessibili e la possibilità di regolarizzare la propria posizione restituisce un po&#x27; di tranquillità.</p>
-      <p>A volte, però, insieme alla proposta di rateizzazione arriva una richiesta precisa: firmare delle cambiali.</p>
-      <p>È proprio in questo momento che conviene fermarsi a riflettere. Un piano di rientro con cambiali può essere uno strumento utile per organizzare il pagamento di un debito, ma non è equivalente a un semplice accordo per versare rate mensili. Le cambiali hanno caratteristiche giuridiche specifiche e possono offrire al creditore una tutela particolarmente efficace in caso di mancato pagamento.</p>
-      <p>La domanda da porsi non è soltanto se puoi pagare la prima rata, ma se sarai in grado di rispettare l&#x27;intero piano fino alla sua conclusione.</p>
-      <p>In questa guida di FixTude vediamo come funziona un piano di rientro con cambiali, quali sono i principali vantaggi, quali rischi è importante conoscere e come valutare un accordo prima di sottoscriverlo.</p>
-      <h2 id="sezione-1">Che cos&#x27;è un piano di rientro con cambiali?</h2>
-      <p>Un piano di rientro è un accordo attraverso il quale il debitore e il creditore stabiliscono modalità e tempi per il pagamento di una somma dovuta.</p>
-      <p>Invece di chiedere il pagamento immediato dell&#x27;intero importo, il creditore può accettare una suddivisione in più rate, con scadenze definite.</p>
-      <p>Facciamo un esempio.</p>
-      <p>Immagina di avere un debito di 6.000 euro e di non disporre della liquidità necessaria per saldarlo in un&#x27;unica soluzione. Dopo una trattativa, il creditore accetta di ricevere 500 euro al mese per dodici mesi.</p>
-      <p>Questa è una possibile struttura di rientro. Se il pagamento viene concordato mediante bonifici, il debitore verserà le rate secondo le condizioni stabilite nell&#x27;accordo. Se, invece, il creditore richiede dodici cambiali, il piano sarà accompagnato da titoli di credito con le rispettive scadenze.</p>
-      <p>La differenza non è soltanto formale.</p>
-      <p>La cambiale è disciplinata dal Regio decreto 5 dicembre 1933, n. 1669, e può costituire un titolo esecutivo quando ricorrono i requisiti previsti dalla legge. L&#x27;articolo 474 del Codice di procedura civile include espressamente le cambiali tra i titoli sui quali può fondarsi l&#x27;esecuzione forzata.</p>
-      <p>Puoi consultare i testi normativi ufficiali su Normattiva – disciplina della cambiale e Normattiva – articolo 474 del Codice di procedura civile.</p>
-      <p>In termini pratici, se una cambiale valida e utilizzabile come titolo esecutivo non viene pagata, il creditore può, nel rispetto degli adempimenti richiesti, procedere alla notifica del precetto e successivamente avviare un&#x27;esecuzione forzata, per esempio mediante pignoramento.</p>
-      <p>Questo non significa che il pignoramento sia automatico a ogni ritardo. Significa, però, che sottoscrivere cambiali è un impegno da valutare con attenzione.</p>
-      <h2 id="sezione-2">Quali sono i vantaggi di un piano di rientro con cambiali?</h2>
-      <p>Nonostante i rischi, una soluzione di questo tipo può avere una sua utilità. Tutto dipende dalle condizioni concordate e dalla reale capacità del debitore di rispettarle.</p>
-      <p class="check-item">1. Permette di distribuire il debito nel tempo</p>
-      <p>Il vantaggio più evidente è la possibilità di evitare, quando il creditore accetta la dilazione, un pagamento immediato dell&#x27;intera somma.</p>
-      <p>Una rateizzazione può rendere più gestibile una posizione che, in assenza di accordo, richiederebbe risorse economiche non disponibili.</p>
-      <p>È importante, tuttavia, non confondere la dilazione con una riduzione del debito: se il creditore concede soltanto più tempo, l&#x27;importo complessivo da pagare potrebbe rimanere invariato o aumentare per effetto degli oneri previsti.</p>
-      <p class="check-item">2. Aiuta a programmare le uscite</p>
-      <p>Conoscere in anticipo gli importi e le scadenze consente di pianificare meglio il bilancio familiare.</p>
-      <p>Chi deve pagare diverse rate può predisporre un calendario, verificare le entrate attese e organizzare le spese necessarie.</p>
-      <p>Questo vantaggio diventa concreto soltanto quando la rata è compatibile con il reddito disponibile anche nei mesi meno favorevoli.</p>
-      <p>Una scadenza regolare non rende sostenibile un impegno che, nei fatti, supera le possibilità economiche della famiglia.</p>
-      <p class="check-item">3. Può favorire una soluzione concordata</p>
-      <p>Quando il debitore affronta tempestivamente il problema e il creditore è disponibile a trattare, un piano di rientro può contribuire a evitare che la situazione si aggravi.</p>
-      <p>L&#x27;accordo può stabilire tempi, importi e modalità di pagamento, riducendo l&#x27;incertezza per entrambe le parti.</p>
-      <p>Occorre però verificare cosa prevede il documento sulle eventuali iniziative di recupero già avviate. Non è corretto presumere che la semplice firma di un piano sospenda automaticamente un precetto, un pignoramento o altre procedure in corso.</p>
-      <p>Se è già presente una procedura esecutiva, la questione deve essere affrontata espressamente nell&#x27;accordo e valutata con un professionista.</p>
-      <p class="check-item">4. Può offrire una soluzione concreta a un debito verificato</p>
-      <p>Se la somma richiesta è corretta, il debitore riconosce la propria obbligazione e le rate sono sostenibili, un accordo può rappresentare un percorso ordinato verso la chiusura della posizione.</p>
-      <p>Il punto fondamentale è che l&#x27;accordo risolva davvero il problema, anziché rinviarlo.</p>
-      <p>Prima di accettare, è quindi opportuno sapere esattamente quanto si deve, quanto si pagherà complessivamente e quali condizioni porteranno all&#x27;estinzione del debito.</p>
-      <h2 id="sezione-3">I rischi delle cambiali: cosa succede se non paghi?</h2>
-      <p>Questa è la parte che merita maggiore attenzione.</p>
-      <p>Una cambiale non è una semplice promessa informale di pagamento. Quando possiede i requisiti richiesti dalla legge, può consentire al creditore di intraprendere un percorso esecutivo senza dover ottenere prima una sentenza di condanna sul credito incorporato nel titolo.</p>
-      <p>Vediamo le conseguenze principali.</p>
-      <p class="check-item">1. Il creditore può avviare un&#x27;esecuzione forzata</p>
-      <p>Se una cambiale non viene pagata, il creditore può valutare le iniziative previste dalla legge.</p>
-      <p>In presenza di un titolo esecutivo valido e di un credito esigibile, il percorso può comprendere la notifica di un atto di precetto e, successivamente, il pignoramento dei beni o dei crediti del debitore, nel rispetto delle condizioni e delle procedure applicabili.</p>
-      <p>A seconda del caso, possono essere coinvolti beni, conti correnti o crediti verso terzi, come determinate somme dovute dal datore di lavoro.</p>
-      <p>Naturalmente, non ogni situazione produce automaticamente queste conseguenze: contano la validità del titolo, il debito residuo, gli atti notificati e le circostanze concrete.</p>
-      <p>Il dato essenziale è che la cambiale può offrire al creditore uno strumento di tutela più immediato rispetto a un semplice accordo non assistito da un titolo esecutivo.</p>
-      <p class="check-item">2. Una rata non pagata può compromettere l&#x27;intero accordo</p>
-      <p>Immagina di aver concordato dodici rate mensili e di averne pagate regolarmente otto. Poi, a causa di una spesa imprevista, non riesci a pagare la nona cambiale.</p>
-      <p>Il problema non riguarda soltanto la rata scaduta. Bisogna verificare se il piano prevede clausole che consentono al creditore di chiedere il pagamento anticipato delle somme residue.</p>
-      <p>Queste clausole possono disciplinare la decadenza dal beneficio del termine, ma i loro effetti dipendono dal contenuto dell&#x27;accordo e dalla normativa applicabile.</p>
-      <p>Per questo motivo, prima di firmare, chiediti cosa accadrebbe se dovessi perdere il lavoro, affrontare una spesa sanitaria o subire una riduzione delle entrate.</p>
-      <p>Non si tratta di essere pessimisti. Si tratta di valutare un impegno finanziario sulla base di ciò che potrebbe realmente accadere.</p>
-      <p class="check-item">3. Potrebbero aumentare le spese</p>
-      <p>Un mancato pagamento può comportare ulteriori costi, secondo la situazione concreta e le disposizioni applicabili.</p>
-      <p>Possono assumere rilievo gli interessi dovuti, le spese previste dall&#x27;accordo e gli eventuali costi legali o esecutivi legittimamente richiesti.</p>
-      <p>Ecco perché non basta controllare l&#x27;importo scritto su ogni cambiale. Occorre capire quale sia il costo complessivo dell&#x27;operazione e quali conseguenze siano previste in caso di inadempimento.</p>
-      <p class="check-item">4. Firmare può avere conseguenze sul riconoscimento del debito</p>
-      <p>Questo aspetto è particolarmente importante quando l&#x27;importo richiesto è contestato o quando esistono dubbi sulla prescrizione.</p>
-      <p>L&#x27;articolo 2944 del Codice civile stabilisce che il riconoscimento del diritto da parte di chi lo subisce può interrompere la prescrizione. La rilevanza concreta di una firma o di una dichiarazione dipende, tuttavia, dal contenuto dell&#x27;atto e dalle circostanze.</p>
-      <p>Se ritieni che il debito sia prescritto, che una parte degli importi non sia dovuta o che il credito sia stato calcolato in modo errato, è prudente far verificare la posizione prima di firmare.</p>
-      <p>Puoi consultare il testo ufficiale dell&#x27;articolo 2944 del Codice civile.</p>
-      <h2 id="sezione-4">Piano di rientro con cambiali o rateizzazione ordinaria: quale scegliere?</h2>
-      <p>Non esiste una risposta valida per tutti. Le due soluzioni devono essere confrontate sulla base delle garanzie richieste, delle conseguenze del mancato pagamento e delle condizioni effettivamente sottoscritte.</p>
-      <p>Una rateizzazione ordinaria può prevedere pagamenti tramite bonifico, addebito bancario o altre modalità concordate. In caso di mancato pagamento, il creditore dovrà valutare gli strumenti di tutela disponibili, tenendo conto degli eventuali titoli esecutivi già esistenti.</p>
-      <p>Nel piano con cambiali, invece, ciascun titolo può assumere un&#x27;autonoma rilevanza giuridica e, se valido e utilizzabile a fini esecutivi, offrire al creditore una via per procedere più rapidamente.</p>
-      <p>Prima di accettare una delle due proposte, confronta almeno questi elementi:</p>
-      <p>Importo totale: quanto dovrai pagare alla fine del piano?</p>
-      <p>Durata: quante rate sono previste e quando scadono?</p>
-      <p>Garanzie: il creditore richiede cambiali o altre forme di garanzia?</p>
-      <p>Inadempimento: quali conseguenze sono previste in caso di ritardo o mancato pagamento?</p>
-      <p>Procedure in corso: l&#x27;accordo stabilisce cosa accade a eventuali iniziative di recupero già avviate?</p>
-      <p>Estinzione: quando e a quali condizioni il debito sarà considerato integralmente saldato?</p>
-      <p>Una proposta con una rata più bassa non è necessariamente migliore se comporta un costo totale molto più elevato o condizioni particolarmente onerose.</p>
-      <p>Allo stesso modo, una rata più alta potrebbe essere accettabile per chi dispone di entrate stabili e di un margine sufficiente, ma diventare rischiosa per chi vive già in equilibrio precario.</p>
-      <h2 id="sezione-5">Come capire se la rata è davvero sostenibile</h2>
-      <p>Uno degli errori più comuni è valutare un piano di rientro guardando soltanto alla rata mensile.</p>
-      <p>Per capire se l&#x27;impegno è realistico, bisogna partire dall&#x27;intero bilancio familiare.</p>
-      <p>Prendiamo un esempio puramente illustrativo.</p>
-      <p>Una famiglia dispone di 1.800 euro netti al mese. Le spese essenziali, comprese abitazione, utenze, alimentazione, trasporti e necessità familiari, ammontano a 1.300 euro. Sono inoltre presenti altre rate per 200 euro mensili.</p>
-      <p>Il margine residuo è di 300 euro.</p>
-      <p>Accettare una nuova rata di 250 euro significherebbe lasciare soltanto 50 euro per far fronte a imprevisti e spese non considerate. Anche se il pagamento fosse tecnicamente possibile in un mese normale, il piano potrebbe rivelarsi fragile.</p>
-      <p>Una valutazione prudente deve considerare:</p>
-      <p>Le entrate nette effettivamente disponibili, non quelle soltanto ipotizzate.</p>
-      <p>Le spese essenziali che non possono essere rinviate.</p>
-      <p>Tutte le altre rate e obbligazioni finanziarie.</p>
-      <p>Le spese irregolari, come manutenzioni, assicurazioni e necessità sanitarie.</p>
-      <p>Un margine per gli imprevisti.</p>
-      <p>La Banca d&#x27;Italia, attraverso il portale educativo L&#x27;economia per tutti – Sovraindebitamento, raccomanda di pianificare entrate e uscite e di valutare la sostenibilità complessiva degli impegni finanziari.</p>
-      <p>Il principio è semplice: non devi dimostrare al creditore che riesci a pagare una rata per un mese. Devi verificare che puoi rispettarla per tutta la durata dell&#x27;accordo, senza compromettere le necessità fondamentali della tua famiglia.</p>
-      <h2 id="sezione-6">Cinque controlli da fare prima di firmare</h2>
-      <p>Prima di sottoscrivere un piano di rientro con cambiali, prenditi il tempo necessario per esaminare ogni elemento dell&#x27;accordo.</p>
-      <p class="check-item">1. Verifica il debito. Chiedi un prospetto aggiornato che distingua capitale, interessi, spese e altri importi richiesti. Se qualcosa non torna, chiedi chiarimenti prima di assumere un nuovo impegno.</p>
-      <p class="check-item">2. Leggi tutte le condizioni. Non limitarti a controllare le date e gli importi delle cambiali. Esamina anche le clausole relative al ritardo, al mancato pagamento e all&#x27;eventuale richiesta anticipata delle somme residue.</p>
-      <p class="check-item">3. Chiarisci cosa succede alle procedure in corso. Se hai già ricevuto un decreto ingiuntivo, un precetto o un atto di pignoramento, non presumere che l&#x27;accordo risolva automaticamente la situazione. Le conseguenze devono essere valutate sulla base degli atti e degli impegni assunti.</p>
-      <p class="check-item">4. Controlla la sostenibilità economica. Fai i conti con prudenza, considerando anche gli altri debiti. Se il piano lascia un margine troppo ridotto per vivere e affrontare gli imprevisti, valuta alternative prima di firmare.</p>
-      <p class="check-item">5. Fatti confermare per iscritto le condizioni finali. Se il creditore accetta una riduzione dell&#x27;importo o un saldo e stralcio, verifica che siano indicate con chiarezza la somma da versare e le condizioni per considerare estinto il debito. Conserva l&#x27;accordo, le ricevute e le prove di ogni pagamento.</p>
-      <p>Se hai dubbi sulla validità del credito, sulla prescrizione o sugli effetti di una cambiale, chiedere una valutazione professionale prima della firma può aiutarti a evitare decisioni difficili da correggere in seguito.</p>
-      <h2 id="sezione-7">Hai già firmato le cambiali e non riesci più a pagare?</h2>
-      <p>Se hai già sottoscritto un piano di rientro e ti accorgi che le rate non sono più sostenibili, la cosa più importante è non ignorare il problema.</p>
-      <p>Contatta il creditore tempestivamente e verifica se esiste la possibilità di rinegoziare le condizioni. Una modifica dell&#x27;accordo richiede il consenso delle parti quando previsto e deve essere formalizzata correttamente: non dare per scontato che una richiesta di proroga sospenda le scadenze o impedisca iniziative legali.</p>
-      <p>Se hai già ricevuto atti giudiziari o esecutivi, fai verificare subito i termini e le possibili iniziative da intraprendere.</p>
-      <p>Quando le difficoltà coinvolgono più debiti e non soltanto una singola rata, potrebbe essere necessario affrontare il problema in modo più ampio. In presenza dei requisiti previsti dalla legge, esistono procedure per la gestione delle situazioni di sovraindebitamento, con il supporto degli Organismi di composizione della crisi da sovraindebitamento (OCC).</p>
-      <p>La Banca d&#x27;Italia offre informazioni introduttive su queste possibilità nella propria guida dedicata al sovraindebitamento.</p>
-      <p>Non tutte le situazioni richiedono una procedura di questo tipo, ma quando i debiti sono diventati complessivamente insostenibili è importante conoscere le alternative disponibili, invece di sottoscrivere nuovi impegni senza una valutazione d&#x27;insieme.</p>
-      <h2 id="sezione-8">Conclusioni: prima di firmare, fai chiarezza</h2>
-      <p>Un piano di rientro con cambiali può essere una soluzione utile per chi deve regolarizzare un debito e dispone delle risorse necessarie per rispettare le scadenze concordate.</p>
-      <p>I vantaggi sono concreti quando la dilazione è sostenibile, le condizioni sono trasparenti e l&#x27;accordo permette di raggiungere un obiettivo preciso: chiudere la posizione debitoria.</p>
-      <p>I rischi, però, non devono essere sottovalutati. Una cambiale valida può consentire al creditore di intraprendere iniziative esecutive in caso di mancato pagamento. Un accordo poco chiaro o una rata superiore alle possibilità economiche possono trasformare una soluzione apparentemente utile in una nuova fonte di difficoltà.</p>
-      <p>Prima di firmare, verifica il debito, leggi tutte le clausole, confronta le alternative e considera il tuo bilancio familiare nel suo complesso.</p>
-      <p>Non accettare un piano soltanto perché ti permette di guadagnare tempo. Accettalo quando hai buone ragioni per ritenere di poterlo rispettare.</p>
-      <p>È da questa consapevolezza che può iniziare un percorso concreto per ritrovare equilibrio finanziario e affrontare i debiti con maggiore lucidità.</p>
-      <section class="notice"><strong>Nota informativa</strong><br>questo articolo ha finalità esclusivamente divulgative e non costituisce consulenza legale o finanziaria personalizzata. Le conseguenze di una cambiale e di un accordo di rientro dipendono dalla documentazione, dalla normativa applicabile e dalle circostanze specifiche. In caso di contestazioni o procedure in corso, è opportuno rivolgersi a un professionista qualificato.</section></div>
-      <section class="cambiali-sources"><h2>Fonti e approfondimenti</h2><ul>
-      <li><a href="https://www.normattiva.it/" target="_blank" rel="noopener noreferrer">Normattiva</a> – Regio decreto 5 dicembre 1933, n. 1669, disciplina della cambiale.</li>
-      <li><a href="https://www.normattiva.it/" target="_blank" rel="noopener noreferrer">Normattiva</a> – Codice di procedura civile, articolo 474, titolo esecutivo.</li>
-      <li><a href="https://economiapertutti.bancaditalia.it/" target="_blank" rel="noopener noreferrer">Banca d’Italia – L’economia per tutti</a> – informazioni su bilancio familiare e sovraindebitamento.</li></ul></section>
-      <div class="actions"><a class="btn" href="/misuratore">Valuta il tuo margine mensile</a><a class="btn outline" href="/educazione-finanziaria">Tutte le guide di educazione finanziaria</a></div>
-      <p class="cambiali-motto"><strong>FixTude – Fai chiarezza sulla tua situazione debitoria.</strong><br>Non farti cercare dal recupero crediti, cerca tu stesso la soluzione.</p>
-      </div><aside class="cambiali-sidebar"><div class="card sidebar-card"><h2>Argomenti dell’articolo</h2><ol>
-      <li><a href="#sezione-1">Che cos’è un piano di rientro con cambiali?</a></li><li><a href="#sezione-2">Vantaggi del piano di rientro</a></li><li><a href="#sezione-3">Rischi e mancato pagamento</a></li><li><a href="#sezione-4">Cambiali o rateizzazione ordinaria?</a></li><li><a href="#sezione-5">Sostenibilità della rata</a></li><li><a href="#sezione-6">Controlli prima di firmare</a></li><li><a href="#sezione-7">Se non riesci più a pagare</a></li><li><a href="#sezione-8">Conclusioni</a></li></ol><p class="muted">Contenuto informativo a cura della Redazione FixTude.</p></div></aside></div></article>
-      <style>
-      .cambiali-article{padding:clamp(18px,3vw,34px);max-width:1180px;margin:0 auto}.article-breadcrumb{font-size:.88rem;color:var(--muted);margin-bottom:24px}.article-breadcrumb a,.sidebar-card a{color:var(--blue);text-decoration:none}.cambiali-hero-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.9fr);gap:28px;align-items:center}.article-kicker{font-size:.82rem;font-weight:750;letter-spacing:.06em;color:var(--blue);margin-bottom:10px}.cambiali-article h1{font-size:clamp(2rem,4vw,3rem);line-height:1.13;letter-spacing:-.025em;margin:.1em 0 .5em;color:var(--navy,#102e52)}.cambiali-article .article-subtitle{font-size:1.08rem;line-height:1.7;color:#40536c}.article-byline{font-size:.9rem;margin-top:18px}.cambiali-article .article-hero-image{margin:0}.cambiali-article .article-hero-image img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:16px}.cambiali-article .article-hero-image figcaption{font-size:.82rem;color:var(--muted);margin-top:8px}.cambiali-layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:28px;margin-top:28px;align-items:start}.cambiali-main{min-width:0}.cambiali-article .article-body p,.cambiali-article .article-intro p{font-size:1.03rem;line-height:1.85;margin:0 0 1.1em}.cambiali-article h2{font-size:1.55rem;line-height:1.3;margin:1.5em 0 .65em;color:var(--navy,#102e52)}.article-callout{padding:18px 20px;margin:24px 0;background:#eef6ff;border-left:4px solid var(--blue,#1672c4);border-radius:10px;line-height:1.7}.cambiali-sidebar{position:sticky;top:20px}.sidebar-card{padding:20px;background:#f5f8fc;border:1px solid #e2eaf3;border-radius:14px}.sidebar-card h2{font-size:1.18rem;margin:0 0 12px}.sidebar-card ol{padding-left:22px;margin:0}.sidebar-card li{margin:0 0 12px;padding-left:3px;line-height:1.45}.cambiali-sources{margin-top:30px;padding-top:10px;border-top:1px solid var(--line,#e1e7ef)}.cambiali-sources li{margin-bottom:10px;line-height:1.6}.cambiali-motto{margin-top:28px;padding:18px;border-radius:12px;background:#f3f7fb;line-height:1.8}.cambiali-article .check-item{padding-left:8px}@media(max-width:850px){.cambiali-hero-grid,.cambiali-layout{grid-template-columns:1fr}.cambiali-sidebar{position:static;order:-1}.cambiali-article .article-hero-image img{aspect-ratio:16/9}}</style>'''
-    return page("Piano di rientro con cambiali: pro, contro e rischi | FixTude", content)
 
 @app.route("/sic")
 def sic_banche_dati():
@@ -3420,7 +3298,7 @@ def shop():
       <div class="shop-book-description"><h2>NIENTE PANICO</h2><p>Una guida pratica per mettere ordine nella situazione debitoria, leggere meglio le proprie possibilità e prepararsi ad affrontare i creditori con maggiore lucidità.</p><p><strong>Formato:</strong> libro digitale PDF.</p><p class="muted">Prima di acquistare, puoi leggere gratuitamente il primo capitolo. Il libro completo sarà disponibile dopo la conferma del pagamento.</p><p><a class="btn outline" href="/shop/anteprima" target="_blank" rel="noopener">Leggi il primo capitolo gratuitamente</a></p><p class="muted">Dopo la conferma del pagamento potrai scaricare il PDF completo dalla pagina di conferma. Non è necessaria la registrazione.</p><div class="price">€ 6,99</div><form method="post" action="/shop/acquista"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">Acquista il libro digitale</button></form></div>
     </section>
     <section class="card product-card" aria-labelledby="guida-saldo-title">
-      <div class="shop-book-cover"><img src="/static/Guida%20al%20Saldo%20e%20Stralcio%20FixTude.png" alt="Copertina della guida FixTude Saldo e stralcio"></div>
+      <div class="shop-book-cover"><img src="/static/guida_saldo_stralcio_cover.png" alt="Copertina della guida FixTude Saldo e stralcio"></div>
       <div class="shop-book-description">
         <h2 id="guida-saldo-title">GUIDA AL SALDO E STRALCIO</h2>
         <p>Tutto quello che c'è da sapere sul saldo e stralcio: come funziona, quali sono i possibili vantaggi e i limiti di una pratica utilizzata per tentare la chiusura bonaria di una posizione debitoria.</p>
@@ -3446,7 +3324,7 @@ def shop():
       <div class="shop-book-cover print-book-mockup"><img src="/static/guida_saldo_stralcio_cartaceo_mockup.png" alt="Mockup illustrativo del libro cartaceo Guida al Saldo e Stralcio FixTude, in arrivo"></div>
       <div class="shop-book-description"><div class="coming-soon-label">COMING SOON</div><h2 id="print-guida-saldo-title">GUIDA AL SALDO E STRALCIO — Edizione cartacea</h2><p>La guida sarà proposta prossimamente anche in formato cartaceo, con stampa su richiesta.</p><p class="muted">Prezzo, tempi e spedizione saranno comunicati prima dell'apertura degli ordini.</p><div class="quantity-selector" aria-label="Selettore quantità non ancora attivo"><span>Numero di copie</span><div class="quantity-controls"><button type="button" class="btn outline" disabled aria-label="Diminuisci numero di copie">−</button><output aria-live="polite">1</output><button type="button" class="btn outline" disabled aria-label="Aumenta numero di copie">+</button></div></div><button type="button" class="btn coming-soon-button" disabled aria-disabled="true">COMING SOON</button></div>
     </section>
-    <p class="muted">I moduli di richiesta debitoria restano gratuiti e sono disponibili nella sezione <a href="/moduli">Moduli gratuiti</a>.</p>
+    <p class="muted">I moduli di richiesta debitoria restano gratuiti e sono disponibili nella sezione <a href="/educazione-finanziaria">Moduli gratuiti</a>.</p>
     <style>
       .coming-soon-label{display:inline-block;background:#e8eef7;color:#23436c;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:800;letter-spacing:.08em;margin-bottom:8px}
       .quantity-selector{margin:16px 0;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
@@ -3462,7 +3340,7 @@ def shop():
 def shop_anteprima():
     # Mostra solo il primo capitolo gratuito, senza esporre il PDF completo.
     if not PREVIEW_FILE.is_file():
-        return page("Anteprima non disponibile", '<h1>Anteprima temporaneamente non disponibile</h1><p>Il primo capitolo gratuito non è al momento disponibile. Riprova più tardi.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 404
+        return page("Anteprima non disponibile", '<h1>Anteprima temporaneamente non disponibile</h1><p>Il primo capitolo gratuito non è al momento disponibile. Riprova più tardi.</p><a class="btn" href="/">Torna allo Shop</a>'), 404
     response = send_file(PREVIEW_FILE, mimetype="application/pdf", as_attachment=False, download_name="FixTude_NIENTE_PANICO_Anteprima.pdf", conditional=True)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Content-Disposition"] = 'inline; filename="FixTude_NIENTE_PANICO_Anteprima.pdf"'
@@ -3474,7 +3352,7 @@ def shop_anteprima_saldo_stralcio():
     # Anteprima PDF gratuita della guida al saldo e stralcio.
     preview_file = PDF_DIR / "FixTude_Guida_Saldo_e_Stralcio_ANTEPRIMA.pdf"
     if not preview_file.is_file():
-        return page("Anteprima non disponibile", '<h1>Anteprima temporaneamente non disponibile</h1><p>Il primo capitolo gratuito non è al momento disponibile. Riprova più tardi.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 404
+        return page("Anteprima non disponibile", '<h1>Anteprima temporaneamente non disponibile</h1><p>Il primo capitolo gratuito non è al momento disponibile. Riprova più tardi.</p><a class="btn" href="/">Torna allo Shop</a>'), 404
     response = send_file(preview_file, mimetype="application/pdf", as_attachment=False, download_name="FixTude_Guida_Saldo_e_Stralcio_Anteprima.pdf", conditional=True)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Content-Disposition"] = 'inline; filename="FixTude_Guida_Saldo_e_Stralcio_Anteprima.pdf"'
@@ -3485,7 +3363,7 @@ def _crea_checkout_pdf(product_id, product_name, description, cancel_url):
     # Crea un checkout separato per ciascun PDF digitale.
     secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
     if stripe is None or not secret_key:
-        return page("Acquisto temporaneamente non disponibile", '<h1>Acquisto non ancora attivo</h1><p>Il pagamento online non è configurato al momento. Non è stato effettuato alcun addebito.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 503
+        return page("Acquisto temporaneamente non disponibile", '<h1>Acquisto non ancora attivo</h1><p>Il pagamento online non è configurato al momento. Non è stato effettuato alcun addebito.</p><a class="btn" href="/">Torna allo Shop</a>'), 503
     stripe.api_key = secret_key
     try:
         checkout = stripe.checkout.Session.create(
@@ -3498,20 +3376,20 @@ def _crea_checkout_pdf(product_id, product_name, description, cancel_url):
         return redirect(checkout.url, code=303)
     except Exception:
         app.logger.exception("Creazione sessione Stripe non riuscita per %s", product_id)
-        return page("Acquisto non disponibile", '<h1>Non è stato possibile avviare il pagamento</h1><p>Nessun pagamento è stato confermato. Riprova più tardi.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 502
+        return page("Acquisto non disponibile", '<h1>Non è stato possibile avviare il pagamento</h1><p>Nessun pagamento è stato confermato. Riprova più tardi.</p><a class="btn" href="/">Torna allo Shop</a>'), 502
 
 
 @app.route("/shop/acquista", methods=["POST"])
 def shop_acquista():
     if request.form.get("accept_terms") != "yes":
-        return page("Conferma necessaria", '<h1>Prima di proseguire</h1><p>Devi accettare i Termini e Condizioni per continuare con l’acquisto.</p><a class="btn" href="/shop">Torna allo shop</a>'), 400
+        return page("Conferma necessaria", '<h1>Prima di proseguire</h1><p>Devi accettare i Termini e Condizioni per continuare con l’acquisto.</p><a class="btn" href="/">Torna allo shop</a>'), 400
     return _crea_checkout_pdf("niente_panico_pdf", "NIENTE PANICO - libro digitale FixTude", "Libro digitale in formato PDF", "/shop?annullato=1")
 
 
 @app.route("/shop/acquista-guida", methods=["POST"])
 def shop_acquista_guida():
     if request.form.get("accept_terms") != "yes":
-        return page("Conferma necessaria", '<h1>Prima di proseguire</h1><p>Devi accettare i Termini e Condizioni per continuare con l’acquisto.</p><a class="btn" href="/shop">Torna allo shop</a>'), 400
+        return page("Conferma necessaria", '<h1>Prima di proseguire</h1><p>Devi accettare i Termini e Condizioni per continuare con l’acquisto.</p><a class="btn" href="/">Torna allo shop</a>'), 400
     return _crea_checkout_pdf(GUIDE_PRODUCT_ID, "Guida FixTude - Saldo e stralcio", "Guida digitale PDF, edizione rivista", "/shop?annullato=1")
 
 
@@ -3532,7 +3410,7 @@ def shop_conferma():
         }
         product = products.get(product_id)
         if not paid or not product:
-            return page("Pagamento da verificare", '<h1>Pagamento non ancora confermato</h1><p>Il PDF sarà disponibile dopo la conferma del pagamento.</p><a class="btn" href="/shop">Torna allo Shop</a>'), 402
+            return page("Pagamento da verificare", '<h1>Pagamento non ancora confermato</h1><p>Il PDF sarà disponibile dopo la conferma del pagamento.</p><a class="btn" href="/">Torna allo Shop</a>'), 402
         if not product["file"].is_file():
             return page("PDF in preparazione", f'<h1>Pagamento confermato</h1><p>Il pagamento risulta confermato, ma il file di {escape(product["title"])} non è presente nell’area privata del server. Contatta info@fixtude.it per ricevere assistenza.</p>'), 500
         content = f'<h1>Grazie per il tuo acquisto!</h1><section class="card"><p>Il pagamento è stato confermato.</p><p><strong>{escape(product["title"])}</strong> è pronto per il download.</p><a class="btn" href="/shop/scarica?session_id={escape(session_id, quote=True)}">Scarica il PDF</a></section><p class="muted">Conserva questa pagina finché non hai scaricato il file.</p>'
@@ -3573,7 +3451,7 @@ def shop_scarica():
 # DOCUMENTI LEGALI - IDENTIFICAZIONE DEL TITOLARE E INFORMATIVE
 # =========================================================
 
-LEGAL_VERSION = "2026-10-19"
+LEGAL_VERSION = "2026-11-01"
 LEGAL_OWNER_NAME = os.environ.get("FIXTUDE_TITOLARE_NOME", "Giovanni Pugliese").strip()
 LEGAL_OWNER_ADDRESS = os.environ.get("FIXTUDE_TITOLARE_INDIRIZZO", "Via Saronno 65, 00188 Roma, Italia").strip()
 LEGAL_VAT_NUMBER = os.environ.get("FIXTUDE_PARTITA_IVA", "15990471003").strip()
@@ -3587,50 +3465,45 @@ def legal_page(title, body):
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
     owner_line = f"{escape(LEGAL_OWNER_NAME)} · P. IVA {escape(LEGAL_VAT_NUMBER)} · {escape(LEGAL_OWNER_ADDRESS)} · {LEGAL_EMAIL}"
-    return Response(f"""<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123a72"><meta name="description" content="{escape(seo_description, quote=True)}"><meta name="robots" content="index, follow, max-image-preview:large"><link rel="canonical" href="{escape(canonical_url, quote=True)}"><link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261019" sizes="48x48"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=20261019"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20261019"><meta property="og:locale" content="it_IT"><meta property="og:type" content="website"><meta property="og:site_name" content="FixTude"><meta property="og:title" content="{escape(seo_title, quote=True)}"><meta property="og:description" content="{escape(seo_description, quote=True)}"><meta property="og:url" content="{escape(canonical_url, quote=True)}"><meta property="og:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><meta property="og:image:alt" content="Logo FixTude"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{escape(seo_title, quote=True)}"><meta name="twitter:description" content="{escape(seo_description, quote=True)}"><meta name="twitter:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><title>{escape(seo_title)}</title><style>body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.65 Arial,sans-serif}}main{{width:min(920px,calc(100% - 28px));margin:28px auto 50px}}.paper{{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:clamp(20px,4vw,38px)}}h1,h2{{line-height:1.25}}h1{{color:#174b91}}h2{{font-size:21px;margin-top:28px}}a{{color:#174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}footer{{border-top:1px solid #dce5ef;margin-top:28px;padding-top:16px;font-size:13px;color:#65758b}}.top{{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}}.brand{{font-size:24px;font-weight:800;color:#174b91;text-decoration:none}}</style></head><body><main><div class="top"><a class="brand" href="/">FixTude</a><a href="/">Torna al sito</a></div><article class="paper"><h1>{escape(title)}</h1><p class="muted">Versione {LEGAL_VERSION}</p><div class="notice"><strong>Denominazione del servizio:</strong> FixTude · <strong>Titolare:</strong> {escape(LEGAL_OWNER_NAME)} · <strong>P. IVA:</strong> {escape(LEGAL_VAT_NUMBER)}</div>{body}<footer><strong>Contatti:</strong> {owner_line}<br>Ultimo aggiornamento: 19 ottobre 2026<br><button type="button" id="ft-cookie-reopen-footer" style="border:0;background:transparent;color:#174b91;text-decoration:underline;cursor:pointer;font:inherit">Preferenze cookie</button></footer></article></main></body></html>""", mimetype="text/html")
+    return Response(f"""<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123a72"><meta name="description" content="{escape(seo_description, quote=True)}"><meta name="robots" content="index, follow, max-image-preview:large"><link rel="canonical" href="{escape(canonical_url, quote=True)}"><link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261019" sizes="48x48"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=20261019"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20261019"><meta property="og:locale" content="it_IT"><meta property="og:type" content="website"><meta property="og:site_name" content="FixTude"><meta property="og:title" content="{escape(seo_title, quote=True)}"><meta property="og:description" content="{escape(seo_description, quote=True)}"><meta property="og:url" content="{escape(canonical_url, quote=True)}"><meta property="og:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><meta property="og:image:alt" content="Logo FixTude"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{escape(seo_title, quote=True)}"><meta name="twitter:description" content="{escape(seo_description, quote=True)}"><meta name="twitter:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><title>{escape(seo_title)}</title><style>body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.65 Arial,sans-serif}}main{{width:min(920px,calc(100% - 28px));margin:28px auto 50px}}.paper{{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:clamp(20px,4vw,38px)}}h1,h2{{line-height:1.25}}h1{{color:#174b91}}h2{{font-size:21px;margin-top:28px}}a{{color:#174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}footer{{border-top:1px solid #dce5ef;margin-top:28px;padding-top:16px;font-size:13px;color:#65758b}}.top{{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}}.brand{{font-size:24px;font-weight:800;color:#174b91;text-decoration:none}}</style></head><body><main><div class="top"><a class="brand" href="/">FixTude</a><a href="/">Torna al sito</a></div><article class="paper"><h1>{escape(title)}</h1><p class="muted">Versione {LEGAL_VERSION}</p><div class="notice"><strong>Denominazione del servizio:</strong> FixTude · <strong>Titolare:</strong> {escape(LEGAL_OWNER_NAME)} · <strong>P. IVA:</strong> {escape(LEGAL_VAT_NUMBER)}</div>{body}<footer><strong>Contatti:</strong> {owner_line}<br>Ultimo aggiornamento: 1 novembre 2026<br><button type="button" id="ft-cookie-reopen-footer" style="border:0;background:transparent;color:#174b91;text-decoration:underline;cursor:pointer;font:inherit">Preferenze cookie</button></footer></article></main></body></html>""", mimetype="text/html")
 
 
 @app.route("/disclaimer")
 def legal_disclaimer():
-    body = """<p>Questo Disclaimer descrive la natura e i limiti degli strumenti e dei contenuti disponibili su FixTude. Si applica in particolare al calcolatore di sostenibilità del debito, ai materiali informativi gratuiti e alle eventuali richieste di contatto.</p>
-    <h2>1. Natura del servizio</h2><p>FixTude è un servizio informativo e di orientamento che propone strumenti per organizzare i dati economici, comprendere alcune possibili opzioni e preparare domande o comunicazioni da sottoporre ai soggetti competenti. L'utilizzo del sito, del calcolatore, della chat o dei moduli gratuiti non costituisce di per sé conferimento di un incarico professionale, mandato a rappresentare l'utente o instaurazione automatica di un rapporto di consulenza.</p>
-    <h2>2. Calcolatore di sostenibilità del debito</h2><p>Il calcolatore esegue simulazioni matematiche sulla base degli importi inseriti dall'utente. La riserva mensile di 200 euro, la quota iniziale pari al 50% del margine prudenziale e le soglie del semaforo sono parametri orientativi dello strumento; non rappresentano criteri ufficiali, soglie normative o garanzie di sostenibilità. Il risultato dipende dalla correttezza, completezza e attualità dei dati e può non riflettere spese occasionali, entrate variabili, interessi, costi, scadenze, garanzie o altre circostanze rilevanti.</p>
-    <h2>3. Simulazioni di rientro e saldo e stralcio</h2><p>Le rate a 6, 12 e 24 mesi sono calcoli teorici basati sul debito inserito e non includono necessariamente interessi, commissioni, spese legali, penali o altri importi. Lo scenario di saldo e stralcio al 60% è un esempio matematico e negoziale, non una percentuale tipica o garantita. Soltanto il creditore può valutare e accettare una proposta; prima di effettuare pagamenti è necessario ottenere condizioni chiare e conferma scritta degli effetti dell'accordo.</p>
-    <h2>4. Nessuna garanzia di risultato</h2><p>FixTude non garantisce riduzioni del debito, sospensioni di azioni di recupero, accettazione di piani, cancellazioni o rettifiche nelle banche dati creditizie, né tempi o risultati specifici. Un esito verde non certifica la solvibilità; un esito giallo o rosso non costituisce una decisione definitiva sulla situazione dell'utente.</p>
-    <h2>5. Limiti e professionisti abilitati</h2><p>I contenuti generali del sito non sostituiscono una consulenza legale, fiscale, contabile o finanziaria personalizzata. FixTude non si presenta, in forza del solo uso del sito, come avvocato, commercialista, consulente finanziario abilitato, organismo di composizione della crisi o rappresentante del cliente. Quando una situazione richiede una valutazione riservata a un professionista abilitato o a un organismo previsto dalla legge, l'utente dovrebbe rivolgersi al soggetto competente. Eventuali attività ulteriori, se offerte, dovranno essere descritte e concordate separatamente prima del loro avvio.</p>
-    <h2>6. Documenti e informazioni inseriti dall'utente</h2><p>L'utente è responsabile di verificare i dati inseriti, gli importi dei debiti, l'identità dei creditori, le scadenze e i documenti ricevuti. Non caricare o inviare tramite moduli o chat documenti integrali, credenziali bancarie o dati personali non necessari. In presenza di atti giudiziari, termini di opposizione, procedure esecutive o scadenze imminenti, richiedi tempestivamente assistenza qualificata.</p>
-    <h2>7. Elaborazione dei dati nel calcolatore</h2><p>Gli importi inseriti nel calcolatore vengono elaborati localmente nel browser e non sono inviati dal codice del calcolatore agli endpoint applicativi né salvati in un archivio di FixTude. Questa indicazione riguarda il calcolatore e non si estende automaticamente ai dati che l'utente sceglie di comunicare tramite il modulo di contatto, la chat, la posta elettronica o servizi di terze parti, che sono disciplinati dall'<a href="/privacy">Informativa Privacy</a>.</p>
-    <h2>8. Contatti e aggiornamenti</h2><p>Per chiarimenti sul servizio scrivi a info@fixtude.it. Questo Disclaimer può essere aggiornato quando cambiano le funzionalità o le condizioni del servizio. Le informazioni presenti sul sito non sostituiscono la lettura delle comunicazioni ufficiali ricevute dai creditori né la verifica della normativa applicabile al caso concreto.</p>"""
+    body = """<p>FixTude è uno strumento digitale automatizzato che elabora tre valori dichiarati dall'utente: entrate mensili nette, uscite mensili e debiti complessivi residui. Il risultato è un'indicazione matematica orientativa, non una valutazione professionale o una certificazione di solvibilità.</p>
+    <h2>1. Regole di calcolo V1</h2><p>Il sistema calcola il saldo mensile sottraendo le uscite alle entrate. Dal saldo positivo sottrae una riserva prudenziale convenzionale di 200 euro; considera poi come quota teoricamente destinabile al debito il 50% del margine residuo. Divide l'importo complessivo dei debiti per tale quota e stima il numero di mesi teorici necessari.</p>
+    <h2>2. Semaforo</h2><p><strong>Rosso:</strong> saldo mensile nullo o negativo, quota teorica nulla oppure tempo teorico superiore a 60 mesi. <strong>Giallo:</strong> tempo teorico superiore a 36 e fino a 60 mesi. <strong>Verde:</strong> tempo teorico fino a 36 mesi oppure debito dichiarato pari a zero. La riserva, la percentuale e le soglie sono parametri convenzionali FixTude, non criteri ufficiali, soglie normative o garanzie di sostenibilità.</p>
+    <h2>3. Limiti</h2><p>Il calcolo non verifica l'esistenza o l'esattezza dei debiti e non considera automaticamente interessi, spese, rate contrattuali, garanzie, privilegi, prescrizioni, pignoramenti, procedure, scadenze o variazioni future di reddito e spesa. La quota teorica non è una proposta da inviare al creditore e non implica che un creditore accetti un piano o un saldo e stralcio.</p>
+    <h2>4. Natura del servizio</h2><p>FixTude non è uno studio legale, un intermediario finanziario o un consulente umano. Non promette soluzioni miracolose e non sostituisce il giudizio di professionisti abilitati. Un esito verde non certifica la solvibilità; un esito giallo o rosso non costituisce una decisione definitiva sulla situazione dell'utente.</p>
+    <h2>5. Dati e report acquistato</h2><p>I dati inseriti sono trasmessi al server per elaborare il risultato e mantenuti temporaneamente nella sessione tecnica del browser necessaria a completare il checkout e generare il report. Non viene creato un account né un profilo economico permanente. Dopo il pagamento, il report e i materiali acquistati sono preparati per il download e, se il servizio email è configurato, inviati all'indirizzo comunicato durante il checkout. Per i dettagli si rinvia all'<a href="/privacy">Informativa Privacy</a>.</p>
+    <h2>6. Decisioni e verifiche</h2><p>L'utente resta responsabile della correttezza dei dati inseriti e delle decisioni assunte. In presenza di atti giudiziari, termini di opposizione, procedure esecutive o scadenze imminenti è opportuno rivolgersi tempestivamente a un professionista qualificato. Per chiarimenti: info@fixtude.it.</p>"""
     return legal_page("Disclaimer", body)
 
 
 @app.route("/termini")
 def legal_terms():
-    body = """<p>I presenti Termini e Condizioni disciplinano l'uso del sito FixTude, dei suoi strumenti informativi e, quando attivo, l'acquisto del libro digitale <em>NIENTE PANICO</em>.</p>
-    <h2>1. Denominazione del servizio, titolare e contatti</h2><p>FixTude è la denominazione del servizio e del progetto editoriale online. Il servizio è gestito da Giovanni Pugliese, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per comunicazioni: info@fixtude.it. FixTude è il nome del servizio e non indica, da solo, una società distinta dal titolare sopra identificato.</p>
-    <h2>2. Funzionalità gratuite</h2><p>Il sito può offrire un calcolatore orientativo di sostenibilità del debito, guide, moduli scaricabili, collegamenti informativi e chat. Le funzioni e la loro disponibilità possono variare per manutenzione o ragioni tecniche. Nel calcolatore gli importi sono elaborati nel browser e il codice dello strumento non li invia agli endpoint applicativi. Le formule, la riserva e le soglie del semaforo sono criteri orientativi scelti per una prima simulazione, non standard universali né una certificazione di solvibilità. Leggi anche il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
-    <h2>3. Limiti delle informazioni</h2><p>I contenuti hanno finalità informative e organizzative. Non costituiscono consulenza legale, fiscale o finanziaria personalizzata, non sostituiscono un professionista abilitato e non garantiscono riduzioni del debito, cancellazioni da banche dati o accettazione di proposte da parte dei creditori. L'utente deve verificare i dati e adattare i modelli alla propria situazione. Per i dettagli sui limiti del calcolatore e delle simulazioni consulta il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
-    <h2>4. Chat e richieste di contatto</h2><p>L'invio di una richiesta di contatto non comporta obbligo di acquistare servizi né garantisce tempi di risposta specifici. La chat non è un servizio di emergenza. Non inserire nella chat o nel modulo dati bancari, credenziali, documenti completi o dati personali non necessari.</p>
-    <h2>5. Libro digitale e pagamenti</h2><p>Per l'edizione digitale PDF di <em>NIENTE PANICO</em>, il prezzo mostrato al momento della revisione è € 6,99, salvo diversa indicazione nella pagina di acquisto. Il pagamento, quando disponibile, è elaborato da Stripe; il download viene reso disponibile dopo la verifica della transazione. Non inviare i dati della carta a FixTude via email.</p><p>L'edizione cartacea è contrassegnata come “COMING SOON”: al momento non è possibile ordinarla né pagarla dal sito. Prezzo, modalità di stampa, spedizione e condizioni saranno pubblicati prima dell'apertura degli ordini.</p>
-    <h2>6. Consumatori e recesso</h2><p>Restano fermi i diritti inderogabili riconosciuti ai consumatori dalla normativa applicabile. Per contenuti digitali forniti senza supporto materiale, l'eventuale perdita del diritto di recesso richiede che ricorrano tutte le condizioni previste dalla legge, incluse le dichiarazioni espresse richieste prima dell'inizio dell'esecuzione e la conferma su supporto durevole. Il flusso di acquisto deve prevedere le informazioni e le dichiarazioni espresse richieste dalla normativa prima dell'inizio della fornitura del contenuto digitale, oltre alla conferma su supporto durevole quando prevista.</p>
-    <h2>7. Uso corretto</h2><p>L'utente si impegna a usare il sito in modo lecito, a non tentare accessi non autorizzati, a non inviare spam e a non caricare dati di terzi senza una base legittima.</p>
-    <h2>8. Proprietà intellettuale</h2><p>Testi, grafica, marchio e materiali originali del sito sono protetti dalle norme applicabili. I modelli scaricabili possono essere utilizzati per esigenze personali, senza rimuovere avvertenze o presentare i contenuti come pareri professionali garantiti.</p>
-    <h2>9. Privacy</h2><p>Il trattamento dei dati personali è descritto nell'<a href="/privacy">Informativa Privacy</a>. L'accettazione dei presenti Termini non sostituisce l'informativa e non costituisce consenso generale a trattamenti facoltativi.</p>
-    <h2>10. Area Professionisti</h2><p>L’area professionisti è in fase di attivazione. La registrazione non comporta automaticamente la pubblicazione del profilo o l’attivazione di un abbonamento. I profili sono pubblicati solo dopo verifica e approvazione. Le eventuali funzionalità di inoltro richieste e i pacchetti di lead non sono pubblicati come offerta commerciale, non sono acquistabili e non saranno attivati fino alla definizione delle condizioni contrattuali e alla verifica legale e deontologica.</p><h2>11. Assistenza e modifiche</h2><p>Per richieste o reclami scrivere a info@fixtude.it. I termini potranno essere aggiornati per modifiche normative o tecniche; per gli acquisti conclusi restano fermi i diritti già acquisiti.</p>"""
+    body = """<p>I presenti Termini disciplinano l'utilizzo del sito FixTude, del calcolatore matematico e l'eventuale acquisto di libri digitali, report personalizzati e modelli fac-simile.</p>
+    <h2>1. Titolare e contatti</h2><p>FixTude è il nome del servizio digitale gestito da Giovanni Pugliese, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Contatti: info@fixtude.it.</p>
+    <h2>2. Utilizzo gratuito</h2><p>Il calcolatore è accessibile senza registrazione e richiede l'inserimento di entrate mensili nette, uscite mensili e situazione debitoria complessiva. Il sistema restituisce un semaforo e un'indicazione matematica orientativa. Le regole e i limiti sono descritti nel <a href="/disclaimer">Disclaimer</a> e nella pagina <a href="/chi-siamo">Chi siamo</a>.</p>
+    <h2>3. Prodotti digitali</h2><p>Dopo aver visualizzato il risultato, l'utente può selezionare uno dei libri digitali proposti. Il prezzo applicato è quello mostrato prima di procedere al checkout. L'acquisto comprende la preparazione del report basato sui dati inseriti, il libro selezionato e i modelli fac-simile FixTude disponibili per il pacchetto. I file sono forniti in formato digitale.</p>
+    <h2>4. Pagamento e consegna</h2><p>Il pagamento è elaborato da Stripe attraverso il relativo checkout sicuro. FixTude non riceve né conserva i dati completi della carta. Dopo la conferma del pagamento, i materiali sono resi disponibili tramite download e, se il servizio SMTP è correttamente configurato, inviati all'indirizzo email fornito al checkout. L'utente deve conservare la copia scaricata.</p>
+    <h2>5. Contenuti digitali e diritti del consumatore</h2><p>Restano fermi i diritti inderogabili riconosciuti dalla normativa applicabile. Prima di attivare la consegna immediata di contenuti digitali, il flusso di acquisto deve raccogliere le dichiarazioni espresse e le conferme richieste dalla disciplina sul diritto di recesso per i contenuti digitali. Le condizioni specifiche e le informazioni precontrattuali devono essere mostrate al consumatore prima del pagamento.</p>
+    <h2>6. Limiti del report</h2><p>Il report è una elaborazione automatizzata dei dati dichiarati. Non costituisce consulenza legale, fiscale, contabile o finanziaria personalizzata, non verifica documenti e non garantisce accordi, riduzioni, sospensioni o cancellazioni di debiti. I modelli fac-simile devono essere verificati e adattati al caso concreto.</p>
+    <h2>7. Uso corretto e proprietà intellettuale</h2><p>L'utente si impegna a fornire dati veritieri e a utilizzare il sito in modo lecito. Marchio, testi, grafica, libri e materiali originali sono protetti dalle norme applicabili. I modelli sono forniti per uso personale e non devono essere presentati come pareri professionali.</p>
+    <h2>8. Privacy e modifiche</h2><p>Il trattamento dei dati è descritto nell'<a href="/privacy">Informativa Privacy</a>. I Termini possono essere aggiornati per modifiche tecniche o normative; per gli acquisti conclusi restano fermi i diritti già acquisiti. Per assistenza: info@fixtude.it.</p>"""
     return legal_page("Termini e Condizioni", body)
 
 
 @app.route("/privacy")
 def privacy():
-    body = """<p>Questa informativa descrive i principali trattamenti connessi alla versione attuale del sito FixTude. Viene aggiornata quando cambiano in modo rilevante le funzionalità, i fornitori o le modalità di trattamento.</p>
-    <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è Giovanni Pugliese, che gestisce il servizio denominato FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per richieste relative ai dati personali: info@fixtude.it.</p>
-    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore:</strong> gli importi inseriti vengono elaborati nel browser e il codice del calcolatore non li invia agli endpoint applicativi.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio tramite Web3Forms. È presente anche l’endpoint alternativo <code>/api/contact</code>, che se invocato inoltra i dati tramite il server SMTP configurato dal titolare. L’applicazione non conserva una copia in un proprio database; i dati possono restare nei sistemi dei fornitori e nella casella email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Scadenzario personale:</strong> se l'utente crea un account, vengono trattati nome, email, password conservata in forma di hash, eventuale numero di cellulare, preferenze e consensi per i promemoria, oltre ai dati delle scadenze inserite (categoria, creditore/beneficiario, importo, data, frequenza e note facoltative). I dati sono conservati nel database SQLite applicativo su infrastruttura Render; l'utente può eliminare account e scadenze dall'area personale. I promemoria email utilizzano il servizio SMTP configurato; gli SMS, se attivati, sono inviati tramite Twilio. I dati dei messaggi sono comunicati ai relativi fornitori per la consegna. Prima del lancio pubblico devono essere completati gli accordi privacy con i fornitori e definito il periodo di conservazione.</li><li><strong>Libro digitale:</strong> se l'acquisto è attivo, Stripe tratta i dati necessari a elaborare e verificare il pagamento. FixTude riceve le informazioni necessarie a verificare la transazione.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
-    <h2>3. Basi giuridiche</h2><p>Le richieste di contatto sono trattate per rispondere a una richiesta dell'interessato e adottare misure precontrattuali su sua richiesta. I dati relativi ad acquisti sono trattati per eseguire il contratto e adempiere agli obblighi di legge. Sicurezza e prevenzione abusi possono basarsi sul legittimo interesse, da valutare e documentare. Eventuali attività promozionali richiedono una valutazione e, ove necessario, un consenso separato.</p>
-    <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l’hosting (se confermato in produzione), Web3Forms per il modulo visibile e le notifiche email della chat, il fornitore del servizio SMTP configurato per l’endpoint alternativo, Register per la casella email e Stripe per i pagamenti del libro, quando attivi. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
-    <h2>5. Cookie e strumenti di tracciamento</h2><p>Google Analytics (ID di misurazione G-HMBBNLHC7E) viene caricato soltanto dopo la scelta esplicita della categoria statistiche nel pannello cookie. Se la categoria viene rifiutata o disattivata, il sito non avvia nuove richieste di misurazione e aggiorna lo stato di consenso di Google Analytics. I pixel pubblicitari non sono attivi. Prima del lancio definitivo occorre verificare tecnicamente i cookie effettivamente installati e aggiornare questa informativa in base ai risultati.</p>
-    <h2>6. Conservazione</h2><p>I messaggi chat sono temporanei secondo quanto descritto sopra. Le richieste di contatto possono restare nei sistemi del fornitore di invio e nella casella email del destinatario. I dati dello Scadenzario restano nel database fino alla cancellazione dell’account da parte dell’utente o a una richiesta di cancellazione verificata; i backup e i log tecnici possono seguire tempi separati da definire. I tempi effettivi di conservazione dei fornitori, della posta e dei log devono essere verificati e definiti dal titolare prima del lancio pubblico.</p>
-    <h2>7. Diritti</h2><p>Nei limiti previsti dal GDPR è possibile chiedere accesso, rettifica, cancellazione, limitazione, opposizione e, ove applicabile, portabilità, scrivendo a info@fixtude.it. È possibile proporre reclamo al Garante per la protezione dei dati personali.</p>
-    <h2>8. Sicurezza e aggiornamenti</h2><p>Il titolare deve verificare periodicamente le misure di sicurezza, l'accesso ai sistemi, la configurazione dei fornitori e la corrispondenza di questa informativa con i trattamenti reali. La pagina va aggiornata prima di introdurre nuove funzionalità o servizi di terze parti.</p>"""
+    body = """<p>Questa informativa descrive i trattamenti connessi alla versione V1 di FixTude. Prima della pubblicazione definitiva il titolare deve verificare e completare i dati dei fornitori, i tempi di conservazione e gli accordi sul trattamento.</p>
+    <h2>1. Titolare del trattamento</h2><p>Il titolare è Giovanni Pugliese, gestore del servizio FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Contatto privacy: info@fixtude.it.</p>
+    <h2>2. Dati trattati</h2><ul><li><strong>Dati del calcolatore:</strong> entrate mensili, uscite mensili e debiti complessivi inseriti dall'utente. Sono trasmessi al server tramite HTTPS per eseguire il calcolo e mantenuti temporaneamente nella sessione tecnica firmata, necessaria a passare al checkout e generare il report. Non viene creato un account o un archivio permanente dei dati economici.</li><li><strong>Dati di acquisto:</strong> Stripe tratta i dati necessari al pagamento. FixTude riceve i dati della sessione e le informazioni di contatto comunicate al checkout, incluso l'indirizzo email quando fornito.</li><li><strong>Consegna digitale:</strong> il report, il libro selezionato e i modelli fac-simile sono assemblati temporaneamente in memoria per il download e, se SMTP è configurato, inviati come allegato ZIP all'indirizzo email del checkout. L'allegato contiene i valori economici inseriti e il relativo esito.</li><li><strong>Dati tecnici:</strong> il fornitore di hosting e l'infrastruttura possono trattare log, indirizzi IP, dati del browser e informazioni necessarie a sicurezza e funzionamento.</li><li><strong>Cookie:</strong> il sito utilizza cookie tecnici di sessione e, solo dopo il consenso, Google Analytics secondo le preferenze espresse nel pannello cookie.</li></ul>
+    <h2>3. Finalità e basi giuridiche</h2><p>I dati economici sono trattati per fornire il calcolo richiesto e, in caso di acquisto, preparare il report e i materiali digitali. I dati di pagamento e consegna sono trattati per eseguire il contratto e adempiere agli obblighi di legge. I dati tecnici sono trattati per sicurezza e funzionamento. Le statistiche sono attivate soltanto dopo il consenso, ove richiesto.</p>
+    <h2>4. Destinatari e fornitori</h2><p>I destinatari includono il fornitore di hosting (Render, se confermato nell'ambiente di produzione), Stripe per il checkout e il fornitore SMTP configurato per l'invio email. Google Analytics è attivato soltanto dopo consenso. Devono essere verificati i rispettivi accordi, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
+    <h2>5. Conservazione e assenza di account</h2><p>FixTude non richiede registrazione e non crea un profilo personale. I dati del calcolo sono conservati soltanto nella sessione tecnica necessaria a completare l'operazione; i dati della transazione restano nei sistemi di Stripe e i messaggi di consegna possono restare nella casella email del destinatario e nei sistemi SMTP secondo le relative regole. I log tecnici sono gestiti dal fornitore di hosting secondo le sue policy.</p>
+    <h2>6. Diritti dell'interessato</h2><p>Nei limiti previsti dal GDPR è possibile chiedere accesso, rettifica, cancellazione, limitazione, opposizione e, ove applicabile, portabilità, scrivendo a info@fixtude.it. È possibile proporre reclamo al Garante per la protezione dei dati personali.</p>
+    <h2>7. Sicurezza e aggiornamenti</h2><p>Il titolare verifica periodicamente la sicurezza del sito, i fornitori e la corrispondenza dell'informativa con i trattamenti effettivi. Non inserire dati relativi a terzi se non si dispone di un'idonea base giuridica. L'informativa sarà aggiornata in caso di variazioni rilevanti.</p>"""
     return legal_page("Informativa Privacy", body)
 
 
@@ -3779,8 +3652,8 @@ def robots_txt():
         "User-agent: *\n"
         "Allow: /\n"
         "Disallow: /chat-staff\n"
-        "Disallow: /scadenzario\n"
         "Disallow: /api/\n"
+        "Disallow: /checkout\n"
         f"Sitemap: {SEO_BASE_URL}/sitemap.xml\n"
     )
     return Response(body, mimetype="text/plain; charset=utf-8")
@@ -3790,8 +3663,9 @@ def robots_txt():
 def sitemap_xml():
     """Sitemap XML delle pagine pubbliche principali di FixTude."""
     paths = [
-        "/", "/assistenza", "/misuratore", "/consulenza", "/moduli",
-        "/educazione-finanziaria", "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo", "/educazione-finanziaria/guida-saldo-e-stralcio", "/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro", "/sic", "/assistenza-legale", "/professionisti", "/shop",
+        "/", "/chi-siamo", "/educazione-finanziaria",
+        "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo",
+        "/educazione-finanziaria/guida-saldo-e-stralcio",
         "/disclaimer", "/termini", "/privacy", "/cookie",
     ]
     urls = "".join(
@@ -4077,513 +3951,6 @@ def professionisti_contratto():
 def bozza_incarico_legale():
     body = '''<article class="card doc"><div class="no-print"><p class="notice"><strong>Fac-simile informativo da completare e validare dall’avvocato incaricato.</strong> Non è un mandato già conferito e non sostituisce il preventivo, l’informativa sul trattamento dei dati o gli altri documenti richiesti nel caso concreto.</p><button class="btn" onclick="window.print()" type="button">Stampa / salva in PDF</button></div><h1>Fac-simile di conferimento dell’incarico professionale</h1><p><strong>Cliente:</strong> ______________________________________________</p><p>Codice fiscale: __________________________ Indirizzo: __________________________________________</p><p>Email/PEC per comunicazioni: _________________________________________________________________</p><p><strong>Avvocato incaricato:</strong> __________________________________________, C.F./P. IVA __________________</p><p>Ordine degli Avvocati di __________________________, studio in ____________________________________</p><h2>1. Oggetto dell’incarico</h2><p>Il Cliente conferisce all’Avvocato, che accetta, l’incarico limitato alle seguenti attività e posizioni debitorie: ______________________________________________________________________________________________.</p><p>Creditori/controparte e riferimenti dei documenti: __________________________________________________.</p><h2>2. Attività incluse e limiti</h2><p>Attività stragiudiziali incluse: ____________________________________________________________________.</p><p>Eventuale attività giudiziale, procedimento, autorità e grado inclusi: ___________________________________.</p><p>Restano escluse le attività non espressamente indicate, i nuovi procedimenti e i gradi successivi, salvo separato accordo scritto.</p><h2>3. Compenso, preventivo e spese</h2><p>Compenso concordato, criteri e scadenze: __________________________________________________________.</p><p>IVA, contributo previdenziale, spese generali, anticipazioni e spese vive: ________________________________.</p><p>Eventuali somme pagate a FixTude per prodotti o servizi distinti non costituiscono automaticamente compenso dell’Avvocato, salvo accordo espresso e documentato tra le parti interessate.</p><h2>4. Obblighi e autonomia</h2><p>L’Avvocato opera in autonomia e secondo le regole professionali applicabili, senza garantire il risultato. Il Cliente si impegna a fornire documenti veritieri e completi, comunicare tempestivamente atti e scadenze e informare l’Avvocato di ogni cambiamento rilevante.</p><h2>5. Informazioni, comunicazioni e privacy</h2><p>Canali concordati per le comunicazioni: ___________________________________________________________.</p><p>L’informativa privacy, le modalità di conservazione dei documenti, i soggetti autorizzati e le eventuali comunicazioni a terzi sono descritti nell’informativa separata consegnata al Cliente.</p><h2>6. Durata, revoca e rinuncia</h2><p>L’incarico decorre dalla sottoscrizione e termina con: __________________________________________________. Revoca e rinuncia sono disciplinate dalla legge e dalle regole professionali applicabili, con liquidazione delle attività svolte e delle spese dovute secondo l’accordo e la normativa.</p><h2>7. Documenti allegati</h2><p>☐ Preventivo dettagliato · ☐ Informativa privacy · ☐ Documenti del Cliente · ☐ Altro: _______________________</p><div class="signature"><div><div class="line">Luogo, data e firma del Cliente</div></div><div><div class="line">Luogo, data e firma dell’Avvocato</div></div></div><p class="muted">Il professionista deve adattare il fac-simile al caso concreto e verificare gli obblighi informativi e formali applicabili prima della sottoscrizione.</p></article>'''
     return pro_shell("Fac-simile incarico legale", body)
-
-
-# =========================================================
-# SCADENZARIO PERSONALE - ACCOUNT CLIENTE, PAGAMENTI E PROMEMORIA
-# SQLite: impostare FIXTUDE_DB_PATH su un disco persistente Render.
-# Email via SMTP; SMS via Twilio (credenziali in variabili d'ambiente).
-# =========================================================
-
-SCAD_DB_PATH = (os.environ.get("FIXTUDE_SCADENZARIO_DB_PATH", "").strip()
-                or os.environ.get("FIXTUDE_DB_PATH", "").strip()
-                or os.path.join(app.root_path, "fixtude_professionisti.sqlite3"))
-SCAD_CRON_SECRET = os.environ.get("SCADENZARIO_CRON_SECRET", "").strip()
-SCAD_DB_PERSISTENT = bool(os.environ.get("FIXTUDE_SCADENZARIO_DB_PATH", "").strip() or os.environ.get("FIXTUDE_DB_PATH", "").strip())
-TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "").strip()
-TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "").strip()
-TWILIO_FROM_NUMBER = os.environ.get("TWILIO_FROM_NUMBER", "").strip()
-
-
-def scad_db():
-    parent = os.path.dirname(SCAD_DB_PATH)
-    if parent:
-        os.makedirs(parent, exist_ok=True)
-    db = sqlite3.connect(SCAD_DB_PATH, timeout=20)
-    db.row_factory = sqlite3.Row
-    db.execute("PRAGMA foreign_keys=ON")
-    db.execute("PRAGMA journal_mode=WAL")
-    db.execute('''CREATE TABLE IF NOT EXISTS scad_users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL UNIQUE COLLATE NOCASE,
-        phone TEXT NOT NULL DEFAULT '',
-        password_hash TEXT NOT NULL,
-        email_reminders INTEGER NOT NULL DEFAULT 1,
-        sms_reminders INTEGER NOT NULL DEFAULT 0,
-        email_consent_at TEXT NOT NULL DEFAULT '',
-        sms_consent_at TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL
-    )''')
-    db.execute('''CREATE TABLE IF NOT EXISTS scad_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        category TEXT NOT NULL,
-        creditor TEXT NOT NULL,
-        description TEXT NOT NULL DEFAULT '',
-        amount_cents INTEGER NOT NULL DEFAULT 0,
-        due_date TEXT NOT NULL,
-        frequency TEXT NOT NULL DEFAULT 'unica',
-        status TEXT NOT NULL DEFAULT 'da_pagare',
-        notes TEXT NOT NULL DEFAULT '',
-        reminder_days INTEGER NOT NULL DEFAULT 3,
-        email_enabled INTEGER NOT NULL DEFAULT 1,
-        sms_enabled INTEGER NOT NULL DEFAULT 0,
-        last_auto_sent_on TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        FOREIGN KEY(user_id) REFERENCES scad_users(id) ON DELETE CASCADE
-    )''')
-    db.execute("CREATE INDEX IF NOT EXISTS idx_scad_items_user_date ON scad_items(user_id,due_date,status)")
-    db.commit()
-    return db
-
-
-def scad_csrf():
-    token = session.get("scad_csrf")
-    if not token:
-        token = secrets.token_urlsafe(32)
-        session["scad_csrf"] = token
-    return token
-
-
-def scad_csrf_ok():
-    supplied = str(request.form.get("csrf_token", ""))
-    expected = str(session.get("scad_csrf", ""))
-    return bool(supplied and expected and hmac.compare_digest(supplied, expected))
-
-
-def scad_current_user():
-    uid = session.get("scad_user_id")
-    if not uid:
-        return None
-    db = scad_db()
-    try:
-        return db.execute("SELECT * FROM scad_users WHERE id=?", (uid,)).fetchone()
-    finally:
-        db.close()
-
-
-def scad_euro(cents):
-    return (f"{(int(cents or 0) / 100):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-
-
-def scad_parse_amount(value):
-    raw = str(value or "").strip().replace("€", "").replace(" ", "")
-    if not raw:
-        raise ValueError("Inserisci l'importo.")
-    if "," in raw:
-        raw = raw.replace(".", "").replace(",", ".")
-    amount = float(raw)
-    if amount < 0 or amount > 10000000:
-        raise ValueError("Importo non valido.")
-    return int(round(amount * 100))
-
-
-def scad_send_email(to_email, subject, body):
-    if not all([SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SMTP_FROM]):
-        raise RuntimeError("Email non configurata: mancano le variabili SMTP su Render.")
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = SMTP_FROM
-    msg["To"] = to_email
-    msg.set_content(body)
-    context = ssl.create_default_context()
-    if SMTP_PORT == 465:
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=20) as server:
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.send_message(msg)
-    else:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
-            server.ehlo(); server.starttls(context=context); server.ehlo()
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.send_message(msg)
-
-
-def scad_send_sms(to_phone, body):
-    if not all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER]):
-        raise RuntimeError("SMS non configurati: inserisci le credenziali Twilio nelle variabili di Render.")
-    phone = re.sub(r"[\s().-]", "", str(to_phone or ""))
-    if not re.fullmatch(r"\+[1-9]\d{7,14}", phone):
-        raise ValueError("Numero non valido: usa il formato internazionale, ad esempio +393331234567.")
-    url = f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json"
-    payload = urllib.parse.urlencode({"To": phone, "From": TWILIO_FROM_NUMBER, "Body": body}).encode()
-    auth = base64.b64encode(f"{TWILIO_ACCOUNT_SID}:{TWILIO_AUTH_TOKEN}".encode()).decode()
-    req = urllib.request.Request(url, data=payload, headers={"Authorization": f"Basic {auth}", "Content-Type": "application/x-www-form-urlencoded"}, method="POST")
-    with urllib.request.urlopen(req, timeout=20) as response:
-        if response.status not in (200, 201):
-            raise RuntimeError("Il provider SMS non ha confermato l'invio.")
-        return json.loads(response.read().decode("utf-8"))
-
-
-def scad_reminder_text(user, item):
-    return (f"Promemoria FixTude: {item['creditor']} - {item['description'] or item['category']}. "
-            f"Scadenza: {datetime.strptime(item['due_date'], '%Y-%m-%d').strftime('%d/%m/%Y')}. "
-            f"Importo indicato: EUR {scad_euro(item['amount_cents'])}. Controlla i dati e il pagamento.")
-
-
-def scad_send_item_reminder(user, item, channels=None):
-    channels = channels or ["email"]
-    sent, errors = [], []
-    message = scad_reminder_text(user, item)
-    if "email" in channels:
-        if not user["email_reminders"] or not item["email_enabled"]:
-            errors.append("Email: promemoria non abilitato nelle preferenze.")
-        else:
-            try:
-                scad_send_email(user["email"], "FixTude - promemoria scadenza", message + "\n\nAccedi a FixTude per aggiornare il tuo scadenzario.")
-                sent.append("email")
-            except Exception as exc:
-                errors.append("Email: " + str(exc))
-    if "sms" in channels:
-        if not user["sms_reminders"] or not item["sms_enabled"]:
-            errors.append("SMS: promemoria non abilitato nelle preferenze o per questa scadenza.")
-        else:
-            try:
-                scad_send_sms(user["phone"], message)
-                sent.append("SMS")
-            except Exception as exc:
-                errors.append("SMS: " + str(exc))
-    return sent, errors
-
-
-def scad_shell(title, body):
-    return page(title, body, include_chat=False)
-
-
-@app.route("/scadenzario", methods=["GET", "POST"])
-def scadenzario():
-    user = scad_current_user()
-    if request.method == "POST" and not user:
-        if not scad_csrf_ok():
-            return scad_shell("Scadenzario", '<div class="card"><h1>Sessione scaduta</h1><p>Ricarica la pagina e riprova.</p></div>'), 400
-        action = request.form.get("action", "")
-        if action in ("login", "register") and rate_limited("scadenzario_auth", 12, 300):
-            return scad_shell("Riprova più tardi", '<div class="card"><h1>Troppi tentativi</h1><p>Per sicurezza attendi qualche minuto prima di riprovare.</p></div>'), 429
-        email = str(request.form.get("email", "")).strip().lower()
-        password = str(request.form.get("password", ""))
-        db = scad_db()
-        try:
-            if action == "register":
-                name = str(request.form.get("name", "")).strip()
-                phone = str(request.form.get("phone", "")).strip()
-                if len(name) < 2 or len(name) > 100 or not valid_email(email) or len(password) < 10:
-                    raise ValueError("Controlla nome, email e password: la password deve contenere almeno 10 caratteri.")
-                if request.form.get("privacy") != "on":
-                    raise ValueError("Per creare l'account devi confermare di aver letto Privacy e Termini.")
-                if phone and not re.fullmatch(r"\+?[0-9\s().-]{8,20}", phone):
-                    raise ValueError("Numero di telefono non valido.")
-                email_ok = request.form.get("email_reminders") == "on"
-                sms_ok = request.form.get("sms_reminders") == "on"
-                if sms_ok and (not phone or not phone.strip().startswith("+")):
-                    raise ValueError("Per i promemoria SMS inserisci il cellulare con prefisso internazionale, ad esempio +393331234567.")
-                now = datetime.now(ROME_TZ).isoformat()
-                db.execute("INSERT INTO scad_users(name,email,phone,password_hash,email_reminders,sms_reminders,email_consent_at,sms_consent_at,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
-                           (name,email,phone,generate_password_hash(password),int(email_ok),int(sms_ok),now if email_ok else "",now if sms_ok else "",now))
-                db.commit()
-                row = db.execute("SELECT id FROM scad_users WHERE email=?", (email,)).fetchone()
-                session.clear(); session["scad_user_id"] = row["id"]; session["scad_csrf"] = secrets.token_urlsafe(32)
-                return redirect("/scadenzario", code=303)
-            if action == "login":
-                row = db.execute("SELECT id,password_hash FROM scad_users WHERE email=?", (email,)).fetchone()
-                if not row or not check_password_hash(row["password_hash"], password):
-                    raise ValueError("Email o password non corretti.")
-                session.clear(); session["scad_user_id"] = row["id"]; session["scad_csrf"] = secrets.token_urlsafe(32)
-                return redirect("/scadenzario", code=303)
-            raise ValueError("Operazione non riconosciuta.")
-        except sqlite3.IntegrityError:
-            db.rollback(); error = "Esiste già un account con questa email. Accedi dal modulo di login."
-        except ValueError as exc:
-            error = str(exc)
-        except Exception:
-            db.rollback(); app.logger.exception("Errore registrazione/accesso scadenzario"); error = "Non è stato possibile completare l'operazione. Riprova."
-        finally:
-            db.close()
-        return scad_shell("Scadenzario personale", scad_auth_html(error)), 400
-
-    if not user:
-        return scad_shell("Scadenzario personale", scad_auth_html())
-
-    db = scad_db()
-    try:
-        items = db.execute("SELECT * FROM scad_items WHERE user_id=? ORDER BY CASE WHEN status='da_pagare' THEN 0 ELSE 1 END,due_date ASC", (user["id"],)).fetchall()
-    finally:
-        db.close()
-    today = datetime.now(ROME_TZ).date()
-    upcoming = [x for x in items if x["status"] == "da_pagare" and x["due_date"] >= today.isoformat()]
-    overdue = [x for x in items if x["status"] == "da_pagare" and x["due_date"] < today.isoformat()]
-    unpaid_total = sum(x["amount_cents"] for x in items if x["status"] == "da_pagare")
-    cards=[]
-    csrf=escape(scad_csrf(), quote=True)
-    for item in items:
-        d=date.fromisoformat(item["due_date"])
-        is_over=d < today and item["status"] == "da_pagare"
-        state="Scaduta" if is_over else ("Da pagare" if item["status"]=="da_pagare" else "Pagata")
-        color="#b42332" if is_over else ("#16804f" if item["status"]=="pagata" else "#174b91")
-        channels=[]
-        if item["email_enabled"] and user["email_reminders"]: channels.append("email")
-        if item["sms_enabled"] and user["sms_reminders"]: channels.append("SMS")
-        send_form=(f'''<form method="post" action="/scadenzario/promemoria/{item['id']}" class="inline-form"><input type="hidden" name="csrf_token" value="{csrf}"><button class="btn small" type="submit">Invia promemoria</button></form>''') if channels and item["status"]=="da_pagare" else ''
-        mark_form=(f'''<form method="post" action="/scadenzario/pagamento/{item['id']}" class="inline-form"><input type="hidden" name="csrf_token" value="{csrf}"><button class="btn small secondary" type="submit">Segna pagata</button></form>''') if item["status"]=="da_pagare" else ''
-        delete_form=(f'''<form method="post" action="/scadenzario/elimina/{item['id']}" class="inline-form" onsubmit="return confirm('Eliminare questa scadenza?')"><input type="hidden" name="csrf_token" value="{csrf}"><button class="btn small danger" type="submit">Elimina</button></form>''')
-        cards.append(f'''<article class="due-card" data-status="{item['status']}" data-search="{escape((item['category']+' '+item['creditor']+' '+item['description']).lower(), quote=True)}"><div class="due-top"><span class="due-category">{escape(item['category'])}</span><strong style="color:{color}">{state}</strong></div><h3>{escape(item['creditor'])}</h3><p>{escape(item['description'])}</p><div class="due-meta"><span>📅 {d.strftime('%d/%m/%Y')}</span><strong>€ {scad_euro(item['amount_cents'])}</strong></div><p class="muted due-small">Frequenza: {escape(item['frequency'])} · Promemoria: {item['reminder_days']} giorni prima · Canali: {', '.join(channels) if channels else 'non attivi'}</p><div class="due-actions">{send_form}{mark_form}{delete_form}</div><details style="margin-top:10px"><summary style="cursor:pointer;color:#174b91;font-weight:700;font-size:13px">Modifica scadenza</summary><form method="post" action="/scadenzario/modifica/{item['id']}" style="margin-top:10px"><input type="hidden" name="csrf_token" value="{csrf}"><div class="field"><label>Tipo</label><input name="category" maxlength="60" value="{escape(item['category'])}" required></div><div class="field"><label>Creditore / beneficiario</label><input name="creditor" maxlength="120" value="{escape(item['creditor'])}" required></div><div class="field"><label>Descrizione</label><input name="description" maxlength="180" value="{escape(item['description'])}"></div><div class="field"><label>Importo (€)</label><input name="amount" value="{scad_euro(item['amount_cents']).replace('.', '').replace(',', ',')}" required></div><div class="field"><label>Data</label><input type="date" name="due_date" value="{item['due_date']}" required></div><div class="field"><label>Frequenza</label><select name="frequency">{''.join(f'<option value="{v}" {"selected" if item["frequency"]==v else ""}>{lab}</option>' for v,lab in [("unica","Una sola volta"),("mensile","Mensile"),("bimestrale","Ogni 2 mesi"),("trimestrale","Ogni 3 mesi"),("semestrale","Ogni 6 mesi"),("annuale","Annuale")])}</select></div><div class="field"><label>Promemoria anticipato (giorni)</label><select name="reminder_days">{''.join(f'<option value="{v}" {"selected" if item["reminder_days"]==v else ""}>{lab}</option>' for v,lab in [(0,"Il giorno stesso"),(1,"1 giorno prima"),(3,"3 giorni prima"),(5,"5 giorni prima"),(7,"7 giorni prima"),(15,"15 giorni prima"),(30,"30 giorni prima")])}</select></div><div class="field"><label>Note</label><textarea name="notes" rows="2" maxlength="1000">{escape(item['notes'])}</textarea></div><div class="scad-checks"><label><input type="checkbox" name="email_enabled" {'checked' if item['email_enabled'] else ''}> Email</label><label><input type="checkbox" name="sms_enabled" {'checked' if item['sms_enabled'] else ''}> SMS</label></div><button class="btn small" type="submit">Salva modifiche</button></form></details></article>''')
-    sms_ready=bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER)
-    mail_ready=bool(SMTP_HOST and SMTP_USER and SMTP_PASSWORD and SMTP_FROM)
-    status_notice=("Email configurata" if mail_ready else "Email da configurare")+" · "+("SMS attivi" if sms_ready else "SMS non ancora configurati")+" · "+("Archivio persistente configurato" if SCAD_DB_PERSISTENT else "ATTENZIONE: archivio persistente da configurare su Render")
-    body=f'''<style>
-      .scad-wrap{{max-width:1000px;margin:8px auto 35px}}.scad-hero{{padding:26px 25px;border-radius:18px;background:linear-gradient(135deg,#123a72,#2873bf);color:#fff}}
-      .scad-hero h1{{margin:0 0 8px;font-size:clamp(27px,4vw,36px)}}.scad-hero p{{margin:0;color:#e6f1ff}}
-      .scad-stats{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:17px 0}}
-      .scad-stat{{background:#fff;border:1px solid #dce5ef;border-radius:14px;padding:16px}}.scad-stat strong{{display:block;font-size:24px;color:#174b91}}.scad-stat span{{font-size:13px;color:#65758b}}
-      .scad-layout{{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:17px;align-items:start}}
-      .scad-form-grid{{display:grid;grid-template-columns:1fr 1fr;gap:12px}}.scad-form-grid .field{{margin:0}}.scad-form-grid .wide{{grid-column:1/-1}}
-      .due-list{{display:grid;gap:12px}}.due-card{{background:#fff;border:1px solid #dce5ef;border-radius:14px;padding:17px;box-shadow:0 4px 14px rgba(20,48,85,.04)}}
-      .due-top,.due-meta,.due-actions{{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}}.due-category{{font-size:12px;font-weight:800;color:#174b91;background:#edf5ff;padding:5px 9px;border-radius:20px}}
-      .due-card h3{{margin:11px 0 2px;font-size:18px}}.due-card p{{margin:4px 0 10px}}.due-meta{{padding:9px 0;border-top:1px solid #edf1f5;border-bottom:1px solid #edf1f5}}
-      .due-small{{font-size:12px;margin:8px 0!important}}.due-actions{{justify-content:flex-start;margin-top:10px}}.inline-form{{display:inline-flex;margin:0}}
-      .btn.small{{min-height:36px;padding:8px 11px;font-size:12px}}.btn.secondary{{background:#edf3fa;color:#174b91;border:1px solid #d6e2f0}}.btn.danger{{background:#fff0f0;color:#a62929;border:1px solid #f2d0d0}}
-      .scad-checks{{display:grid;gap:8px;margin:8px 0 14px}}.scad-checks label{{display:flex;gap:9px;align-items:flex-start;font-weight:400;margin:0}}.scad-checks input{{width:auto;margin-top:4px}}
-      .scad-note{{font-size:12px;color:#65758b}}.scad-toolbar{{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}}
-      @media(max-width:720px){{.scad-layout{{grid-template-columns:1fr}}.scad-stats{{grid-template-columns:1fr 1fr}}.scad-stats .scad-stat:last-child{{grid-column:1/-1}}}}
-      @media(max-width:520px){{.scad-form-grid{{grid-template-columns:1fr}}.scad-form-grid .wide{{grid-column:auto}}.scad-hero{{padding:22px 18px}}.scad-stat{{padding:12px}}.scad-stat strong{{font-size:20px}}}}
-    </style>
-    <div class="scad-wrap"><section class="scad-hero"><div class="scad-toolbar"><div><h1>Il tuo Scadenzario</h1><p>Ciao {escape(user['name'])}, tieni sotto controllo pagamenti, rate e impegni.</p></div><form method="post" action="/scadenzario/logout"><input type="hidden" name="csrf_token" value="{csrf}"><button class="btn light" type="submit">Esci</button></form></div></section>
-    <div class="scad-stats"><div class="scad-stat"><strong>{len(upcoming)}</strong><span>Scadenze future</span></div><div class="scad-stat"><strong style="color:{'#b42332' if overdue else '#174b91'}">{len(overdue)}</strong><span>Scadenze da controllare</span></div><div class="scad-stat"><strong>€ {scad_euro(unpaid_total)}</strong><span>Totale ancora da pagare</span></div></div>
-    <div class="notice">{escape(status_notice)}. I promemoria automatici richiedono inoltre un'attività giornaliera Render Cron; fino alla sua attivazione puoi inviarli manualmente da questa pagina.</div>
-    <div class="scad-layout"><section class="card"><h2>＋ Aggiungi una scadenza</h2><p class="muted">Bastano pochi dati. Puoi modificare o eliminare le voci in qualsiasi momento.</p>
-    <form method="post" action="/scadenzario/aggiungi"><input type="hidden" name="csrf_token" value="{csrf}"><div class="scad-form-grid">
-      <div class="field"><label>Tipo di pagamento</label><select name="category" required><option value="Rata finanziamento">Rata finanziamento</option><option value="Piano di rientro">Piano di rientro</option><option value="Mutuo">Mutuo</option><option value="Carta di credito">Carta di credito</option><option value="Bolletta luce/gas">Bolletta luce/gas</option><option value="Telefono / Internet">Telefono / Internet</option><option value="Affitto">Affitto</option><option value="Condominio">Condominio</option><option value="Imposte e tributi">Imposte e tributi</option><option value="Assicurazione">Assicurazione</option><option value="Abbonamento">Abbonamento</option><option value="Altro">Altro</option></select></div>
-      <div class="field"><label>Creditore / beneficiario</label><input name="creditor" maxlength="120" placeholder="Es. Banca, fornitore, Agenzia Entrate" required></div>
-      <div class="field"><label>Importo (€)</label><input name="amount" inputmode="decimal" placeholder="Es. 125,50" required></div>
-      <div class="field"><label>Data di scadenza</label><input type="date" name="due_date" required></div>
-      <div class="field"><label>Frequenza</label><select name="frequency"><option value="unica">Una sola volta</option><option value="mensile">Mensile</option><option value="bimestrale">Ogni 2 mesi</option><option value="trimestrale">Ogni 3 mesi</option><option value="semestrale">Ogni 6 mesi</option><option value="annuale">Annuale</option></select></div>
-      <div class="field"><label>Promemoria anticipato</label><select name="reminder_days"><option value="0">Il giorno della scadenza</option><option value="1">1 giorno prima</option><option value="3" selected>3 giorni prima</option><option value="5">5 giorni prima</option><option value="7">7 giorni prima</option><option value="15">15 giorni prima</option><option value="30">30 giorni prima</option></select></div>
-      <div class="field wide"><label>Descrizione (facoltativa)</label><input name="description" maxlength="180" placeholder="Es. rata n. 4 del piano concordato"></div>
-      <div class="field wide"><label>Note personali (facoltative)</label><textarea name="notes" rows="2" maxlength="1000" placeholder="Riferimenti utili, modalità di pagamento, promemoria personale..."></textarea></div>
-    </div><div class="scad-checks"><label><input type="checkbox" name="email_enabled" checked> <span>Invia promemoria via email</span></label><label><input type="checkbox" name="sms_enabled" {'checked' if user['sms_reminders'] else ''}> <span>Invia promemoria via SMS {'(da attivare nelle preferenze / configurazione)' if not user['sms_reminders'] or not sms_ready else ''}</span></label></div><button class="btn" type="submit">Salva la scadenza</button></form></section>
-    <section class="card"><h2>Le tue scadenze</h2><p class="muted">Le voci sono ordinate per data. Puoi inviare un promemoria singolo oppure inviare in blocco quelli di tutte le scadenze ancora da pagare.</p>
-    <form method="post" action="/scadenzario/promemoria-multipli"><input type="hidden" name="csrf_token" value="{csrf}"><div class="scad-checks"><label><input type="checkbox" name="channel_email" checked> <span>Invia via email</span></label><label><input type="checkbox" name="channel_sms"> <span>Invia via SMS</span></label></div><button class="btn small" type="submit" onclick="return confirm('Inviare i promemoria per tutte le scadenze ancora da pagare?')">Invia promemoria di tutte le scadenze</button></form>
-    <div class="scad-form-grid" style="margin-top:16px"><div class="field"><label for="scad-search">Cerca</label><input id="scad-search" type="search" placeholder="Creditore, tipo, descrizione..."></div><div class="field"><label for="scad-filter">Mostra</label><select id="scad-filter"><option value="all">Tutte le scadenze</option><option value="da_pagare">Da pagare</option><option value="pagata">Pagate</option><option value="overdue">Scadute</option></select></div></div>
-    <div class="due-list" id="scad-due-list" style="margin-top:14px">{''.join(cards) if cards else '<p class="muted">Non hai ancora inserito scadenze. Aggiungi la prima dal modulo qui accanto.</p>'}</div><p id="scad-empty-filter" class="muted" hidden>Nessuna scadenza corrisponde ai filtri selezionati.</p>
-    <script>(function(){{const q=document.getElementById('scad-search'),f=document.getElementById('scad-filter'),cards=[...document.querySelectorAll('#scad-due-list .due-card')],empty=document.getElementById('scad-empty-filter');function apply(){{let visible=0;const term=(q.value||'').toLowerCase();cards.forEach(c=>{{const matchText=(c.dataset.search||'').includes(term);const matchStatus=f.value==='all'||(f.value==='overdue'?(c.dataset.status==='da_pagare'&&c.querySelector('.due-top strong')?.textContent==='Scaduta'):c.dataset.status===f.value);c.hidden=!(matchText&&matchStatus);if(!c.hidden)visible++}});empty.hidden=visible!==0}}q.addEventListener('input',apply);f.addEventListener('change',apply)}})();</script>
-    </section></div>
-    <section class="card"><h2>Recapiti e preferenze promemoria</h2><form method="post" action="/scadenzario/preferenze"><input type="hidden" name="csrf_token" value="{csrf}"><div class="scad-form-grid"><div class="field"><label>Email</label><input value="{escape(user['email'])}" disabled></div><div class="field"><label>Cellulare (formato internazionale)</label><input name="phone" value="{escape(user['phone'])}" placeholder="+393331234567"></div></div><div class="scad-checks"><label><input type="checkbox" name="email_reminders" {'checked' if user['email_reminders'] else ''}> <span>Desidero ricevere promemoria di servizio via email.</span></label><label><input type="checkbox" name="sms_reminders" {'checked' if user['sms_reminders'] else ''}> <span>Acconsento a ricevere promemoria di servizio via SMS sul numero indicato.</span></label></div><button class="btn secondary" type="submit">Salva preferenze</button></form><p class="scad-note">I recapiti sono utilizzati per i promemoria richiesti. Non inserire dati bancari, credenziali o informazioni non necessarie. Puoi disattivare i promemoria dalle preferenze.</p><hr style="border:0;border-top:1px solid #e4eaf1;margin:18px 0"><form method="post" action="/scadenzario/elimina-account" onsubmit="return confirm('Eliminare definitivamente account e tutte le scadenze? Questa operazione non può essere annullata.')"><input type="hidden" name="csrf_token" value="{csrf}"><button class="btn danger small" type="submit">Elimina account e dati</button></form></section>
-    </div>'''
-    return scad_shell("Scadenzario personale", body)
-
-
-def scad_auth_html(error=""):
-    csrf=escape(scad_csrf(), quote=True)
-    err=f'<div class="notice error">{escape(error)}</div>' if error else ''
-    sms_ready=bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER)
-    return f'''<style>.scad-auth{{max-width:850px;margin:20px auto;display:grid;grid-template-columns:1fr 1fr;gap:16px}}.scad-auth .card{{margin:0}}.scad-auth h1{{color:#174b91}}.scad-auth .field{{margin-bottom:13px}}.scad-auth .check{{display:flex;gap:9px;font-weight:400;align-items:flex-start}}.scad-auth .check input{{width:auto;margin-top:5px}}@media(max-width:650px){{.scad-auth{{grid-template-columns:1fr}}}}</style>
-    <section class="card" style="max-width:850px;margin:10px auto 18px;background:linear-gradient(135deg,#123a72,#2873bf);color:#fff"><h1 style="color:#fff;margin:0 0 8px">Il tuo Scadenzario personale</h1><p style="margin:0;color:#e8f2ff">Un unico spazio per organizzare rate, bollette, pagamenti e promemoria. Crea il tuo account gratuito.</p></section>{err}<div class="scad-auth"><section class="card"><h2>Accedi</h2><form method="post"><input type="hidden" name="csrf_token" value="{csrf}"><input type="hidden" name="action" value="login"><div class="field"><label>Email</label><input type="email" name="email" autocomplete="email" required></div><div class="field"><label>Password</label><input type="password" name="password" autocomplete="current-password" required></div><button class="btn" type="submit">Entra nello Scadenzario</button></form></section><section class="card"><h2>Crea un account</h2><form method="post"><input type="hidden" name="csrf_token" value="{csrf}"><input type="hidden" name="action" value="register"><div class="field"><label>Nome</label><input name="name" maxlength="100" autocomplete="name" required></div><div class="field"><label>Email</label><input type="email" name="email" autocomplete="email" required></div><div class="field"><label>Cellulare (facoltativo)</label><input name="phone" placeholder="+393331234567" autocomplete="tel"></div><div class="field"><label>Password (almeno 10 caratteri)</label><input type="password" name="password" minlength="10" autocomplete="new-password" required></div><div class="scad-checks"><label class="check"><input type="checkbox" name="email_reminders"><span>Desidero ricevere promemoria relativi alle scadenze via email.</span></label><label class="check"><input type="checkbox" name="sms_reminders"><span>Acconsento ai promemoria via SMS {'(servizio in attivazione)' if not sms_ready else ''}.</span></label><label class="check"><input type="checkbox" name="privacy" required><span>Dichiaro di aver letto l’<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a> e accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label></div><button class="btn" type="submit">Crea il mio account</button></form></section></div><p class="muted" style="max-width:850px;margin:0 auto">Lo Scadenzario è uno strumento organizzativo: non esegue pagamenti e non sostituisce le comunicazioni ufficiali dei creditori.</p>'''
-
-
-@app.route("/scadenzario/aggiungi", methods=["POST"])
-def scad_add():
-    user=scad_current_user()
-    if not user: return redirect("/scadenzario", code=303)
-    if not scad_csrf_ok(): return scad_shell("Sessione scaduta", '<div class="card"><h1>Sessione scaduta</h1><p>Ricarica e riprova.</p></div>'),400
-    try:
-        category=str(request.form.get("category","Altro"))[:60]
-        creditor=str(request.form.get("creditor","")).strip()[:120]
-        description=str(request.form.get("description","")).strip()[:180]
-        notes=str(request.form.get("notes","")).strip()[:1000]
-        amount=scad_parse_amount(request.form.get("amount"))
-        due=date.fromisoformat(request.form.get("due_date",""))
-        if not creditor: raise ValueError("Inserisci il creditore o beneficiario.")
-        frequency=request.form.get("frequency","unica")
-        if frequency not in ("unica","mensile","bimestrale","trimestrale","semestrale","annuale"): frequency="unica"
-        days=int(request.form.get("reminder_days","3")); days=days if days in (0,1,3,5,7,15,30) else 3
-        email_enabled=int(request.form.get("email_enabled")=="on")
-        sms_enabled=int(request.form.get("sms_enabled")=="on" and user["sms_reminders"])
-        now=datetime.now(ROME_TZ).isoformat()
-        db=scad_db()
-        try:
-            db.execute("INSERT INTO scad_items(user_id,category,creditor,description,amount_cents,due_date,frequency,notes,reminder_days,email_enabled,sms_enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",(user["id"],category,creditor,description,amount,due.isoformat(),frequency,notes,days,email_enabled,sms_enabled,now,now))
-            db.commit()
-        finally: db.close()
-        return redirect("/scadenzario",code=303)
-    except Exception as exc:
-        app.logger.warning("Inserimento scadenza non riuscito: %s",type(exc).__name__)
-        return scad_shell("Dati non validi",f'<div class="card"><h1>Controlla i dati inseriti</h1><p>{escape(str(exc))}</p><a class="btn" href="/scadenzario">Torna allo Scadenzario</a></div>'),400
-
-
-@app.route("/scadenzario/modifica/<int:item_id>", methods=["POST"])
-def scad_edit(item_id):
-    user=scad_current_user()
-    if not user: return redirect("/scadenzario",code=303)
-    if not scad_csrf_ok(): return redirect("/scadenzario",code=303)
-    try:
-        category=str(request.form.get("category","Altro")).strip()[:60]
-        creditor=str(request.form.get("creditor","")).strip()[:120]
-        description=str(request.form.get("description","")).strip()[:180]
-        notes=str(request.form.get("notes","")).strip()[:1000]
-        amount=scad_parse_amount(request.form.get("amount"))
-        due=date.fromisoformat(request.form.get("due_date",""))
-        frequency=request.form.get("frequency","unica")
-        if frequency not in ("unica","mensile","bimestrale","trimestrale","semestrale","annuale"): frequency="unica"
-        days=int(request.form.get("reminder_days","3")); days=days if days in (0,1,3,5,7,15,30) else 3
-        email_enabled=int(request.form.get("email_enabled")=="on")
-        sms_enabled=int(request.form.get("sms_enabled")=="on" and user["sms_reminders"])
-        if not category or not creditor: raise ValueError("Inserisci tipo e creditore.")
-        db=scad_db()
-        try:
-            db.execute("UPDATE scad_items SET category=?,creditor=?,description=?,notes=?,amount_cents=?,due_date=?,frequency=?,reminder_days=?,email_enabled=?,sms_enabled=?,last_auto_sent_on='',updated_at=? WHERE id=? AND user_id=?",(category,creditor,description,notes,amount,due.isoformat(),frequency,days,email_enabled,sms_enabled,datetime.now(ROME_TZ).isoformat(),item_id,user["id"]))
-            db.commit()
-        finally: db.close()
-        return redirect("/scadenzario",code=303)
-    except Exception as exc:
-        app.logger.warning("Modifica scadenza non riuscita: %s",type(exc).__name__)
-        return scad_shell("Modifica non riuscita",f'<div class="card"><h1>Controlla i dati</h1><p>{escape(str(exc))}</p><a class="btn" href="/scadenzario">Torna allo Scadenzario</a></div>'),400
-
-
-@app.route("/scadenzario/preferenze", methods=["POST"])
-def scad_preferences():
-    user=scad_current_user()
-    if not user: return redirect("/scadenzario",code=303)
-    if not scad_csrf_ok(): return redirect("/scadenzario",code=303)
-    phone=str(request.form.get("phone","")).strip()
-    if phone and not re.fullmatch(r"\+?[0-9\s().-]{8,20}",phone):
-        return scad_shell("Numero non valido",'<div class="card"><h1>Numero non valido</h1><p>Inserisci il numero con prefisso internazionale, ad esempio +393331234567.</p><a class="btn" href="/scadenzario">Torna allo Scadenzario</a></div>'),400
-    sms_ok=int(request.form.get("sms_reminders")=="on" and bool(phone) and phone.startswith("+"))
-    if request.form.get("sms_reminders")=="on" and not sms_ok:
-        return scad_shell("Numero necessario",'<div class="card"><h1>Numero necessario</h1><p>Per attivare gli SMS inserisci il cellulare con prefisso internazionale, ad esempio +393331234567.</p><a class="btn" href="/scadenzario">Torna allo Scadenzario</a></div>'),400
-    email_ok=int(request.form.get("email_reminders")=="on")
-    now=datetime.now(ROME_TZ).isoformat()
-    db=scad_db()
-    try:
-        db.execute("UPDATE scad_users SET phone=?,email_reminders=?,sms_reminders=?,email_consent_at=?,sms_consent_at=? WHERE id=?",(phone,email_ok,sms_ok,now if email_ok else "",now if sms_ok else "",user["id"]))
-        db.commit()
-    finally: db.close()
-    return redirect("/scadenzario",code=303)
-
-
-@app.route("/scadenzario/promemoria/<int:item_id>", methods=["POST"])
-def scad_send_one(item_id):
-    user=scad_current_user()
-    if not user: return redirect("/scadenzario",code=303)
-    if not scad_csrf_ok(): return redirect("/scadenzario",code=303)
-    db=scad_db()
-    try: item=db.execute("SELECT * FROM scad_items WHERE id=? AND user_id=?",(item_id,user["id"])).fetchone()
-    finally: db.close()
-    if not item: return scad_shell("Scadenza non trovata",'<div class="card"><h1>Scadenza non trovata</h1></div>'),404
-    channels=[]
-    if item["email_enabled"]: channels.append("email")
-    if item["sms_enabled"]: channels.append("sms")
-    sent,errors=scad_send_item_reminder(user,item,channels)
-    msg=("Promemoria inviato tramite: "+", ".join(sent)+"." if sent else "Nessun promemoria inviato.")
-    if errors: msg+=" "+" ".join(errors)
-    return scad_shell("Esito promemoria",f'<div class="card"><h1>Esito invio</h1><p>{escape(msg)}</p><a class="btn" href="/scadenzario">Torna allo Scadenzario</a></div>')
-
-
-@app.route("/scadenzario/promemoria-multipli", methods=["POST"])
-def scad_send_many():
-    user=scad_current_user()
-    if not user: return redirect("/scadenzario",code=303)
-    if not scad_csrf_ok(): return redirect("/scadenzario",code=303)
-    channels=[]
-    if request.form.get("channel_email")=="on": channels.append("email")
-    if request.form.get("channel_sms")=="on": channels.append("sms")
-    if not channels: return redirect("/scadenzario",code=303)
-    db=scad_db()
-    try: items=db.execute("SELECT * FROM scad_items WHERE user_id=? AND status='da_pagare' ORDER BY due_date LIMIT 30",(user["id"],)).fetchall()
-    finally: db.close()
-    sent_count=0; errors=[]
-    for item in items:
-        sent,err=scad_send_item_reminder(user,item,channels)
-        if sent: sent_count+=1
-        errors.extend(err)
-    summary=f"Promemoria inviati per {sent_count} scadenze su {len(items)}."
-    if errors: summary+=" Alcuni canali non sono disponibili: "+" ".join(errors[:5])
-    return scad_shell("Esito invio promemoria",f'<div class="card"><h1>Invio completato</h1><p>{escape(summary)}</p><a class="btn" href="/scadenzario">Torna allo Scadenzario</a></div>')
-
-
-@app.route("/scadenzario/pagamento/<int:item_id>", methods=["POST"])
-def scad_mark_paid(item_id):
-    user=scad_current_user()
-    if not user: return redirect("/scadenzario",code=303)
-    if not scad_csrf_ok(): return redirect("/scadenzario",code=303)
-    db=scad_db()
-    try:
-        item=db.execute("SELECT * FROM scad_items WHERE id=? AND user_id=?",(item_id,user["id"])).fetchone()
-        if item:
-            if item["frequency"]!="unica":
-                base=date.fromisoformat(item["due_date"])
-                months={"mensile":1,"bimestrale":2,"trimestrale":3,"semestrale":6,"annuale":12}.get(item["frequency"],0)
-                month_index=base.month-1+months
-                year=base.year+month_index//12; month=month_index%12+1
-                import calendar
-                day=min(base.day,calendar.monthrange(year,month)[1])
-                next_date=date(year,month,day).isoformat()
-                db.execute("UPDATE scad_items SET due_date=?,last_auto_sent_on='',status='da_pagare',updated_at=? WHERE id=? AND user_id=?",(next_date,datetime.now(ROME_TZ).isoformat(),item_id,user["id"]))
-            else:
-                db.execute("UPDATE scad_items SET status='pagata',updated_at=? WHERE id=? AND user_id=?",(datetime.now(ROME_TZ).isoformat(),item_id,user["id"]))
-            db.commit()
-    finally: db.close()
-    return redirect("/scadenzario",code=303)
-
-
-@app.route("/scadenzario/elimina/<int:item_id>", methods=["POST"])
-def scad_delete(item_id):
-    user=scad_current_user()
-    if not user: return redirect("/scadenzario",code=303)
-    if not scad_csrf_ok(): return redirect("/scadenzario",code=303)
-    db=scad_db()
-    try:
-        db.execute("DELETE FROM scad_items WHERE id=? AND user_id=?",(item_id,user["id"]))
-        db.commit()
-    finally: db.close()
-    return redirect("/scadenzario",code=303)
-
-
-@app.route("/scadenzario/elimina-account", methods=["POST"])
-def scad_delete_account():
-    user=scad_current_user()
-    if not user: return redirect("/scadenzario",code=303)
-    if not scad_csrf_ok(): return redirect("/scadenzario",code=303)
-    db=scad_db()
-    try:
-        db.execute("DELETE FROM scad_users WHERE id=?",(user["id"],))
-        db.commit()
-    finally: db.close()
-    session.pop("scad_user_id",None); session.pop("scad_csrf",None)
-    return scad_shell("Account eliminato",'<div class="card"><h1>Account eliminato</h1><p>L’account e le relative scadenze sono stati eliminati dal database applicativo.</p><a class="btn" href="/">Torna a FixTude</a></div>')
-
-
-@app.route("/scadenzario/logout", methods=["POST"])
-def scad_logout():
-    if scad_csrf_ok():
-        session.pop("scad_user_id",None); session.pop("scad_csrf",None)
-    return redirect("/scadenzario",code=303)
-
-
-@app.route("/api/scadenzario/promemoria-automatici", methods=["POST"])
-def scad_automatic_reminders():
-    '''Endpoint da richiamare una volta al giorno tramite Render Cron Job.'''
-    supplied=request.headers.get("X-Cron-Secret","")
-    if not SCAD_CRON_SECRET or not supplied or not hmac.compare_digest(supplied,SCAD_CRON_SECRET):
-        return jsonify(error="Non autorizzato"),401
-    today=datetime.now(ROME_TZ).date()
-    db=scad_db()
-    try:
-        rows=db.execute("SELECT i.*,u.name,u.email,u.phone,u.email_reminders,u.sms_reminders FROM scad_items i JOIN scad_users u ON u.id=i.user_id WHERE i.status='da_pagare' AND i.last_auto_sent_on<>?",(today.isoformat(),)).fetchall()
-        sent_total=0
-        for item in rows:
-            try:
-                due=date.fromisoformat(item["due_date"])
-                if (due-today).days!=item["reminder_days"]: continue
-                user={"name":item["name"],"email":item["email"],"phone":item["phone"],"email_reminders":item["email_reminders"],"sms_reminders":item["sms_reminders"]}
-                sent,errors=scad_send_item_reminder(user,item,["email","sms"])
-                if sent: sent_total+=1
-                db.execute("UPDATE scad_items SET last_auto_sent_on=? WHERE id=?",(today.isoformat(),item["id"]))
-                if errors: app.logger.warning("Promemoria automatico scadenza %s: %s",item["id"],"; ".join(errors))
-            except Exception:
-                app.logger.exception("Promemoria automatico fallito per scadenza %s",item["id"])
-        db.commit()
-    finally: db.close()
-    return jsonify(ok=True, processed=len(rows), reminders_sent=sent_total, date=today.isoformat())
 
 
 @app.route("/health")
