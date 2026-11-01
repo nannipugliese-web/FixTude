@@ -1445,7 +1445,7 @@ def genera_piano_negoziale(entrate, uscite, debiti, risultato):
         "offerta_45": offerta_45, "offerta_60": offerta_60,
         "titolo_negoziale": titolo, "testo_negoziale": testo,
         "azioni_negoziali": azioni, "avvertenza_negoziale": cautela,
-        "motore_versione": "FixTude V5 - motore decisionale deterministico",
+        "motore_versione": "FixTude V6 - motore decisionale deterministico",
     }
 
 
@@ -1456,36 +1456,18 @@ def checkout_v2():
         return redirect(url_for("home"))
     color_hex = {"rosso": "#c62828", "giallo": "#b88600", "verde": "#16834a"}[data["colore"]]
     annullato = "<p class='notice'>Il pagamento non è stato completato. Puoi riprovare.</p>" if request.args.get("annullato") else ""
-    actions_html = "".join(f"<li>{escape(str(item))}</li>" for item in data.get("azioni_negoziali", []))
-    rate_html = "".join(
-        f"<tr><td>{n} mesi</td><td>€ {data.get('rate_teoriche', {}).get(str(n), 0):.2f}</td></tr>"
-        for n in (3, 6, 12)
-    )
-    quota = data.get("quota_mensile_suggerita", 0.0)
-    percentuale_quota = data.get("quota_percentuale_margine", 0.0)
-    mesi = data.get("mesi_teorici")
-    mesi_label = f"{mesi:.1f} mesi" if mesi is not None else "non calcolabile"
     content = f"""<section class="card">
-      <p class="muted">ANALISI COMPLETATA · FIXTUDE V5</p>
+      <p class="muted">ESITO DEL CALCOLO · FIXTUDE V6</p>
       <h1>Il tuo semaforo: <span style="color:{color_hex}">{escape(data['colore'].upper())}</span></h1>
-      <div style="display:flex;justify-content:center;margin:18px auto 22px"><div style="display:flex;flex-direction:row;gap:9px;padding:12px 14px;border-radius:22px;border:4px solid #778292;background:linear-gradient(145deg,#454d59,#111722 48%,#303846);box-shadow:inset 0 4px 8px #ffffff22,0 12px 24px #14253a38,0 5px 0 #080c12">{''.join(f'<span style="display:block;width:58px;height:58px;border-radius:50%;border:4px solid #10151d;background:{('#f12632' if data['colore']=='rosso' else '#343a43') if c=='rosso' else ('#ffd52e' if data['colore']=='giallo' else '#343a43') if c=='giallo' else ('#20c66b' if data['colore']=='verde' else '#343a43')};box-shadow:{('0 0 12px #ff2937,0 0 28px #ff293788' if c=='rosso' else 'inset 0 4px 9px #000b') if c=='rosso' else ('0 0 12px #ffdf24,0 0 28px #ffdf2488' if c=='giallo' else 'inset 0 4px 9px #000b') if c=='giallo' else ('0 0 12px #21e879,0 0 28px #21e87988' if c=='verde' else 'inset 0 4px 9px #000b')}"></span>' for c in ['rosso','giallo','verde'])}</div></div>
-      <p>{escape(data['etichetta'])}</p>
-      <div class="v4-summary">
-        <p><strong>Margine mensile:</strong> € {data['margine']:.2f} ({data['percentuale_margine']:.1f}% delle entrate)</p>
-        <p><strong>Quota mensile prudenziale suggerita:</strong> € {quota:.2f} ({percentuale_quota:.0f}% del margine disponibile)</p>
-        <p><strong>Tempo teorico per rimborsare tutto il debito con questa quota:</strong> {mesi_label}</p>
+      <div style="display:flex;justify-content:center;margin:20px auto 24px">
+        <div role="img" aria-label="Semaforo orizzontale: {escape(data['colore'])}" style="display:flex;flex-direction:row;align-items:center;gap:11px;padding:13px 16px;border-radius:22px;border:4px solid #778292;background:linear-gradient(145deg,#454d59,#111722 48%,#303846);box-shadow:inset 0 4px 8px #ffffff22,0 12px 24px #14253a38,0 5px 0 #080c12">
+          {''.join(f'<span style="display:block;width:58px;height:58px;border-radius:50%;border:4px solid #10151d;background:{("#f12632" if data["colore"]=="rosso" else "#343a43") if c=="rosso" else ("#ffd52e" if data["colore"]=="giallo" else "#343a43") if c=="giallo" else ("#20c66b" if data["colore"]=="verde" else "#343a43")};box-shadow:{("0 0 12px #ff2937,0 0 28px #ff293788" if c=="rosso" else "inset 0 4px 9px #000b") if c=="rosso" else ("0 0 12px #ffdf24,0 0 28px #ffdf2488" if c=="giallo" else "inset 0 4px 9px #000b") if c=="giallo" else ("0 0 12px #21e879,0 0 28px #21e87988" if data["colore"]=="verde" else "inset 0 4px 9px #000b")}"></span>' for c in ['rosso','giallo','verde'])}
+        </div>
       </div>
-      <h2>{escape(data.get('titolo_negoziale', 'Indicazione negoziale'))}</h2>
-      <p>{escape(data.get('testo_negoziale', ''))}</p>
-      <h3>Azioni consigliate</h3><ul>{actions_html}</ul>
-      <h3>Rate teoriche sull'intero debito</h3>
-      <div class="table-wrap"><table class="result-table"><thead><tr><th>Durata</th><th>Rata mensile teorica</th></tr></thead><tbody>{rate_html}</tbody></table></div>
-      <p class="notice">{escape(data.get('avvertenza_negoziale', ''))}</p>
-      <p class="muted">Il semaforo considera sia il margine mensile sia il debito complessivo: verde se il piano teorico rientra entro 6 mesi con quota pari al 30% del margine e margine almeno del 20%; giallo se rientra entro 12 mesi con quota pari al 25%; rosso se manca margine o il debito supera l’orizzonte di 12 mesi. Sono criteri convenzionali interni FixTude, non soglie di legge.</p>
-      <p class="muted">Riferimenti di orientamento: <a href="https://economiapertutti.bancaditalia.it/aree-tematiche/prestiti/sovraindebitamento/index.html" target="_blank" rel="noopener">Banca d'Italia – Sovraindebitamento</a> · <a href="https://www.giustizia.it/giustizia/it/mg_3_14_1.wp" target="_blank" rel="noopener">Ministero della Giustizia – OCC</a> · <a href="https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=033U1669" target="_blank" rel="noopener">Legge cambiaria</a>.</p>
+      <p class="muted" style="text-align:center">Il colore è un primo esito orientativo. L'analisi della tua situazione, la valutazione dei possibili piani di rientro e le indicazioni per affrontare la trattativa sono contenute nel report personalizzato.</p>
       {annullato}
-      <h2>Il tuo Kit FixTude – € 1,99</h2>
-      <p>Il kit comprende il report personalizzato con questa analisi, i modelli fac-simile disponibili e <strong>un libro digitale a tua scelta, incluso nel prezzo</strong>.</p>
+      <h2>Completa il Kit FixTude – € 1,99</h2>
+      <p>Con un unico pagamento ricevi il <strong>report personalizzato</strong>, con l'elaborazione dei dati inseriti, la spiegazione del risultato, gli scenari di rientro e le indicazioni operative. Sono inclusi i modelli fac-simile disponibili e <strong>un libro digitale a tua scelta</strong>.</p>
       <form method="post" action="/checkout/crea">
         <div class="book-choice"><label><input type="radio" name="prodotto" value="niente_panico_pdf" required><strong>NIENTE PANICO</strong><br><span class="muted">Guida pratica per mettere ordine nella situazione debitoria.</span></label></div>
         <div class="book-choice"><label><input type="radio" name="prodotto" value="guida_saldo_stralcio_pdf" required><strong>GUIDA AL SALDO E STRALCIO</strong><br><span class="muted">Guida dedicata alla trattativa e alla chiusura dei debiti.</span></label></div>
@@ -1495,8 +1477,14 @@ def checkout_v2():
       </form>
     </section>
     <p class="muted">Pagamento gestito da Stripe. Nessuna registrazione FixTude.</p>
-    <style>.book-choice{{border:1px solid #dce5ef;border-radius:12px;padding:17px;margin:13px 0;background:#fbfdff}}.book-choice label{{display:block;cursor:pointer}}.book-choice input{{margin-right:9px;accent-color:#174b91}}.check{{display:flex;gap:10px;align-items:flex-start;margin:20px 0;font-size:14px}}.v4-summary{{background:#f4f8fd;border:1px solid #dce5ef;border-radius:13px;padding:12px 16px;margin:16px 0}}.v4-summary p{{margin:7px 0}}.result-table{{width:100%;border-collapse:collapse}}.result-table th,.result-table td{{padding:9px;border-bottom:1px solid #dce5ef;text-align:left}}</style>"""
-    return page("Kit FixTude – analisi V5, report e libro digitale", content)
+    <style>
+      .book-choice{{border:1px solid #dce5ef;border-radius:12px;padding:17px;margin:13px 0;background:#fbfdff}}
+      .book-choice label{{display:block;cursor:pointer}}
+      .book-choice input{{margin-right:9px;accent-color:#174b91}}
+      .check{{display:flex;gap:10px;align-items:flex-start;margin:20px 0;font-size:14px}}
+      @media(max-width:520px){{.card [role="img"] span{{width:48px!important;height:48px!important}}}}
+    </style>"""
+    return page("Kit FixTude – report personalizzato e libro digitale", content)
 
 
 @app.route("/checkout/crea", methods=["POST"])
@@ -1537,13 +1525,13 @@ def checkout_crea_v2():
 
 def _pdf_report(data):
     lines = [
-        "FIXTUDE - REPORT DI ORIENTAMENTO V5", "",
+        "FIXTUDE - REPORT DI ORIENTAMENTO V6", "",
         "SEMAFORO: " + data["colore"].upper(), data["etichetta"],
         "", "DATI INSERITI",
         f"Entrate mensili nette: EUR {data['entrate']:.2f}",
         f"Uscite mensili: EUR {data['uscite']:.2f}",
         f"Situazione debitoria complessiva dichiarata: EUR {data['debiti']:.2f}",
-        "", "ELABORAZIONE MATEMATICA V5",
+        "", "ELABORAZIONE MATEMATICA V6",
         f"Saldo mensile: EUR {data['saldo']:.2f}",
         f"Margine mensile: EUR {data['margine']:.2f}",
         f"Margine in rapporto alle entrate: {data['percentuale_margine']:.2f}%",
@@ -1560,7 +1548,7 @@ def _pdf_report(data):
         "", "RATE TEORICHE SULL'INTERO DEBITO (ESCLUSE SPESE E INTERESSI)",
         *[f"{n} mesi: EUR {data.get('rate_teoriche', {}).get(str(n), 0):.2f} al mese" for n in (3, 6, 12)],
         "", "AVVERTENZE IMPORTANTI", data.get("avvertenza_negoziale", ""),
-        "Il semaforo V5 considera margine e debito: verde entro 6 mesi con quota del 30% del margine e margine almeno del 20%; giallo entro 12 mesi con quota del 25%; rosso in assenza di margine o oltre 12 mesi.",
+        "Il semaforo V6 considera margine e debito: verde entro 6 mesi con quota del 30% del margine e margine almeno del 20%; giallo entro 12 mesi con quota del 25%; rosso in assenza di margine o oltre 12 mesi.",
         "La soglia del 20%, le quote del 30% e 25% e gli orizzonti di 6 e 12 mesi sono parametri convenzionali interni FixTude e non soglie normative.",
         "Le ipotesi di saldo e stralcio al 45% o al 60% sono somme offerte sul debito dichiarato, non percentuali standard o garantite.",
         "Una cambiale in regola con i requisiti e il bollo può avere efficacia di titolo esecutivo: prima di sottoscriverla è necessaria una valutazione legale indipendente.",
