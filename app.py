@@ -257,8 +257,12 @@ SEO_DEFAULT_DESCRIPTION = (
 )
 SEO_PAGES = {
     "/": {
-        "title": "FixTude | Calcolatore gratuito di sostenibilità dei debiti",
-        "description": SEO_DEFAULT_DESCRIPTION,
+        "title": "FixTude | Prevenzione e gestione consapevole dei debiti",
+        "description": "FixTude: strumenti per prevenire l'indebitamento, valutare la sostenibilità delle rate, gestire le difficoltà e trovare informazioni pratiche.",
+    },
+    "/assistenza": {
+        "title": "Richiedi assistenza per la tua situazione debitoria | FixTude",
+        "description": "Hai ricevuto un sollecito o fai fatica a pagare? Scegli il percorso di contatto FixTude più adatto alla tua situazione.",
     },
     "/misuratore": {
         "title": "Calcolatore gratuito di sostenibilità del debito | FixTude",
@@ -786,6 +790,8 @@ def page(title, content, include_chat=True):
               <a class="brand" href="/" aria-label="FixTude, homepage">FixTude</a>
               <button class="menu-toggle" id="siteMenuToggle" type="button" aria-label="Apri menu" aria-expanded="false" aria-controls="siteMenu">☰</button>
               <nav class="nav-menu" id="siteMenu" aria-label="Menu principale">
+                <a href="/">Home</a>
+                <a href="/assistenza">Richiedi assistenza</a>
                 <a href="/misuratore">Calcolatore</a>
                 <a href="/consulenza">Contatta un esperto</a>
                 <a href="/moduli">Moduli gratuiti</a>
@@ -1195,6 +1201,138 @@ def page(title, content, include_chat=True):
 
 @app.route("/")
 def home():
+    content = """
+    <style>
+      .ft-menu-home{max-width:1040px;margin:18px auto 30px}
+      .ft-menu-hero{
+        text-align:center;padding:clamp(28px,5vw,48px) 24px 34px;
+        border-radius:22px;
+        background:radial-gradient(ellipse at 50% 0%,#dcefff 0%,#f3f8fd 58%,#fff 100%);
+        border:1px solid #dce9f7;
+      }
+      .ft-menu-kicker{display:inline-block;margin:0 0 12px;padding:6px 12px;border-radius:999px;
+        background:#e4f0ff;color:#174b91;font-size:12px;font-weight:800;letter-spacing:.07em}
+      .ft-menu-hero h1{max-width:790px;margin:0 auto 14px;color:#103b78;
+        font-size:clamp(29px,4.6vw,45px);line-height:1.12;letter-spacing:-.7px}
+      .ft-menu-hero p{max-width:680px;margin:0 auto;color:#435875;font-size:clamp(16px,1.8vw,19px);line-height:1.55}
+      .ft-menu-hero .ft-menu-emphasis{margin-top:12px;color:#174b91;font-weight:800}
+      .ft-menu-section{margin:28px 0 0}
+      .ft-menu-section h2{margin:0 0 7px;color:#173f78;font-size:clamp(21px,2.5vw,26px)}
+      .ft-menu-section-intro{margin:0 0 17px;color:#65758b}
+      .ft-menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+      .ft-menu-card{display:flex;gap:16px;align-items:flex-start;min-height:150px;padding:22px;
+        border:1px solid #dce5ef;border-radius:17px;background:#fff;text-decoration:none;color:#203047;
+        box-shadow:0 5px 18px rgba(20,48,85,.045);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+      .ft-menu-card:hover{transform:translateY(-3px);border-color:#a9c8ec;box-shadow:0 12px 26px rgba(20,48,85,.10)}
+      .ft-menu-card:focus-visible{outline:3px solid #8ab8ef;outline-offset:3px}
+      .ft-menu-icon{display:flex;align-items:center;justify-content:center;flex:0 0 48px;width:48px;height:48px;
+        border-radius:14px;background:#eaf3ff;color:#174b91;font-size:25px;font-weight:800}
+      .ft-menu-copy{min-width:0}
+      .ft-menu-copy h3{margin:1px 0 7px;color:#174b91;font-size:19px;line-height:1.25}
+      .ft-menu-copy p{margin:0;color:#65758b;font-size:14px;line-height:1.5}
+      .ft-menu-arrow{display:block;margin-top:12px;color:#174b91;font-size:13px;font-weight:800}
+      .ft-menu-card.coming{background:#f8fafc;box-shadow:none;border-style:dashed;cursor:default}
+      .ft-menu-card.coming .ft-menu-icon{background:#edf0f4;color:#738197}
+      .ft-menu-card.coming .ft-menu-copy h3{color:#526176}
+      .ft-menu-status{display:inline-block;margin-top:10px;padding:4px 9px;border-radius:999px;
+        background:#eef1f5;color:#64748b;font-size:11px;font-weight:800}
+      .ft-menu-bottom{margin:24px 0 0;padding:19px 22px;border-radius:15px;background:#edf5ff;
+        color:#174b91;text-align:center}
+      .ft-menu-bottom strong{display:block;font-size:17px;margin-bottom:4px}
+      .ft-menu-bottom p{margin:0;font-size:14px}
+      @media(max-width:650px){
+        .ft-menu-home{margin:8px auto 22px}
+        .ft-menu-hero{padding:25px 17px 27px;border-radius:16px}
+        .ft-menu-hero h1{font-size:clamp(27px,8vw,35px)}
+        .ft-menu-grid{grid-template-columns:1fr;gap:11px}
+        .ft-menu-card{min-height:0;padding:17px 15px;gap:13px;border-radius:14px}
+        .ft-menu-icon{flex-basis:43px;width:43px;height:43px;font-size:22px}
+        .ft-menu-copy h3{font-size:18px}
+      }
+      @media(prefers-reduced-motion:reduce){.ft-menu-card{transition:none}}
+    </style>
+
+    <div class="ft-menu-home">
+      <section class="ft-menu-hero">
+        <span class="ft-menu-kicker">IL TUO SPAZIO DI ORIENTAMENTO ECONOMICO</span>
+        <h1>Gioca d'anticipo. Non lasciare che i debiti decidano per te.</h1>
+        <p>La tranquillità economica comincia dalla consapevolezza: controlla gli impegni, valuta le risorse e scegli con maggiore lucidità come muoverti.</p>
+        <p class="ft-menu-emphasis">Prevenire, capire, affrontare: scegli da dove cominciare.</p>
+      </section>
+
+      <section class="ft-menu-section" aria-labelledby="ft-menu-title">
+        <h2 id="ft-menu-title">Come possiamo aiutarti?</h2>
+        <p class="ft-menu-section-intro">Accedi direttamente al percorso più adatto alla tua situazione.</p>
+
+        <div class="ft-menu-grid">
+          <a class="ft-menu-card" href="/educazione-finanziaria">
+            <span class="ft-menu-icon" aria-hidden="true">↗</span>
+            <span class="ft-menu-copy">
+              <h3>Prevenire i debiti</h3>
+              <p>Impara a organizzare entrate, spese e impegni prima che diventino un problema.</p>
+              <span class="ft-menu-arrow">Scopri come prevenire →</span>
+            </span>
+          </a>
+
+          <a class="ft-menu-card" href="/misuratore">
+            <span class="ft-menu-icon" aria-hidden="true">▤</span>
+            <span class="ft-menu-copy">
+              <h3>Check-up finanziario</h3>
+              <p>Utilizza il calcolatore gratuito per valutare il margine mensile e il peso delle rate.</p>
+              <span class="ft-menu-arrow">Fai il check-up →</span>
+            </span>
+          </a>
+
+          <div class="ft-menu-card coming" aria-label="Scadenzario, servizio in preparazione">
+            <span class="ft-menu-icon" aria-hidden="true">▦</span>
+            <span class="ft-menu-copy">
+              <h3>Scadenzario</h3>
+              <p>Uno spazio per tenere sotto controllo rate, pagamenti e impegni dei tuoi piani di rientro.</p>
+              <span class="ft-menu-status">In preparazione</span>
+            </span>
+          </div>
+
+          <a class="ft-menu-card" href="/assistenza">
+            <span class="ft-menu-icon" aria-hidden="true">!</span>
+            <span class="ft-menu-copy">
+              <h3>Ho già dei debiti</h3>
+              <p>Hai ricevuto un sollecito, fai fatica a pagare o vuoi parlare della tua situazione?</p>
+              <span class="ft-menu-arrow">Richiedi assistenza →</span>
+            </span>
+          </a>
+
+          <a class="ft-menu-card" href="/educazione-finanziaria">
+            <span class="ft-menu-icon" aria-hidden="true">▧</span>
+            <span class="ft-menu-copy">
+              <h3>Educazione finanziaria</h3>
+              <p>Leggi approfondimenti pratici per gestire il bilancio familiare e le decisioni economiche.</p>
+              <span class="ft-menu-arrow">Leggi gli articoli →</span>
+            </span>
+          </a>
+
+          <a class="ft-menu-card" href="/shop">
+            <span class="ft-menu-icon" aria-hidden="true">▣</span>
+            <span class="ft-menu-copy">
+              <h3>Guide e strumenti</h3>
+              <p>Consulta le guide e i materiali FixTude per orientarti e affrontare le situazioni debitorie.</p>
+              <span class="ft-menu-arrow">Vai alle guide →</span>
+            </span>
+          </a>
+        </div>
+      </section>
+
+      <section class="ft-menu-bottom">
+        <strong>Hai bisogno di parlare con FixTude?</strong>
+        <p>Puoi inviare una richiesta di ricontatto oppure utilizzare la chat negli orari di disponibilità.</p>
+        <p style="margin-top:12px"><a class="btn" href="/consulenza">Contatta FixTude</a></p>
+      </section>
+    </div>
+    """
+    return page("Prevenzione e gestione dei debiti", content)
+
+
+@app.route("/assistenza")
+def home_assistenza():
     content = """
     <style>
       /* Home FixTude: proporzioni compatte, azzurro tenue e pulsanti 3D */
@@ -3636,7 +3774,7 @@ def robots_txt():
 def sitemap_xml():
     """Sitemap XML delle pagine pubbliche principali di FixTude."""
     paths = [
-        "/", "/misuratore", "/consulenza", "/moduli",
+        "/", "/assistenza", "/misuratore", "/consulenza", "/moduli",
         "/educazione-finanziaria", "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo", "/educazione-finanziaria/guida-saldo-e-stralcio", "/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro", "/sic", "/assistenza-legale", "/professionisti", "/shop",
         "/disclaimer", "/termini", "/privacy", "/cookie",
     ]
@@ -3936,5 +4074,6 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5000")),
         debug=False
     )
+
 
 
