@@ -398,7 +398,7 @@ def page(title, content, include_chat=False):
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
-          <meta name="theme-color" content="#123a72">
+          <meta name="theme-color" content="#123B50">
           <meta name="color-scheme" content="light">
           <title>{{ seo_title }}</title>
           <meta name="description" content="{{ seo_description }}">
@@ -1214,19 +1214,19 @@ def fixtude_v1_route_guard():
 def home():
     content = r"""
     <style>
-      body:has(.ft-v1){background:#050608!important;color:#f4f6fa!important}
-      body:has(.ft-v1) header{background:#090c11!important;border-bottom:1px solid #252b35!important}
+      body:has(.ft-v1){background:#123B50!important;color:#f4f6fa!important}
+      body:has(.ft-v1) header{background:#123B50!important;border-bottom:1px solid #28566a!important}
       body:has(.ft-v1) .brand{color:#f4f6fa!important}
-      body:has(.ft-v1) .menu-toggle{background:#171d27!important;color:#f4f6fa!important;border-color:#394454!important}
-      body:has(.ft-v1) .nav-menu{background:#111720!important;border-color:#394454!important}
+      body:has(.ft-v1) .menu-toggle{background:#19485c!important;color:#f4f6fa!important;border-color:#477184!important}
+      body:has(.ft-v1) .nav-menu{background:#164255!important;border-color:#477184!important}
       body:has(.ft-v1) .nav-menu a{color:#f4f6fa!important}
-      body:has(.ft-v1) .nav-menu a:hover{background:#202b3a!important}
-      body:has(.ft-v1) footer{background:#090c11!important;border-top:1px solid #252b35!important;color:#aab5c4!important}
-      body:has(.ft-v1) footer a,body:has(.ft-v1) .cookie-footer-link{color:#8fc4ff!important}
+      body:has(.ft-v1) .nav-menu a:hover{background:#24566b!important}
+      body:has(.ft-v1) footer{background:#123B50!important;border-top:1px solid #28566a!important;color:#d2e0e7!important}
+      body:has(.ft-v1) footer a,body:has(.ft-v1) .cookie-footer-link{color:#b9e2f2!important}
       .ft-v1{max-width:760px;margin:0 auto;padding:12px 4px 32px}
       .ft-tagline{text-align:center;margin:4px auto 22px;max-width:650px;font-weight:800;font-size:clamp(22px,4.4vw,35px);line-height:1.18;letter-spacing:-.6px;color:#f5f7fb}
-      .ft-tagline span{display:block;color:#70b5ff;margin-top:5px}
-      .ft-explain{text-align:center;color:#d2d9e3;font-size:14px;line-height:1.65;margin:0 auto 22px;max-width:580px}
+      .ft-tagline span{display:block;color:#a8d9ee;margin-top:5px}
+      .ft-explain{text-align:center;color:#e0ebf0;font-size:14px;line-height:1.65;margin:0 auto 22px;max-width:580px}
       .ft-calc-shell{max-width:520px;margin:0 auto;padding:17px;border-radius:27px;background:linear-gradient(145deg,#f8fbff,#dce6f2 48%,#eef4fa);border:1px solid #c7d4e4;box-shadow:0 20px 45px #18365b22,inset 0 2px 3px #fff}
       .ft-display-wrap{padding:13px;border-radius:17px;background:linear-gradient(145deg,#27384b,#101a28);box-shadow:inset 0 5px 12px #0009,0 4px 0 #aab8c8;margin-bottom:14px}
       .ft-display-label{color:#9eb6cc;font-size:11px;font-weight:850;letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px}
@@ -1562,7 +1562,8 @@ def checkout_v2():
         return redirect(url_for("home"))
     color_hex = {"rosso": "#c62828", "giallo": "#b88600", "verde": "#16834a"}[data["colore"]]
     annullato = "<p class='notice'>Il pagamento non è stato completato. Puoi riprovare.</p>" if request.args.get("annullato") else ""
-    content = f"""<section class="card">
+    content = f"""<div class="ft-checkout-v9" aria-hidden="true" style="display:none"></div>
+<section class="card">
       <p class="muted">ESITO DEL CALCOLO · FIXTUDE V6</p>
       <h1>Il tuo semaforo: <span style="color:{color_hex}">{escape(data['colore'].upper())}</span></h1>
       <div style="display:flex;justify-content:center;margin:20px auto 24px">
@@ -1584,6 +1585,16 @@ def checkout_v2():
     </section>
     <p class="muted">Pagamento gestito da Stripe. Nessuna registrazione FixTude.</p>
     <style>
+      body:has(.ft-checkout-v9){{background:#123B50!important;color:#f4f6fa!important}}
+      body:has(.ft-checkout-v9) header{{background:#123B50!important;border-bottom:1px solid #28566a!important}}
+      body:has(.ft-checkout-v9) .brand{{color:#f4f6fa!important}}
+      body:has(.ft-checkout-v9) .menu-toggle{{background:#19485c!important;color:#f4f6fa!important;border-color:#477184!important}}
+      body:has(.ft-checkout-v9) .nav-menu{{background:#164255!important;border-color:#477184!important}}
+      body:has(.ft-checkout-v9) .nav-menu a{{color:#f4f6fa!important}}
+      body:has(.ft-checkout-v9) .nav-menu a:hover{{background:#24566b!important}}
+      body:has(.ft-checkout-v9) footer{{background:#123B50!important;border-top:1px solid #28566a!important;color:#d2e0e7!important}}
+      body:has(.ft-checkout-v9) footer a,body:has(.ft-checkout-v9) .cookie-footer-link{{color:#b9e2f2!important}}
+      body:has(.ft-checkout-v9) .muted{{color:#d2e0e7!important}}
       .book-choice{{border:1px solid #dce5ef;border-radius:12px;padding:17px;margin:13px 0;background:#fbfdff}}
       .book-choice label{{display:block;cursor:pointer}}
       .book-choice input{{margin-right:9px;accent-color:#174b91}}
@@ -3779,7 +3790,7 @@ def legal_page(title, body):
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
     owner_line = f"{escape(LEGAL_OWNER_NAME)} · P. IVA {escape(LEGAL_VAT_NUMBER)} · {escape(LEGAL_OWNER_ADDRESS)} · {LEGAL_EMAIL}"
-    return Response(f"""<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123a72"><meta name="description" content="{escape(seo_description, quote=True)}"><meta name="robots" content="index, follow, max-image-preview:large"><link rel="canonical" href="{escape(canonical_url, quote=True)}"><link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261019" sizes="48x48"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=20261019"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20261019"><meta property="og:locale" content="it_IT"><meta property="og:type" content="website"><meta property="og:site_name" content="FixTude"><meta property="og:title" content="{escape(seo_title, quote=True)}"><meta property="og:description" content="{escape(seo_description, quote=True)}"><meta property="og:url" content="{escape(canonical_url, quote=True)}"><meta property="og:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><meta property="og:image:alt" content="Logo FixTude"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{escape(seo_title, quote=True)}"><meta name="twitter:description" content="{escape(seo_description, quote=True)}"><meta name="twitter:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><title>{escape(seo_title)}</title><style>body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.65 Arial,sans-serif}}main{{width:min(920px,calc(100% - 28px));margin:28px auto 50px}}.paper{{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:clamp(20px,4vw,38px)}}h1,h2{{line-height:1.25}}h1{{color:#174b91}}h2{{font-size:21px;margin-top:28px}}a{{color:#174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}footer{{border-top:1px solid #dce5ef;margin-top:28px;padding-top:16px;font-size:13px;color:#65758b}}.top{{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}}.brand{{font-size:24px;font-weight:800;color:#174b91;text-decoration:none}}</style></head><body><main><div class="top"><a class="brand" href="/">FixTude</a><a href="/">Torna al sito</a></div><article class="paper"><h1>{escape(title)}</h1><p class="muted">Versione {LEGAL_VERSION}</p><div class="notice"><strong>Denominazione del servizio:</strong> FixTude · <strong>Titolare:</strong> {escape(LEGAL_OWNER_NAME)} · <strong>P. IVA:</strong> {escape(LEGAL_VAT_NUMBER)}</div>{body}<footer><strong>Contatti:</strong> {owner_line}<br>Ultimo aggiornamento: 19 ottobre 2026<br><button type="button" id="ft-cookie-reopen-footer" style="border:0;background:transparent;color:#174b91;text-decoration:underline;cursor:pointer;font:inherit">Preferenze cookie</button></footer></article></main></body></html>""", mimetype="text/html")
+    return Response(f"""<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123B50"><meta name="description" content="{escape(seo_description, quote=True)}"><meta name="robots" content="index, follow, max-image-preview:large"><link rel="canonical" href="{escape(canonical_url, quote=True)}"><link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261019" sizes="48x48"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=20261019"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20261019"><meta property="og:locale" content="it_IT"><meta property="og:type" content="website"><meta property="og:site_name" content="FixTude"><meta property="og:title" content="{escape(seo_title, quote=True)}"><meta property="og:description" content="{escape(seo_description, quote=True)}"><meta property="og:url" content="{escape(canonical_url, quote=True)}"><meta property="og:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><meta property="og:image:alt" content="Logo FixTude"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{escape(seo_title, quote=True)}"><meta name="twitter:description" content="{escape(seo_description, quote=True)}"><meta name="twitter:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><title>{escape(seo_title)}</title><style>body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.65 Arial,sans-serif}}main{{width:min(920px,calc(100% - 28px));margin:28px auto 50px}}.paper{{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:clamp(20px,4vw,38px)}}h1,h2{{line-height:1.25}}h1{{color:#174b91}}h2{{font-size:21px;margin-top:28px}}a{{color:#174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}footer{{border-top:1px solid #dce5ef;margin-top:28px;padding-top:16px;font-size:13px;color:#65758b}}.top{{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}}.brand{{font-size:24px;font-weight:800;color:#174b91;text-decoration:none}}</style></head><body><main><div class="top"><a class="brand" href="/">FixTude</a><a href="/">Torna al sito</a></div><article class="paper"><h1>{escape(title)}</h1><p class="muted">Versione {LEGAL_VERSION}</p><div class="notice"><strong>Denominazione del servizio:</strong> FixTude · <strong>Titolare:</strong> {escape(LEGAL_OWNER_NAME)} · <strong>P. IVA:</strong> {escape(LEGAL_VAT_NUMBER)}</div>{body}<footer><strong>Contatti:</strong> {owner_line}<br>Ultimo aggiornamento: 19 ottobre 2026<br><button type="button" id="ft-cookie-reopen-footer" style="border:0;background:transparent;color:#174b91;text-decoration:underline;cursor:pointer;font:inherit">Preferenze cookie</button></footer></article></main></body></html>""", mimetype="text/html")
 
 
 @app.route("/disclaimer")
@@ -4075,7 +4086,7 @@ def pro_current_user():
 def pro_shell(title, body, robots="noindex, nofollow"):
     safe_title = escape(title)
     safe_body = body
-    html = f'''<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="{escape(robots)}"><meta name="theme-color" content="#123a72"><link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261019" sizes="48x48"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=20261019"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20261019"><title>{safe_title} | FixTude</title><style>
+    html = f'''<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="{escape(robots)}"><meta name="theme-color" content="#123B50"><link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261019" sizes="48x48"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=20261019"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20261019"><title>{safe_title} | FixTude</title><style>
     *{{box-sizing:border-box}}body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.6 Arial,sans-serif}}main{{width:min(960px,calc(100% - 28px));margin:28px auto 55px}}header{{background:#fff;border-bottom:1px solid #dce5ef;padding:14px max(14px,calc((100% - 960px)/2));display:flex;justify-content:space-between;align-items:center;gap:16px}}header a{{color:#174b91;text-decoration:none;font-weight:700}}.brand{{font-size:24px}}.card{{background:#fff;border:1px solid #dce5ef;border-radius:15px;padding:20px;margin:16px 0}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}}h1,h2,h3{{line-height:1.25}}h1{{color:#174b91}}label{{display:block;font-weight:700;margin:12px 0 5px}}input,select,textarea{{width:100%;font:inherit;padding:11px 12px;border:1px solid #bdcbdc;border-radius:8px;background:#fff}}textarea{{min-height:100px;resize:vertical}}.btn,button.btn{{display:inline-block;background:#174b91;color:#fff;border:0;border-radius:9px;padding:11px 16px;text-decoration:none;font:inherit;font-weight:700;cursor:pointer}}.btn.secondary{{background:#fff;color:#174b91;border:1px solid #174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}.profile{{border:1px solid #dce5ef;border-radius:12px;padding:16px;background:#fff}}.profile h3{{margin:0 0 6px}}.tag{{display:inline-block;background:#eaf2fc;color:#174b91;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:700}}.actions{{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}}.price{{font-size:22px;font-weight:800;color:#174b91}}.doc h2{{margin-top:26px}}.signature{{margin-top:38px;display:grid;grid-template-columns:1fr 1fr;gap:35px}}.line{{border-top:1px solid #64748b;padding-top:8px;margin-top:55px}}@media(max-width:600px){{header{{padding:12px 14px}}.card{{padding:16px}}.signature{{grid-template-columns:1fr}}}}
     @media print{{header,.no-print,.back-row{{display:none!important}}body{{background:#fff}}main{{width:100%;margin:0}}.card{{border:0;padding:0}}}}
     </style></head><body><header><a class="brand" href="/">FixTude</a><nav><a href="/professionisti">Area Professionisti</a> · <a href="/">Sito</a></nav></header><main>{safe_body}</main></body></html>'''
