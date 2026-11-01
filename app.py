@@ -1594,6 +1594,20 @@ def checkout_v2():
       body:has(.ft-checkout-v9) .nav-menu a:hover{{background:#24566b!important}}
       body:has(.ft-checkout-v9) footer{{background:#123B50!important;border-top:1px solid #28566a!important;color:#d2e0e7!important}}
       body:has(.ft-checkout-v9) footer a,body:has(.ft-checkout-v9) .cookie-footer-link{{color:#b9e2f2!important}}
+      /* La pagina checkout ha sfondo petrolio, ma la scheda resta chiara:
+         ripristina colori scuri e contrasto per TUTTI i testi interni. */
+      body:has(.ft-checkout-v9) .card{{background:#ffffff!important;color:#203047!important}}
+      body:has(.ft-checkout-v9) .card h1,
+      body:has(.ft-checkout-v9) .card h2,
+      body:has(.ft-checkout-v9) .card h3,
+      body:has(.ft-checkout-v9) .card p,
+      body:has(.ft-checkout-v9) .card label,
+      body:has(.ft-checkout-v9) .card strong,
+      body:has(.ft-checkout-v9) .card span{{color:#203047}}
+      body:has(.ft-checkout-v9) .card .muted{{color:#65758b!important}}
+      body:has(.ft-checkout-v9) .card a{{color:#174b91!important}}
+      body:has(.ft-checkout-v9) .card .btn{{color:#ffffff!important}}
+      body:has(.ft-checkout-v9) > p.muted{{color:#d2e0e7!important}}
       body:has(.ft-checkout-v9) .muted{{color:#d2e0e7!important}}
       .book-choice{{border:1px solid #dce5ef;border-radius:12px;padding:17px;margin:13px 0;background:#fbfdff}}
       .book-choice label{{display:block;cursor:pointer}}
