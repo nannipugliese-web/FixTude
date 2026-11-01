@@ -1214,17 +1214,37 @@ def fixtude_v1_route_guard():
 def home():
     content = r"""
     <style>
-      .ft-v1{max-width:680px;margin:0 auto;padding:12px 4px 28px}
-      .ft-tagline{text-align:center;margin:4px auto 28px;max-width:650px;font-weight:800;font-size:clamp(22px,4.4vw,35px);line-height:1.18;letter-spacing:-.6px;color:#174b91}
+      .ft-v1{max-width:760px;margin:0 auto;padding:12px 4px 32px}
+      .ft-tagline{text-align:center;margin:4px auto 22px;max-width:650px;font-weight:800;font-size:clamp(22px,4.4vw,35px);line-height:1.18;letter-spacing:-.6px;color:#174b91}
       .ft-tagline span{display:block;color:#2471bd;margin-top:5px}
-      .ft-explain{text-align:center;color:#65758b;font-size:14px;margin:-14px auto 24px;max-width:580px}
-      .ft-fields{display:grid;gap:14px}
-      .ft-field{background:#fff;border:1px solid #dce5ef;border-radius:14px;padding:15px 17px;text-align:left;box-shadow:0 4px 16px #18365b08}
-      .ft-field label{display:block;font-weight:800;color:#203047;font-size:15px;margin-bottom:7px}
-      .ft-field input{width:100%;border:1px solid #cbd7e5;border-radius:10px;padding:14px 13px;font-size:19px;font-weight:700;color:#203047;background:#fbfdff;outline:none}
-      .ft-field input:focus{border-color:#2468b8;box-shadow:0 0 0 3px #2468b81c}
-      .ft-field-help{display:block;color:#718096;font-size:12px;line-height:1.4;margin-top:7px}
-      .ft-traffic{margin:25px auto 14px;text-align:center}
+      .ft-explain{text-align:center;color:#65758b;font-size:14px;margin:0 auto 22px;max-width:580px}
+      .ft-calc-shell{max-width:520px;margin:0 auto;padding:17px;border-radius:27px;background:linear-gradient(145deg,#f8fbff,#dce6f2 48%,#eef4fa);border:1px solid #c7d4e4;box-shadow:0 20px 45px #18365b22,inset 0 2px 3px #fff}
+      .ft-calc-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 13px}
+      .ft-calc-brand{font-size:13px;font-weight:950;letter-spacing:.12em;color:#174b91}
+      .ft-calc-help{font-size:11px;color:#60728a;text-align:right}
+      .ft-display-wrap{padding:13px;border-radius:17px;background:linear-gradient(145deg,#27384b,#101a28);box-shadow:inset 0 5px 12px #0009,0 4px 0 #aab8c8;margin-bottom:14px}
+      .ft-display-label{color:#9eb6cc;font-size:11px;font-weight:850;letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px}
+      .ft-display{height:64px;display:flex;align-items:center;justify-content:flex-end;overflow:hidden;padding:5px 10px;border-radius:10px;background:linear-gradient(180deg,#d9e8d6,#b7d1b3);color:#18351f;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:clamp(28px,7vw,42px);font-weight:900;letter-spacing:.02em;text-shadow:0 1px #fff8;box-shadow:inset 0 3px 8px #203b2455}
+      .ft-display-hint{display:flex;justify-content:space-between;gap:8px;color:#a9bfd1;font-size:10px;margin-top:7px}
+      .ft-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px}
+      .ft-step{border:1px solid #c4d1e0;border-radius:11px;padding:9px 5px;background:linear-gradient(145deg,#fff,#e5edf6);color:#42536a;font-size:11px;font-weight:850;box-shadow:0 3px 0 #b6c4d4;cursor:pointer;transition:transform .08s,box-shadow .08s}
+      .ft-step.active{color:#174b91;border-color:#77a7da;background:linear-gradient(145deg,#fff,#dcecff);box-shadow:0 3px 0 #7ea4cc,inset 0 1px #fff}
+      .ft-step.done{color:#176b46}
+      .ft-step:active{transform:translateY(2px);box-shadow:0 1px 0 #9eafc2}
+      .ft-keypad{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+      .ft-key{min-height:61px;border:1px solid #c2cedd;border-radius:14px;background:linear-gradient(145deg,#fff 0%,#edf2f8 55%,#dce5ef 100%);color:#1d3048;font-size:24px;font-weight:900;cursor:pointer;user-select:none;touch-action:manipulation;box-shadow:0 5px 0 #aab8c8,0 8px 12px #243b561c,inset 0 1px 1px #fff;transition:transform .07s,box-shadow .07s; text-shadow:0 1px #fff}
+      .ft-key:active,.ft-key.pressed{transform:translateY(4px);box-shadow:0 1px 0 #aab8c8,0 2px 4px #243b5622,inset 0 2px 5px #64748b22}
+      .ft-key.fn{font-size:15px;background:linear-gradient(145deg,#e9f0f8,#cbd8e7);color:#344b66}
+      .ft-key.clear{background:linear-gradient(145deg,#ffe9e9,#f6caca);color:#a12632;border-color:#e4b2b5;box-shadow:0 5px 0 #d39a9f,0 8px 12px #8c24301c}
+      .ft-key.next{grid-column:span 2;background:linear-gradient(145deg,#267ac8,#145091);color:#fff;border-color:#12457b;box-shadow:0 5px 0 #0b3768,0 8px 12px #174b9133;text-shadow:0 1px #0004}
+      .ft-key.equals{grid-column:span 2;background:linear-gradient(145deg,#26a56d,#087447);color:#fff;border-color:#086b42;box-shadow:0 5px 0 #075b38,0 8px 12px #08744733;text-shadow:0 1px #0004}
+      .ft-key.next:active,.ft-key.equals:active{box-shadow:0 1px 0 #0b3768;transform:translateY(4px)}
+      .ft-calc-foot{margin:13px 2px 0;text-align:center;color:#64758b;font-size:11px;line-height:1.45}
+      .ft-values{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:13px auto 0}
+      .ft-value{border-radius:10px;padding:8px 6px;background:#ffffffa8;border:1px solid #d4dfeb;text-align:center;min-width:0}
+      .ft-value small{display:block;color:#687a90;font-size:9px;font-weight:850;letter-spacing:.04em}
+      .ft-value strong{display:block;color:#203047;font-size:13px;overflow-wrap:anywhere;margin-top:3px}
+      .ft-traffic{margin:30px auto 14px;text-align:center;scroll-margin-top:24px}
       .ft-traffic-title{font-weight:900;letter-spacing:.08em;color:#203047;font-size:14px;margin-bottom:13px}
       .ft-lights{display:flex;flex-direction:row;justify-content:center;gap:9px;background:linear-gradient(145deg,#454d59,#111722 48%,#303846);border:4px solid #778292;border-radius:25px;padding:13px 14px;width:max-content;max-width:100%;margin:auto;box-shadow:inset 0 4px 8px #ffffff22,0 12px 24px #14253a38,0 5px 0 #080c12}
       .ft-light{position:relative;width:65px;height:65px;border-radius:50%;background:radial-gradient(circle at 34% 25%,#626a75 0%,#333a45 48%,#151b24 100%);border:4px solid #10151d;box-shadow:inset 0 5px 10px #000b,0 2px 4px #0008;transition:all .22s}
@@ -1233,31 +1253,58 @@ def home():
       .ft-light.on.yellow{background:radial-gradient(circle at 32% 25%,#fff9bd 0%,#ffdf24 40%,#b57900 82%);box-shadow:0 0 12px #ffdf24,0 0 32px #ffdf2488,inset 0 4px 9px #fff9}
       .ft-light.on.green{background:radial-gradient(circle at 32% 25%,#c1ffda 0%,#21e879 40%,#00733d 82%);box-shadow:0 0 12px #21e879,0 0 32px #21e87988,inset 0 4px 9px #fff9}
       .ft-countdown{min-height:32px;margin:12px auto 0;font-size:24px;font-weight:900;color:#174b91;text-align:center;letter-spacing:.04em}
-      @media(max-width:520px){.ft-light{width:48px;height:48px}.ft-lights{flex-direction:row;gap:8px;padding:10px 12px}}
       .ft-status{min-height:24px;margin:12px 0 0;font-weight:800;font-size:14px}
       .ft-submit{width:100%;margin-top:15px;min-height:54px;font-size:16px}
       .ft-submit:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
       .ft-note{text-align:center;font-size:12px;color:#748197;margin:13px auto 0;max-width:540px}
-      @media(max-width:520px){.ft-field{padding:13px}.ft-light{width:43px;height:43px}.ft-lights{flex-direction:row;gap:8px;padding:9px 11px}.ft-tagline{font-size:26px}}
+      @media(max-width:520px){.ft-calc-shell{padding:12px;border-radius:21px}.ft-key{min-height:56px;font-size:22px}.ft-light{width:46px;height:46px}.ft-lights{gap:8px;padding:10px 12px}.ft-tagline{font-size:26px}.ft-calc-help{max-width:135px}}
+      @media(prefers-reduced-motion:reduce){.ft-key,.ft-light{transition:none}}
     </style>
     <section class="ft-v1">
       <h1 class="ft-tagline">Non farti cercare<span>dal recupero crediti, cerca tu stesso la soluzione.</span></h1>
-      <p class="ft-explain">Tre dati, un'analisi orientativa e indicazioni concrete per preparare una possibile trattativa con i creditori.</p>
+      <p class="ft-explain">Inserisci i tre importi con la calcolatrice FixTude e scopri il colore del tuo semaforo di sostenibilità.</p>
       <form class="ft-fields" method="post" action="/analisi" id="ftCalculator" novalidate>
-        <div class="ft-field">
-          <label for="entrate">ENTRATE MENSILI NETTE (€)</label>
-          <input id="entrate" name="entrate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Es. 1.800" required>
+        <input type="hidden" id="entrate" name="entrate">
+        <input type="hidden" id="uscite" name="uscite">
+        <input type="hidden" id="debiti" name="debiti">
+        <div class="ft-calc-shell" id="ftCalculatorPanel">
+          <div class="ft-calc-top"><span class="ft-calc-brand">FIXTUDE · CALCOLATRICE</span><span class="ft-calc-help">Usa i tasti per inserire gli importi in euro</span></div>
+          <div class="ft-display-wrap">
+            <div class="ft-display-label" id="ftDisplayLabel">ENTRATE MENSILI NETTE (€)</div>
+            <div class="ft-display" id="ftDisplay" role="status" aria-live="polite">0</div>
+            <div class="ft-display-hint"><span id="ftDisplayHint">Dato 1 di 3</span><span>EURO (€)</span></div>
+          </div>
+          <div class="ft-steps" aria-label="Dati da inserire">
+            <button type="button" class="ft-step active" data-step="0">1 · ENTRATE</button>
+            <button type="button" class="ft-step" data-step="1">2 · USCITE</button>
+            <button type="button" class="ft-step" data-step="2">3 · DEBITI</button>
+          </div>
+          <div class="ft-keypad" aria-label="Tastiera della calcolatrice">
+            <button type="button" class="ft-key" data-key="7">7</button>
+            <button type="button" class="ft-key" data-key="8">8</button>
+            <button type="button" class="ft-key" data-key="9">9</button>
+            <button type="button" class="ft-key fn clear" data-key="clear">C</button>
+            <button type="button" class="ft-key" data-key="4">4</button>
+            <button type="button" class="ft-key" data-key="5">5</button>
+            <button type="button" class="ft-key" data-key="6">6</button>
+            <button type="button" class="ft-key fn" data-key="back">⌫</button>
+            <button type="button" class="ft-key" data-key="1">1</button>
+            <button type="button" class="ft-key" data-key="2">2</button>
+            <button type="button" class="ft-key" data-key="3">3</button>
+            <button type="button" class="ft-key fn" data-key="decimal">,</button>
+            <button type="button" class="ft-key" data-key="0">0</button>
+            <button type="button" class="ft-key fn" data-key="00">00</button>
+            <button type="button" class="ft-key next" id="ftNext" data-key="next">AVANTI</button>
+            <button type="button" class="ft-key equals" id="ftEquals" data-key="equals" hidden> = CALCOLA </button>
+          </div>
+          <div class="ft-values">
+            <div class="ft-value"><small>ENTRATE</small><strong id="ftValue0">—</strong></div>
+            <div class="ft-value"><small>USCITE</small><strong id="ftValue1">—</strong></div>
+            <div class="ft-value"><small>DEBITO</small><strong id="ftValue2">—</strong></div>
+          </div>
+          <p class="ft-calc-foot">Premi AVANTI per passare al dato successivo. Puoi tornare sui passaggi precedenti e correggere gli importi.</p>
         </div>
-        <div class="ft-field">
-          <label for="uscite">USCITE MENSILI (€)</label>
-          <input id="uscite" name="uscite" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Es. 1.250" required>
-          <small class="ft-field-help">Includi anche le rate e gli impegni mensili che paghi regolarmente.</small>
-        </div>
-        <div class="ft-field">
-          <label for="debiti">SITUAZIONE DEBITORIA COMPLESSIVA (€)</label>
-          <input id="debiti" name="debiti" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Es. 12.000" required>
-        </div>
-        <div class="ft-traffic" aria-live="polite">
+        <div class="ft-traffic" id="ftTraffic" aria-live="polite">
           <div class="ft-traffic-title">IL TUO SEMAFORO</div>
           <div class="ft-lights" role="img" aria-label="Semaforo di sostenibilità">
             <span class="ft-light" id="ftRed"></span>
@@ -1267,38 +1314,97 @@ def home():
           <div class="ft-countdown" id="ftCountdown" aria-live="assertive"></div>
           <div class="ft-status" id="ftStatus"></div>
         </div>
-        <button class="btn ft-submit" id="ftSubmit" type="submit" disabled>ANALIZZA LA MIA SITUAZIONE</button>
+        <button class="btn ft-submit" id="ftSubmit" type="submit" disabled>PROSEGUI CON L'ANALISI COMPLETA</button>
       </form>
-      <p class="ft-note">Nessuna registrazione. I dati vengono elaborati per il calcolo e non sono archiviati in un profilo personale. Il risultato è orientativo e dipende dai valori inseriti.</p>
+      <p class="ft-note">Nessuna registrazione. Gli importi sono elaborati per il calcolo e non vengono archiviati in un profilo personale. Il risultato è orientativo.</p>
     </section>
     <script>
     (()=>{
       const form=document.getElementById('ftCalculator');
       const fields=['entrate','uscite','debiti'].map(id=>document.getElementById(id));
+      const labels=['ENTRATE MENSILI NETTE (€)','USCITE MENSILI (€)','SITUAZIONE DEBITORIA COMPLESSIVA (€)'];
+      const names=['ENTRATE','USCITE','DEBITO'];
+      const display=document.getElementById('ftDisplay'),displayLabel=document.getElementById('ftDisplayLabel'),displayHint=document.getElementById('ftDisplayHint');
+      const steps=[...document.querySelectorAll('.ft-step')],keys=[...document.querySelectorAll('.ft-key')];
+      const values=[0,1,2].map(i=>document.getElementById('ftValue'+i));
       const lights={rosso:document.getElementById('ftRed'),giallo:document.getElementById('ftYellow'),verde:document.getElementById('ftGreen')};
       const status=document.getElementById('ftStatus'),submit=document.getElementById('ftSubmit'),countdown=document.getElementById('ftCountdown');
-      let busy=false;
-      function evaluate(){const v=fields.map(x=>x.value.trim()===''?null:Number(x.value));const valid=v.every(n=>n!==null&&Number.isFinite(n)&&n>=0)&&v[0]>0;Object.values(lights).forEach(x=>x.className='ft-light');status.textContent='';submit.disabled=!valid;}
-      let audioCtx=null;
-      function beep(freq=850,duration=.12){try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!audioCtx)audioCtx=new AC();if(audioCtx.state==='suspended')audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(.0001,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.16,audioCtx.currentTime+.012);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+duration);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+duration+.025);}catch(e){}}
-      fields.forEach(x=>x.addEventListener('input',evaluate));evaluate();
-      form.addEventListener('submit',async e=>{if(busy)return;const v=fields.map(x=>Number(x.value));if(!v.every(Number.isFinite)||v[0]<=0||v[1]<0||v[2]<0)return;e.preventDefault();busy=true;submit.disabled=true;Object.values(lights).forEach(x=>x.className='ft-light');status.textContent='Preparazione del risultato…';
-        const [income,expenses,debt]=v,balance=income-expenses,margin=balance/income;
-        const available=Math.max(0,balance);
-        const greenQuota=available*.30, yellowQuota=available*.25;
-        let color='rosso';
-        if(debt<=0){color='verde';}
-        else if(balance>0 && margin>=.20 && greenQuota>0 && debt/greenQuota<=6){color='verde';}
-        else if(balance>0 && yellowQuota>0 && debt/yellowQuota<=12){color='giallo';}
-        const cls={rosso:'red',giallo:'yellow',verde:'green'};
-        countdown.textContent='PRONTI…';beep(520,.14);
-        for(let n=3;n>=1;n--){countdown.textContent=String(n);beep(n===1?1080:760,.14);await new Promise(r=>setTimeout(r,850));}
-        countdown.textContent='VIA!';beep(1320,.24);lights[color].className='ft-light on '+cls[color];status.textContent=({rosso:'ROSSO · situazione critica',giallo:'GIALLO · attenzione',verde:'VERDE · margine più favorevole'}[color]);await new Promise(r=>setTimeout(r,650));form.submit();
-      });
+      const next=document.getElementById('ftNext'),equals=document.getElementById('ftEquals'),traffic=document.getElementById('ftTraffic');
+      let current=0,buffer='',busy=false,audioCtx=null;
+      const fmt=n=>new Intl.NumberFormat('it-IT',{maximumFractionDigits:2}).format(n);
+      const parsed=s=>s===''?null:Number(s.replace(',','.'));
+      function update(){
+        displayLabel.textContent=labels[current];display.textContent=buffer===''?'0':fmt(Number(buffer.replace(',','.'))||0);
+        displayHint.textContent='Dato '+(current+1)+' di 3';
+        steps.forEach((b,i)=>{b.classList.toggle('active',i===current);b.classList.toggle('done',fields[i].value!=='');});
+        values.forEach((el,i)=>el.textContent=fields[i].value===''?'—':fmt(Number(fields[i].value)));
+        next.hidden=current===2;equals.hidden=current!==2;
+        const valid=fields.every(f=>f.value!==''&&Number.isFinite(Number(f.value))&&Number(f.value)>=0)&&Number(fields[0].value)>0;
+        submit.disabled=!valid;
+      }
+      function sound(){
+        try{
+          const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+          if(!audioCtx)audioCtx=new AC();if(audioCtx.state==='suspended')audioCtx.resume();
+          const now=audioCtx.currentTime;
+          const length=Math.floor(audioCtx.sampleRate*.045),noise=audioCtx.createBuffer(1,length,audioCtx.sampleRate),data=noise.getChannelData(0);
+          for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*(1-i/length);
+          const src=audioCtx.createBufferSource(),filter=audioCtx.createBiquadFilter(),gain=audioCtx.createGain();
+          src.buffer=noise;filter.type='lowpass';filter.frequency.value=1500;gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.20,now+.003);gain.gain.exponentialRampToValueAtTime(.0001,now+.045);
+          src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);src.start(now);
+          const osc=audioCtx.createOscillator(),og=audioCtx.createGain();osc.type='triangle';osc.frequency.setValueAtTime(125,now);osc.frequency.exponentialRampToValueAtTime(72,now+.035);og.gain.setValueAtTime(.0001,now);og.gain.exponentialRampToValueAtTime(.10,now+.003);og.gain.exponentialRampToValueAtTime(.0001,now+.05);osc.connect(og);og.connect(audioCtx.destination);osc.start(now);osc.stop(now+.055);
+        }catch(e){}
+      }
+      function press(button){button.classList.add('pressed');setTimeout(()=>button.classList.remove('pressed'),110);sound();}
+      function setCurrent(index){current=Math.max(0,Math.min(2,index));buffer=fields[current].value;update();}
+      function add(value){
+        if(busy)return;
+        if(value==='clear'){buffer='';}
+        else if(value==='back'){buffer=buffer.slice(0,-1);}
+        else if(value==='decimal'){if(!buffer.includes(','))buffer=buffer===''?'0,':buffer+',';}
+        else if(value==='00'){if(buffer!==''&&buffer!=='0')buffer+='00';else if(buffer==='')buffer='0';}
+        else if(/^\d$/.test(value)){if(buffer==='0')buffer=value;else if(buffer.length<12)buffer+=value;}
+        if(buffer.length>0){const n=parsed(buffer);if(n!==null&&Number.isFinite(n)&&n<=100000000)fields[current].value=buffer.replace(',','.');else buffer=fields[current].value;}
+        else fields[current].value='';
+        update();
+      }
+      keys.forEach(button=>button.addEventListener('click',()=>{
+        if(button.hidden||busy)return;press(button);const key=button.dataset.key;
+        if(key==='next'){if(fields[current].value===''){displayHint.textContent='Inserisci un importo prima di proseguire';return;}setCurrent(current+1);}
+        else if(key==='equals'){if(fields.every(f=>f.value!=='')&&Number(fields[0].value)>0)runCalculation();}
+        else add(key);
+      }));
+      steps.forEach(button=>button.addEventListener('click',()=>{if(busy)return;press(button);setCurrent(Number(button.dataset.step));}));
+      function evaluateColor(income,expenses,debt){
+        const balance=income-expenses,margin=income>0?balance/income:0,available=Math.max(0,balance);
+        const greenQuota=available*.30,yellowQuota=available*.25;
+        if(debt<=0)return 'verde';
+        if(balance>0&&margin>=.20&&greenQuota>0&&debt/greenQuota<=6)return 'verde';
+        if(balance>0&&yellowQuota>0&&debt/yellowQuota<=12)return 'giallo';
+        return 'rosso';
+      }
+      async function runCalculation(){
+        if(busy)return;
+        const v=fields.map(f=>Number(f.value));
+        if(!v.every(Number.isFinite)||v[0]<=0||v[1]<0||v[2]<0)return;
+        busy=true;keys.forEach(k=>k.disabled=true);steps.forEach(s=>s.disabled=true);
+        Object.values(lights).forEach(x=>x.className='ft-light');status.textContent='';countdown.textContent='';
+        traffic.scrollIntoView({behavior:'smooth',block:'center'});
+        await new Promise(r=>setTimeout(r,450));
+        const color=evaluateColor(v[0],v[1],v[2]),cls={rosso:'red',giallo:'yellow',verde:'green'};
+        countdown.textContent='PRONTI…';
+        for(let n=3;n>=1;n--){countdown.textContent=String(n);sound();await new Promise(r=>setTimeout(r,650));}
+        countdown.textContent='RISULTATO';lights[color].className='ft-light on '+cls[color];
+        status.textContent=({rosso:'ROSSO · situazione critica',giallo:'GIALLO · attenzione',verde:'VERDE · margine più favorevole'}[color]);
+        await new Promise(r=>setTimeout(r,550));
+        form.submit();
+      }
+      form.addEventListener('submit',e=>{if(!busy){e.preventDefault();if(fields.every(f=>f.value!=='')&&Number(fields[0].value)>0)runCalculation();}});
+      update();
     })();
     </script>
     """
-    return page("Analisi matematica della situazione economica", content)
+    return page("Calcolatore gratuito di sostenibilità del debito", content)
 
 
 @app.route("/analisi", methods=["POST"])
