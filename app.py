@@ -41,12 +41,12 @@ except ImportError:  # L’app resta avviabile anche prima dell’installazione 
 app = Flask(__name__)
 
 # =========================================================
-# FIXTUDE V13 - CALCOLATORE + RICONTATTO SERVER-SIDE + CHAT LIVE
+# FIXTUDE V14 - CALCOLATORE + RICONTATTO DIRETTO + CHAT LIVE + GUIDA CAMBIALI
 #
 # Nessun database applicativo.
 # Il calcolatore funziona nel browser.
-# Il modulo di ricontatto usa la route Flask /richiedi-contatto e SMTP server-side.
-# Il destinatario delle richieste è nannipugliese@gmail.com.
+# Il modulo di ricontatto invia i dati direttamente a Web3Forms via HTTPS.
+# Le notifiche email della chat usano ancora SMTP.
 # La chat usa esclusivamente memoria temporanea RAM.
 # =========================================================
 
@@ -64,9 +64,11 @@ app.config["SESSION_COOKIE_SECURE"] = (
 )
 app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 
-# Destinatario fisso delle richieste di contatto FixTude.
-# Non dipende da variabili d'ambiente eventualmente configurate in modo errato.
-EMAIL_DESTINATARIO = "nannipugliese@gmail.com"
+# Destinatario di prova: dopo il test riuscito si può impostare
+# EMAIL_DESTINATARIO=info@fixtude.it nelle variabili di Render.
+EMAIL_DESTINATARIO = os.environ.get(
+    "EMAIL_DESTINATARIO", "nannipugliese@gmail.com"
+).strip()
 
 ROME_TZ = ZoneInfo("Europe/Rome")
 
@@ -291,6 +293,10 @@ SEO_PAGES = {
         "title": "Saldo e stralcio: cos'è, come funziona e quando conviene | FixTude",
         "description": "Saldo e stralcio dei debiti: come funziona la trattativa, quali rischi controllare, cosa scrivere nell'accordo e come evitare errori prima di pagare.",
     },
+    "/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro": {
+        "title": "Piano di rientro con cambiali: pro, contro e rischi da conoscere prima di firmare | FixTude",
+        "description": "Come funziona un piano di rientro con cambiali, quali vantaggi e rischi comporta, cosa succede se non paghi e quali controlli fare prima di firmare.",
+    },
     "/sic": {
         "title": "Sistemi di informazione creditizia (SIC) | FixTude",
         "description": "Informazioni orientative sui sistemi di informazione creditizia e sulla consultazione dei dati relativi alla propria posizione.",
@@ -370,6 +376,19 @@ def page(title, content, include_chat=False):
             "description": SEO_PAGES[path]["description"],
             "datePublished": "2026-10-17",
             "dateModified": "2026-10-17",
+            "inLanguage": "it-IT",
+            "mainEntityOfPage": {"@type": "WebPage", "@id": SEO_BASE_URL + path},
+            "author": {"@type": "Organization", "name": "FixTude", "url": SEO_BASE_URL + "/"},
+            "publisher": {"@type": "Organization", "name": "FixTude", "url": SEO_BASE_URL + "/"},
+        }
+    elif path == "/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro":
+        structured_data = {
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            "headline": "Piano di rientro con cambiali: pro, contro e rischi da conoscere prima di firmare",
+            "description": SEO_PAGES[path]["description"],
+            "datePublished": "2026-10-23",
+            "dateModified": "2026-10-23",
             "inLanguage": "it-IT",
             "mainEntityOfPage": {"@type": "WebPage", "@id": SEO_BASE_URL + path},
             "author": {"@type": "Organization", "name": "FixTude", "url": SEO_BASE_URL + "/"},
@@ -1215,6 +1234,7 @@ def fixtude_v1_route_guard():
         "/chi-siamo", "/educazione-finanziaria",
         "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo",
         "/educazione-finanziaria/guida-saldo-e-stralcio",
+        "/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro",
         "/disclaimer", "/termini", "/privacy", "/cookie",
         "/robots.txt", "/sitemap.xml", "/favicon.svg", "/favicon-16.png", "/apple-touch-icon.png", "/favicon.ico", "/health",
     }
@@ -2612,6 +2632,8 @@ def consulenza():
       const form = document.getElementById("contactForm");
       const result = document.getElementById("contactResult");
       const button = document.getElementById("contactSubmit");
+      const accessKey = "6cfd757e-6b16-49e0-96b5-e055a159f403";
+
       form.addEventListener("submit", async e => {
         e.preventDefault();
         result.className = "";
@@ -2630,20 +2652,22 @@ def consulenza():
           return;
         }
 
-        // Invio al server FixTude: la route valida i campi e spedisce via SMTP.
-        // Il campo honeypot viene mantenuto per il controllo antispam server-side.
+        values.access_key = accessKey;
+        values.subject = "FixTude - nuova richiesta di ricontatto";
+        values.from_name = "FixTude - modulo di ricontatto";
+        values.botcheck = values.botcheck || "";
+        delete values.website;
 
         button.disabled = true;
         button.textContent = "Invio in corso…";
 
         try {
-          const response = await fetch("/richiedi-contatto", {
+          const response = await fetch("https://api.web3forms.com/submit", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "Accept": "application/json"
             },
-            credentials: "same-origin",
             body: JSON.stringify(values)
           });
 
@@ -2671,8 +2695,7 @@ def consulenza():
     return page("Ricontatto", content)
 
 
-@app.route("/richiedi-contatto", methods=["POST"])
-@app.route("/api/contact", methods=["POST"])  # Compatibilità con eventuali vecchi client.
+@app.route("/api/contact", methods=["POST"])
 def contact_send():
     if rate_limited("contact", 4, 600):
         return jsonify(error="Hai effettuato troppe richieste. Riprova più tardi."), 429
@@ -3422,6 +3445,14 @@ def educazione_finanziaria():
         <a class="btn" href="/educazione-finanziaria/guida-saldo-e-stralcio">Leggi l'articolo</a>
       </div>
     </section>
+    <section class="card education-article-card" aria-labelledby="guide-cambiali">
+      <div class="education-article-copy">
+        <p class="muted">GUIDA PRATICA · 10 MINUTI DI LETTURA</p>
+        <h2 id="guide-cambiali"><a href="/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro">Piano di rientro con cambiali: pro, contro e rischi da conoscere prima di firmare</a></h2>
+        <p>Come funziona una dilazione garantita da cambiali, quali conseguenze può avere il mancato pagamento e quali verifiche effettuare per capire se l'impegno è davvero sostenibile.</p>
+        <a class="btn" href="/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro">Leggi l'articolo</a>
+      </div>
+    </section>
     <style>
       .education-article-card{display:grid;grid-template-columns:minmax(150px,230px) minmax(0,1fr);gap:20px;align-items:center}
       .education-article-image-link{display:block;max-width:230px}
@@ -3550,6 +3581,135 @@ def articolo_saldo_e_stralcio():
       .checklist-box{padding:16px;background:#f4f8fd;border:1px solid #dce5ef;border-radius:12px}.checklist-box li{margin:7px 0}
     </style>'''
     return page("Saldo e stralcio: guida pratica", content)
+
+
+@app.route("/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro")
+def articolo_piano_rientro_cambiali():
+    content = r'''<article class="article-content">
+      <h1>Piano di rientro con cambiali: pro, contro e rischi da conoscere prima di firmare</h1>
+      <p class="article-subtitle">Accettare un piano di rientro può aiutarti a gestire un debito senza dover pagare tutto subito. Ma cosa succede se le rate sono garantite da cambiali? Scopri vantaggi, rischi, conseguenze del mancato pagamento e quali verifiche fare prima di firmare.</p>
+      <nav class="article-index card" aria-label="Indice dell'articolo"><strong>In questa guida</strong><ol>
+        <li><a href="#che-cose">Che cos'è un piano di rientro con cambiali?</a></li>
+        <li><a href="#vantaggi">Quali sono i vantaggi?</a></li>
+        <li><a href="#rischi">I rischi delle cambiali: cosa succede se non paghi?</a></li>
+        <li><a href="#confronto">Cambiali o rateizzazione ordinaria?</a></li>
+        <li><a href="#sostenibilita">Come capire se la rata è sostenibile</a></li>
+        <li><a href="#controlli">Cinque controlli prima di firmare</a></li>
+        <li><a href="#difficolta">Hai già firmato e non riesci più a pagare?</a></li>
+        <li><a href="#conclusioni">Conclusioni</a></li>
+      </ol></nav>
+      <p>Quando un debito diventa difficile da gestire, ricevere una proposta di pagamento rateale può sembrare finalmente una via d'uscita. Il creditore è disposto a concedere più tempo, le rate sembrano accessibili e la possibilità di regolarizzare la propria posizione restituisce un po' di tranquillità.</p>
+      <p>A volte, però, insieme alla proposta di rateizzazione arriva una richiesta precisa: firmare delle cambiali.</p>
+      <p>È proprio in questo momento che conviene fermarsi a riflettere. Un piano di rientro con cambiali può essere uno strumento utile per organizzare il pagamento di un debito, ma non è equivalente a un semplice accordo per versare rate mensili. Le cambiali hanno caratteristiche giuridiche specifiche e possono offrire al creditore una tutela particolarmente efficace in caso di mancato pagamento.</p>
+      <p>La domanda da porsi non è soltanto se puoi pagare la prima rata, ma se sarai in grado di rispettare l'intero piano fino alla sua conclusione.</p>
+      <p>In questa guida di FixTude vediamo come funziona un piano di rientro con cambiali, quali sono i principali vantaggi, quali rischi è importante conoscere e come valutare un accordo prima di sottoscriverlo.</p>
+
+      <h2 id="che-cose">Che cos'è un piano di rientro con cambiali?</h2>
+      <p>Un piano di rientro è un accordo attraverso il quale il debitore e il creditore stabiliscono modalità e tempi per il pagamento di una somma dovuta.</p>
+      <p>Invece di chiedere il pagamento immediato dell'intero importo, il creditore può accettare una suddivisione in più rate, con scadenze definite.</p>
+      <p>Facciamo un esempio.</p>
+      <p>Immagina di avere un debito di 6.000 euro e di non disporre della liquidità necessaria per saldarlo in un'unica soluzione. Dopo una trattativa, il creditore accetta di ricevere 500 euro al mese per dodici mesi.</p>
+      <p>Questa è una possibile struttura di rientro. Se il pagamento viene concordato mediante bonifici, il debitore verserà le rate secondo le condizioni stabilite nell'accordo. Se, invece, il creditore richiede dodici cambiali, il piano sarà accompagnato da titoli di credito con le rispettive scadenze.</p>
+      <p>La differenza non è soltanto formale.</p>
+      <p>La cambiale è disciplinata dal Regio decreto 5 dicembre 1933, n. 1669, e può costituire un titolo esecutivo quando ricorrono i requisiti previsti dalla legge. L'articolo 474 del Codice di procedura civile include espressamente le cambiali tra i titoli sui quali può fondarsi l'esecuzione forzata.</p>
+      <p>Puoi consultare i testi normativi ufficiali su <a href="https://www.normattiva.it/" target="_blank" rel="noopener">Normattiva</a>, cercando la disciplina della cambiale e l'articolo 474 del Codice di procedura civile.</p>
+      <p>In termini pratici, se una cambiale valida e utilizzabile come titolo esecutivo non viene pagata, il creditore può, nel rispetto degli adempimenti richiesti, procedere alla notifica del precetto e successivamente avviare un'esecuzione forzata, per esempio mediante pignoramento.</p>
+      <p>Questo non significa che il pignoramento sia automatico a ogni ritardo. Significa, però, che sottoscrivere cambiali è un impegno da valutare con attenzione.</p>
+
+      <h2 id="vantaggi">Quali sono i vantaggi di un piano di rientro con cambiali?</h2>
+      <p>Nonostante i rischi, una soluzione di questo tipo può avere una sua utilità. Tutto dipende dalle condizioni concordate e dalla reale capacità del debitore di rispettarle.</p>
+      <h3>1. Permette di distribuire il debito nel tempo</h3>
+      <p>Il vantaggio più evidente è la possibilità di evitare, quando il creditore accetta la dilazione, un pagamento immediato dell'intera somma.</p>
+      <p>Una rateizzazione può rendere più gestibile una posizione che, in assenza di accordo, richiederebbe risorse economiche non disponibili.</p>
+      <p>È importante, tuttavia, non confondere la dilazione con una riduzione del debito: se il creditore concede soltanto più tempo, l'importo complessivo da pagare potrebbe rimanere invariato o aumentare per effetto degli oneri previsti.</p>
+      <h3>2. Aiuta a programmare le uscite</h3>
+      <p>Conoscere in anticipo gli importi e le scadenze consente di pianificare meglio il bilancio familiare.</p>
+      <p>Chi deve pagare diverse rate può predisporre un calendario, verificare le entrate attese e organizzare le spese necessarie.</p>
+      <p>Questo vantaggio diventa concreto soltanto quando la rata è compatibile con il reddito disponibile anche nei mesi meno favorevoli. Una scadenza regolare non rende sostenibile un impegno che, nei fatti, supera le possibilità economiche della famiglia.</p>
+      <h3>3. Può favorire una soluzione concordata</h3>
+      <p>Quando il debitore affronta tempestivamente il problema e il creditore è disponibile a trattare, un piano di rientro può contribuire a evitare che la situazione si aggravi.</p>
+      <p>L'accordo può stabilire tempi, importi e modalità di pagamento, riducendo l'incertezza per entrambe le parti.</p>
+      <p>Occorre però verificare cosa prevede il documento sulle eventuali iniziative di recupero già avviate. Non è corretto presumere che la semplice firma di un piano sospenda automaticamente un precetto, un pignoramento o altre procedure in corso.</p>
+      <p>Se è già presente una procedura esecutiva, la questione deve essere affrontata espressamente nell'accordo e valutata con un professionista.</p>
+      <h3>4. Può offrire una soluzione concreta a un debito verificato</h3>
+      <p>Se la somma richiesta è corretta, il debitore riconosce la propria obbligazione e le rate sono sostenibili, un accordo può rappresentare un percorso ordinato verso la chiusura della posizione.</p>
+      <p>Il punto fondamentale è che l'accordo risolva davvero il problema, anziché rinviarlo.</p>
+      <p>Prima di accettare, è quindi opportuno sapere esattamente quanto si deve, quanto si pagherà complessivamente e quali condizioni porteranno all'estinzione del debito.</p>
+
+      <h2 id="rischi">I rischi delle cambiali: cosa succede se non paghi?</h2>
+      <p>Questa è la parte che merita maggiore attenzione.</p>
+      <p>Una cambiale non è una semplice promessa informale di pagamento. Quando possiede i requisiti richiesti dalla legge, può consentire al creditore di intraprendere un percorso esecutivo senza dover ottenere prima una sentenza di condanna sul credito incorporato nel titolo.</p>
+      <h3>1. Il creditore può avviare un'esecuzione forzata</h3>
+      <p>Se una cambiale non viene pagata, il creditore può valutare le iniziative previste dalla legge.</p>
+      <p>In presenza di un titolo esecutivo valido e di un credito esigibile, il percorso può comprendere la notifica di un atto di precetto e, successivamente, il pignoramento dei beni o dei crediti del debitore, nel rispetto delle condizioni e delle procedure applicabili.</p>
+      <p>A seconda del caso, possono essere coinvolti beni, conti correnti o crediti verso terzi, come determinate somme dovute dal datore di lavoro.</p>
+      <p>Naturalmente, non ogni situazione produce automaticamente queste conseguenze: contano la validità del titolo, il debito residuo, gli atti notificati e le circostanze concrete.</p>
+      <p>Il dato essenziale è che la cambiale può offrire al creditore uno strumento di tutela più immediato rispetto a un semplice accordo non assistito da un titolo esecutivo.</p>
+      <h3>2. Una rata non pagata può compromettere l'intero accordo</h3>
+      <p>Immagina di aver concordato dodici rate mensili e di averne pagate regolarmente otto. Poi, a causa di una spesa imprevista, non riesci a pagare la nona cambiale.</p>
+      <p>Il problema non riguarda soltanto la rata scaduta. Bisogna verificare se il piano prevede clausole che consentono al creditore di chiedere il pagamento anticipato delle somme residue.</p>
+      <p>Queste clausole possono disciplinare la decadenza dal beneficio del termine, ma i loro effetti dipendono dal contenuto dell'accordo e dalla normativa applicabile.</p>
+      <p>Per questo motivo, prima di firmare, chiediti cosa accadrebbe se dovessi perdere il lavoro, affrontare una spesa sanitaria o subire una riduzione delle entrate.</p>
+      <p>Non si tratta di essere pessimisti. Si tratta di valutare un impegno finanziario sulla base di ciò che potrebbe realmente accadere.</p>
+      <h3>3. Potrebbero aumentare le spese</h3>
+      <p>Un mancato pagamento può comportare ulteriori costi, secondo la situazione concreta e le disposizioni applicabili.</p>
+      <p>Possono assumere rilievo gli interessi dovuti, le spese previste dall'accordo e gli eventuali costi legali o esecutivi legittimamente richiesti.</p>
+      <p>Ecco perché non basta controllare l'importo scritto su ogni cambiale. Occorre capire quale sia il costo complessivo dell'operazione e quali conseguenze siano previste in caso di inadempimento.</p>
+      <h3>4. Firmare può avere conseguenze sul riconoscimento del debito</h3>
+      <p>Questo aspetto è particolarmente importante quando l'importo richiesto è contestato o quando esistono dubbi sulla prescrizione.</p>
+      <p>L'articolo 2944 del Codice civile stabilisce che il riconoscimento del diritto da parte di chi lo subisce può interrompere la prescrizione. La rilevanza concreta di una firma o di una dichiarazione dipende, tuttavia, dal contenuto dell'atto e dalle circostanze.</p>
+      <p>Se ritieni che il debito sia prescritto, che una parte degli importi non sia dovuta o che il credito sia stato calcolato in modo errato, è prudente far verificare la posizione prima di firmare.</p>
+      <p>Puoi consultare il testo ufficiale dell'articolo 2944 del Codice civile su <a href="https://www.normattiva.it/" target="_blank" rel="noopener">Normattiva</a>.</p>
+
+      <h2 id="confronto">Piano di rientro con cambiali o rateizzazione ordinaria: quale scegliere?</h2>
+      <p>Non esiste una risposta valida per tutti. Le due soluzioni devono essere confrontate sulla base delle garanzie richieste, delle conseguenze del mancato pagamento e delle condizioni effettivamente sottoscritte.</p>
+      <p>Una rateizzazione ordinaria può prevedere pagamenti tramite bonifico, addebito bancario o altre modalità concordate. In caso di mancato pagamento, il creditore dovrà valutare gli strumenti di tutela disponibili, tenendo conto degli eventuali titoli esecutivi già esistenti.</p>
+      <p>Nel piano con cambiali, invece, ciascun titolo può assumere un'autonoma rilevanza giuridica e, se valido e utilizzabile a fini esecutivi, offrire al creditore una via per procedere più rapidamente.</p>
+      <p>Prima di accettare una delle due proposte, confronta almeno questi elementi:</p>
+      <ul><li><strong>Importo totale:</strong> quanto dovrai pagare alla fine del piano?</li><li><strong>Durata:</strong> quante rate sono previste e quando scadono?</li><li><strong>Garanzie:</strong> il creditore richiede cambiali o altre forme di garanzia?</li><li><strong>Inadempimento:</strong> quali conseguenze sono previste in caso di ritardo o mancato pagamento?</li><li><strong>Procedure in corso:</strong> l'accordo stabilisce cosa accade a eventuali iniziative di recupero già avviate?</li><li><strong>Estinzione:</strong> quando e a quali condizioni il debito sarà considerato integralmente saldato?</li></ul>
+      <p>Una proposta con una rata più bassa non è necessariamente migliore se comporta un costo totale molto più elevato o condizioni particolarmente onerose.</p>
+      <p>Allo stesso modo, una rata più alta potrebbe essere accettabile per chi dispone di entrate stabili e di un margine sufficiente, ma diventare rischiosa per chi vive già in equilibrio precario.</p>
+
+      <h2 id="sostenibilita">Come capire se la rata è davvero sostenibile</h2>
+      <p>Uno degli errori più comuni è valutare un piano di rientro guardando soltanto alla rata mensile.</p>
+      <p>Per capire se l'impegno è realistico, bisogna partire dall'intero bilancio familiare.</p>
+      <p>Prendiamo un esempio puramente illustrativo.</p>
+      <p>Una famiglia dispone di 1.800 euro netti al mese. Le spese essenziali, comprese abitazione, utenze, alimentazione, trasporti e necessità familiari, ammontano a 1.300 euro. Sono inoltre presenti altre rate per 200 euro mensili.</p>
+      <p>Il margine residuo è di 300 euro.</p>
+      <p>Accettare una nuova rata di 250 euro significherebbe lasciare soltanto 50 euro per far fronte a imprevisti e spese non considerate. Anche se il pagamento fosse tecnicamente possibile in un mese normale, il piano potrebbe rivelarsi fragile.</p>
+      <p>Una valutazione prudente deve considerare:</p>
+      <ol><li>Le entrate nette effettivamente disponibili, non quelle soltanto ipotizzate.</li><li>Le spese essenziali che non possono essere rinviate.</li><li>Tutte le altre rate e obbligazioni finanziarie.</li><li>Le spese irregolari, come manutenzioni, assicurazioni e necessità sanitarie.</li><li>Un margine per gli imprevisti.</li></ol>
+      <p>La Banca d'Italia, attraverso il portale educativo <a href="https://economiapertutti.bancaditalia.it/" target="_blank" rel="noopener">L'economia per tutti</a>, raccomanda di pianificare entrate e uscite e di valutare la sostenibilità complessiva degli impegni finanziari.</p>
+      <p>Il principio è semplice: non devi dimostrare al creditore che riesci a pagare una rata per un mese. Devi verificare che puoi rispettarla per tutta la durata dell'accordo, senza compromettere le necessità fondamentali della tua famiglia.</p>
+
+      <h2 id="controlli">Cinque controlli da fare prima di firmare</h2>
+      <p>Prima di sottoscrivere un piano di rientro con cambiali, prenditi il tempo necessario per esaminare ogni elemento dell'accordo.</p>
+      <ol><li><strong>Verifica il debito.</strong> Chiedi un prospetto aggiornato che distingua capitale, interessi, spese e altri importi richiesti. Se qualcosa non torna, chiedi chiarimenti prima di assumere un nuovo impegno.</li><li><strong>Leggi tutte le condizioni.</strong> Non limitarti a controllare le date e gli importi delle cambiali. Esamina anche le clausole relative al ritardo, al mancato pagamento e all'eventuale richiesta anticipata delle somme residue.</li><li><strong>Chiarisci cosa succede alle procedure in corso.</strong> Se hai già ricevuto un decreto ingiuntivo, un precetto o un atto di pignoramento, non presumere che l'accordo risolva automaticamente la situazione. Le conseguenze devono essere valutate sulla base degli atti e degli impegni assunti.</li><li><strong>Controlla la sostenibilità economica.</strong> Fai i conti con prudenza, considerando anche gli altri debiti. Se il piano lascia un margine troppo ridotto per vivere e affrontare gli imprevisti, valuta alternative prima di firmare.</li><li><strong>Fatti confermare per iscritto le condizioni finali.</strong> Se il creditore accetta una riduzione dell'importo o un saldo e stralcio, verifica che siano indicate con chiarezza la somma da versare e le condizioni per considerare estinto il debito. Conserva l'accordo, le ricevute e le prove di ogni pagamento.</li></ol>
+      <p>Se hai dubbi sulla validità del credito, sulla prescrizione o sugli effetti di una cambiale, chiedere una valutazione professionale prima della firma può aiutarti a evitare decisioni difficili da correggere in seguito.</p>
+
+      <h2 id="difficolta">Hai già firmato le cambiali e non riesci più a pagare?</h2>
+      <p>Se hai già sottoscritto un piano di rientro e ti accorgi che le rate non sono più sostenibili, la cosa più importante è non ignorare il problema.</p>
+      <p>Contatta il creditore tempestivamente e verifica se esiste la possibilità di rinegoziare le condizioni. Una modifica dell'accordo richiede il consenso delle parti quando previsto e deve essere formalizzata correttamente: non dare per scontato che una richiesta di proroga sospenda le scadenze o impedisca iniziative legali.</p>
+      <p>Se hai già ricevuto atti giudiziari o esecutivi, fai verificare subito i termini e le possibili iniziative da intraprendere.</p>
+      <p>Quando le difficoltà coinvolgono più debiti e non soltanto una singola rata, potrebbe essere necessario affrontare il problema in modo più ampio. In presenza dei requisiti previsti dalla legge, esistono procedure per la gestione delle situazioni di sovraindebitamento, con il supporto degli Organismi di composizione della crisi da sovraindebitamento (OCC).</p>
+      <p>La Banca d'Italia offre informazioni introduttive su queste possibilità nella propria <a href="https://economiapertutti.bancaditalia.it/" target="_blank" rel="noopener">guida dedicata al sovraindebitamento</a>.</p>
+      <p>Non tutte le situazioni richiedono una procedura di questo tipo, ma quando i debiti sono diventati complessivamente insostenibili è importante conoscere le alternative disponibili, invece di sottoscrivere nuovi impegni senza una valutazione d'insieme.</p>
+
+      <h2 id="conclusioni">Conclusioni: prima di firmare, fai chiarezza</h2>
+      <p>Un piano di rientro con cambiali può essere una soluzione utile per chi deve regolarizzare un debito e dispone delle risorse necessarie per rispettare le scadenze concordate.</p>
+      <p>I vantaggi sono concreti quando la dilazione è sostenibile, le condizioni sono trasparenti e l'accordo permette di raggiungere un obiettivo preciso: chiudere la posizione debitoria.</p>
+      <p>I rischi, però, non devono essere sottovalutati. Una cambiale valida può consentire al creditore di intraprendere iniziative esecutive in caso di mancato pagamento. Un accordo poco chiaro o una rata superiore alle possibilità economiche possono trasformare una soluzione apparentemente utile in una nuova fonte di difficoltà.</p>
+      <p>Prima di firmare, verifica il debito, leggi tutte le clausole, confronta le alternative e considera il tuo bilancio familiare nel suo complesso.</p>
+      <p>Non accettare un piano soltanto perché ti permette di guadagnare tempo. Accettalo quando hai buone ragioni per ritenere di poterlo rispettare.</p>
+      <p>È da questa consapevolezza che può iniziare un percorso concreto per ritrovare equilibrio finanziario e affrontare i debiti con maggiore lucidità.</p>
+      <section class="notice"><strong>Nota informativa</strong><br>Questo articolo ha finalità esclusivamente divulgative e non costituisce consulenza legale o finanziaria personalizzata. Le conseguenze di una cambiale e di un accordo di rientro dipendono dalla documentazione, dalla normativa applicabile e dalle circostanze specifiche. In caso di contestazioni o procedure in corso, è opportuno rivolgersi a un professionista qualificato.</section>
+      <p class="muted"><strong>FixTude – Fai chiarezza sulla tua situazione debitoria.</strong><br>Non farti cercare dal recupero crediti, cerca tu stesso la soluzione.</p>
+      <div class="actions"><a class="btn" href="/misuratore">Valuta il tuo margine mensile</a><a class="btn outline" href="/consulenza">Richiedi un ricontatto</a><a class="btn outline" href="/educazione-finanziaria">Tutte le guide</a></div>
+    </article>
+    <style>
+      .article-content{max-width:900px;margin:0 auto}.article-content h1{margin-top:0;line-height:1.2}.article-content h2{margin-top:34px;scroll-margin-top:24px}.article-content h3{margin-top:24px}.article-content p,.article-content li{line-height:1.75}.article-subtitle{font-size:1.08rem;line-height:1.65;color:#34445b;margin:0 0 22px}.article-index{margin:22px 0;padding:18px 22px}.article-index ol{margin-bottom:0}.article-index li{margin:5px 0}.article-content .notice{margin-top:26px}
+    </style>'''
+    return page("Piano di rientro con cambiali", content)
 
 
 @app.route("/sic")
@@ -3857,7 +4017,7 @@ def legal_terms():
 def privacy():
     body = """<p>Questa informativa descrive i principali trattamenti connessi alla versione attuale del sito FixTude. Viene aggiornata quando cambiano in modo rilevante le funzionalità, i fornitori o le modalità di trattamento.</p>
     <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è Giovanni Pugliese, che gestisce il servizio denominato FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per richieste relative ai dati personali: info@fixtude.it.</p>
-    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Modulo di ricontatto:</strong> il modulo invia nome, email, telefono facoltativo e messaggio alla route server <code>/richiedi-contatto</code>; il server inoltra la richiesta via SMTP alla casella del titolare. L’applicazione non conserva una copia in un proprio database; i dati possono restare nei sistemi dei fornitori e nella casella email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude da € 1,99. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del pacchetto composto da report, un libro a scelta e modelli fac-simile.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
+    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio tramite Web3Forms. È presente anche l’endpoint alternativo <code>/api/contact</code>, che se invocato inoltra i dati tramite il server SMTP configurato dal titolare. L’applicazione non conserva una copia in un proprio database; i dati possono restare nei sistemi dei fornitori e nella casella email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude da € 1,99. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del pacchetto composto da report, un libro a scelta e modelli fac-simile.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
     <h2>3. Basi giuridiche</h2><p>Le richieste di contatto sono trattate per rispondere a una richiesta dell'interessato e adottare misure precontrattuali su sua richiesta. I dati relativi ad acquisti sono trattati per eseguire il contratto e adempiere agli obblighi di legge. Sicurezza e prevenzione abusi possono basarsi sul legittimo interesse, da valutare e documentare. Eventuali attività promozionali richiedono una valutazione e, ove necessario, un consenso separato.</p>
     <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l’hosting (se confermato in produzione), Web3Forms per il modulo visibile e le notifiche email della chat, il fornitore del servizio SMTP configurato per l’endpoint alternativo, Register per la casella email e Stripe per i pagamenti del libro, quando attivi. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
     <h2>5. Cookie e strumenti di tracciamento</h2><p>Google Analytics (ID di misurazione G-HMBBNLHC7E) viene caricato soltanto dopo la scelta esplicita della categoria statistiche nel pannello cookie. Se la categoria viene rifiutata o disattivata, il sito non avvia nuove richieste di misurazione e aggiorna lo stato di consenso di Google Analytics. I pixel pubblicitari non sono attivi. Prima del lancio definitivo occorre verificare tecnicamente i cookie effettivamente installati e aggiornare questa informativa in base ai risultati.</p>
