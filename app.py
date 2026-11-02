@@ -650,6 +650,15 @@ def page(title, content, include_chat=False):
               font-size:13px;
               color:var(--muted);
             }
+            .ft-footer-cta {display:flex;flex-direction:column;align-items:center;gap:7px;margin:0 auto 15px;max-width:620px}
+            .ft-footer-cta strong {font-size:17px;color:inherit}
+            .ft-footer-cta span {font-size:13px;line-height:1.5;color:inherit}
+            .ft-footer-cta-link {display:inline-block;margin-top:3px;padding:10px 18px;border-radius:9px;background:#f4b942;color:#17364a!important;text-decoration:none;font-weight:800;font-size:14px}
+            .ft-footer-cta-link:hover {background:#ffd16d;text-decoration:none}
+            .ft-footer-contact {margin:0 0 15px;font-size:13px}
+            .ft-footer-contact a {font-weight:700}
+            .ft-footer-legal {font-size:12px;line-height:1.9}
+            @media(max-width:600px) {.ft-footer-cta span {max-width:310px}.ft-footer-legal {line-height:2.1}}
             .cookie-footer-link {border:0;background:transparent;color:var(--blue);text-decoration:underline;cursor:pointer;font:inherit;font-size:13px;padding:0}
             .chat-launcher {
               position:fixed;
@@ -808,13 +817,21 @@ def page(title, content, include_chat=False):
             {{ content|safe }}
           </main>
           <footer>
-            FixTude · Strumento di orientamento con valutazione algoritmica della sostenibilità economica.
-            <br><a href="/chi-siamo">Chi siamo</a> · Partita IVA 15990471003 ·
-            <a href="/termini">Termini e Condizioni</a> ·
-            <a href="/disclaimer">Disclaimer</a> ·
-            <a href="/privacy">Privacy</a> ·
-            <a href="/cookie">Cookie Policy</a> ·
-            <button type="button" id="ft-cookie-reopen-footer" class="cookie-footer-link">Preferenze cookie</button>
+            <div class="ft-footer-cta">
+              <strong>Hai bisogno di orientamento?</strong>
+              <span>Non affrontare da solo la tua situazione: richiedi di essere ricontattato.</span>
+              <a class="ft-footer-cta-link" href="/consulenza">Richiedi un contatto</a>
+            </div>
+            <div class="ft-footer-contact">Oppure scrivici a <a href="mailto:contatto@fixtude.it">contatto@fixtude.it</a></div>
+            <div class="ft-footer-legal">
+              FixTude · Strumento di orientamento con valutazione algoritmica della sostenibilità economica.
+              <br><a href="/chi-siamo">Chi siamo</a> · Partita IVA 15990471003 ·
+              <a href="/termini">Termini e Condizioni</a> ·
+              <a href="/disclaimer">Disclaimer</a> ·
+              <a href="/privacy">Privacy</a> ·
+              <a href="/cookie">Cookie Policy</a> ·
+              <button type="button" id="ft-cookie-reopen-footer" class="cookie-footer-link">Preferenze cookie</button>
+            </div>
           </footer>
           <section id="ft-cookie-banner" role="dialog" aria-modal="false" aria-labelledby="ft-cookie-title" aria-describedby="ft-cookie-description" hidden>
             <h2 id="ft-cookie-title">La tua privacy conta</h2>
@@ -1222,7 +1239,9 @@ def home():
       body:has(.ft-v1) .nav-menu a{color:#f4f6fa!important}
       body:has(.ft-v1) .nav-menu a:hover{background:#24566b!important}
       body:has(.ft-v1) footer{background:#123B50!important;border-top:1px solid #28566a!important;color:#d2e0e7!important}
-      body:has(.ft-v1) footer a,body:has(.ft-v1) .cookie-footer-link{color:#b9e2f2!important}
+      body:has(.ft-v1) footer a:not(.ft-footer-cta-link),body:has(.ft-v1) .cookie-footer-link{color:#b9e2f2!important}
+      body:has(.ft-v1) .ft-footer-cta-link{background:#f4b942!important;color:#17364a!important}
+      body:has(.ft-v1) .ft-footer-cta-link:hover{background:#ffd16d!important}
       .ft-v1{max-width:760px;margin:0 auto;padding:12px 4px 32px}
       .ft-tagline{text-align:center;margin:4px auto 22px;max-width:650px;font-weight:800;font-size:clamp(22px,4.4vw,35px);line-height:1.18;letter-spacing:-.6px;color:#f5f7fb}
       .ft-tagline span{display:block;color:#a8d9ee;margin-top:5px}
@@ -1593,7 +1612,9 @@ def checkout_v2():
       body:has(.ft-checkout-v9) .nav-menu a{{color:#f4f6fa!important}}
       body:has(.ft-checkout-v9) .nav-menu a:hover{{background:#24566b!important}}
       body:has(.ft-checkout-v9) footer{{background:#123B50!important;border-top:1px solid #28566a!important;color:#d2e0e7!important}}
-      body:has(.ft-checkout-v9) footer a,body:has(.ft-checkout-v9) .cookie-footer-link{{color:#b9e2f2!important}}
+      body:has(.ft-checkout-v9) footer a:not(.ft-footer-cta-link),body:has(.ft-checkout-v9) .cookie-footer-link{{color:#b9e2f2!important}}
+      body:has(.ft-checkout-v9) .ft-footer-cta-link{{background:#f4b942!important;color:#17364a!important}}
+      body:has(.ft-checkout-v9) .ft-footer-cta-link:hover{{background:#ffd16d!important}}
       /* La pagina checkout ha sfondo petrolio, ma la scheda resta chiara:
          ripristina colori scuri e contrasto per TUTTI i testi interni. */
       body:has(.ft-checkout-v9) .card{{background:#ffffff!important;color:#203047!important}}
