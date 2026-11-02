@@ -65,7 +65,7 @@ app.config["SESSION_COOKIE_SECURE"] = (
 app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 
 # Destinatario delle richieste inviate dal modulo di contatto.
-EMAIL_DESTINATARIO = "nannipugliese@gmail.com"
+EMAIL_DESTINATARIO = "contatto@fixtude.it"
 
 ROME_TZ = ZoneInfo("Europe/Rome")
 
@@ -832,7 +832,7 @@ def page(title, content, include_chat=False):
             {{ content|safe }}
           </main>
           <footer>
-            <div class="ft-footer-contact">Per informazioni e richieste, scrivici a <a href="mailto:nannipugliese@gmail.com">nannipugliese@gmail.com</a></div>
+            <div class="ft-footer-contact">Per informazioni e richieste, scrivici a <a href="mailto:contatto@fixtude.it">contatto@fixtude.it</a></div>
             <div class="ft-footer-legal">
               FixTude · Strumento di orientamento con valutazione algoritmica della sostenibilità economica.
               <br><a href="/chi-siamo">Chi siamo</a> · Partita IVA 15990471003 ·
@@ -2012,7 +2012,7 @@ def misuratore():
     <section class="card">
       <h2>7. Cosa fare dopo</h2>
       <p id="nextStep">Il risultato è preliminare e dipende dalla completezza e accuratezza dei dati inseriti.</p>
-      <p>Per informazioni e richieste: <a href="mailto:nannipugliese@gmail.com">nannipugliese@gmail.com</a></p>
+      <p>Per informazioni e richieste: <a href="mailto:contatto@fixtude.it">contatto@fixtude.it</a></p>
       <button class="btn outline" type="button" id="resetCalculator" style="margin-left:8px">Azzera tutti i campi</button>
       <p class="muted" style="margin-top:16px">Questo strumento fornisce una simulazione informativa, non una certificazione di solvibilità, una consulenza legale, fiscale o finanziaria personalizzata, né una garanzia di accordo con i creditori. Leggi il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
     </section>
@@ -3693,7 +3693,7 @@ def articolo_piano_rientro_cambiali():
       <p>È da questa consapevolezza che può iniziare un percorso concreto per ritrovare equilibrio finanziario e affrontare i debiti con maggiore lucidità.</p>
       <section class="notice"><strong>Nota informativa</strong><br>Questo articolo ha finalità esclusivamente divulgative e non costituisce consulenza legale o finanziaria personalizzata. Le conseguenze di una cambiale e di un accordo di rientro dipendono dalla documentazione, dalla normativa applicabile e dalle circostanze specifiche. In caso di contestazioni o procedure in corso, è opportuno rivolgersi a un professionista qualificato.</section>
       <p class="muted"><strong>FixTude – Fai chiarezza sulla tua situazione debitoria.</strong><br>Non farti cercare dal recupero crediti, cerca tu stesso la soluzione.</p>
-      <div class="actions"><a class="btn" href="/misuratore">Valuta il tuo margine mensile</a><a href="mailto:nannipugliese@gmail.com">Contatta FixTude: nannipugliese@gmail.com</a><a class="btn outline" href="/educazione-finanziaria">Tutte le guide</a></div>
+      <div class="actions"><a class="btn" href="/misuratore">Valuta il tuo margine mensile</a><a href="mailto:contatto@fixtude.it">Contatta FixTude: contatto@fixtude.it</a><a class="btn outline" href="/educazione-finanziaria">Tutte le guide</a></div>
     </article>
     <style>
       .article-content{max-width:900px;margin:0 auto}.article-content h1{margin-top:0;line-height:1.2}.article-content h2{margin-top:34px;scroll-margin-top:24px}.article-content h3{margin-top:24px}.article-content p,.article-content li{line-height:1.75}.article-subtitle{font-size:1.08rem;line-height:1.65;color:#34445b;margin:0 0 22px}.article-index{margin:22px 0;padding:18px 22px}.article-index ol{margin-bottom:0}.article-index li{margin:5px 0}.article-content .notice{margin-top:26px}
@@ -3787,7 +3787,7 @@ def assistenza_legale_conferma():
         pkg = ASSISTENZA_LEGALE_PACCHETTI.get(package_key)
         if not paid or metadata.get("fixtude_product") != "assistenza_legale" or not pkg:
             return page("Pagamento da verificare", '<h1>Pagamento non ancora confermato</h1><p>La pratica sarà presa in carico dopo la verifica del pagamento.</p><a class="btn" href="/assistenza-legale">Torna all’assistenza legale</a>'), 402
-        content = f'''<h1>Pagamento confermato</h1><section class="card"><p>Grazie. Il pagamento del pacchetto <strong>{escape(pkg["short"])}</strong> risulta confermato.</p><p>Il prossimo passaggio è la verifica della documentazione e l'orientamento al professionista del pool più competente. Il mandato legale e il perimetro delle attività saranno formalizzati per iscritto.</p><p>Per avviare il contatto, scrivi a <a href="mailto:nannipugliese@gmail.com">nannipugliese@gmail.com</a> indicando il riferimento di sessione <code>{escape(session_id)}</code>. Non inviare dati bancari o documenti particolarmente sensibili via email non protetta.</p></section>'''
+        content = f'''<h1>Pagamento confermato</h1><section class="card"><p>Grazie. Il pagamento del pacchetto <strong>{escape(pkg["short"])}</strong> risulta confermato.</p><p>Il prossimo passaggio è la verifica della documentazione e l'orientamento al professionista del pool più competente. Il mandato legale e il perimetro delle attività saranno formalizzati per iscritto.</p><p>Per avviare il contatto, scrivi a <a href="mailto:contatto@fixtude.it">contatto@fixtude.it</a> indicando il riferimento di sessione <code>{escape(session_id)}</code>. Non inviare dati bancari o documenti particolarmente sensibili via email non protetta.</p></section>'''
         return page("Pagamento confermato", content)
     except Exception:
         app.logger.exception("Verifica checkout Stripe assistenza legale non riuscita")
