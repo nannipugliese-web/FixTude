@@ -104,7 +104,7 @@ SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USER)
 CHAT_ADMIN_PASSWORD = os.environ.get("CHAT_ADMIN_PASSWORD", "")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
-VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "mailto:info@fixtude.it").strip()
+VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "mailto:contatto@fixtude.it").strip()
 
 CHAT_TTL_SECONDS = 2 * 60 * 60
 MAX_CHAT_MESSAGES = 150
@@ -356,7 +356,7 @@ def page(title, content, include_chat=False):
                     "@id": SEO_BASE_URL + "/#organization",
                     "name": "FixTude",
                     "url": SEO_BASE_URL + "/",
-                    "email": "info@fixtude.it",
+                    "email": "contatto@fixtude.it",
                     "vatID": "IT15990471003",
                     "logo": {
                         "@type": "ImageObject",
@@ -1604,10 +1604,11 @@ def checkout_v2():
       <p class="muted" style="text-align:center">Il colore è un primo esito orientativo. L'analisi della tua situazione, la valutazione dei possibili piani di rientro e le indicazioni per affrontare la trattativa sono contenute nel report personalizzato.</p>
       {annullato}
       <h2>Completa il Kit FixTude – € 1,99</h2>
-      <p>Con un unico pagamento ricevi il <strong>report personalizzato</strong>, con l'elaborazione dei dati inseriti, la spiegazione del risultato, gli scenari di rientro e le indicazioni operative. Sono inclusi i modelli fac-simile disponibili e <strong>un libro digitale a tua scelta</strong>.</p>
+      <p>Con un unico pagamento ricevi il <strong>report personalizzato</strong>, con l'elaborazione dei dati inseriti, la spiegazione del risultato, gli scenari di rientro e le indicazioni operative. Sono inclusi i modelli fac-simile disponibili e <strong>una delle tre guide digitali a tua scelta</strong>.</p>
       <form method="post" action="/checkout/crea">
         <div class="book-choice"><label><input type="radio" name="prodotto" value="niente_panico_pdf" required><strong>NIENTE PANICO</strong><br><span class="muted">Guida pratica per mettere ordine nella situazione debitoria.</span></label></div>
         <div class="book-choice"><label><input type="radio" name="prodotto" value="guida_saldo_stralcio_pdf" required><strong>GUIDA AL SALDO E STRALCIO</strong><br><span class="muted">Guida dedicata alla trattativa e alla chiusura dei debiti.</span></label></div>
+        <div class="book-choice"><label><input type="radio" name="prodotto" value="guida_cambiali_pdf" required><strong>PIANO DI RIENTRO CON CAMBIALI: PRO, CONTRO E RISCHI</strong><br><span class="muted">Guida per comprendere vantaggi, rischi e conseguenze prima di firmare.</span></label></div>
         <p><strong>Totale: € 1,99</strong> – un solo pagamento.</p>
         <label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label>
         <button class="btn" type="submit">ACQUISTA IL KIT – € 1,99</button>
@@ -1647,7 +1648,7 @@ def checkout_v2():
       .check{{display:flex;gap:10px;align-items:flex-start;margin:20px 0;font-size:14px}}
       @media(max-width:520px){{.card [role="img"] span{{width:48px!important;height:48px!important}}}}
     </style>"""
-    return page("Kit FixTude – report personalizzato e libro digitale", content)
+    return page("Kit FixTude – report personalizzato e guida digitale", content)
 
 
 @app.route("/checkout/crea", methods=["POST"])
@@ -1658,8 +1659,9 @@ def checkout_crea_v2():
     if request.form.get("accept_terms") != "yes":
         return redirect(url_for("checkout_v2"))
     products = {
-        "niente_panico_pdf": {"name": "Kit FixTude - Niente Panico incluso", "description": "Kit FixTude da 1,99 euro: report personalizzato, modelli fac-simile e un libro digitale a scelta"},
-        "guida_saldo_stralcio_pdf": {"name": "Kit FixTude - Guida Saldo e Stralcio inclusa", "description": "Kit FixTude da 1,99 euro: report personalizzato, modelli fac-simile e un libro digitale a scelta"},
+        "niente_panico_pdf": {"name": "Kit FixTude - Niente Panico incluso", "description": "Kit FixTude da 1,99 euro: report personalizzato, modelli fac-simile e una guida digitale a scelta"},
+        "guida_saldo_stralcio_pdf": {"name": "Kit FixTude - Guida Saldo e Stralcio inclusa", "description": "Kit FixTude da 1,99 euro: report personalizzato, modelli fac-simile e una guida digitale a scelta"},
+        CAMBIALI_GUIDE_PRODUCT_ID: {"name": "Kit FixTude - Guida Piano di Rientro con Cambiali inclusa", "description": "Kit FixTude da 1,99 euro: report personalizzato, modelli fac-simile e guida digitale a scelta"},
     }
     product_id = (request.form.get("prodotto") or "").strip()
     product = products.get(product_id)
@@ -1784,10 +1786,11 @@ def _pacchetto_consegna(data, product_id):
     prodotti = {
         "niente_panico_pdf": (BOOK_FILE, "FixTude_NIENTE_PANICO.pdf"),
         "guida_saldo_stralcio_pdf": (GUIDE_FILE, "FixTude_Guida_Saldo_e_Stralcio.pdf"),
+        CAMBIALI_GUIDE_PRODUCT_ID: (CAMBIALI_GUIDE_FILE, "FixTude_Piano_di_Rientro_con_Cambiali.pdf"),
     }
     selected = prodotti.get(product_id)
     if not selected or not selected[0].is_file():
-        raise FileNotFoundError("Il libro digitale selezionato non è presente in static/pdf.")
+        raise FileNotFoundError("La guida digitale selezionata non è presente nel repository del sito. Verifica il file PDF e il relativo percorso.")
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("FixTude_Report_Analisi.pdf", _pdf_report(data))
@@ -1823,7 +1826,7 @@ def checkout_conferma_v2():
         data = session.get("fixtude_v2_calcolo")
         product_id = session.get("fixtude_v2_product")
         if not paid or not data or not product_id:
-            return page("Verifica pagamento", '<section class="card"><h1>Pagamento da verificare</h1><p>Non è stato possibile recuperare tutti i dati della sessione. Se il pagamento è stato effettuato, scrivi a info@fixtude.it indicando il riferimento della transazione.</p></section>'), 402
+            return page("Verifica pagamento", '<section class="card"><h1>Pagamento da verificare</h1><p>Non è stato possibile recuperare tutti i dati della sessione. Se il pagamento è stato effettuato, scrivi a contatto@fixtude.it indicando il riferimento della transazione.</p></section>'), 402
         package = _pacchetto_consegna(data, product_id)
         email = ((paid.get("customer_details") or {}).get("email") or paid.get("customer_email") or "").strip()
         sent = False
@@ -1855,10 +1858,10 @@ def checkout_conferma_v2():
         return page("Acquisto confermato", content)
     except FileNotFoundError as exc:
         app.logger.exception("Materiale FixTude non disponibile")
-        return page("Materiale non disponibile", f'<section class="card"><h1>Pagamento confermato</h1><p>{escape(str(exc))} Contatta info@fixtude.it per ricevere assistenza.</p></section>'), 500
+        return page("Materiale non disponibile", f'<section class="card"><h1>Pagamento confermato</h1><p>{escape(str(exc))} Contatta contatto@fixtude.it per ricevere assistenza.</p></section>'), 500
     except Exception:
         app.logger.exception("Verifica pagamento FixTude non riuscita")
-        return page("Verifica non riuscita", '<section class="card"><h1>Non è stato possibile verificare il pagamento</h1><p>Riprova più tardi o scrivi a info@fixtude.it.</p></section>'), 502
+        return page("Verifica non riuscita", '<section class="card"><h1>Non è stato possibile verificare il pagamento</h1><p>Riprova più tardi o scrivi a contatto@fixtude.it.</p></section>'), 502
 
 
 @app.route("/checkout/download")
@@ -2769,7 +2772,7 @@ def send_push_notification(title, body, url="/chat-staff"):
                 subscription_info=subscription,
                 data=json.dumps(payload, ensure_ascii=False),
                 vapid_private_key=VAPID_PRIVATE_KEY,
-                vapid_claims={"sub": VAPID_CLAIMS_EMAIL or "mailto:info@fixtude.it"},
+                vapid_claims={"sub": VAPID_CLAIMS_EMAIL or "mailto:contatto@fixtude.it"},
                 timeout=8
             )
         except Exception as exc:
@@ -3302,6 +3305,17 @@ PREVIEW_FILE = PDF_DIR / "NIENTE_PANICO_ANTEPRIMA.pdf"
 GUIDE_FILE = PDF_DIR / "FixTude_Guida_Saldo_e_Stralcio_EDIZIONE_RIVISTA_SEO.pdf"
 GUIDE_PRODUCT_ID = "guida_saldo_stralcio_pdf"
 GUIDE_PRICE_CENTS = 699
+CAMBIALI_GUIDE_FILENAME = "Piano_di_rientro_con_cambiali_impaginato.pdf"
+CAMBIALI_GUIDE_PRODUCT_ID = "guida_cambiali_pdf"
+CAMBIALI_GUIDE_PRICE_CENTS = 699
+CAMBIALI_GUIDE_FILE = next(
+    (candidate for candidate in (
+        PDF_DIR / CAMBIALI_GUIDE_FILENAME,
+        MODULE_DIR / CAMBIALI_GUIDE_FILENAME,
+        BASE_DIR / CAMBIALI_GUIDE_FILENAME,
+    ) if candidate.is_file()),
+    PDF_DIR / CAMBIALI_GUIDE_FILENAME,
+)
 
 MODULE_FILES = {
     "saldo-stralcio": (
@@ -3768,7 +3782,7 @@ def assistenza_legale_acquista():
         return redirect(checkout.url, code=303)
     except Exception:
         app.logger.exception("Creazione sessione Stripe assistenza legale non riuscita")
-        return page("Pagamento non disponibile", '<h1>Non è stato possibile avviare il pagamento</h1><p>Nessun pagamento è stato confermato. Riprova più tardi o scrivi a info@fixtude.it.</p><a class="btn" href="/assistenza-legale">Torna ai servizi</a>'), 502
+        return page("Pagamento non disponibile", '<h1>Non è stato possibile avviare il pagamento</h1><p>Nessun pagamento è stato confermato. Riprova più tardi o scrivi a contatto@fixtude.it.</p><a class="btn" href="/assistenza-legale">Torna ai servizi</a>'), 502
 
 
 @app.route("/assistenza-legale/conferma")
@@ -3776,7 +3790,7 @@ def assistenza_legale_conferma():
     session_id = request.args.get("session_id", "").strip()
     secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
     if not session_id or stripe is None or not secret_key:
-        return page("Verifica pagamento", '<h1>Non possiamo verificare il pagamento</h1><p>Contatta info@fixtude.it per assistenza.</p>'), 400
+        return page("Verifica pagamento", '<h1>Non possiamo verificare il pagamento</h1><p>Contatta contatto@fixtude.it per assistenza.</p>'), 400
     try:
         stripe.api_key = secret_key
         checkout = stripe.checkout.Session.retrieve(session_id)
@@ -3791,7 +3805,7 @@ def assistenza_legale_conferma():
         return page("Pagamento confermato", content)
     except Exception:
         app.logger.exception("Verifica checkout Stripe assistenza legale non riuscita")
-        return page("Verifica non riuscita", '<h1>Non è stato possibile verificare il pagamento</h1><p>Riprova più tardi o scrivi a info@fixtude.it.</p>'), 502
+        return page("Verifica non riuscita", '<h1>Non è stato possibile verificare il pagamento</h1><p>Riprova più tardi o scrivi a contatto@fixtude.it.</p>'), 502
 
 
 @app.route("/shop")
@@ -3811,6 +3825,16 @@ def shop():
         <p class="muted">Puoi leggere gratuitamente l'anteprima del primo capitolo prima di acquistare.</p><p><a class="btn outline" href="/shop/anteprima-saldo-stralcio" target="_blank" rel="noopener">Leggi il primo capitolo gratuitamente</a></p>
         <div class="price">€ 6,99</div>
         <form method="post" action="/shop/acquista-guida"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">Acquista la guida PDF</button></form>
+      </div>
+    </section>
+    <section class="card product-card" aria-labelledby="guida-cambiali-title">
+      <div class="shop-book-description">
+        <h2 id="guida-cambiali-title">PIANO DI RIENTRO CON CAMBIALI: PRO, CONTRO E RISCHI</h2>
+        <p>Una guida pratica per capire come funziona un piano di rientro assistito da cambiali, quali tutele può offrire al creditore e quali conseguenze può comportare per chi firma.</p>
+        <p><strong>Formato:</strong> guida digitale PDF.</p>
+        <p class="muted">Esamina vantaggi, rischi del mancato pagamento e verifiche da effettuare prima di sottoscrivere un accordo.</p>
+        <div class="price">€ 6,99</div>
+        <form method="post" action="/shop/acquista-guida-cambiali"><label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label><button class="btn" type="submit">Acquista la guida PDF</button></form>
       </div>
     </section>
     <section class="card product-card print-coming-soon" aria-labelledby="print-book-title">
@@ -3872,7 +3896,7 @@ def _crea_checkout_pdf(product_id, product_name, description, cancel_url):
     try:
         checkout = stripe.checkout.Session.create(
             mode="payment",
-            line_items=[{"price_data": {"currency": "eur", "unit_amount": 199, "product_data": {"name": product_name, "description": description}}, "quantity": 1}],
+            line_items=[{"price_data": {"currency": "eur", "unit_amount": 699, "product_data": {"name": product_name, "description": description}}, "quantity": 1}],
             success_url=request.host_url.rstrip("/") + "/shop/conferma?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=request.host_url.rstrip("/") + cancel_url,
             metadata={"fixtude_product": product_id, "terms_accepted": "yes", "terms_version": "2026-10-19"},
@@ -3897,12 +3921,19 @@ def shop_acquista_guida():
     return _crea_checkout_pdf(GUIDE_PRODUCT_ID, "Guida FixTude - Saldo e stralcio", "Guida digitale PDF, edizione rivista", "/shop?annullato=1")
 
 
+@app.route("/shop/acquista-guida-cambiali", methods=["POST"])
+def shop_acquista_guida_cambiali():
+    if request.form.get("accept_terms") != "yes":
+        return page("Conferma necessaria", '<h1>Prima di proseguire</h1><p>Devi accettare i Termini e Condizioni per continuare con l’acquisto.</p><a class="btn" href="/shop">Torna allo shop</a>'), 400
+    return _crea_checkout_pdf(CAMBIALI_GUIDE_PRODUCT_ID, "Guida FixTude - Piano di rientro con cambiali", "Guida digitale PDF: pro, contro e rischi dei piani di rientro con cambiali", "/shop?annullato=1")
+
+
 @app.route("/shop/conferma")
 def shop_conferma():
     session_id = request.args.get("session_id", "").strip()
     secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
     if not session_id or stripe is None or not secret_key:
-        return page("Verifica acquisto", '<h1>Non possiamo verificare il pagamento</h1><p>Contatta info@fixtude.it per assistenza.</p>'), 400
+        return page("Verifica acquisto", '<h1>Non possiamo verificare il pagamento</h1><p>Contatta contatto@fixtude.it per assistenza.</p>'), 400
     try:
         stripe.api_key = secret_key
         checkout_data = stripe.checkout.Session.retrieve(session_id).to_dict()
@@ -3911,17 +3942,44 @@ def shop_conferma():
         products = {
             "niente_panico_pdf": {"file": BOOK_FILE, "title": "NIENTE PANICO", "filename": "FixTude_NIENTE_PANICO.pdf"},
             GUIDE_PRODUCT_ID: {"file": GUIDE_FILE, "title": "Guida FixTude — Saldo e stralcio", "filename": "FixTude_Guida_Saldo_e_Stralcio.pdf"},
+            CAMBIALI_GUIDE_PRODUCT_ID: {"file": CAMBIALI_GUIDE_FILE, "title": "Piano di rientro con cambiali: pro, contro e rischi", "filename": "FixTude_Piano_di_Rientro_con_Cambiali.pdf"},
         }
         product = products.get(product_id)
         if not paid or not product:
             return page("Pagamento da verificare", '<h1>Pagamento non ancora confermato</h1><p>Il PDF sarà disponibile dopo la conferma del pagamento.</p><a class="btn" href="/">Torna allo Shop</a>'), 402
         if not product["file"].is_file():
-            return page("PDF in preparazione", f'<h1>Pagamento confermato</h1><p>Il pagamento risulta confermato, ma il file di {escape(product["title"])} non è presente nell’area privata del server. Contatta info@fixtude.it per ricevere assistenza.</p>'), 500
-        content = f'<h1>Grazie per il tuo acquisto!</h1><section class="card"><p>Il pagamento è stato confermato.</p><p><strong>{escape(product["title"])}</strong> è pronto per il download.</p><a class="btn" href="/shop/scarica?session_id={escape(session_id, quote=True)}">Scarica il PDF</a></section><p class="muted">Conserva questa pagina finché non hai scaricato il file.</p>'
+            return page("PDF in preparazione", f'<h1>Pagamento confermato</h1><p>Il pagamento risulta confermato, ma il file di {escape(product["title"])} non è presente nell’area privata del server. Contatta contatto@fixtude.it per ricevere assistenza.</p>'), 500
+        metadata = checkout_data.get("metadata") or {}
+        customer_email = ((checkout_data.get("customer_details") or {}).get("email") or checkout_data.get("customer_email") or "").strip()
+        email_sent = metadata.get("delivery_email_sent") == "yes"
+        if customer_email and not email_sent and SMTP_HOST and SMTP_USER and SMTP_PASSWORD:
+            try:
+                msg = EmailMessage()
+                msg["Subject"] = "La tua guida digitale FixTude"
+                msg["From"] = SMTP_FROM or SMTP_USER
+                msg["To"] = customer_email
+                msg.set_content(f"Grazie per il tuo acquisto. In allegato trovi la guida digitale: {product['title']}.\n\nPer qualsiasi necessità puoi scrivere a contatto@fixtude.it.\n\nFixTude")
+                with product["file"].open("rb") as pdf_file:
+                    msg.add_attachment(pdf_file.read(), maintype="application", subtype="pdf", filename=product["filename"])
+                if SMTP_PORT == 465:
+                    with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+                        server.login(SMTP_USER, SMTP_PASSWORD)
+                        server.send_message(msg)
+                else:
+                    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+                        server.starttls()
+                        server.login(SMTP_USER, SMTP_PASSWORD)
+                        server.send_message(msg)
+                stripe.checkout.Session.modify(session_id, metadata={**metadata, "delivery_email_sent": "yes"})
+                email_sent = True
+            except Exception:
+                app.logger.exception("Invio email guida digitale FixTude non riuscito")
+        email_note = ("La guida è stata inviata all'indirizzo email indicato durante il pagamento." if email_sent else "Puoi scaricare subito la guida da questa pagina. Se non ricevi anche l'email, verifica che il servizio email sia configurato.")
+        content = f'<h1>Grazie per il tuo acquisto!</h1><section class="card"><p>Il pagamento è stato confermato.</p><p><strong>{escape(product["title"])}</strong> è pronto.</p><p>{email_note}</p><a class="btn" href="/shop/scarica?session_id={escape(session_id, quote=True)}">Scarica il PDF</a></section><p class="muted">Conserva questa pagina finché non hai scaricato il file.</p>'
         return page("Acquisto confermato", content)
     except Exception:
         app.logger.exception("Verifica sessione Stripe non riuscita")
-        return page("Verifica non riuscita", '<h1>Non è stato possibile verificare il pagamento</h1><p>Riprova più tardi o scrivi a info@fixtude.it.</p>'), 502
+        return page("Verifica non riuscita", '<h1>Non è stato possibile verificare il pagamento</h1><p>Riprova più tardi o scrivi a contatto@fixtude.it.</p>'), 502
 
 
 @app.route("/shop/scarica")
@@ -3938,6 +3996,7 @@ def shop_scarica():
         products = {
             "niente_panico_pdf": {"file": BOOK_FILE, "filename": "FixTude_NIENTE_PANICO.pdf"},
             GUIDE_PRODUCT_ID: {"file": GUIDE_FILE, "filename": "FixTude_Guida_Saldo_e_Stralcio.pdf"},
+            CAMBIALI_GUIDE_PRODUCT_ID: {"file": CAMBIALI_GUIDE_FILE, "filename": "FixTude_Piano_di_Rientro_con_Cambiali.pdf"},
         }
         product = products.get(product_id)
         if not paid or not product or not product["file"].is_file():
@@ -3959,7 +4018,7 @@ LEGAL_VERSION = "2026-10-19"
 LEGAL_OWNER_NAME = os.environ.get("FIXTUDE_TITOLARE_NOME", "Giovanni Pugliese").strip()
 LEGAL_OWNER_ADDRESS = os.environ.get("FIXTUDE_TITOLARE_INDIRIZZO", "Via Saronno 65, 00188 Roma, Italia").strip()
 LEGAL_VAT_NUMBER = os.environ.get("FIXTUDE_PARTITA_IVA", "15990471003").strip()
-LEGAL_EMAIL = "info@fixtude.it"
+LEGAL_EMAIL = "contatto@fixtude.it"
 
 
 def legal_page(title, body):
@@ -3982,36 +4041,36 @@ def legal_disclaimer():
     <h2>5. Limiti e professionisti abilitati</h2><p>I contenuti generali del sito non sostituiscono una consulenza legale, fiscale, contabile o finanziaria personalizzata. FixTude non si presenta, in forza del solo uso del sito, come avvocato, commercialista, consulente finanziario abilitato, organismo di composizione della crisi o rappresentante del cliente. In presenza di saldo nullo o negativo, atti giudiziari, precetti, pignoramenti o termini di opposizione, è opportuno rivolgersi tempestivamente a un avvocato esperto in diritto bancario/credito. Nei casi di possibile sovraindebitamento può essere utile verificare con un professionista l'accesso a un Organismo di composizione della crisi (OCC) e alle procedure previste dal Codice della crisi. Eventuali attività ulteriori, se offerte, dovranno essere descritte e concordate separatamente prima del loro avvio.</p>
     <h2>6. Documenti e informazioni inseriti dall'utente</h2><p>L'utente è responsabile di verificare i dati inseriti, gli importi dei debiti, l'identità dei creditori, le scadenze e i documenti ricevuti. Non caricare o inviare tramite moduli o chat documenti integrali, credenziali bancarie o dati personali non necessari. In presenza di atti giudiziari, termini di opposizione, procedure esecutive o scadenze imminenti, richiedi tempestivamente assistenza qualificata.</p>
     <h2>7. Elaborazione dei dati nel calcolatore</h2><p>Gli importi inseriti nel calcolatore sono trasmessi al server tramite HTTPS e conservati temporaneamente nella sessione tecnica firmata necessaria a mostrare il risultato, proseguire al checkout e generare il report dopo il pagamento. Non viene creato un account utente né un archivio permanente dei dati economici. I dati possono essere inclusi nel report scaricato e nel pacchetto inviato via email, se la consegna email è configurata. Per i dettagli sui dati del pagamento e sui fornitori consulta l'<a href="/privacy">Informativa Privacy</a>.</p>
-    <h2>8. Contatti e aggiornamenti</h2><p>Per chiarimenti sul servizio scrivi a info@fixtude.it. Questo Disclaimer può essere aggiornato quando cambiano le funzionalità o le condizioni del servizio. Le informazioni presenti sul sito non sostituiscono la lettura delle comunicazioni ufficiali ricevute dai creditori né la verifica della normativa applicabile al caso concreto.</p>"""
+    <h2>8. Contatti e aggiornamenti</h2><p>Per chiarimenti sul servizio scrivi a contatto@fixtude.it. Questo Disclaimer può essere aggiornato quando cambiano le funzionalità o le condizioni del servizio. Le informazioni presenti sul sito non sostituiscono la lettura delle comunicazioni ufficiali ricevute dai creditori né la verifica della normativa applicabile al caso concreto.</p>"""
     return legal_page("Disclaimer", body)
 
 
 @app.route("/termini")
 def legal_terms():
-    body = """<p>I presenti Termini e Condizioni disciplinano l'uso del sito FixTude, dei suoi strumenti informativi e, quando attivo, l'acquisto del libro digitale <em>NIENTE PANICO</em>.</p>
-    <h2>1. Denominazione del servizio, titolare e contatti</h2><p>FixTude è la denominazione del servizio e del progetto editoriale online. Il servizio è gestito da Giovanni Pugliese, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per comunicazioni: info@fixtude.it. FixTude è il nome del servizio e non indica, da solo, una società distinta dal titolare sopra identificato.</p>
+    body = """<p>I presenti Termini e Condizioni disciplinano l'uso del sito FixTude, dei suoi strumenti informativi e, quando attivo, l'acquisto delle guide digitali <em>NIENTE PANICO</em>, <em>Guida al Saldo e Stralcio</em> e <em>Piano di rientro con cambiali: pro, contro e rischi</em>.</p>
+    <h2>1. Denominazione del servizio, titolare e contatti</h2><p>FixTude è la denominazione del servizio e del progetto editoriale online. Il servizio è gestito da Giovanni Pugliese, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per comunicazioni: contatto@fixtude.it. FixTude è il nome del servizio e non indica, da solo, una società distinta dal titolare sopra identificato.</p>
     <h2>2. Calcolatore gratuito V5</h2><p>Il calcolatore è accessibile senza registrazione e richiede tre importi: entrate mensili nette, uscite mensili e situazione debitoria complessiva. I dati sono trasmessi al server tramite HTTPS e mantenuti temporaneamente nella sessione tecnica necessaria a mostrare il risultato, completare il checkout e generare il report; non viene creato un account o un archivio economico permanente. Il semaforo considera anche l’importo del debito e la possibilità teorica di rientrare entro 6 o 12 mesi. Il motore ipotizza di destinare al rimborso il 30% nel verde e il 25% nel giallo. Tutte queste percentuali sono parametri convenzionali FixTude, non standard universali né una certificazione di solvibilità. Leggi anche il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
     <h2>3. Limiti delle informazioni</h2><p>I contenuti hanno finalità informative e organizzative. Non costituiscono consulenza legale, fiscale o finanziaria personalizzata, non sostituiscono un professionista abilitato e non garantiscono riduzioni del debito, cancellazioni da banche dati o accettazione di proposte da parte dei creditori. L'utente deve verificare i dati e adattare i modelli alla propria situazione. Per i dettagli sui limiti del calcolatore e delle simulazioni consulta il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
     <h2>4. Chat e richieste di contatto</h2><p>L'invio di una richiesta di contatto non comporta obbligo di acquistare servizi né garantisce tempi di risposta specifici. La chat non è un servizio di emergenza. Non inserire nella chat o nel modulo dati bancari, credenziali, documenti completi o dati personali non necessari.</p>
-    <h2>5. Kit digitale e pagamenti</h2><p>Il Kit FixTude costa € 1,99 e comprende un report personalizzato generato automaticamente sulla base dei tre importi inseriti, i modelli fac-simile disponibili e un libro digitale PDF a scelta tra quelli proposti nella pagina di checkout: <em>NIENTE PANICO</em> oppure <em>Guida al Saldo e Stralcio</em>. Il pagamento è elaborato da Stripe; il download del pacchetto viene reso disponibile dopo la verifica della transazione e, se il servizio email è configurato, inviato all'indirizzo comunicato durante il checkout. Non inviare i dati della carta a FixTude via email.</p>
+    <h2>5. Kit digitale e pagamenti</h2><p>Il Kit FixTude costa € 1,99 e comprende un report personalizzato generato automaticamente sulla base dei tre importi inseriti, i modelli fac-simile disponibili e un libro digitale PDF a scelta tra quelli proposti nella pagina di checkout: <em>NIENTE PANICO</em>, <em>Guida al Saldo e Stralcio</em> oppure <em>Piano di rientro con cambiali: pro, contro e rischi</em>. Il pagamento è elaborato da Stripe; il download del pacchetto viene reso disponibile dopo la verifica della transazione e, se il servizio email è configurato, inviato all'indirizzo comunicato durante il checkout. Non inviare i dati della carta a FixTude via email.</p>
     <h2>6. Consumatori e recesso</h2><p>Restano fermi i diritti inderogabili riconosciuti ai consumatori dalla normativa applicabile. Per contenuti digitali forniti senza supporto materiale, l'eventuale perdita del diritto di recesso richiede che ricorrano tutte le condizioni previste dalla legge, incluse le dichiarazioni espresse richieste prima dell'inizio dell'esecuzione e la conferma su supporto durevole. Il flusso di acquisto deve prevedere le informazioni e le dichiarazioni espresse richieste dalla normativa prima dell'inizio della fornitura del contenuto digitale, oltre alla conferma su supporto durevole quando prevista.</p>
     <h2>7. Uso corretto</h2><p>L'utente si impegna a usare il sito in modo lecito, a non tentare accessi non autorizzati, a non inviare spam e a non caricare dati di terzi senza una base legittima.</p>
     <h2>8. Proprietà intellettuale</h2><p>Testi, grafica, marchio e materiali originali del sito sono protetti dalle norme applicabili. I modelli scaricabili possono essere utilizzati per esigenze personali, senza rimuovere avvertenze o presentare i contenuti come pareri professionali garantiti.</p>
     <h2>9. Privacy</h2><p>Il trattamento dei dati personali è descritto nell'<a href="/privacy">Informativa Privacy</a>. L'accettazione dei presenti Termini non sostituisce l'informativa e non costituisce consenso generale a trattamenti facoltativi.</p>
-    <h2>10. Area Professionisti</h2><p>L’area professionisti è in fase di attivazione. La registrazione non comporta automaticamente la pubblicazione del profilo o l’attivazione di un abbonamento. I profili sono pubblicati solo dopo verifica e approvazione. Le eventuali funzionalità di inoltro richieste e i pacchetti di lead non sono pubblicati come offerta commerciale, non sono acquistabili e non saranno attivati fino alla definizione delle condizioni contrattuali e alla verifica legale e deontologica.</p><h2>11. Assistenza e modifiche</h2><p>Per richieste o reclami scrivere a info@fixtude.it. I termini potranno essere aggiornati per modifiche normative o tecniche; per gli acquisti conclusi restano fermi i diritti già acquisiti.</p>"""
+    <h2>10. Area Professionisti</h2><p>L’area professionisti è in fase di attivazione. La registrazione non comporta automaticamente la pubblicazione del profilo o l’attivazione di un abbonamento. I profili sono pubblicati solo dopo verifica e approvazione. Le eventuali funzionalità di inoltro richieste e i pacchetti di lead non sono pubblicati come offerta commerciale, non sono acquistabili e non saranno attivati fino alla definizione delle condizioni contrattuali e alla verifica legale e deontologica.</p><h2>11. Assistenza e modifiche</h2><p>Per richieste o reclami scrivere a contatto@fixtude.it. I termini potranno essere aggiornati per modifiche normative o tecniche; per gli acquisti conclusi restano fermi i diritti già acquisiti.</p>"""
     return legal_page("Termini e Condizioni", body)
 
 
 @app.route("/privacy")
 def privacy():
     body = """<p>Questa informativa descrive i principali trattamenti connessi alla versione attuale del sito FixTude. Viene aggiornata quando cambiano in modo rilevante le funzionalità, i fornitori o le modalità di trattamento.</p>
-    <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è Giovanni Pugliese, che gestisce il servizio denominato FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per richieste relative ai dati personali: info@fixtude.it.</p>
+    <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è Giovanni Pugliese, che gestisce il servizio denominato FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per richieste relative ai dati personali: contatto@fixtude.it.</p>
     <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio all’endpoint <code>/api/contact</code>; il server inoltra la richiesta tramite SMTP alla casella del titolare. L’applicazione non conserva una copia in un proprio database; i dati possono restare nei sistemi del fornitore SMTP e nella casella email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude da € 1,99. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del pacchetto composto da report, un libro a scelta e modelli fac-simile.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
     <h2>3. Basi giuridiche</h2><p>Le richieste di contatto sono trattate per rispondere a una richiesta dell'interessato e adottare misure precontrattuali su sua richiesta. I dati relativi ad acquisti sono trattati per eseguire il contratto e adempiere agli obblighi di legge. Sicurezza e prevenzione abusi possono basarsi sul legittimo interesse, da valutare e documentare. Eventuali attività promozionali richiedono una valutazione e, ove necessario, un consenso separato.</p>
     <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l’hosting (se confermato in produzione), Web3Forms per le notifiche email della chat, il fornitore del servizio SMTP per il modulo di ricontatto, Register per la casella email e Stripe per i pagamenti del libro, quando attivi. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
     <h2>5. Cookie e strumenti di tracciamento</h2><p>Google Analytics (ID di misurazione G-HMBBNLHC7E) viene caricato soltanto dopo la scelta esplicita della categoria statistiche nel pannello cookie. Se la categoria viene rifiutata o disattivata, il sito non avvia nuove richieste di misurazione e aggiorna lo stato di consenso di Google Analytics. I pixel pubblicitari non sono attivi. Prima del lancio definitivo occorre verificare tecnicamente i cookie effettivamente installati e aggiornare questa informativa in base ai risultati.</p>
     <h2>6. Conservazione</h2><p>I messaggi chat sono temporanei secondo quanto descritto sopra. Le richieste di contatto possono restare nei sistemi del fornitore di invio e nella casella email del destinatario. I tempi effettivi di conservazione dei fornitori, della posta e dei log devono essere verificati e definiti dal titolare prima del lancio.</p>
-    <h2>7. Diritti</h2><p>Nei limiti previsti dal GDPR è possibile chiedere accesso, rettifica, cancellazione, limitazione, opposizione e, ove applicabile, portabilità, scrivendo a info@fixtude.it. È possibile proporre reclamo al Garante per la protezione dei dati personali.</p>
+    <h2>7. Diritti</h2><p>Nei limiti previsti dal GDPR è possibile chiedere accesso, rettifica, cancellazione, limitazione, opposizione e, ove applicabile, portabilità, scrivendo a contatto@fixtude.it. È possibile proporre reclamo al Garante per la protezione dei dati personali.</p>
     <h2>8. Sicurezza e aggiornamenti</h2><p>Il titolare deve verificare periodicamente le misure di sicurezza, l'accesso ai sistemi, la configurazione dei fornitori e la corrispondenza di questa informativa con i trattamenti reali. La pagina va aggiornata prima di introdurre nuove funzionalità o servizi di terze parti.</p>"""
     return legal_page("Informativa Privacy", body)
 
@@ -4019,7 +4078,7 @@ def privacy():
 @app.route("/cookie")
 def legal_cookie():
     body = """<p>Questa pagina descrive il pannello di preferenze predisposto per FixTude. L'elenco definitivo di cookie e strumenti deve essere confermato tramite verifica tecnica del sito in produzione e dei servizi esterni richiamati.</p>
-    <h2>1. Titolare e strumenti necessari</h2><p>Il servizio FixTude è gestito da Giovanni Pugliese, Via Saronno 65, 00188 Roma, Italia, P. IVA 15990471003. Per informazioni sulle preferenze cookie: info@fixtude.it.</p><p>Il sito può utilizzare strumenti tecnici necessari al funzionamento e alla sicurezza. La configurazione e i nomi esatti devono essere verificati in produzione.</p>
+    <h2>1. Titolare e strumenti necessari</h2><p>Il servizio FixTude è gestito da Giovanni Pugliese, Via Saronno 65, 00188 Roma, Italia, P. IVA 15990471003. Per informazioni sulle preferenze cookie: contatto@fixtude.it.</p><p>Il sito può utilizzare strumenti tecnici necessari al funzionamento e alla sicurezza. La configurazione e i nomi esatti devono essere verificati in produzione.</p>
     <h2>2. Statistiche e pubblicità</h2><p>Google Analytics (ID di misurazione G-HMBBNLHC7E) viene caricato soltanto dopo il consenso alla categoria statistiche. Se la categoria viene rifiutata o revocata, il sito aggiorna lo stato di consenso e disabilita il tracciamento Analytics. I pixel pubblicitari non sono attivi. L’effettiva presenza e durata dei cookie deve essere verificata sul sito in produzione.</p>
     <h2>3. Memorizzazione della scelta</h2><p>Il pannello salva nel browser un cookie di prima parte denominato <code>fixtude_cookie_consent</code> per ricordare le preferenze per circa sei mesi. Le scelte possono essere modificate in qualsiasi momento tramite “Preferenze cookie” nel piè di pagina. I cookie strettamente necessari non possono essere disattivati dal pannello.</p>
     <h2>4. Verifica tecnica</h2><p>Prima della pubblicazione definitiva occorre eseguire una scansione tecnica di fixtude.it, incluse le pagine di acquisto e gli eventuali servizi incorporati, per identificare nome, fornitore, finalità e durata di tutti i cookie o strumenti di memorizzazione effettivamente presenti.</p>"""
@@ -4452,7 +4511,7 @@ def professionisti_contratto():
     user = pro_current_user()
     if not user:
         return redirect("/professionisti/login", code=303)
-    body = '''<article class="card doc"><div class="no-print"><p class="notice"><strong>Bozza da sottoporre a revisione legale prima della firma.</strong> La pubblicazione di questa bozza non costituisce attestazione di conformità deontologica. Le funzioni di invio di lead e i relativi corrispettivi restano sospesi fino all’approvazione del testo definitivo.</p><button class="btn" onclick="window.print()" type="button">Stampa / salva in PDF</button></div><h1>Contratto di adesione e servizi di presenza professionale FixTude</h1><p>Bozza del 19 ottobre 2026 — da completare con i dati del professionista e approvare prima dell’uso.</p><p><strong>Tra</strong> Giovanni Pugliese, titolare del servizio online FixTude, con domicilio professionale in Via Saronno 65, 00188 Roma, P. IVA 15990471003, email info@fixtude.it (di seguito “Gestore”);</p><p><strong>e</strong> il professionista identificato in calce (di seguito “Professionista”).</p><h2>1. Oggetto</h2><p>Il contratto disciplina l’eventuale adesione del Professionista alla vetrina FixTude, la gestione del proprio account e la pubblicazione di un profilo professionale previa verifica e approvazione. FixTude non svolge attività riservate al Professionista e non assume il mandato del cliente.</p><h2>2. Autonomia professionale</h2><p>Il Professionista opera in piena autonomia, sotto la propria responsabilità, nel rispetto delle norme di legge, delle regole dell’Ordine di appartenenza e dei doveri di indipendenza, competenza, riservatezza e correttezza. Nessun rapporto di lavoro subordinato, associazione professionale o società tra le parti è creato dal presente contratto.</p><h2>3. Profilo e verifica</h2><p>Il Professionista garantisce la veridicità e l’aggiornamento delle informazioni, dichiara di essere regolarmente iscritto all’Ordine/Albo ove richiesto e autorizza la pubblicazione dei soli dati professionali approvati: nome/denominazione, categoria, città, Ordine/Albo e presentazione. Telefono, email, chat e collegamenti di contatto diretto non saranno mostrati nella vetrina pubblica. Il Gestore può chiedere documentazione verificabile e sospendere il profilo in caso di informazioni incomplete o non corrette.</p><h2>4. Servizi, corrispettivi e attivazione</h2><p>La vetrina e l’account sono in fase di attivazione. <strong>Alla data della presente bozza non è attivo alcun piano a pagamento e non è formulata un’offerta economica vincolante.</strong> Eventuali corrispettivi, durata, rinnovo, prestazioni incluse, imposte e condizioni di cessazione dovranno essere indicati in un ordine di attivazione completo, sottoscritto da entrambe le parti dopo revisione legale.</p><p>Qualsiasi servizio che preveda quantità, inoltro, assegnazione o priorità di richieste/lead è escluso dal presente testo e non potrà essere attivato né fatturato senza uno specifico allegato approvato dopo una verifica legale e deontologica dedicata. Nessun corrispettivo è dovuto fino alla sottoscrizione dell’ordine definitivo e all’attivazione esplicita del servizio.</p><h2>5. Divieto di compensi sui mandati</h2><p>Il Gestore non percepisce percentuali, commissioni o partecipazioni sui compensi professionali, sugli accordi transattivi o sui risultati delle pratiche. Il Professionista determina autonomamente i propri compensi, concordandoli direttamente con il cliente nel mandato professionale scritto. Nessun esito è garantito da FixTude.</p><h2>6. Contatti e incarichi</h2><p>Il presente contratto non conferisce al Gestore poteri di rappresentanza o negoziazione per conto del Professionista o del cliente. Un eventuale incarico professionale è conferito direttamente dal cliente al Professionista mediante documento separato, con descrizione delle attività, compensi, spese, tempi, informativa privacy e condizioni applicabili.</p><h2>7. Dati personali e riservatezza</h2><p>Ciascuna parte tratta i dati personali nel rispetto della normativa applicabile. Il Professionista non deve inserire nella vetrina dati di clienti, informazioni coperte da segreto o documenti riservati. I ruoli privacy, le basi giuridiche, i tempi di conservazione e le eventuali responsabilità connesse all’inoltro di richieste dovranno essere descritti nell’informativa e negli eventuali accordi dedicati prima di attivare tali funzioni.</p><h2>8. Durata, rinnovo e recesso</h2><p>La durata, il rinnovo, il preavviso e le modalità di cessazione saranno indicati nell’ordine di attivazione sottoscritto. In assenza di ordine attivo non sussiste abbonamento né obbligo di pagamento. Ciascuna parte può chiedere la correzione o la rimozione di dati professionali non aggiornati; il Gestore può sospendere un profilo per ragioni documentate di sicurezza, correttezza o conformità normativa.</p><h2>9. Limitazioni e responsabilità</h2><p>Il Gestore fornisce un servizio di presenza online e strumenti informativi, senza garantire un numero di clienti, un volume di richieste, l’accettazione di incarichi o risultati professionali. Il Professionista resta responsabile delle prestazioni rese e delle verifiche relative al cliente e al conflitto d’interessi. Restano ferme le responsabilità inderogabili previste dalla legge.</p><h2>10. Reclami e legge applicabile</h2><p>Le comunicazioni relative al servizio possono essere inviate a info@fixtude.it. Il contratto è soggetto alla legge italiana, fatti salvi i fori inderogabili e le norme imperative applicabili. Ogni clausola va interpretata in modo compatibile con le norme professionali e deontologiche pertinenti.</p><h2>11. Approvazioni specifiche</h2><p>Le eventuali clausole che richiedano approvazione specifica ai sensi degli artt. 1341 e 1342 c.c. dovranno essere individuate e approvate separatamente nella versione definitiva dopo revisione legale.</p><div class="signature"><div><p><strong>Il Gestore</strong></p><div class="line">Giovanni Pugliese — FixTude</div><div class="line">Data e firma</div></div><div><p><strong>Il Professionista</strong></p><div class="line">Nome / denominazione</div><div class="line">Codice fiscale / P. IVA</div><div class="line">Ordine/Albo e provincia</div><div class="line">Data e firma</div></div></div></article>'''
+    body = '''<article class="card doc"><div class="no-print"><p class="notice"><strong>Bozza da sottoporre a revisione legale prima della firma.</strong> La pubblicazione di questa bozza non costituisce attestazione di conformità deontologica. Le funzioni di invio di lead e i relativi corrispettivi restano sospesi fino all’approvazione del testo definitivo.</p><button class="btn" onclick="window.print()" type="button">Stampa / salva in PDF</button></div><h1>Contratto di adesione e servizi di presenza professionale FixTude</h1><p>Bozza del 19 ottobre 2026 — da completare con i dati del professionista e approvare prima dell’uso.</p><p><strong>Tra</strong> Giovanni Pugliese, titolare del servizio online FixTude, con domicilio professionale in Via Saronno 65, 00188 Roma, P. IVA 15990471003, email contatto@fixtude.it (di seguito “Gestore”);</p><p><strong>e</strong> il professionista identificato in calce (di seguito “Professionista”).</p><h2>1. Oggetto</h2><p>Il contratto disciplina l’eventuale adesione del Professionista alla vetrina FixTude, la gestione del proprio account e la pubblicazione di un profilo professionale previa verifica e approvazione. FixTude non svolge attività riservate al Professionista e non assume il mandato del cliente.</p><h2>2. Autonomia professionale</h2><p>Il Professionista opera in piena autonomia, sotto la propria responsabilità, nel rispetto delle norme di legge, delle regole dell’Ordine di appartenenza e dei doveri di indipendenza, competenza, riservatezza e correttezza. Nessun rapporto di lavoro subordinato, associazione professionale o società tra le parti è creato dal presente contratto.</p><h2>3. Profilo e verifica</h2><p>Il Professionista garantisce la veridicità e l’aggiornamento delle informazioni, dichiara di essere regolarmente iscritto all’Ordine/Albo ove richiesto e autorizza la pubblicazione dei soli dati professionali approvati: nome/denominazione, categoria, città, Ordine/Albo e presentazione. Telefono, email, chat e collegamenti di contatto diretto non saranno mostrati nella vetrina pubblica. Il Gestore può chiedere documentazione verificabile e sospendere il profilo in caso di informazioni incomplete o non corrette.</p><h2>4. Servizi, corrispettivi e attivazione</h2><p>La vetrina e l’account sono in fase di attivazione. <strong>Alla data della presente bozza non è attivo alcun piano a pagamento e non è formulata un’offerta economica vincolante.</strong> Eventuali corrispettivi, durata, rinnovo, prestazioni incluse, imposte e condizioni di cessazione dovranno essere indicati in un ordine di attivazione completo, sottoscritto da entrambe le parti dopo revisione legale.</p><p>Qualsiasi servizio che preveda quantità, inoltro, assegnazione o priorità di richieste/lead è escluso dal presente testo e non potrà essere attivato né fatturato senza uno specifico allegato approvato dopo una verifica legale e deontologica dedicata. Nessun corrispettivo è dovuto fino alla sottoscrizione dell’ordine definitivo e all’attivazione esplicita del servizio.</p><h2>5. Divieto di compensi sui mandati</h2><p>Il Gestore non percepisce percentuali, commissioni o partecipazioni sui compensi professionali, sugli accordi transattivi o sui risultati delle pratiche. Il Professionista determina autonomamente i propri compensi, concordandoli direttamente con il cliente nel mandato professionale scritto. Nessun esito è garantito da FixTude.</p><h2>6. Contatti e incarichi</h2><p>Il presente contratto non conferisce al Gestore poteri di rappresentanza o negoziazione per conto del Professionista o del cliente. Un eventuale incarico professionale è conferito direttamente dal cliente al Professionista mediante documento separato, con descrizione delle attività, compensi, spese, tempi, informativa privacy e condizioni applicabili.</p><h2>7. Dati personali e riservatezza</h2><p>Ciascuna parte tratta i dati personali nel rispetto della normativa applicabile. Il Professionista non deve inserire nella vetrina dati di clienti, informazioni coperte da segreto o documenti riservati. I ruoli privacy, le basi giuridiche, i tempi di conservazione e le eventuali responsabilità connesse all’inoltro di richieste dovranno essere descritti nell’informativa e negli eventuali accordi dedicati prima di attivare tali funzioni.</p><h2>8. Durata, rinnovo e recesso</h2><p>La durata, il rinnovo, il preavviso e le modalità di cessazione saranno indicati nell’ordine di attivazione sottoscritto. In assenza di ordine attivo non sussiste abbonamento né obbligo di pagamento. Ciascuna parte può chiedere la correzione o la rimozione di dati professionali non aggiornati; il Gestore può sospendere un profilo per ragioni documentate di sicurezza, correttezza o conformità normativa.</p><h2>9. Limitazioni e responsabilità</h2><p>Il Gestore fornisce un servizio di presenza online e strumenti informativi, senza garantire un numero di clienti, un volume di richieste, l’accettazione di incarichi o risultati professionali. Il Professionista resta responsabile delle prestazioni rese e delle verifiche relative al cliente e al conflitto d’interessi. Restano ferme le responsabilità inderogabili previste dalla legge.</p><h2>10. Reclami e legge applicabile</h2><p>Le comunicazioni relative al servizio possono essere inviate a contatto@fixtude.it. Il contratto è soggetto alla legge italiana, fatti salvi i fori inderogabili e le norme imperative applicabili. Ogni clausola va interpretata in modo compatibile con le norme professionali e deontologiche pertinenti.</p><h2>11. Approvazioni specifiche</h2><p>Le eventuali clausole che richiedano approvazione specifica ai sensi degli artt. 1341 e 1342 c.c. dovranno essere individuate e approvate separatamente nella versione definitiva dopo revisione legale.</p><div class="signature"><div><p><strong>Il Gestore</strong></p><div class="line">Giovanni Pugliese — FixTude</div><div class="line">Data e firma</div></div><div><p><strong>Il Professionista</strong></p><div class="line">Nome / denominazione</div><div class="line">Codice fiscale / P. IVA</div><div class="line">Ordine/Albo e provincia</div><div class="line">Data e firma</div></div></div></article>'''
     return pro_shell("Bozza contratto professionisti", body)
 
 
