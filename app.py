@@ -41,7 +41,7 @@ except ImportError:  # L’app resta avviabile anche prima dell’installazione 
 app = Flask(__name__)
 
 # =========================================================
-# FIXTUDE V14 - CALCOLATORE + RICONTATTO DIRETTO + CHAT LIVE + GUIDA CAMBIALI
+# FIXTUDE V17 - REPORT PROFESSIONALE + WEB3FORMS - CALCOLATORE + RICONTATTO DIRETTO + CHAT LIVE + GUIDA CAMBIALI
 #
 # Nessun database applicativo.
 # Il calcolatore funziona nel browser.
@@ -1689,97 +1689,194 @@ def checkout_crea_v2():
 
 
 def _pdf_report(data):
-    lines = [
-        "FIXTUDE - REPORT DI ORIENTAMENTO V6", "",
-        "SEMAFORO: " + data["colore"].upper(), data["etichetta"],
-        "", "DATI INSERITI",
-        f"Entrate mensili nette: EUR {data['entrate']:.2f}",
-        f"Uscite mensili: EUR {data['uscite']:.2f}",
-        f"Situazione debitoria complessiva dichiarata: EUR {data['debiti']:.2f}",
-        "", "VALUTAZIONE ALGORITMICA ORIENTATIVA V6",
-        f"Saldo mensile: EUR {data['saldo']:.2f}",
-        f"Margine mensile: EUR {data['margine']:.2f}",
-        f"Margine in rapporto alle entrate: {data['percentuale_margine']:.2f}%",
-        f"Quota prudenziale del margine ipotizzata: {data.get('quota_percentuale_margine', 0):.0f}%",
-        f"Quota mensile suggerita: EUR {data.get('quota_mensile_suggerita', 0):.2f}",
-        f"Tempo teorico di rimborso con tale quota: {data.get('mesi_teorici') if data.get('mesi_teorici') is not None else 'non calcolabile'}",
-        "", "INDICAZIONE NEGOZIALE",
-        data.get("titolo_negoziale", ""),
-        data.get("testo_negoziale", ""),
-        "", "AZIONI CONSIGLIATE",
+    """Crea un report PDF FixTude professionale, vettoriale e senza dipendenze aggiuntive."""
+    W, H = 595, 842
+    navy = (0.07, 0.17, 0.32)
+    blue = (0.10, 0.34, 0.62)
+    cyan = (0.10, 0.66, 0.78)
+    pale = (0.94, 0.97, 0.99)
+    ink = (0.13, 0.18, 0.25)
+    muted = (0.39, 0.45, 0.53)
+    line = (0.86, 0.90, 0.94)
+    green = (0.10, 0.52, 0.34)
+    yellow = (0.83, 0.56, 0.08)
+    red = (0.72, 0.20, 0.22)
+    status = str(data.get('colore', '')).lower()
+    status_color = green if status in ('verde', 'green') else yellow if status in ('giallo', 'yellow') else red
+    pages = []
+    ops = []
+    y = 0
+
+    def rgb(c): return ' '.join(f'{v:.3f}' for v in c)
+    def esc(value):
+        value = str(value).replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+        return value.encode('cp1252', 'replace').decode('cp1252')
+    def text(x, top, value, size=9, color=ink, font='F1'):
+        # top è la coordinata dal bordo superiore del foglio.
+        ops.append(f'{rgb(color)} rg BT /{font} {size} Tf 1 0 0 1 {x:.1f} {H-top-size:.1f} Tm ({esc(value)}) Tj ET')
+    def rect(x, top, w, h, fill=None, stroke=None, sw=1, radius=False):
+        if fill: ops.append(f'{rgb(fill)} rg')
+        if stroke: ops.append(f'{rgb(stroke)} RG {sw} w')
+        # Rettangoli semplici con angoli morbidi simulati da box puliti.
+        ops.append(f'{x:.1f} {H-top-h:.1f} {w:.1f} {h:.1f} re ' + ('B' if fill and stroke else 'f' if fill else 'S'))
+    def rule(x1, top1, x2, top2, color=line, sw=0.8):
+        ops.append(f'{rgb(color)} RG {sw} w {x1:.1f} {H-top1:.1f} m {x2:.1f} {H-top2:.1f} l S')
+    def wrap(value, width=88):
+        return textwrap.wrap(str(value or ''), width=width, break_long_words=False, break_on_hyphens=False) or ['']
+    def new_page():
+        nonlocal ops, y
+        if ops: pages.append(ops)
+        ops = []
+        # Watermark diagonale, leggera e non invasiva.
+        ops.append('q 0.94 0.96 0.98 rg BT /F2 54 Tf 0.707 0.707 -0.707 0.707 135 355 Tm (FIXTUDE) Tj ET Q')
+        # Header brandizzato: monogramma vettoriale + wordmark.
+        rect(38, 27, 34, 34, navy)
+        text(46, 32, 'F', 23, (1,1,1), 'F2')
+        text(82, 29, 'FixTude', 18, navy, 'F2')
+        text(82, 51, 'CHIAREZZA, ORIENTAMENTO, RIPARTENZA', 6.5, muted, 'F2')
+        text(430, 35, 'REPORT PERSONALE', 7, blue, 'F2')
+        rule(38, 72, 557, 72, cyan, 1.6)
+        y = 91
+    def footer(page_no):
+        rule(38, 798, 557, 798, line, 0.8)
+        text(38, 808, 'FixTude  |  fixtude.it  |  contatto@fixtude.it', 7.2, muted)
+        text(500, 808, f'Pag. {page_no}', 7.2, muted)
+    def ensure(height):
+        nonlocal y
+        if y + height > 775:
+            footer(len(pages)+1)
+            new_page()
+    def heading(label):
+        nonlocal y
+        ensure(30)
+        text(42, y, label.upper(), 9, blue, 'F2')
+        y += 20
+    def paragraph(value, width=92, size=8.4, color=ink, leading=12):
+        nonlocal y
+        for ln in wrap(value, width):
+            ensure(leading)
+            text(44, y, ln, size, color)
+            y += leading
+    def card(x, top, w, h, label, value, accent=blue, suffix=''):
+        rect(x, top, w, h, pale, line, 0.7)
+        rect(x, top, 4, h, accent)
+        text(x+13, top+10, label.upper(), 6.6, muted, 'F2')
+        text(x+13, top+27, value, 15, navy, 'F2')
+        if suffix: text(x+13, top+h-15, suffix, 6.5, muted)
+    def euro(v):
+        try: return ('€ ' + f'{float(v):,.2f}').replace(',', 'X').replace('.', ',').replace('X', '.')
+        except Exception: return '—'
+
+    new_page()
+    text(42, y, 'ANALISI DELLA SITUAZIONE ECONOMICA', 15, navy, 'F2'); y += 25
+    text(42, y, 'Riepilogo orientativo elaborato sulla base dei dati dichiarati', 8.5, muted); y += 24
+    # Esito semaforico in evidenza.
+    rect(40, y, 515, 68, (0.97,0.98,0.99), line, 0.8)
+    rect(40, y, 7, 68, status_color)
+    text(59, y+11, 'ESITO DELLA VALUTAZIONE', 7, muted, 'F2')
+    text(59, y+29, str(data.get('colore','').upper()), 18, status_color, 'F2')
+    text(170, y+31, str(data.get('etichetta',''))[:62], 9, navy, 'F2')
+    y += 84
+
+    # Quattro indicatori sintetici.
+    gap=9; cw=(515-3*gap)/4
+    card(40, y, cw, 67, 'Entrate nette', euro(data.get('entrate')), blue)
+    card(40+cw+gap, y, cw, 67, 'Uscite mensili', euro(data.get('uscite')), cyan)
+    card(40+2*(cw+gap), y, cw, 67, 'Saldo mensile', euro(data.get('saldo')), green if float(data.get('saldo',0) or 0)>0 else red)
+    card(40+3*(cw+gap), y, cw, 67, 'Debito dichiarato', euro(data.get('debiti')), navy)
+    y += 83
+
+    heading('Il quadro mensile')
+    # Infografica proporzionale: entrate/uscite e debito separato.
+    ent=max(0,float(data.get('entrate',0) or 0)); usc=max(0,float(data.get('uscite',0) or 0)); deb=max(0,float(data.get('debiti',0) or 0))
+    maxv=max(ent,usc,1)
+    text(44,y,'Entrate',7.5,muted); text(505,y,euro(ent),7.5,navy,'F2'); y+=13
+    rect(44,y,455,9,(0.92,0.94,0.96)); rect(44,y,455*ent/maxv,9,blue); y+=19
+    text(44,y,'Uscite',7.5,muted); text(505,y,euro(usc),7.5,navy,'F2'); y+=13
+    rect(44,y,455,9,(0.92,0.94,0.96)); rect(44,y,455*usc/maxv,9,cyan); y+=23
+    text(44,y,'Debito complessivo dichiarato',7.5,muted); text(505,y,euro(deb),7.5,navy,'F2'); y+=18
+    text(44,y,'Il debito complessivo è rappresentato separatamente: non è una spesa mensile.',7,muted); y+=24
+
+    heading('Indicatori di sostenibilità')
+    metrics=[('Margine mensile',euro(data.get('margine'))),('Margine / entrate',f"{float(data.get('percentuale_margine',0) or 0):.1f}%"),('Quota mensile ipotizzata',euro(data.get('quota_mensile_suggerita'))),('Orizzonte teorico',str(data.get('mesi_teorici') if data.get('mesi_teorici') is not None else 'Non calcolabile')+' mesi' if data.get('mesi_teorici') is not None else 'Non calcolabile')]
+    mw=(515-12)/2
+    for idx,(lab,val) in enumerate(metrics):
+        row=idx//2; col=idx%2
+        card(40+col*(mw+12),y+row*57,mw,48,lab,val,cyan if idx%2 else blue)
+    y+=126
+    heading('Lettura del risultato')
+    paragraph(data.get('titolo_negoziale',''))
+    paragraph(data.get('testo_negoziale',''),width=94)
+    y+=5
+    heading('Azioni consigliate')
+    for item in data.get('azioni_negoziali',[]):
+        paragraph('•  '+str(item),width=94,leading=11)
+
+    # Seconda pagina: dettaglio ipotesi, rate teoriche e avvertenze.
+    footer(len(pages)+1)
+    new_page()
+    text(42,y,'DETTAGLIO E INDICAZIONI',15,navy,'F2'); y+=30
+    heading('Ipotesi di rimborso')
+    paragraph(f"Quota prudenziale del margine ipotizzata: {float(data.get('quota_percentuale_margine',0) or 0):.0f}%.")
+    paragraph('Le simulazioni seguenti sono puramente teoriche e non costituiscono un piano concordato con i creditori.')
+    y+=5
+    rates=data.get('rate_teoriche',{}) or {}
+    for idx, n in enumerate((3, 6, 12)):
+        card(40+idx*((515-18)/3+9), y, (515-18)/3, 61, f'Ripartizione in {n} mesi', euro(rates.get(str(n),0)), blue if n==3 else cyan if n==6 else navy, 'Escluse spese e interessi')
+    y+=78
+    heading('Indicazione negoziale')
+    paragraph(data.get('titolo_negoziale',''))
+    paragraph(data.get('testo_negoziale',''),width=94)
+    y+=5
+    heading('Avvertenze importanti')
+    paragraph(data.get('avvertenza_negoziale',''),width=94)
+    caveats=[
+      'Il semaforo e le soglie utilizzate sono parametri convenzionali interni FixTude, non soglie previste dalla legge.',
+      'Le ipotesi di saldo e stralcio rappresentano possibili importi di proposta, non percentuali standard o garantite.',
+      'Una cambiale in regola con i requisiti di legge può avere efficacia di titolo esecutivo: prima di firmare è opportuna una valutazione legale indipendente.',
+      'I dati disponibili non consentono di conoscere creditori, rate effettive, interessi, arretrati, scadenze, garanzie, atti notificati o patrimonio.',
+      'Le rate teoriche non includono interessi, spese, penali o costi legali. Il creditore può rifiutare la proposta o formulare una controproposta.',
+      'In presenza di atti giudiziari, precetti, pignoramenti o termini di opposizione, rivolgersi tempestivamente a un avvocato.',
+      'Nei casi di possibile sovraindebitamento, verificare con un professionista l’eventuale accesso a un OCC e agli strumenti del Codice della crisi.'
     ]
-    lines.extend("- " + str(item) for item in data.get("azioni_negoziali", []))
-    lines.extend([
-        "", "RATE TEORICHE SULL'INTERO DEBITO (ESCLUSE SPESE E INTERESSI)",
-        *[f"{n} mesi: EUR {data.get('rate_teoriche', {}).get(str(n), 0):.2f} al mese" for n in (3, 6, 12)],
-        "", "AVVERTENZE IMPORTANTI", data.get("avvertenza_negoziale", ""),
-        "Il semaforo V6 considera margine e debito: verde entro 6 mesi con quota del 30% del margine e margine almeno del 20%; giallo entro 12 mesi con quota del 25%; rosso in assenza di margine o oltre 12 mesi.",
-        "La soglia del 20%, le quote del 30% e 25% e gli orizzonti di 6 e 12 mesi sono parametri convenzionali interni FixTude e non soglie normative.",
-        "Le ipotesi di saldo e stralcio al 45% o al 60% sono somme offerte sul debito dichiarato, non percentuali standard o garantite.",
-        "Una cambiale in regola con i requisiti e il bollo può avere efficacia di titolo esecutivo: prima di sottoscriverla è necessaria una valutazione legale indipendente.",
-        "La Banca d'Italia indica, come criterio pratico generale, di evitare che le rate superino il 30% delle entrate nette stabili; il 30% FixTude è invece calcolato sul margine mensile, quindi è un parametro diverso e interno.",
-        "Riferimenti informativi: Banca d'Italia - Sovraindebitamento: https://economiapertutti.bancaditalia.it/aree-tematiche/prestiti/sovraindebitamento/index.html",
-        "Ministero della Giustizia - Organismi di composizione della crisi: https://www.giustizia.it/giustizia/it/mg_3_14_1.wp",
-        "Legge cambiaria - R.D. 1669/1933: https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=033U1669",
-        "Tre soli importi non consentono di conoscere creditori, rate effettive, interessi, arretrati, scadenze, garanzie, atti notificati o patrimonio.",
-        "Le rate teoriche non includono interessi, spese, penali o costi legali. Il creditore può rifiutare o controproporre.",
-        "In presenza di atti giudiziari, precetti, pignoramenti o termini di opposizione, rivolgersi tempestivamente a un avvocato.",
-        "Nei casi di possibile sovraindebitamento, verificare con un professionista l'eventuale accesso a un OCC e agli strumenti del Codice della crisi.",
-        "Questo report è informativo e automatizzato: non è una consulenza legale, fiscale o finanziaria personalizzata né una certificazione di solvibilità.",
-        "", "FixTude - www.fixtude.it",
-    ])
-    wrapped_lines = []
-    for line in lines:
-        value = str(line)
-        if len(value) <= 96:
-            wrapped_lines.append(value)
-        else:
-            wrapped_lines.extend(textwrap.wrap(value, width=96, break_long_words=False, break_on_hyphens=False) or [""])
-    lines = wrapped_lines
+    for item in caveats: paragraph('•  '+item,width=94,size=7.6,leading=10.5)
+    y+=5
+    heading('Fonti informative')
+    for item in [
+      'Banca d’Italia – Sovraindebitamento: https://economiapertutti.bancaditalia.it/aree-tematiche/prestiti/sovraindebitamento/index.html',
+      'Ministero della Giustizia – Organismi di composizione della crisi: https://www.giustizia.it/giustizia/it/mg_3_14_1.wp',
+      'Regio decreto 1669/1933 – Legge cambiaria: https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=033U1669'
+    ]: paragraph(item,width=94,size=7,leading=9.5,color=muted)
+    y+=7
+    rect(40,y,515,64,pale,line,0.7)
+    text(52,y+9,'NOTA METODOLOGICA',7,blue,'F2')
+    y += 23
+    paragraph('Questo documento è un report informativo e automatizzato, basato esclusivamente sui dati inseriti. Non è una consulenza legale, fiscale o finanziaria personalizzata e non certifica la solvibilità. Verifica sempre le condizioni con i creditori e, quando necessario, con un professionista.',width=110,size=7.1,leading=9)
 
-    def esc(text):
-        text = unicodedata.normalize("NFKD", str(text)).encode("ascii", "ignore").decode("ascii")
-        return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-    # Paginated text PDF: avoid cutting off long V5 recommendations after the first page.
-    page_lines = [lines[i:i + 48] for i in range(0, len(lines), 48)] or [[]]
-    objects = [b"<< /Type /Catalog /Pages 2 0 R >>"]
-    page_ids = []
-    font_id = 3
-    next_id = 4
-    page_objects = []
-    content_objects = []
-    for page_lines_part in page_lines:
-        page_id = next_id
-        content_id = next_id + 1
-        next_id += 2
-        page_ids.append(page_id)
-        commands = ["BT", "/F1 9 Tf", "50 790 Td", "12 TL"]
-        for line in page_lines_part:
-            commands.append(f"({esc(line)}) Tj")
-            commands.append("T*")
-        commands.append("ET")
-        stream = "\n".join(commands).encode("latin-1", "replace")
-        page_objects.append((page_id, f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 {font_id} 0 R >> >> /Contents {content_id} 0 R >>".encode()))
-        content_objects.append((content_id, b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream"))
-    kids = " ".join(f"{pid} 0 R" for pid in page_ids)
-    objects.append(f"<< /Type /Pages /Kids [{kids}] /Count {len(page_ids)} >>".encode())
-    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
-    numbered = {1: objects[0], 2: objects[1], 3: objects[2]}
-    numbered.update({obj_id: obj for obj_id, obj in page_objects})
-    numbered.update({obj_id: obj for obj_id, obj in content_objects})
-    objects = [numbered[i] for i in range(1, max(numbered) + 1)]
-    pdf = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
-    offsets = [0]
-    for i, obj in enumerate(objects, 1):
-        offsets.append(len(pdf))
-        pdf.extend(f"{i} 0 obj\n".encode()); pdf.extend(obj); pdf.extend(b"\nendobj\n")
-    xref = len(pdf)
-    pdf.extend(f"xref\n0 {len(objects)+1}\n0000000000 65535 f \n".encode())
-    for off in offsets[1:]:
-        pdf.extend(f"{off:010d} 00000 n \n".encode())
-    pdf.extend(f"trailer\n<< /Size {len(objects)+1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF".encode())
+    footer(len(pages)+1)
+    pages.append(ops)
+
+    # Costruzione PDF 1.4 con font standard WinAnsi, senza librerie esterne.
+    objects=[b'<< /Type /Catalog /Pages 2 0 R >>', b'']
+    font_regular=3; font_bold=4
+    objects.extend([b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>', b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>'])
+    page_objs=[]; content_objs=[]; next_id=5
+    for page_ops in pages:
+        page_id=next_id; content_id=next_id+1; next_id+=2
+        stream='\n'.join(page_ops).encode('cp1252','replace')
+        page_objs.append((page_id, f'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {W} {H}] /Resources << /Font << /F1 {font_regular} 0 R /F2 {font_bold} 0 R >> >> /Contents {content_id} 0 R >>'.encode()))
+        content_objs.append((content_id, b'<< /Length '+str(len(stream)).encode()+b' >>\nstream\n'+stream+b'\nendstream'))
+    kids=' '.join(f'{pid} 0 R' for pid,_ in page_objs)
+    objects[1]=f'<< /Type /Pages /Kids [{kids}] /Count {len(pages)} >>'.encode()
+    numbered={i+1:o for i,o in enumerate(objects)}
+    numbered.update(dict(page_objs)); numbered.update(dict(content_objs))
+    pdf=bytearray(b'%PDF-1.4\n%\xe2\xe3\xcf\xd3\n'); offsets=[0]
+    for i in range(1,max(numbered)+1):
+        offsets.append(len(pdf)); pdf.extend(f'{i} 0 obj\n'.encode()); pdf.extend(numbered[i]); pdf.extend(b'\nendobj\n')
+    xref=len(pdf); pdf.extend(f'xref\n0 {len(numbered)+1}\n0000000000 65535 f \n'.encode())
+    for off in offsets[1:]: pdf.extend(f'{off:010d} 00000 n \n'.encode())
+    pdf.extend(f'trailer\n<< /Size {len(numbered)+1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF'.encode())
     return bytes(pdf)
-
 
 
 def _pacchetto_consegna(data, product_id):
@@ -2553,202 +2650,69 @@ def misuratore():
 def consulenza():
     content = """
     <h1>Facciamo chiarezza sulla tua situazione</h1>
-    <p class="muted">
-      Compila il modulo soltanto se desideri essere ricontattato. La richiesta è gratuita e non ti obbliga a proseguire.
-    </p>
+    <p class="muted">Compila il modulo soltanto se desideri essere ricontattato. La richiesta è gratuita e non ti obbliga a proseguire.</p>
     <p class="muted" id="ft-registration-note"></p>
     <script>
       (function(){var p=new URLSearchParams(window.location.search).get('percorso');var n=document.getElementById('ft-registration-note');if(!n)return;if(p==='registrazione'){n.textContent='Hai scelto il percorso con registrazione. La creazione automatica di un account non è ancora attiva: puoi inviare una richiesta di contatto tramite questo modulo.';}else if(p==='senza-registrazione'){n.textContent='Puoi proseguire senza creare un account: compila il modulo solo se desideri essere ricontattato.';}})();
     </script>
-
     <section class="card">
       <form id="contactForm">
-        <div class="field">
-          <label for="name">Nome</label>
-          <input id="name" name="name" maxlength="100"
-                 autocomplete="name" required>
-        </div>
+        <div class="field"><label for="name">Nome</label><input id="name" name="name" maxlength="100" autocomplete="name" required></div>
         <div class="grid">
-          <div class="field">
-            <label for="email">Email</label>
-            <input id="email" name="email" type="email"
-                   maxlength="254" autocomplete="email" required>
-          </div>
-          <div class="field">
-            <label for="phone">Telefono (facoltativo)</label>
-            <input id="phone" name="phone" type="tel"
-                   maxlength="40" autocomplete="tel">
-          </div>
+          <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" maxlength="254" autocomplete="email" required></div>
+          <div class="field"><label for="phone">Telefono (facoltativo)</label><input id="phone" name="phone" type="tel" maxlength="40" autocomplete="tel"></div>
         </div>
-        <div class="field">
-          <label for="message">Messaggio (facoltativo)</label>
-          <textarea id="message" name="message" maxlength="2000"
-                    placeholder="Scrivi qui come preferisci essere ricontattato. Non inserire dati bancari o documenti."></textarea>
-        </div>
-
-        <div style="position:absolute;left:-10000px" aria-hidden="true">
-          <label for="website">Non compilare questo campo</label>
-          <input id="website" name="website" tabindex="-1"
-                 autocomplete="off">
-        </div>
-        <input type="checkbox" name="botcheck" tabindex="-1"
-               autocomplete="off" style="display:none" aria-hidden="true">
-
-        <label class="check">
-          <input type="checkbox" name="privacy" required>
-          <span>
-            Dichiaro di aver letto l'
-            <a href="/privacy" target="_blank" rel="noopener">
-              informativa privacy
-            </a>
-            e chiedo di essere ricontattato.
-          </span>
-        </label>
-
-        <label class="check">
-          <input type="checkbox" name="accept_terms" value="yes" required>
-          <span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span>
-        </label>
-
-        <p class="muted" style="font-size:13px">
-          I dati del modulo vengono inviati via email al titolare per gestire
-          la tua richiesta. L'applicazione non conserva una copia
-          in un database.
-        </p>
-
+        <div class="field"><label for="message">Messaggio (facoltativo)</label><textarea id="message" name="message" maxlength="2000" placeholder="Scrivi qui come preferisci essere ricontattato. Non inserire dati bancari o documenti."></textarea></div>
+        <div style="position:absolute;left:-10000px" aria-hidden="true"><label for="website">Non compilare questo campo</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+        <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" style="display:none" aria-hidden="true">
+        <label class="check"><input type="checkbox" name="privacy" required><span>Dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">informativa privacy</a> e chiedo di essere ricontattato.</span></label>
+        <label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a>.</span></label>
+        <p class="muted" style="font-size:13px">I dati del modulo vengono trasmessi a Web3Forms per l'inoltro della richiesta al titolare. FixTude non conserva una copia dei dati in un proprio database.</p>
         <div id="contactResult" role="status" aria-live="polite"></div>
-        <button class="btn" id="contactSubmit" type="submit">
-          Invia richiesta
-        </button>
+        <button class="btn" id="contactSubmit" type="submit">Invia richiesta</button>
       </form>
     </section>
-
     <script>
     (() => {
       const form = document.getElementById("contactForm");
       const result = document.getElementById("contactResult");
       const button = document.getElementById("contactSubmit");
+      const accessKey = "6cfd757e-6b16-49e0-96b5-e055a159f403";
       form.addEventListener("submit", async e => {
-        e.preventDefault();
-        result.className = "";
-        result.textContent = "";
-
+        e.preventDefault(); result.className = ""; result.textContent = "";
         if (!form.reportValidity()) return;
-
         const values = Object.fromEntries(new FormData(form).entries());
-
-        // Honeypot: il controllo definitivo è ripetuto anche sul server.
         if (String(values.website || "").trim()) {
           result.className = "notice success";
-          result.textContent =
-            "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
-          form.reset();
-          return;
+          result.textContent = "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
+          form.reset(); return;
         }
-
-        button.disabled = true;
-        button.textContent = "Invio in corso…";
-
+        values.access_key = accessKey;
+        values.subject = "FixTude - nuova richiesta di ricontatto";
+        values.from_name = "FixTude - modulo di ricontatto";
+        values.botcheck = values.botcheck || "";
+        delete values.website;
+        button.disabled = true; button.textContent = "Invio in corso…";
         try {
-          const response = await fetch("/api/contact", {
+          const response = await fetch("https://api.web3forms.com/submit", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "application/json"
-            },
+            headers: {"Content-Type":"application/json", "Accept":"application/json"},
             body: JSON.stringify(values)
           });
-
           const data = await response.json();
-          if (!response.ok || data.ok !== true) {
-            throw new Error(data.error || "Non è stato possibile inviare la richiesta.");
-          }
-
+          if (!response.ok || data.success !== true) throw new Error(data.message || "Non è stato possibile inviare la richiesta.");
           result.className = "notice success";
-          result.textContent =
-            "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
+          result.textContent = "Richiesta inviata correttamente. Grazie, ti ricontatteremo appena possibile.";
           form.reset();
         } catch (err) {
           result.className = "notice error";
-          result.textContent = err.message ||
-            "Errore di connessione. Riprova più tardi.";
-        } finally {
-          button.disabled = false;
-          button.textContent = "Invia richiesta";
-        }
+          result.textContent = err.message || "Errore di connessione. Riprova più tardi.";
+        } finally { button.disabled = false; button.textContent = "Invia richiesta"; }
       });
     })();
     </script>
     """
     return page("Ricontatto", content)
-
-
-@app.route("/api/contact", methods=["POST"])
-def contact_send():
-    if rate_limited("contact", 4, 600):
-        return jsonify(error="Hai effettuato troppe richieste. Riprova più tardi."), 429
-
-    data = request.get_json(silent=True) or {}
-
-    # Campo trappola per bot.
-    if str(data.get("website", "")).strip():
-        return jsonify(ok=True), 200
-
-    name = str(data.get("name", "")).strip()
-    email = str(data.get("email", "")).strip()
-    phone = str(data.get("phone", "")).strip()
-    message = str(data.get("message", "")).strip()
-    privacy = data.get("privacy")
-    accept_terms = data.get("accept_terms")
-
-    if not name or len(name) > 100:
-        return jsonify(error="Inserisci un nome valido."), 400
-
-    if not valid_email(email):
-        return jsonify(error="Inserisci un indirizzo email valido."), 400
-
-    if len(phone) > 40 or len(message) > 2000:
-        return jsonify(error="Uno dei campi supera la lunghezza consentita."), 400
-
-    if privacy not in (True, "on", "true", "1"):
-        return jsonify(error="Per inviare la richiesta devi confermare di aver letto l'informativa."), 400
-
-    if accept_terms not in (True, "yes", "on", "true", "1"):
-        return jsonify(error="Per inviare la richiesta devi accettare i Termini e Condizioni."), 400
-
-    # Evita header email controllati dall'utente.
-    if "\r" in email or "\n" in email:
-        return jsonify(error="Indirizzo email non valido."), 400
-
-    body = (
-        "Nuova richiesta di ricontatto dal sito FixTude\n\n"
-        f"Nome: {name}\n"
-        f"Email: {email}\n"
-        f"Telefono: {phone or 'Non indicato'}\n\n"
-        "Messaggio:\n"
-        f"{message or 'Nessun messaggio aggiuntivo'}\n"
-    )
-
-    try:
-        send_email(
-            subject="FixTude - nuova richiesta di ricontatto",
-            body=body,
-            reply_to=email
-        )
-    except Exception as exc:
-        # Registriamo solo il tipo e il messaggio tecnico dell'errore SMTP,
-        # senza riportare nei log i dati personali inseriti nel modulo.
-        app.logger.error(
-            "Invio email di ricontatto fallito: %s: %s",
-            type(exc).__name__,
-            str(exc)
-        )
-        return jsonify(
-            error="Al momento non è possibile inviare la richiesta. Riprova più tardi."
-        ), 503
-
-    # Nessun salvataggio dei campi nel database o in un file.
-    return jsonify(ok=True), 200
 
 
 # =========================================================
@@ -4065,11 +4029,11 @@ def legal_terms():
 def privacy():
     body = """<p>Questa informativa descrive i principali trattamenti connessi alla versione attuale del sito FixTude. Viene aggiornata quando cambiano in modo rilevante le funzionalità, i fornitori o le modalità di trattamento.</p>
     <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è Giovanni Pugliese, che gestisce il servizio denominato FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per richieste relative ai dati personali: contatto@fixtude.it.</p>
-    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio all’endpoint <code>/api/contact</code>; il server inoltra la richiesta tramite SMTP alla casella del titolare. L’applicazione non conserva una copia in un proprio database; i dati possono restare nei sistemi del fornitore SMTP e nella casella email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude da € 1,99. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del pacchetto composto da report, un libro a scelta e modelli fac-simile.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
+    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio direttamente a Web3Forms tramite HTTPS per l’inoltro al titolare. L’applicazione non conserva una copia in un proprio database; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude da € 1,99. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del pacchetto composto da report, un libro a scelta e modelli fac-simile.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
     <h2>3. Basi giuridiche</h2><p>Le richieste di contatto sono trattate per rispondere a una richiesta dell'interessato e adottare misure precontrattuali su sua richiesta. I dati relativi ad acquisti sono trattati per eseguire il contratto e adempiere agli obblighi di legge. Sicurezza e prevenzione abusi possono basarsi sul legittimo interesse, da valutare e documentare. Eventuali attività promozionali richiedono una valutazione e, ove necessario, un consenso separato.</p>
-    <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l’hosting (se confermato in produzione), Web3Forms per le notifiche email della chat, il fornitore del servizio SMTP per il modulo di ricontatto, Register per la casella email e Stripe per i pagamenti del libro, quando attivi. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
+    <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l’hosting (se confermato in produzione), Web3Forms per le notifiche email della chat, Web3Forms per il modulo di ricontatto, Register per la casella email e Stripe per i pagamenti del libro, quando attivi. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
     <h2>5. Cookie e strumenti di tracciamento</h2><p>Google Analytics (ID di misurazione G-HMBBNLHC7E) viene caricato soltanto dopo la scelta esplicita della categoria statistiche nel pannello cookie. Se la categoria viene rifiutata o disattivata, il sito non avvia nuove richieste di misurazione e aggiorna lo stato di consenso di Google Analytics. I pixel pubblicitari non sono attivi. Prima del lancio definitivo occorre verificare tecnicamente i cookie effettivamente installati e aggiornare questa informativa in base ai risultati.</p>
-    <h2>6. Conservazione</h2><p>I messaggi chat sono temporanei secondo quanto descritto sopra. Le richieste di contatto possono restare nei sistemi del fornitore di invio e nella casella email del destinatario. I tempi effettivi di conservazione dei fornitori, della posta e dei log devono essere verificati e definiti dal titolare prima del lancio.</p>
+    <h2>6. Conservazione</h2><p>I messaggi chat sono temporanei secondo quanto descritto sopra. Le richieste di contatto possono restare nei sistemi di Web3Forms e nella casella email del destinatario. I tempi effettivi di conservazione dei fornitori, della posta e dei log devono essere verificati e definiti dal titolare prima del lancio.</p>
     <h2>7. Diritti</h2><p>Nei limiti previsti dal GDPR è possibile chiedere accesso, rettifica, cancellazione, limitazione, opposizione e, ove applicabile, portabilità, scrivendo a contatto@fixtude.it. È possibile proporre reclamo al Garante per la protezione dei dati personali.</p>
     <h2>8. Sicurezza e aggiornamenti</h2><p>Il titolare deve verificare periodicamente le misure di sicurezza, l'accesso ai sistemi, la configurazione dei fornitori e la corrispondenza di questa informativa con i trattamenti reali. La pagina va aggiornata prima di introdurre nuove funzionalità o servizi di terze parti.</p>"""
     return legal_page("Informativa Privacy", body)
