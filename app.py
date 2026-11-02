@@ -390,6 +390,7 @@ def page(title, content, include_chat=False):
             "datePublished": "2026-10-23",
             "dateModified": "2026-10-23",
             "inLanguage": "it-IT",
+            "image": SEO_BASE_URL + "/static/Piano%20di%20rientro%20con%20cambiali_%20pro%20e%20contro.png",
             "mainEntityOfPage": {"@type": "WebPage", "@id": SEO_BASE_URL + path},
             "author": {"@type": "Organization", "name": "FixTude", "url": SEO_BASE_URL + "/"},
             "publisher": {"@type": "Organization", "name": "FixTude", "url": SEO_BASE_URL + "/"},
@@ -3446,6 +3447,9 @@ def educazione_finanziaria():
       </div>
     </section>
     <section class="card education-article-card" aria-labelledby="guide-cambiali">
+      <a class="education-article-image-link" href="/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro" aria-label="Leggi la guida sul piano di rientro con cambiali">
+        <img class="education-article-image" src="/static/Piano%20di%20rientro%20con%20cambiali_%20pro%20e%20contro.png" alt="Piano di rientro con cambiali: vantaggi e rischi da conoscere prima di firmare" loading="lazy">
+      </a>
       <div class="education-article-copy">
         <p class="muted">GUIDA PRATICA · 10 MINUTI DI LETTURA</p>
         <h2 id="guide-cambiali"><a href="/educazione-finanziaria/piano-di-rientro-cambiali-pro-contro">Piano di rientro con cambiali: pro, contro e rischi da conoscere prima di firmare</a></h2>
@@ -3588,6 +3592,7 @@ def articolo_piano_rientro_cambiali():
     content = r'''<article class="article-content">
       <h1>Piano di rientro con cambiali: pro, contro e rischi da conoscere prima di firmare</h1>
       <p class="article-subtitle">Accettare un piano di rientro può aiutarti a gestire un debito senza dover pagare tutto subito. Ma cosa succede se le rate sono garantite da cambiali? Scopri vantaggi, rischi, conseguenze del mancato pagamento e quali verifiche fare prima di firmare.</p>
+      <figure class="article-hero-image"><img src="/static/Piano%20di%20rientro%20con%20cambiali_%20pro%20e%20contro.png" alt="Piano di rientro con cambiali: pro e contro" loading="eager" fetchpriority="high"><figcaption>Prima di firmare un piano di rientro con cambiali, è importante conoscerne vantaggi, obblighi e rischi.</figcaption></figure>
       <nav class="article-index card" aria-label="Indice dell'articolo"><strong>In questa guida</strong><ol>
         <li><a href="#che-cose">Che cos'è un piano di rientro con cambiali?</a></li>
         <li><a href="#vantaggi">Quali sono i vantaggi?</a></li>
@@ -4484,7 +4489,6 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5000")),
         debug=False
     )
-
 
 
 
