@@ -41,12 +41,12 @@ except ImportError:  # L’app resta avviabile anche prima dell’installazione 
 app = Flask(__name__)
 
 # =========================================================
-# FIXTUDE - CALCOLATORE + RICONTATTO DIRETTO + CHAT LIVE
+# FIXTUDE V13 - CALCOLATORE + RICONTATTO SERVER-SIDE + CHAT LIVE
 #
 # Nessun database applicativo.
 # Il calcolatore funziona nel browser.
-# Il modulo di ricontatto invia i dati direttamente a Web3Forms via HTTPS.
-# Le notifiche email della chat usano ancora SMTP.
+# Il modulo di ricontatto usa la route Flask /richiedi-contatto e SMTP server-side.
+# Il destinatario delle richieste è nannipugliese@gmail.com.
 # La chat usa esclusivamente memoria temporanea RAM.
 # =========================================================
 
@@ -64,11 +64,9 @@ app.config["SESSION_COOKIE_SECURE"] = (
 )
 app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 
-# Destinatario di prova: dopo il test riuscito si può impostare
-# EMAIL_DESTINATARIO=info@fixtude.it nelle variabili di Render.
-EMAIL_DESTINATARIO = os.environ.get(
-    "EMAIL_DESTINATARIO", "nannipugliese@gmail.com"
-).strip()
+# Destinatario fisso delle richieste di contatto FixTude.
+# Non dipende da variabili d'ambiente eventualmente configurate in modo errato.
+EMAIL_DESTINATARIO = "nannipugliese@gmail.com"
 
 ROME_TZ = ZoneInfo("Europe/Rome")
 
@@ -2614,8 +2612,6 @@ def consulenza():
       const form = document.getElementById("contactForm");
       const result = document.getElementById("contactResult");
       const button = document.getElementById("contactSubmit");
-      const accessKey = "6cfd757e-6b16-49e0-96b5-e055a159f403";
-
       form.addEventListener("submit", async e => {
         e.preventDefault();
         result.className = "";
@@ -2634,22 +2630,20 @@ def consulenza():
           return;
         }
 
-        values.access_key = accessKey;
-        values.subject = "FixTude - nuova richiesta di ricontatto";
-        values.from_name = "FixTude - modulo di ricontatto";
-        values.botcheck = values.botcheck || "";
-        delete values.website;
+        // Invio al server FixTude: la route valida i campi e spedisce via SMTP.
+        // Il campo honeypot viene mantenuto per il controllo antispam server-side.
 
         button.disabled = true;
         button.textContent = "Invio in corso…";
 
         try {
-          const response = await fetch("https://api.web3forms.com/submit", {
+          const response = await fetch("/richiedi-contatto", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "Accept": "application/json"
             },
+            credentials: "same-origin",
             body: JSON.stringify(values)
           });
 
@@ -2677,7 +2671,8 @@ def consulenza():
     return page("Ricontatto", content)
 
 
-@app.route("/api/contact", methods=["POST"])
+@app.route("/richiedi-contatto", methods=["POST"])
+@app.route("/api/contact", methods=["POST"])  # Compatibilità con eventuali vecchi client.
 def contact_send():
     if rate_limited("contact", 4, 600):
         return jsonify(error="Hai effettuato troppe richieste. Riprova più tardi."), 429
@@ -3862,7 +3857,7 @@ def legal_terms():
 def privacy():
     body = """<p>Questa informativa descrive i principali trattamenti connessi alla versione attuale del sito FixTude. Viene aggiornata quando cambiano in modo rilevante le funzionalità, i fornitori o le modalità di trattamento.</p>
     <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è Giovanni Pugliese, che gestisce il servizio denominato FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per richieste relative ai dati personali: info@fixtude.it.</p>
-    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio tramite Web3Forms. È presente anche l’endpoint alternativo <code>/api/contact</code>, che se invocato inoltra i dati tramite il server SMTP configurato dal titolare. L’applicazione non conserva una copia in un proprio database; i dati possono restare nei sistemi dei fornitori e nella casella email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude da € 1,99. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del pacchetto composto da report, un libro a scelta e modelli fac-simile.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
+    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Modulo di ricontatto:</strong> il modulo invia nome, email, telefono facoltativo e messaggio alla route server <code>/richiedi-contatto</code>; il server inoltra la richiesta via SMTP alla casella del titolare. L’applicazione non conserva una copia in un proprio database; i dati possono restare nei sistemi dei fornitori e nella casella email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude da € 1,99. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del pacchetto composto da report, un libro a scelta e modelli fac-simile.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
     <h2>3. Basi giuridiche</h2><p>Le richieste di contatto sono trattate per rispondere a una richiesta dell'interessato e adottare misure precontrattuali su sua richiesta. I dati relativi ad acquisti sono trattati per eseguire il contratto e adempiere agli obblighi di legge. Sicurezza e prevenzione abusi possono basarsi sul legittimo interesse, da valutare e documentare. Eventuali attività promozionali richiedono una valutazione e, ove necessario, un consenso separato.</p>
     <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l’hosting (se confermato in produzione), Web3Forms per il modulo visibile e le notifiche email della chat, il fornitore del servizio SMTP configurato per l’endpoint alternativo, Register per la casella email e Stripe per i pagamenti del libro, quando attivi. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
     <h2>5. Cookie e strumenti di tracciamento</h2><p>Google Analytics (ID di misurazione G-HMBBNLHC7E) viene caricato soltanto dopo la scelta esplicita della categoria statistiche nel pannello cookie. Se la categoria viene rifiutata o disattivata, il sito non avvia nuove richieste di misurazione e aggiorna lo stato di consenso di Google Analytics. I pixel pubblicitari non sono attivi. Prima del lancio definitivo occorre verificare tecnicamente i cookie effettivamente installati e aggiornare questa informativa in base ai risultati.</p>
@@ -4329,6 +4324,7 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5000")),
         debug=False
     )
+
 
 
 
