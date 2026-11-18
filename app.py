@@ -1223,7 +1223,7 @@ def page(title, content, include_chat=False):
 def fixtude_v1_route_guard():
     path = request.path or "/"
     allowed = {
-        "/", "/analisi", "/checkout", "/checkout/crea", "/checkout/conferma", "/checkout/download",
+        "/", "/analisi", "/percorso", "/percorso/risultato", "/checkout", "/checkout/crea", "/checkout/conferma", "/checkout/download",
         "/chi-siamo", "/educazione-finanziaria",
         "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo",
         "/educazione-finanziaria/guida-saldo-e-stralcio",
@@ -1454,7 +1454,8 @@ def analisi_v2():
     risultato = calcola_semaforo(entrate, uscite, debiti)
     piano = genera_piano_negoziale(entrate, uscite, debiti, risultato)
     session["fixtude_v2_calcolo"] = {"entrate": entrate, "uscite": uscite, "debiti": debiti, **risultato, **piano}
-    return redirect(url_for("checkout_v2"))
+    session.pop("fixtude_percorso_risposte", None)
+    return redirect(url_for("percorso_debitorio"))
 
 
 def calcola_semaforo(entrate, uscite, debiti):
@@ -1583,6 +1584,190 @@ def genera_piano_negoziale(entrate, uscite, debiti, risultato):
         "azioni_negoziali": azioni, "avvertenza_negoziale": cautela,
         "motore_versione": "FixTude V6 - motore decisionale deterministico",
     }
+
+
+# =========================================================
+# PERCORSO DI CHIAREZZA DEBITORIA - SEI SCHEDE INTERATTIVE
+# I dati restano nella sessione tecnica firmata e non vengono archiviati in DB.
+# =========================================================
+
+PERCORSO_SCHEDE = [
+    ("01", "I tuoi debiti", "Quali situazioni compongono la tua esposizione?", [
+        "Prestiti personali o finanziamenti", "Carte di credito o revolving", "Mutuo o finanziamento immobiliare",
+        "Bollette, utenze o servizi", "Tributi, multe o cartelle", "Debiti verso privati o familiari",
+        "Non so distinguere con precisione le tipologie"
+    ]),
+    ("02", "I creditori", "Da quante posizioni o soggetti arrivano le richieste?", [
+        "Un solo creditore", "Da 2 a 3 creditori", "Da 4 a 5 creditori", "Più di 5 creditori",
+        "Non conosco il numero esatto", "Il credito è stato ceduto a una società diversa dal creditore iniziale"
+    ]),
+    ("03", "Le comunicazioni ricevute", "Quali comunicazioni o atti hai ricevuto? Seleziona tutte le risposte pertinenti.", [
+        "Solleciti telefonici, SMS o email", "Lettere di sollecito o messa in mora", "Diffida o richiesta formale di pagamento",
+        "Comunicazione di cessione del credito", "Decreto ingiuntivo", "Atto di precetto",
+        "Pignoramento o atto di esecuzione", "Non ho ricevuto comunicazioni recenti", "Non sono sicuro del tipo di documento"
+    ]),
+    ("04", "I documenti disponibili", "Quali documenti puoi consultare o recuperare?", [
+        "Contratto originario", "Estratto conto o piano di ammortamento", "Conteggio aggiornato del debito",
+        "Ricevute dei pagamenti effettuati", "Lettere e comunicazioni del creditore", "Atti giudiziari o notifiche",
+        "Ho pochi documenti o non ne ho", "Devo ancora riordinare la documentazione"
+    ]),
+    ("05", "La tua possibilità economica", "Oltre al bilancio già inserito nel calcolatore, qual è la tua situazione?", [
+        "Ho una piccola disponibilità mensile, ma non so quanto offrire",
+        "Non riesco attualmente a sostenere altre rate", "Potrei disporre di una somma una tantum",
+        "Le mie entrate sono variabili o instabili", "Ho familiari o altre persone economicamente a carico",
+        "Ho già altre rate o trattenute in corso", "La mia situazione economica potrebbe cambiare a breve"
+    ]),
+    ("06", "Il risultato che cerchi", "Quali aspetti vuoi chiarire con priorità?", [
+        "Capire quanto devo e a chi", "Capire se gli importi richiesti sono verificabili",
+        "Capire quali documenti devo chiedere", "Valutare una rateizzazione sostenibile",
+        "Capire se posso proporre un saldo e stralcio", "Capire se ci sono termini o atti urgenti da non trascurare",
+        "Prepararmi a parlare con il creditore", "Capire quando è necessario rivolgermi a un professionista"
+    ]),
+]
+
+
+def _percorso_risposte():
+    raw = session.get("fixtude_percorso_risposte", {})
+    return raw if isinstance(raw, dict) else {}
+
+
+@app.route("/percorso", methods=["GET", "POST"])
+def percorso_debitorio():
+    if not session.get("fixtude_v2_calcolo"):
+        return redirect(url_for("home"))
+    if request.method == "POST":
+        risposte = {}
+        for idx, (numero, titolo, domanda, opzioni) in enumerate(PERCORSO_SCHEDE, 1):
+            key = f"scheda_{idx}"
+            scelte = request.form.getlist(key)
+            scelte = [v for v in scelte if v in opzioni]
+            if not scelte:
+                return page("Percorso incompleto", '<section class="card"><h1>Completa tutte le schede</h1><p>Per generare un risultato utile, seleziona almeno una risposta in ciascuna delle sei schede.</p><a class="btn" href="/percorso">Torna al percorso</a></section>'), 400
+            risposte[titolo] = scelte
+        session["fixtude_percorso_risposte"] = risposte
+        session.modified = True
+        return redirect(url_for("percorso_risultato"), code=303)
+
+    schede_html = []
+    for idx, (numero, titolo, domanda, opzioni) in enumerate(PERCORSO_SCHEDE):
+        checks = "".join(
+            f'''<label class="ft-choice"><input type="checkbox" name="scheda_{idx+1}" value="{escape(opzione, quote=True)}"><span>{escape(opzione)}</span><i aria-hidden="true">✓</i></label>'''
+            for opzione in opzioni
+        )
+        schede_html.append(f'''<section class="ft-sheet" data-sheet="{idx}" {'hidden' if idx else ''}>
+          <div class="ft-sheet-kicker">SCHEDA {numero} DI 06</div><h2>{escape(titolo)}</h2><p>{escape(domanda)}</p>
+          <div class="ft-choices">{checks}</div>
+          <p class="ft-sheet-hint">Puoi selezionare più risposte. Scegli quelle che descrivono meglio la tua situazione.</p>
+        </section>''')
+    content = r'''<div class="ft-wizard-wrap">
+      <section class="card ft-wizard-card">
+        <div class="ft-wizard-top"><span>FIXTUDE · PIANO DI CHIAREZZA DEBITORIA</span><span id="ftStepCount">01 / 06</span></div>
+        <h1>Conosciamo meglio la tua situazione.</h1>
+        <p class="muted">Sei schede guidate per mettere ordine nelle informazioni e preparare un quadro più utile e completo.</p>
+        <div class="ft-progress"><span id="ftProgress"></span></div>
+        <form method="post" action="/percorso" id="ftWizardForm">
+          __SHEETS__
+          <div class="ft-wizard-actions"><button class="btn secondary" id="ftPrev" type="button" disabled>← Indietro</button><button class="btn" id="ftNext" type="button">Continua →</button><button class="btn" id="ftGenerate" type="submit" hidden>Genera il mio risultato</button></div>
+          <p class="ft-wizard-foot">Le risposte servono a contestualizzare il risultato. Non costituiscono una verifica documentale né una valutazione legale.</p>
+        </form>
+      </section>
+    </div>
+    <style>
+      body:has(.ft-wizard-wrap){background:#123B50!important;color:#f4f6fa!important}
+      body:has(.ft-wizard-wrap) header,body:has(.ft-wizard-wrap) footer{background:#123B50!important;color:#d2e0e7!important;border-color:#28566a!important}
+      body:has(.ft-wizard-wrap) .brand{color:#f4f6fa!important}
+      body:has(.ft-wizard-wrap) footer a{color:#b9e2f2!important}
+      .ft-wizard-wrap{max-width:760px;margin:10px auto 35px}
+      .ft-wizard-card{padding:clamp(18px,4vw,34px)!important;border-radius:22px!important}
+      .ft-wizard-top{display:flex;justify-content:space-between;gap:10px;color:#28758c;font-size:11px;font-weight:900;letter-spacing:.08em}
+      .ft-wizard-card h1{font-size:clamp(25px,5vw,34px);line-height:1.15;margin:17px 0 8px;color:#173e53}
+      .ft-progress{height:9px;background:#e7edf3;border-radius:20px;overflow:hidden;margin:20px 0 26px}
+      .ft-progress span{display:block;width:16.666%;height:100%;background:linear-gradient(90deg,#17647b,#46a8b8);border-radius:20px;transition:width .3s ease}
+      .ft-sheet-kicker{color:#28758c;font-size:11px;font-weight:900;letter-spacing:.1em}
+      .ft-sheet h2{font-size:24px;margin:8px 0;color:#173e53}
+      .ft-sheet>p{color:#566579;line-height:1.55}
+      .ft-choices{display:grid;gap:9px;margin:19px 0}
+      .ft-choice{display:flex!important;align-items:center;gap:12px;padding:13px 14px;border:1px solid #d8e1e9;border-radius:12px;background:#fbfdff;cursor:pointer;transition:border-color .16s,background .16s,transform .12s;min-height:52px}
+      .ft-choice:hover{border-color:#8bb8c6;transform:translateY(-1px)}
+      .ft-choice:has(input:checked){border-color:#267f91;background:#eaf5f7;box-shadow:inset 0 0 0 1px #267f91}
+      .ft-choice input{width:19px;height:19px;flex:0 0 19px;accent-color:#176b7d;margin:0}
+      .ft-choice span{flex:1;color:#203047;font-size:14px;font-weight:600}
+      .ft-choice i{font-style:normal;color:#176b7d;font-weight:900;opacity:0}
+      .ft-choice:has(input:checked) i{opacity:1}
+      .ft-sheet-hint,.ft-wizard-foot{font-size:12px!important;color:#718096!important}
+      .ft-wizard-actions{display:flex;justify-content:space-between;gap:12px;margin-top:24px;padding-top:18px;border-top:1px solid #e4eaf0}
+      .ft-wizard-actions button{min-height:46px}
+      .ft-wizard-actions .secondary{background:#fff;color:#174b91;border:1px solid #b9c9d9}
+      .ft-wizard-foot{text-align:center;margin:18px 0 0}
+      @media(max-width:560px){.ft-wizard-actions{display:grid;grid-template-columns:1fr 1fr}.ft-wizard-actions #ftGenerate{grid-column:1/-1}.ft-choice{padding:12px}.ft-wizard-card{padding:18px!important}}
+      @media(prefers-reduced-motion:reduce){.ft-progress span,.ft-choice{transition:none}}
+    </style>
+    <script>
+    (()=>{
+      const form=document.getElementById('ftWizardForm');if(!form)return;
+      const sheets=[...form.querySelectorAll('.ft-sheet')],prev=document.getElementById('ftPrev'),next=document.getElementById('ftNext'),generate=document.getElementById('ftGenerate'),progress=document.getElementById('ftProgress'),counter=document.getElementById('ftStepCount');
+      let current=0,audio=null;
+      function tone(freq,duration,volume,type){try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!audio)audio=new AC();if(audio.state==='suspended')audio.resume();const o=audio.createOscillator(),g=audio.createGain(),t=audio.currentTime;o.type=type||'sine';o.frequency.setValueAtTime(freq,t);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(volume,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+duration);o.connect(g);g.connect(audio.destination);o.start(t);o.stop(t+duration+.02)}catch(e){}}
+      function clickSound(){tone(620,.075,.055,'triangle')}
+      function successSound(){tone(523,.16,.07);setTimeout(()=>tone(659,.17,.07),120);setTimeout(()=>tone(784,.28,.075),250)}
+      function show(i){current=Math.max(0,Math.min(sheets.length-1,i));sheets.forEach((s,n)=>s.hidden=n!==current);prev.disabled=current===0;next.hidden=current===sheets.length-1;generate.hidden=current!==sheets.length-1;counter.textContent=String(current+1).padStart(2,'0')+' / 06';progress.style.width=((current+1)/sheets.length*100)+'%';}
+      form.querySelectorAll('.ft-choice input').forEach(el=>el.addEventListener('change',clickSound));
+      prev.addEventListener('click',()=>{clickSound();show(current-1)});
+      next.addEventListener('click',()=>{if(!sheets[current].querySelector('input:checked')){tone(190,.12,.06,'square');sheets[current].querySelector('.ft-sheet-hint').textContent='Seleziona almeno una risposta per proseguire.';return}clickSound();show(current+1)});
+      form.addEventListener('submit',e=>{const missing=sheets.findIndex(s=>!s.querySelector('input:checked'));if(missing!==-1){e.preventDefault();show(missing);tone(190,.12,.06,'square');return}generate.disabled=true;generate.textContent='Elaborazione del risultato…';successSound()});
+      show(0);
+    })();
+    </script>'''.replace('__SHEETS__', ''.join(schede_html))
+    return page("Il tuo percorso di chiarezza debitoria", content)
+
+
+@app.route("/percorso/risultato", methods=["GET"])
+def percorso_risultato():
+    data = session.get("fixtude_v2_calcolo")
+    risposte = _percorso_risposte()
+    if not data or len(risposte) != len(PERCORSO_SCHEDE):
+        return redirect(url_for("percorso_debitorio"))
+    urgente = any("precetto" in v.lower() or "pignoramento" in v.lower() or "decreto ingiuntivo" in v.lower() for v in risposte.get("Le comunicazioni ricevute", []))
+    docs_mancanti = any("pochi documenti" in v.lower() or "non ne ho" in v.lower() for v in risposte.get("I documenti disponibili", []))
+    no_margin = float(data.get("saldo", 0) or 0) <= 0
+    priorities = []
+    if urgente:
+        priorities.append("Verifica subito la data di notifica e il contenuto dell'atto ricevuto: potrebbero esserci termini da rispettare. Se si tratta di precetto, pignoramento o decreto ingiuntivo, valuta tempestivamente un confronto con un avvocato.")
+    if docs_mancanti:
+        priorities.append("Prima di valutare pagamenti o accordi, riordina la documentazione e chiedi al creditore copia del contratto, dettaglio delle somme e conteggio aggiornato.")
+    if no_margin:
+        priorities.append("Dal bilancio dichiarato non emerge un margine mensile positivo. Evita di assumere nuove rate senza aver verificato tutte le spese essenziali e le alternative disponibili.")
+    if not priorities:
+        priorities.append("Ricostruisci per ogni creditore importo richiesto, origine del credito, pagamenti già eseguiti, eventuali interessi e stato delle comunicazioni.")
+    priorities.append("Confronta qualsiasi proposta con il tuo bilancio reale e chiedi sempre condizioni, importi ed effetti dell'accordo in forma scritta.")
+    cards = []
+    for titolo, scelte in risposte.items():
+        cards.append(f'<article class="ft-result-item"><h3>{escape(titolo)}</h3><p>{" · ".join(escape(x) for x in scelte)}</p></article>')
+    priority_html = ''.join(f'<li>{escape(x)}</li>' for x in priorities)
+    semaforo = escape(str(data.get("colore", "")).upper())
+    def euro_it(value):
+        try:
+            return (f"€ {float(value):,.2f}").replace(",", "X").replace(".", ",").replace("X", ".")
+        except (TypeError, ValueError):
+            return "—"
+    content = f'''<div class="ft-result-wrap"><section class="card ft-result-card">
+      <div class="ft-result-kicker">FIXTUDE · SINTESI DEL TUO PERCORSO</div><h1>La tua situazione, messa in ordine.</h1>
+      <p>Hai completato tutte e sei le schede. Ecco la sintesi delle informazioni che hai dichiarato e le priorità da cui partire.</p>
+      <div class="ft-result-status"><span>ESITO DEL CALCOLATORE</span><strong>{semaforo}</strong><small>{escape(str(data.get('etichetta','')))}</small></div>
+      <div class="ft-result-metrics"><div><small>Entrate mensili</small><strong>{euro_it(data.get('entrate',0))}</strong></div><div><small>Uscite mensili</small><strong>{euro_it(data.get('uscite',0))}</strong></div><div><small>Debito dichiarato</small><strong>{euro_it(data.get('debiti',0))}</strong></div><div><small>Saldo mensile</small><strong>{euro_it(data.get('saldo',0))}</strong></div></div>
+      <h2>Le tue priorità operative</h2><ol>{priority_html}</ol>
+      <h2>Le informazioni che ci hai fornito</h2><div class="ft-result-list">{''.join(cards)}</div>
+      <div class="ft-result-note"><strong>Che cosa significa questo risultato?</strong><p>Questa sintesi organizza le tue risposte e le collega agli indicatori economici del calcolatore. Non verifica l'autenticità degli atti, non accerta la prescrizione e non stabilisce se un credito sia dovuto: per queste conclusioni occorrono documenti e, quando necessario, una valutazione professionale.</p></div>
+      <a class="btn ft-result-continue" href="/checkout">Continua al prodotto FixTude</a>
+      <p class="ft-result-small">Il dossier completo, con la sintesi delle sei schede e le simulazioni economiche, sarà disponibile dopo il pagamento.</p>
+    </section></div>
+    <style>
+      body:has(.ft-result-wrap){{background:#123B50!important;color:#f4f6fa!important}}body:has(.ft-result-wrap) header,body:has(.ft-result-wrap) footer{{background:#123B50!important;color:#d2e0e7!important;border-color:#28566a!important}}body:has(.ft-result-wrap) .brand{{color:#f4f6fa!important}}body:has(.ft-result-wrap) footer a{{color:#b9e2f2!important}}
+      .ft-result-wrap{{max-width:850px;margin:10px auto 35px}}.ft-result-card{{padding:clamp(18px,4vw,34px)!important;border-radius:22px!important}}.ft-result-kicker{{font-size:11px;font-weight:900;letter-spacing:.1em;color:#28758c}}.ft-result-card h1{{font-size:clamp(27px,5vw,36px);color:#173e53;margin:10px 0}}.ft-result-card>p{{color:#566579;line-height:1.6}}.ft-result-status{{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;background:#eef5f8;border-left:5px solid #287f91;border-radius:12px;padding:16px;margin:22px 0}}.ft-result-status span{{font-size:10px;letter-spacing:.08em;font-weight:900;color:#597080}}.ft-result-status strong{{grid-column:2;grid-row:1/3;font-size:25px;color:#17647b}}.ft-result-status small{{color:#536779}}.ft-result-metrics{{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:18px 0 28px}}.ft-result-metrics>div{{padding:13px 10px;background:#f5f8fb;border:1px solid #e0e8ef;border-radius:11px;min-width:0}}.ft-result-metrics small{{display:block;color:#65758b;font-size:11px}}.ft-result-metrics strong{{display:block;color:#173e53;font-size:clamp(13px,2.5vw,18px);margin-top:5px;overflow-wrap:anywhere}}.ft-result-card h2{{font-size:20px;color:#173e53;margin:24px 0 12px}}.ft-result-card ol{{padding-left:22px;color:#34475c;line-height:1.65}}.ft-result-card li{{margin:9px 0}}.ft-result-list{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}.ft-result-item{{border:1px solid #dce5ed;background:#fbfdff;border-radius:11px;padding:13px}}.ft-result-item h3{{font-size:14px;color:#17647b;margin:0 0 7px}}.ft-result-item p{{font-size:12px;color:#526174;line-height:1.5;margin:0}}.ft-result-note{{background:#fff8e8;border:1px solid #f0dfb5;border-radius:12px;padding:15px;margin:22px 0}}.ft-result-note p{{font-size:13px;color:#5c5140;line-height:1.55;margin:6px 0 0}}.ft-result-continue{{display:block;text-align:center;margin:20px 0 10px;padding:14px}}.ft-result-small{{font-size:12px!important;text-align:center}}
+      @media(max-width:600px){{.ft-result-metrics{{grid-template-columns:repeat(2,1fr)}}.ft-result-list{{grid-template-columns:1fr}}}}
+    </style>
+'''
+    return page("Il risultato del tuo percorso FixTude", content)
 
 
 @app.route("/checkout", methods=["GET"])
@@ -1812,6 +1997,13 @@ def _pdf_report(data):
     for item in data.get('azioni_negoziali',[]):
         paragraph('•  '+str(item),width=94,leading=11)
 
+    percorso = data.get('percorso_risposte') or {}
+    if percorso:
+        y += 5
+        heading('Le informazioni raccolte nelle sei schede')
+        for titolo, scelte in percorso.items():
+            paragraph(str(titolo) + ': ' + '; '.join(str(x) for x in scelte), width=94, size=7.7, leading=10.5)
+
     # Seconda pagina: dettaglio ipotesi, rate teoriche e avvertenze.
     footer(len(pages)+1)
     new_page()
@@ -1921,6 +2113,8 @@ def checkout_conferma_v2():
     try:
         paid = _get_paid_checkout(session_id)
         data = session.get("fixtude_v2_calcolo")
+        if data is not None:
+            data["percorso_risposte"] = _percorso_risposte()
         product_id = session.get("fixtude_v2_product")
         if not paid or not data or not product_id:
             return page("Verifica pagamento", '<section class="card"><h1>Pagamento da verificare</h1><p>Non è stato possibile recuperare tutti i dati della sessione. Se il pagamento è stato effettuato, scrivi a contatto@fixtude.it indicando il riferimento della transazione.</p></section>'), 402
@@ -1967,6 +2161,8 @@ def checkout_download_v2():
     try:
         paid = _get_paid_checkout(session_id)
         data = session.get("fixtude_v2_calcolo")
+        if data is not None:
+            data["percorso_risposte"] = _percorso_risposte()
         product_id = session.get("fixtude_v2_product")
         if not paid or not data or not product_id:
             return "Accesso non autorizzato o sessione scaduta", 403
