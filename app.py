@@ -1790,15 +1790,51 @@ def checkout_v2():
       <p class="muted" style="text-align:center">Il colore è un primo esito orientativo. L'analisi della tua situazione, la valutazione dei possibili piani di rientro e le indicazioni per affrontare la trattativa sono contenute nel report personalizzato.</p>
       {annullato}
       <div class="ft-promo"><span class="ft-promo-label">OFFERTA DI LANCIO · PREZZO PROMOZIONALE</span><div class="ft-promo-price">€ 49,90</div><p>Un unico acquisto per il <strong>Kit FixTude con prima consulenza legale gratuita</strong>.</p></div>
-      <p>Ricevi il <strong>dossier personalizzato</strong>, con l'elaborazione dei dati inseriti, la spiegazione del risultato, gli scenari orientativi e le indicazioni operative; i modelli fac-simile disponibili e <strong>una delle tre guide digitali a tua scelta</strong>. Dopo il pagamento potrai lasciare i recapiti e autorizzare il legale di riferimento a contattarti per una prima consulenza.</p>
-      <form method="post" action="/checkout/crea">
+      <p>Ricevi il <strong>dossier personalizzato</strong>, con l'elaborazione dei dati inseriti, la spiegazione del risultato, gli scenari orientativi e le indicazioni operative; i modelli fac-simile disponibili e <strong>una delle tre guide digitali a tua scelta</strong>. Prima di passare al pagamento potrai scegliere se richiedere la prima consulenza legale gratuita e lasciare i recapiti: l'avvocato li riceverà soltanto dopo la conferma del pagamento.</p>
+      <form id="ft-checkout-form" method="post" action="/checkout/crea">
         <div class="book-choice"><label><input type="radio" name="prodotto" value="niente_panico_pdf" required><strong>NIENTE PANICO</strong><br><span class="muted">Guida pratica per mettere ordine nella situazione debitoria.</span></label></div>
         <div class="book-choice"><label><input type="radio" name="prodotto" value="guida_saldo_stralcio_pdf" required><strong>GUIDA AL SALDO E STRALCIO</strong><br><span class="muted">Guida dedicata alla trattativa e alla chiusura dei debiti.</span></label></div>
         <div class="book-choice"><label><input type="radio" name="prodotto" value="guida_cambiali_pdf" required><strong>PIANO DI RIENTRO CON CAMBIALI: PRO, CONTRO E RISCHI</strong><br><span class="muted">Guida per comprendere vantaggi, rischi e conseguenze prima di firmare.</span></label></div>
         <p><strong>Totale promozionale: € 49,90</strong> – pagamento unico, senza abbonamenti.</p>
         <label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>Accetto i <a href="/termini" target="_blank" rel="noopener">Termini e Condizioni</a> e dichiaro di aver letto l'<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>.</span></label>
-        <button class="btn" type="submit">ACQUISTA IL KIT + CONSULENZA – € 49,90</button>
+        <input type="hidden" name="consultation_request" id="ft-consultation-request" value="no">
+        <button class="btn" id="ft-open-consulenza" type="button">PROSEGUI AL PAGAMENTO – € 49,90</button>
+        <div id="ft-beforepay-modal" class="ft-beforepay-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="ft-beforepay-title">
+          <div class="ft-beforepay-backdrop"></div>
+          <div class="ft-beforepay-box">
+            <button type="button" class="ft-beforepay-close" aria-label="Chiudi">×</button>
+            <div class="ft-modal-kicker">PRIMA DI PROCEDERE</div>
+            <h2 id="ft-beforepay-title">Vuoi essere ricontattato dall’avvocato?</h2>
+            <p>Con il Kit FixTude è inclusa una prima consulenza legale gratuita. Se vuoi richiederla, lascia qui i recapiti: saranno trasmessi all’avvocato <strong>solo dopo la conferma del pagamento</strong>.</p>
+            <div class="ft-beforepay-fields">
+              <label>Nome e cognome<input id="ft-legal-name" name="legal_name" type="text" maxlength="100" autocomplete="name" placeholder="Nome e cognome"></label>
+              <label>Numero di telefono<input id="ft-legal-phone" name="legal_phone" type="tel" maxlength="30" autocomplete="tel" placeholder="Il numero al quale contattarti"></label>
+              <label>Indirizzo email<input id="ft-legal-email" name="legal_email" type="email" maxlength="254" autocomplete="email" placeholder="nome@esempio.it"></label>
+              <label class="ft-beforepay-consent"><input id="ft-legal-consent" name="legal_consent" type="checkbox" value="yes"><span>Acconsento espressamente alla comunicazione di nome, telefono ed email all’avvocato di riferimento di FixTude, esclusivamente per essere contattato e organizzare la prima consulenza legale gratuita. Ho letto l’<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>. Il consenso è facoltativo.</span></label>
+            </div>
+            <p class="ft-beforepay-note">Il colloquio iniziale è di primo orientamento. Eventuali incarichi successivi saranno concordati direttamente con il professionista.</p>
+            <button class="btn ft-beforepay-primary" id="ft-pay-with-consultation" type="button">CONTINUA AL PAGAMENTO E RICHIEDI LA CONSULENZA</button>
+            <button class="ft-beforepay-secondary" id="ft-pay-without-consultation" type="button">Continua senza richiedere la consulenza</button>
+          </div>
+        </div>
       </form>
+      <script>
+      (function(){{
+        var form=document.getElementById('ft-checkout-form');
+        var modal=document.getElementById('ft-beforepay-modal');
+        var open=document.getElementById('ft-open-consulenza');
+        if(!form||!modal||!open)return;
+        var name=document.getElementById('ft-legal-name'),phone=document.getElementById('ft-legal-phone'),email=document.getElementById('ft-legal-email'),consent=document.getElementById('ft-legal-consent');
+        var choice=document.getElementById('ft-consultation-request');
+        function show(){{if(!form.reportValidity())return;modal.style.display='flex';modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';}}
+        function hide(){{modal.style.display='none';modal.setAttribute('aria-hidden','true');document.body.style.overflow='';}}
+        function submit(value){{choice.value=value; if(value==='yes'){{if(!name.value.trim()||!phone.value.trim()||!email.value.trim()||!email.checkValidity()||!consent.checked){{alert('Per richiedere la consulenza inserisci nome, telefono ed email e presta il consenso. In alternativa puoi proseguire senza richiederla.');return;}}}} form.submit();}}
+        open.addEventListener('click',show);
+        modal.querySelector('.ft-beforepay-close').addEventListener('click',hide);
+        document.getElementById('ft-pay-with-consultation').addEventListener('click',function(){{submit('yes');}});
+        document.getElementById('ft-pay-without-consultation').addEventListener('click',function(){{submit('no');}});
+      }})();
+      </script>
     </section>
     <p class="muted">Pagamento gestito da Stripe. Nessuna registrazione FixTude.</p>
     <style>
@@ -1836,6 +1872,22 @@ def checkout_v2():
       .book-choice label{{display:block;cursor:pointer}}
       .book-choice input{{margin-right:9px;accent-color:#174b91}}
       .check{{display:flex;gap:10px;align-items:flex-start;margin:20px 0;font-size:14px}}
+      .ft-beforepay-modal{{display:none;position:fixed;inset:0;z-index:2147483000;align-items:center;justify-content:center;padding:14px;box-sizing:border-box}}
+      .ft-beforepay-backdrop{{position:absolute;inset:0;background:rgba(5,20,31,.84);backdrop-filter:blur(5px)}}
+      .ft-beforepay-box{{position:relative;z-index:1;width:min(100%,570px);max-height:92vh;overflow:auto;box-sizing:border-box;background:#fff;color:#17364a;border-radius:18px;padding:26px;box-shadow:0 24px 80px rgba(0,0,0,.4);text-align:left}}
+      .ft-beforepay-box h2{{font-size:24px;line-height:1.2;margin:8px 36px 10px 0;color:#123b50}}
+      .ft-beforepay-box p{{line-height:1.5;color:#344b58!important}}
+      .ft-beforepay-box .ft-modal-kicker{{font-size:11px;font-weight:800;letter-spacing:1.5px;color:#16768a!important}}
+      .ft-beforepay-close{{position:absolute;right:14px;top:10px;border:0;background:transparent;color:#17364a;font-size:32px;cursor:pointer;line-height:1}}
+      .ft-beforepay-fields{{display:grid;gap:12px;margin-top:16px}}
+      .ft-beforepay-fields>label{{display:grid;gap:5px;font-weight:700;font-size:14px;color:#203047!important}}
+      .ft-beforepay-fields input[type=text],.ft-beforepay-fields input[type=tel],.ft-beforepay-fields input[type=email]{{width:100%;box-sizing:border-box;padding:12px;border:1px solid #bdcbd3;border-radius:9px;font:inherit;background:#fff;color:#17364a}}
+      .ft-beforepay-fields .ft-beforepay-consent{{display:flex;align-items:flex-start;gap:10px;font-size:12px;font-weight:400;line-height:1.45}}
+      .ft-beforepay-consent input{{margin-top:3px;flex:0 0 auto}}
+      .ft-beforepay-consent a{{color:#174b91!important}}
+      .ft-beforepay-note{{font-size:12px!important;color:#536b77!important;margin:12px 0}}
+      .ft-beforepay-primary{{width:100%;background:#f4b942!important;color:#17364a!important;font-weight:800}}
+      .ft-beforepay-secondary{{display:block;margin:10px auto 0;border:0;background:transparent;color:#45616f;text-decoration:underline;cursor:pointer;padding:8px}}
       @media(max-width:520px){{.card [role="img"] span{{width:48px!important;height:48px!important}}}}
     </style>"""
     return page("Kit FixTude – dossier e prima consulenza legale", content)
@@ -1855,6 +1907,18 @@ def checkout_crea_v2():
     }
     product_id = (request.form.get("prodotto") or "").strip()
     product = products.get(product_id)
+    consultation_request = (request.form.get("consultation_request") or "no").strip()
+    legal_name = " ".join((request.form.get("legal_name") or "").split())[:100]
+    legal_phone = " ".join((request.form.get("legal_phone") or "").split())[:30]
+    legal_email = (request.form.get("legal_email") or "").strip()[:254]
+    legal_consent = request.form.get("legal_consent") == "yes"
+    if consultation_request not in ("yes", "no"):
+        return redirect(url_for("checkout_v2"))
+    if consultation_request == "yes":
+        if (not legal_name or not legal_phone or
+                not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", legal_email) or
+                not legal_consent):
+            return page("Dati per la consulenza incompleti", '<section class="card"><h1>Controlla i dati inseriti</h1><p>Per richiedere la prima consulenza gratuita devi inserire nome, telefono ed email e prestare il consenso. Puoi anche tornare indietro e proseguire senza richiederla.</p><a class="btn" href="/checkout">Torna al riepilogo</a></section>'), 400
     secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
     if not product:
         return redirect(url_for("checkout_v2"))
@@ -1869,7 +1933,19 @@ def checkout_crea_v2():
             cancel_url=request.host_url.rstrip("/") + "/checkout?annullato=1",
             billing_address_collection="auto",
             customer_creation="if_required",
-            metadata={"fixtude_product": product_id, "fixtude_flow": "v2_kit_report", "fixtude_offer": "promozionale_49_90", "consultation_included": "yes"},
+            metadata={
+                "fixtude_product": product_id,
+                "fixtude_flow": "v2_kit_report",
+                "fixtude_offer": "promozionale_49_90",
+                "consultation_included": "yes",
+                "consultation_requested": "yes" if consultation_request == "yes" else "no",
+                "legal_name": legal_name if consultation_request == "yes" else "",
+                "legal_phone": legal_phone if consultation_request == "yes" else "",
+                "legal_email": legal_email if consultation_request == "yes" else "",
+                "legal_consent": "yes" if consultation_request == "yes" and legal_consent else "no",
+                "legal_consent_at": datetime.now(ROME_TZ).isoformat(timespec="seconds") if consultation_request == "yes" else "",
+                "legal_contact_sent": "no",
+            },
         )
         session["fixtude_v2_product"] = product_id
         return redirect(checkout.url, code=303)
@@ -2141,7 +2217,8 @@ def checkout_conferma_v2():
                 else:
                     with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
                         server.starttls(); server.login(SMTP_USER, SMTP_PASSWORD); server.send_message(msg)
-                stripe.checkout.Session.modify(session_id, metadata={**metadata, "delivery_email_sent": "yes"})
+                metadata = {**metadata, "delivery_email_sent": "yes"}
+                stripe.checkout.Session.modify(session_id, metadata=metadata)
                 sent = True
             except Exception:
                 app.logger.exception("Invio email consegna FixTude non riuscito")
@@ -2149,7 +2226,57 @@ def checkout_conferma_v2():
         session.pop("fixtude_v2_product", None)
         token = secrets.token_urlsafe(24)
         session["fixtude_consulenza_csrf"] = token
-        content = f"""<section class="card"><h1>Pagamento confermato</h1><p>Il pagamento è stato verificato correttamente.</p><p>{'Il dossier e i materiali sono stati inviati all’indirizzo email indicato durante il checkout.' if sent else 'Il pacchetto è pronto. Puoi scaricarlo direttamente da questa pagina.'}</p><a class="btn" href="/checkout/download?session_id={escape(session_id, quote=True)}">SCARICA DOSSIER, GUIDA E FAC-SIMILE</a><hr style="margin:28px 0;border:0;border-top:1px solid #dce5ef"><h2>Richiedi la prima consulenza legale gratuita</h2><p>Il tuo acquisto comprende la possibilità di una prima consulenza legale gratuita. Per consentire all’avvocato di contattarti, devi comunicare i tuoi recapiti e prestare il consenso alla loro trasmissione.</p><p><a class="btn" href="/checkout/consulenza?session_id={escape(session_id, quote=True)}">COMPILA IL MODULO DI CONTATTO DEL DEBITORE</a></p><div class="ft-contact-panel"><h3>Inserisci qui i tuoi recapiti</h3><form method="post" action="/checkout/consulenza" class="ft-legal-contact"><input type="hidden" name="session_id" value="{escape(session_id, quote=True)}"><input type="hidden" name="csrf_token" value="{token}"><label>Nome e cognome<input name="nome" type="text" maxlength="100" autocomplete="name" required></label><label>Telefono<input name="telefono" type="tel" maxlength="30" autocomplete="tel" required></label><label>Email<input name="email" type="email" maxlength="254" autocomplete="email" required></label><label class="ft-consent"><input type="checkbox" name="consenso" value="yes" required><span>Acconsento espressamente che i recapiti sopra indicati siano comunicati all’avvocato di riferimento di FixTude, esclusivamente per essere contattato e organizzare una prima consulenza legale gratuita relativa alla mia richiesta. Ho letto l’<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>. Il consenso è facoltativo: posso scaricare il materiale acquistato anche senza richiedere la consulenza.</span></label><button class="btn" type="submit">INVIA I RECAPITI E RICHIEDI DI ESSERE CONTATTATO</button></form></div><p class="muted">La consulenza iniziale è un colloquio di primo orientamento; eventuali attività professionali successive saranno valutate direttamente con l’avvocato e, se richieste, concordate separatamente. Non viene garantito uno specifico esito.</p><p class="muted">Conserva il file ZIP sul tuo dispositivo. Non è stato creato un account FixTude.</p></section><style>.ft-contact-panel{{display:block!important;margin:22px 0;padding:20px;border:2px solid #1b7185;border-radius:14px;background:#f2f9fb;color:#17364a}}.ft-contact-panel h3{{margin:0 0 12px}}.ft-legal-contact{{display:grid!important;gap:14px;margin-top:18px}}.ft-legal-contact label{{display:grid;gap:6px;font-weight:700}}.ft-legal-contact input[type=text],.ft-legal-contact input[type=tel],.ft-legal-contact input[type=email]{{width:100%;box-sizing:border-box;padding:12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}}.ft-legal-contact .ft-consent{{display:flex;align-items:flex-start;gap:10px;font-size:14px;font-weight:400;line-height:1.5}}.ft-legal-contact .ft-consent input{{margin-top:4px;flex:0 0 auto}}</style>"""
+        # Dopo la conferma del pagamento, inoltra i recapiti solo se il cliente
+        # ha richiesto la consulenza e ha prestato il consenso prima del checkout.
+        legal_sent = False
+        if (metadata.get("consultation_requested") == "yes" and
+                metadata.get("legal_consent") == "yes" and
+                metadata.get("legal_contact_sent") != "yes"):
+            try:
+                legal_name = str(metadata.get("legal_name") or "").strip()
+                legal_phone = str(metadata.get("legal_phone") or "").strip()
+                legal_email = str(metadata.get("legal_email") or "").strip()
+                if (legal_name and legal_phone and
+                        re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", legal_email) and
+                        SMTP_HOST and SMTP_USER and SMTP_PASSWORD and SMTP_FROM):
+                    legal_msg = EmailMessage()
+                    legal_msg["Subject"] = "FixTude – richiesta di primo contatto legale dopo pagamento"
+                    legal_msg["From"] = SMTP_FROM
+                    legal_msg["To"] = EMAIL_LEGALE
+                    legal_msg["Reply-To"] = legal_email
+                    legal_msg.set_content(f"""Il cliente ha acquistato il Kit FixTude e, prima del pagamento, ha richiesto la prima consulenza legale gratuita prestando il consenso alla comunicazione dei recapiti.
+
+Nome e cognome: {legal_name}
+Telefono: {legal_phone}
+Email: {legal_email}
+Riferimento checkout Stripe: {session_id}
+Consenso espresso: sì – {metadata.get("legal_consent_at", "")}
+Pagamento verificato: sì
+
+La richiesta riguarda esclusivamente il ricontatto e l'organizzazione del primo colloquio. Non sono allegati né trasmessi dossier o dettagli economici/debitori.""")
+                    if SMTP_PORT == 465:
+                        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ssl.create_default_context(), timeout=20) as server:
+                            server.login(SMTP_USER, SMTP_PASSWORD)
+                            server.send_message(legal_msg)
+                    else:
+                        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+                            server.ehlo(); server.starttls(context=ssl.create_default_context()); server.ehlo()
+                            server.login(SMTP_USER, SMTP_PASSWORD)
+                            server.send_message(legal_msg)
+                    stripe.checkout.Session.modify(session_id, metadata={**metadata, "legal_contact_sent": "yes"})
+                    legal_sent = True
+                else:
+                    app.logger.error("Richiesta consulenza pagata ma SMTP o recapiti non validi; checkout=%s", session_id)
+            except Exception:
+                app.logger.exception("Invio recapiti legali dopo pagamento non riuscito; checkout=%s", session_id)
+        session.pop("fixtude_v2_calcolo", None)
+        session.pop("fixtude_v2_product", None)
+        consultation_message = (
+            "La richiesta di prima consulenza gratuita è stata inoltrata all’avvocato: ti contatterà per concordare il colloquio."
+            if legal_sent else
+            ("La richiesta di consulenza è stata registrata, ma l’invio dei recapiti non è al momento riuscito. Scrivi a contatto@fixtude.it indicando il riferimento dell’acquisto." if metadata.get("consultation_requested") == "yes" else "Non hai richiesto il ricontatto legale: puoi comunque utilizzare tutti i materiali acquistati.")
+        )
+        content = f"""<section class="card"><h1>Pagamento confermato</h1><p>Il pagamento è stato verificato correttamente.</p><p>{'Il dossier e i materiali sono stati inviati all’indirizzo email indicato durante il checkout.' if sent else 'Il pacchetto è pronto. Puoi scaricarlo direttamente da questa pagina.'}</p><a class="btn" href="/checkout/download?session_id={escape(session_id, quote=True)}">SCARICA DOSSIER, GUIDA E FAC-SIMILE</a><p>{escape(consultation_message)}</p></section>"""
         # Keep the data in the signed session cookie until download in case SMTP is not configured.
         session["fixtude_v2_calcolo"] = data
         session["fixtude_v2_product"] = product_id
@@ -4286,7 +4413,7 @@ def legal_terms():
     <h2>2. Calcolatore gratuito V5</h2><p>Il calcolatore è accessibile senza registrazione e richiede tre importi: entrate mensili nette, uscite mensili e situazione debitoria complessiva. I dati sono trasmessi al server tramite HTTPS e mantenuti temporaneamente nella sessione tecnica necessaria a mostrare il risultato, completare il checkout e generare il report; non viene creato un account o un archivio economico permanente. Il semaforo considera anche l’importo del debito e la possibilità teorica di rientrare entro 6 o 12 mesi. Il motore ipotizza di destinare al rimborso il 30% nel verde e il 25% nel giallo. Tutte queste percentuali sono parametri convenzionali FixTude, non standard universali né una certificazione di solvibilità. Leggi anche il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
     <h2>3. Limiti delle informazioni</h2><p>I contenuti hanno finalità informative e organizzative. Non costituiscono consulenza legale, fiscale o finanziaria personalizzata, non sostituiscono un professionista abilitato e non garantiscono riduzioni del debito, cancellazioni da banche dati o accettazione di proposte da parte dei creditori. L'utente deve verificare i dati e adattare i modelli alla propria situazione. Per i dettagli sui limiti del calcolatore e delle simulazioni consulta il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
     <h2>4. Chat e richieste di contatto</h2><p>L'invio di una richiesta di contatto non comporta obbligo di acquistare servizi né garantisce tempi di risposta specifici. La chat non è un servizio di emergenza. Non inserire nella chat o nel modulo dati bancari, credenziali, documenti completi o dati personali non necessari.</p>
-    <h2>5. Kit digitale e pagamenti</h2><p>Il Kit FixTude è proposto al prezzo promozionale di € 49,90 e comprende un dossier personalizzato generato sulla base dei dati inseriti, i modelli fac-simile disponibili, un libro digitale PDF a scelta tra quelli proposti nella pagina di checkout e la possibilità di richiedere una prima consulenza legale gratuita dopo il pagamento, previa compilazione dei recapiti e consenso specifico al ricontatto. La consulenza iniziale è un colloquio di primo orientamento; eventuali attività professionali ulteriori sono oggetto di valutazione e accordo diretto e separato con l’avvocato. La consulenza è facoltativa: il dossier e i materiali acquistati restano disponibili anche se l’utente non richiede il ricontatto. I libri disponibili sono: <em>NIENTE PANICO</em>, <em>Guida al Saldo e Stralcio</em> oppure <em>Piano di rientro con cambiali: pro, contro e rischi</em>. Il pagamento è elaborato da Stripe; il download del pacchetto viene reso disponibile dopo la verifica della transazione e, se il servizio email è configurato, inviato all'indirizzo comunicato durante il checkout. Non inviare i dati della carta a FixTude via email.</p>
+    <h2>5. Kit digitale e pagamenti</h2><p>Il Kit FixTude è proposto al prezzo promozionale di € 49,90 e comprende un dossier personalizzato generato sulla base dei dati inseriti, i modelli fac-simile disponibili, un libro digitale PDF a scelta tra quelli proposti nella pagina di checkout e la possibilità di richiedere una prima consulenza legale gratuita prima del pagamento, inserendo i recapiti e prestando un consenso specifico al ricontatto. I recapiti vengono trasmessi all’avvocato soltanto dopo la verifica del pagamento; se il pagamento non viene completato, non vengono inoltrati all’avvocato. La consulenza iniziale è un colloquio di primo orientamento; eventuali attività professionali ulteriori sono oggetto di valutazione e accordo diretto e separato con l’avvocato. La consulenza è facoltativa: il dossier e i materiali acquistati restano disponibili anche se l’utente non richiede il ricontatto. I libri disponibili sono: <em>NIENTE PANICO</em>, <em>Guida al Saldo e Stralcio</em> oppure <em>Piano di rientro con cambiali: pro, contro e rischi</em>. Il pagamento è elaborato da Stripe; il download del pacchetto viene reso disponibile dopo la verifica della transazione e, se il servizio email è configurato, inviato all'indirizzo comunicato durante il checkout. Non inviare i dati della carta a FixTude via email.</p>
     <h2>6. Consumatori e recesso</h2><p>Restano fermi i diritti inderogabili riconosciuti ai consumatori dalla normativa applicabile. Per contenuti digitali forniti senza supporto materiale, l'eventuale perdita del diritto di recesso richiede che ricorrano tutte le condizioni previste dalla legge, incluse le dichiarazioni espresse richieste prima dell'inizio dell'esecuzione e la conferma su supporto durevole. Il flusso di acquisto deve prevedere le informazioni e le dichiarazioni espresse richieste dalla normativa prima dell'inizio della fornitura del contenuto digitale, oltre alla conferma su supporto durevole quando prevista.</p>
     <h2>7. Uso corretto</h2><p>L'utente si impegna a usare il sito in modo lecito, a non tentare accessi non autorizzati, a non inviare spam e a non caricare dati di terzi senza una base legittima.</p>
     <h2>8. Proprietà intellettuale</h2><p>Testi, grafica, marchio e materiali originali del sito sono protetti dalle norme applicabili. I modelli scaricabili possono essere utilizzati per esigenze personali, senza rimuovere avvertenze o presentare i contenuti come pareri professionali garantiti.</p>
@@ -4299,9 +4426,9 @@ def legal_terms():
 def privacy():
     body = """<p>Questa informativa descrive i principali trattamenti connessi alla versione attuale del sito FixTude. Viene aggiornata quando cambiano in modo rilevante le funzionalità, i fornitori o le modalità di trattamento.</p>
     <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è Giovanni Pugliese, che gestisce il servizio denominato FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per richieste relative ai dati personali: contatto@fixtude.it.</p>
-    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio direttamente a Web3Forms tramite HTTPS per l’inoltro al titolare. L’applicazione non conserva una copia in un proprio database; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude al prezzo promozionale di € 49,90. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del dossier, di una guida a scelta e dei modelli fac-simile.</li><li><strong>Richiesta facoltativa di consulenza legale:</strong> dopo il pagamento l’utente può scegliere di lasciare nome, telefono ed email e prestare un consenso specifico alla comunicazione dei recapiti all’avvocato di riferimento, per essere ricontattato e organizzare una prima consulenza. I dati di contatto sono inoltrati via email al recapito legale configurato; se non configurato, alla casella organizzativa FixTude per l’inoltro. La richiesta non viene archiviata in un database FixTude. Il dossier e i dettagli economici/debitori non vengono trasmessi con questa email. La consulenza è facoltativa e il materiale acquistato resta scaricabile anche senza consenso.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
-    <h2>3. Basi giuridiche</h2><p>Le richieste di contatto sono trattate per rispondere a una richiesta dell'interessato e adottare misure precontrattuali su sua richiesta. I recapiti per il ricontatto da parte dell’avvocato sono comunicati soltanto dopo il consenso specifico espresso nel modulo post-acquisto; il consenso può essere revocato scrivendo a contatto@fixtude.it, fermo restando quanto già legittimamente effettuato. I dati relativi ad acquisti sono trattati per eseguire il contratto e adempiere agli obblighi di legge. Sicurezza e prevenzione abusi possono basarsi sul legittimo interesse, da valutare e documentare. Eventuali attività promozionali richiedono una valutazione e, ove necessario, un consenso separato.</p>
-    <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l’hosting (se confermato in produzione), Web3Forms per le notifiche email della chat, Web3Forms per il modulo di ricontatto, Register per la casella email e Stripe per i pagamenti del libro, quando attivi. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
+    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio direttamente a Web3Forms tramite HTTPS per l’inoltro al titolare. L’applicazione non conserva una copia in un proprio database; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude al prezzo promozionale di € 49,90. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del dossier, di una guida a scelta e dei modelli fac-simile. Se l’utente richiede la consulenza prima del pagamento, nome, telefono, email e riferimento temporale del consenso vengono inseriti nei metadati della sessione Stripe per poterli associare alla transazione.</li><li><strong>Richiesta facoltativa di consulenza legale:</strong> prima di accedere al pagamento l’utente può scegliere di inserire nome, telefono ed email e prestare un consenso specifico alla comunicazione dei recapiti all’avvocato di riferimento, per essere ricontattato e organizzare una prima consulenza. Se l’utente sceglie questa opzione, i recapiti e il riferimento del consenso vengono associati alla sessione di checkout Stripe; Stripe li tratta nell’ambito della sessione di pagamento. FixTude inoltra i recapiti via email all’avvocato soltanto dopo aver verificato il pagamento. Se il pagamento non viene completato, i recapiti non vengono inoltrati all’avvocato. La richiesta non viene archiviata in un database FixTude. Il dossier e i dettagli economici/debitori non vengono trasmessi con questa email. La consulenza è facoltativa e il materiale acquistato resta scaricabile anche senza consenso.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
+    <h2>3. Basi giuridiche</h2><p>Le richieste di contatto sono trattate per rispondere a una richiesta dell'interessato e adottare misure precontrattuali su sua richiesta. I recapiti per il ricontatto da parte dell’avvocato sono comunicati soltanto dopo il consenso specifico espresso prima del checkout e dopo la verifica del pagamento; il consenso può essere revocato scrivendo a contatto@fixtude.it, fermo restando quanto già legittimamente effettuato. I dati relativi ad acquisti sono trattati per eseguire il contratto e adempiere agli obblighi di legge. Sicurezza e prevenzione abusi possono basarsi sul legittimo interesse, da valutare e documentare. Eventuali attività promozionali richiedono una valutazione e, ove necessario, un consenso separato.</p>
+    <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l’hosting (se confermato in produzione), Web3Forms per le notifiche email della chat e per il modulo di ricontatto, Register per la casella email e Stripe per i pagamenti. Quando l’utente richiede la consulenza legale, i recapiti vengono associati alla sessione Stripe e, soltanto dopo la verifica del pagamento, trasmessi via email all’avvocato di riferimento o al recapito organizzativo configurato. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
     <h2>5. Cookie e strumenti di tracciamento</h2><p>Google Analytics (ID di misurazione G-HMBBNLHC7E) viene caricato soltanto dopo la scelta esplicita della categoria statistiche nel pannello cookie. Se la categoria viene rifiutata o disattivata, il sito non avvia nuove richieste di misurazione e aggiorna lo stato di consenso di Google Analytics. I pixel pubblicitari non sono attivi. Prima del lancio definitivo occorre verificare tecnicamente i cookie effettivamente installati e aggiornare questa informativa in base ai risultati.</p>
     <h2>6. Conservazione</h2><p>I messaggi chat sono temporanei secondo quanto descritto sopra. Le richieste di contatto possono restare nei sistemi di Web3Forms e nella casella email del destinatario. I tempi effettivi di conservazione dei fornitori, della posta e dei log devono essere verificati e definiti dal titolare prima del lancio.</p>
     <h2>7. Diritti</h2><p>Nei limiti previsti dal GDPR è possibile chiedere accesso, rettifica, cancellazione, limitazione, opposizione e, ove applicabile, portabilità, scrivendo a contatto@fixtude.it. È possibile proporre reclamo al Garante per la protezione dei dati personali.</p>
