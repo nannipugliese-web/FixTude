@@ -370,7 +370,7 @@ def page(title, content, include_chat=False):
     seo_title = seo.get("title", f"{title} | FixTude")
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
-    noindex_paths = ("/chat-staff", "/verifica-pignoramento/conferma", "/verifica-pignoramento/risultato", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
+    noindex_paths = ("/chat-staff", "/verifica-pignoramento/conferma", "/verifica-pignoramento/risultato", "/verifica-pignoramento/anteprima", "/verifica-pignoramento/annullato", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
     robots = "noindex, nofollow" if path in noindex_paths or path.startswith("/api/") else "index, follow, max-image-preview:large"
     structured_data = None
     if path == "/":
@@ -1258,7 +1258,7 @@ def fixtude_v1_route_guard():
     path = request.path or "/"
     allowed = {
         "/", "/analisi", "/percorso", "/percorso/risultato", "/checkout", "/checkout/crea", "/checkout/conferma", "/checkout/consulenza", "/checkout/download",
-        "/verifica-pignoramento/acquista", "/verifica-pignoramento/conferma", "/verifica-pignoramento/risultato",
+        "/verifica-pignoramento/prepara", "/verifica-pignoramento/acquista", "/verifica-pignoramento/conferma", "/verifica-pignoramento/risultato", "/verifica-pignoramento/anteprima", "/verifica-pignoramento/annullato",
         "/chi-siamo", "/educazione-finanziaria",
         "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo",
         "/educazione-finanziaria/guida-saldo-e-stralcio",
@@ -1292,29 +1292,29 @@ def home():
       .ft-tagline{text-align:center;margin:4px auto 22px;max-width:650px;font-weight:800;font-size:clamp(22px,4.4vw,35px);line-height:1.18;letter-spacing:-.6px;color:#f5f7fb}
       .ft-tagline span{display:block;color:#a8d9ee;margin-top:5px}
       .ft-explain{text-align:center;color:#e0ebf0;font-size:14px;line-height:1.65;margin:0 auto 22px;max-width:580px}
-      .ft-calc-shell{max-width:520px;margin:0 auto;padding:17px;border-radius:27px;background:linear-gradient(145deg,#f8fbff,#dce6f2 48%,#eef4fa);border:1px solid #c7d4e4;box-shadow:0 20px 45px #18365b22,inset 0 2px 3px #fff}
+      .ft-calc-shell{max-width:520px;margin:0 auto;padding:17px;border-radius:27px;background:linear-gradient(145deg,#343a42 0%,#171c23 46%,#090c11 100%);border:1px solid #737d89;box-shadow:0 24px 48px #02070d99,inset 0 2px 3px #ffffff35,inset 0 -5px 12px #000b}
       .ft-display-wrap{padding:13px;border-radius:17px;background:linear-gradient(145deg,#27384b,#101a28);box-shadow:inset 0 5px 12px #0009,0 4px 0 #aab8c8;margin-bottom:14px}
       .ft-display-label{color:#9eb6cc;font-size:11px;font-weight:850;letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px}
       .ft-display{height:64px;display:flex;align-items:center;justify-content:flex-end;overflow:hidden;padding:5px 10px;border-radius:10px;background:linear-gradient(180deg,#d9e8d6,#b7d1b3);color:#18351f;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:clamp(28px,7vw,42px);font-weight:900;letter-spacing:.02em;text-shadow:0 1px #fff8;box-shadow:inset 0 3px 8px #203b2455}
       .ft-display-hint{display:flex;justify-content:space-between;gap:8px;color:#a9bfd1;font-size:10px;margin-top:7px}
       .ft-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px}
-      .ft-step{border:1px solid #c4d1e0;border-radius:11px;padding:9px 5px;background:linear-gradient(145deg,#fff,#e5edf6);color:#42536a;font-size:11px;font-weight:850;box-shadow:0 3px 0 #b6c4d4;cursor:pointer;transition:transform .08s,box-shadow .08s}
-      .ft-step.active{color:#174b91;border-color:#77a7da;background:linear-gradient(145deg,#fff,#dcecff);box-shadow:0 3px 0 #7ea4cc,inset 0 1px #fff}
-      .ft-step.done{color:#176b46}
+      .ft-step{border:1px solid #66717f;border-radius:11px;padding:9px 5px;background:linear-gradient(145deg,#454d58,#252b34);color:#d8e0e9;font-size:11px;font-weight:850;box-shadow:0 3px 0 #090d12;cursor:pointer;transition:transform .08s,box-shadow .08s}
+      .ft-step.active{color:#fff;border-color:#d4aa55;background:linear-gradient(145deg,#8b713e,#4b3a1c);box-shadow:0 3px 0 #21190d,inset 0 1px #ffffff55}
+      .ft-step.done{color:#9fe0bd;border-color:#39795a}
       .ft-step:active{transform:translateY(2px);box-shadow:0 1px 0 #9eafc2}
       .ft-keypad{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
-      .ft-key{min-height:61px;border:1px solid #c2cedd;border-radius:14px;background:linear-gradient(145deg,#fff 0%,#edf2f8 55%,#dce5ef 100%);color:#1d3048;font-size:24px;font-weight:900;cursor:pointer;user-select:none;touch-action:manipulation;box-shadow:0 5px 0 #aab8c8,0 8px 12px #243b561c,inset 0 1px 1px #fff;transition:transform .07s,box-shadow .07s; text-shadow:0 1px #fff}
+      .ft-key{min-height:61px;border:1px solid #727d8b;border-radius:14px;background:linear-gradient(145deg,#f1f3f5 0%,#bfc5cc 52%,#858e99 100%);color:#101820;font-size:24px;font-weight:900;cursor:pointer;user-select:none;touch-action:manipulation;box-shadow:0 5px 0 #080b10,0 8px 12px #0008,inset 0 1px 1px #fff;transition:transform .07s,box-shadow .07s;text-shadow:0 1px #fff}
       .ft-key:active,.ft-key.pressed{transform:translateY(4px);box-shadow:0 1px 0 #aab8c8,0 2px 4px #243b5622,inset 0 2px 5px #64748b22}
-      .ft-key.fn{font-size:15px;background:linear-gradient(145deg,#e9f0f8,#cbd8e7);color:#344b66}
-      .ft-key.clear{background:linear-gradient(145deg,#ffe9e9,#f6caca);color:#a12632;border-color:#e4b2b5;box-shadow:0 5px 0 #d39a9f,0 8px 12px #8c24301c}
+      .ft-key.fn{font-size:15px;background:linear-gradient(145deg,#626d79,#303943);color:#f3f5f7;border-color:#89939f;text-shadow:0 1px #000}
+      .ft-key.clear{background:linear-gradient(145deg,#d96b70,#8e252d);color:#fff;border-color:#f08a90;box-shadow:0 5px 0 #471016,0 8px 12px #0008;text-shadow:0 1px #0005}
       .ft-key.next{grid-column:span 2;background:linear-gradient(145deg,#267ac8,#145091);color:#fff;border-color:#12457b;box-shadow:0 5px 0 #0b3768,0 8px 12px #174b9133;text-shadow:0 1px #0004}
       .ft-key.equals{grid-column:span 2;background:linear-gradient(145deg,#26a56d,#087447);color:#fff;border-color:#086b42;box-shadow:0 5px 0 #075b38,0 8px 12px #08744733;text-shadow:0 1px #0004}
       .ft-key.next:active,.ft-key.equals:active{box-shadow:0 1px 0 #0b3768;transform:translateY(4px)}
-      .ft-calc-foot{margin:13px 2px 0;text-align:center;color:#64758b;font-size:11px;line-height:1.45}
+      .ft-calc-foot{margin:13px 2px 0;text-align:center;color:#b9c2cd;font-size:11px;line-height:1.45}
       .ft-values{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:13px auto 0}
-      .ft-value{border-radius:10px;padding:8px 6px;background:#ffffffa8;border:1px solid #d4dfeb;text-align:center;min-width:0}
-      .ft-value small{display:block;color:#687a90;font-size:9px;font-weight:850;letter-spacing:.04em}
-      .ft-value strong{display:block;color:#203047;font-size:13px;overflow-wrap:anywhere;margin-top:3px}
+      .ft-value{border-radius:10px;padding:8px 6px;background:linear-gradient(145deg,#303741,#171c23);border:1px solid #596574;text-align:center;min-width:0}
+      .ft-value small{display:block;color:#aeb9c6;font-size:9px;font-weight:850;letter-spacing:.04em}
+      .ft-value strong{display:block;color:#f3f5f7;font-size:13px;overflow-wrap:anywhere;margin-top:3px}
       .ft-traffic{margin:30px auto 14px;text-align:center;scroll-margin-top:24px}
       .ft-traffic-title{font-weight:900;letter-spacing:.08em;color:#f1f5fa;font-size:14px;margin-bottom:13px}
       .ft-lights{display:flex;flex-direction:row;justify-content:center;gap:9px;background:linear-gradient(145deg,#454d59,#111722 48%,#303846);border:4px solid #778292;border-radius:25px;padding:13px 14px;width:max-content;max-width:100%;margin:auto;box-shadow:inset 0 4px 8px #ffffff22,0 12px 24px #14253a38,0 5px 0 #080c12}
@@ -1326,11 +1326,14 @@ def home():
       .ft-countdown{min-height:32px;margin:12px auto 0;font-size:24px;font-weight:900;color:#8fc4ff;text-align:center;letter-spacing:.04em}
       .ft-status{min-height:24px;margin:12px 0 0;font-weight:800;font-size:14px;color:#f4f6fa}
       .ft-note{text-align:center;font-size:12px;color:#aab5c4;margin:13px auto 0;max-width:540px}
-      .ft-flip-stage{max-width:520px;margin:0 auto;perspective:1400px;}
+      .ft-flip-stage{max-width:520px;margin:0 auto;perspective:1400px;scroll-margin-top:20px;}
       .ft-flip-inner{display:grid;transform-style:preserve-3d;transition:transform .9s cubic-bezier(.2,.75,.2,1);}
       .ft-flip-stage.is-flipped .ft-flip-inner{transform:rotateY(180deg);}
       .ft-flip-face{grid-area:1/1;backface-visibility:hidden;-webkit-backface-visibility:hidden;}
-      .ft-flip-front{position:relative;}
+      .ft-flip-back{height:0;min-height:0;overflow:hidden;}
+      .ft-flip-stage.is-flipped .ft-flip-front{height:0;overflow:hidden;}
+      .ft-flip-stage.is-flipped .ft-flip-back{height:auto;overflow:visible;}
+      .ft-flip-front{position:relative;display:flex;flex-direction:column;gap:12px;}
       .ft-flip-back{transform:rotateY(180deg);display:flex;align-items:stretch;}
       .ft-tablet-shell{width:100%;min-height:100%;padding:13px;border-radius:29px;background:linear-gradient(145deg,#111a25,#050a11 55%,#26384a);border:2px solid #687b8d;box-shadow:0 20px 45px #07131f88,inset 0 2px 3px #ffffff35;display:flex;}
       .ft-tablet-screen{position:relative;flex:1;border-radius:18px;background:linear-gradient(155deg,#f7fbff,#e8f1f8 55%,#d9e7f1);color:#203047;padding:clamp(18px,4vw,27px);display:flex;flex-direction:column;justify-content:center;overflow:hidden;}
@@ -1341,14 +1344,14 @@ def home():
       .ft-tablet-points{display:grid;gap:8px;margin:0 auto 17px;padding:0;list-style:none;width:100%;max-width:390px;}
       .ft-tablet-points li{display:flex;gap:9px;align-items:flex-start;font-size:12px;line-height:1.4;color:#30475b;}
       .ft-tablet-points li:before{content:"✓";font-weight:900;color:#16835f;}
-      .ft-tablet-price{text-align:center;font-size:34px;font-weight:950;color:#123b50;letter-spacing:-1px;margin:0 0 2px;}
+      .ft-tablet-question-form{width:100%;max-width:430px;margin:0 auto}.ft-tablet-question{border:1px solid #cbd8e2;border-radius:11px;padding:10px 12px;margin:9px 0;background:#ffffffb8}.ft-tablet-question legend{font-size:12px;line-height:1.4;font-weight:850;color:#243c50;padding:0 4px}.ft-tablet-options{display:flex;gap:9px;margin-top:8px}.ft-tablet-options label{flex:1;display:flex;justify-content:center;align-items:center;gap:7px;padding:8px;border:1px solid #b9c9d7;border-radius:9px;background:#fff;color:#203047;font-size:12px;font-weight:900;cursor:pointer}.ft-tablet-options input{accent-color:#176c92}.ft-tablet-question-submit{display:block;width:100%;margin:13px auto 0;padding:13px;border:0;border-radius:11px;background:linear-gradient(145deg,#e7ad35,#f6cb68);color:#17364a;font-weight:950;font-size:13px;cursor:pointer;box-shadow:0 4px 0 #b67d1b}.ft-tablet-price{text-align:center;font-size:34px;font-weight:950;color:#123b50;letter-spacing:-1px;margin:0 0 2px;}
       .ft-tablet-price-note{text-align:center;color:#6c7d8e;font-size:10px;margin:0 0 13px;}
       .ft-tablet-consent{display:flex;align-items:flex-start;gap:8px;font-size:10px;line-height:1.4;color:#526579;margin:0 auto 13px;max-width:390px;}
       .ft-tablet-consent input{margin-top:2px;flex:0 0 auto;}
       .ft-tablet-pay{width:100%;max-width:390px;align-self:center;border:0;border-radius:12px;padding:14px 12px;background:linear-gradient(145deg,#e7ad35,#f6cb68);color:#17364a;font-weight:950;font-size:13px;letter-spacing:.035em;box-shadow:0 4px 0 #b67d1b;cursor:pointer;}
       .ft-tablet-back{align-self:center;margin:14px auto 0;border:0;background:transparent;color:#32627c;font-size:11px;font-weight:800;text-decoration:underline;cursor:pointer;}
-      .ft-pign-toggle{display:block;width:min(520px,100%);margin:15px auto 0;padding:14px 16px;border:1px solid #e6bd62;border-radius:13px;background:linear-gradient(145deg,#f7cf75,#e8ad39);color:#17364a;font-weight:950;font-size:14px;letter-spacing:.02em;box-shadow:0 5px 0 #b67d1b,0 12px 20px #07131f33;cursor:pointer;}
-      .ft-pign-hint{text-align:center;color:#c8d8e2;font-size:11px;line-height:1.45;margin:10px auto 0;max-width:480px;}
+      .ft-pign-toggle{display:block;width:100%;margin:0 auto;padding:14px 16px;border:1px solid #e6bd62;border-radius:13px;background:linear-gradient(145deg,#f7cf75,#e8ad39);color:#17364a;font-weight:950;font-size:14px;letter-spacing:.02em;box-shadow:0 5px 0 #b67d1b,0 12px 20px #07131f33;cursor:pointer;}
+      .ft-pign-hint{text-align:center;color:#c8d8e2;font-size:11px;line-height:1.45;margin:-3px auto 0;max-width:480px;}
       @media(max-width:520px){.ft-calc-shell{padding:12px;border-radius:21px}.ft-key{min-height:56px;font-size:22px}.ft-light{width:46px;height:46px}.ft-lights{gap:8px;padding:10px 12px}.ft-tagline{font-size:26px}.ft-tablet-shell{padding:8px;border-radius:23px}.ft-tablet-screen{border-radius:15px;padding:18px 14px}.ft-pign-toggle{font-size:12px}}
       @media(prefers-reduced-motion:reduce){.ft-flip-inner{transition:none}}
       @media(prefers-reduced-motion:reduce){.ft-key,.ft-light{transition:none}}
@@ -1360,7 +1363,8 @@ def home():
         <input type="hidden" id="entrate" name="entrate">
         <input type="hidden" id="uscite" name="uscite">
         <input type="hidden" id="debiti" name="debiti">
-        <div class="ft-flip-stage" id="ftFlipStage">
+      </form>
+      <div class="ft-flip-stage" id="ftFlipStage">
           <div class="ft-flip-inner">
             <div class="ft-flip-face ft-flip-front">
               <div class="ft-calc-shell" id="ftCalculatorPanel">
@@ -1399,31 +1403,31 @@ def home():
           </div>
           <p class="ft-calc-foot">Premi AVANTI per passare al dato successivo. Puoi tornare sui passaggi precedenti e correggere gli importi.</p>
               </div>
+              <button class="ft-pign-toggle" type="button" id="ftFlipToggle">VERIFICA IL RISCHIO DI PIGNORAMENTO</button>
+              <p class="ft-pign-hint">5 domande gratuite · paghi soltanto se vuoi conoscere il risultato.</p>
             </div>
             <div class="ft-flip-face ft-flip-back">
               <div class="ft-tablet-shell">
                 <div class="ft-tablet-screen">
-                  <div class="ft-tablet-kicker">SERVIZIO PREMIUM FIXTUDE</div>
+                  <div class="ft-tablet-kicker">VERIFICA GRATUITA · 5 DOMANDE</div>
                   <h2 class="ft-tablet-title">Sei a rischio di pignoramento?</h2>
-                  <p class="ft-tablet-copy">Una verifica rapida basata su cinque domande. Scopri se, in base alle informazioni che dichiari, emergono indicatori di possibile esposizione a procedure esecutive.</p>
-                  <ul class="ft-tablet-points">
-                    <li>5 domande con risposte esclusivamente SÌ oppure NO</li>
-                    <li>Esito immediato dopo la conferma del pagamento</li>
-                    <li>Nessuna registrazione e nessun archivio permanente delle risposte</li>
-                    <li>Una fotografia della situazione dichiarata in quel momento</li>
-                  </ul>
-                  <div class="ft-tablet-price">€ 4,90</div>
-                  <p class="ft-tablet-price-note">Pagamento una tantum · verifica singola</p>
-                  <label class="ft-tablet-consent"><input type="checkbox" name="accept_terms" value="yes" form="ftPignoramentoBuyForm" required> <span>Ho letto i <a href="/termini" target="_blank" rel="noopener">Termini</a>, il <a href="/privacy" target="_blank" rel="noopener">Trattamento dei dati</a> e il <a href="/disclaimer" target="_blank" rel="noopener">Disclaimer</a>. Chiedo l'avvio immediato del servizio digitale dopo il pagamento e riconosco che, una volta iniziata l'esecuzione, il diritto di recesso può venire meno nei casi e nei limiti previsti dalla legge. Comprendo che l'esito è informativo e non costituisce una previsione certa.</span></label>
-                  <button class="ft-tablet-pay" type="submit" form="ftPignoramentoBuyForm">PAGA € 4,90 E SBLOCCA LA VERIFICA</button>
+                  <p class="ft-tablet-copy">Rispondi alle cinque domande sulla tua situazione attuale. Le risposte sono gratuite: alla fine potrai scegliere se pagare € 4,90 per conoscere l'esito SÌ o NO.</p>
+                  <form class="ft-tablet-question-form" method="post" action="/verifica-pignoramento/prepara" id="ftPignoramentoQuestionsForm">
+                    <input type="hidden" name="csrf_token" value="{{PIGNORAMENTO_CSRF}}">
+                    <fieldset class="ft-tablet-question"><legend>1. Hai attualmente debiti scaduti che non sei riuscito a pagare?</legend><div class="ft-tablet-options"><label><input type="radio" name="q1" value="si" required> SÌ</label><label><input type="radio" name="q1" value="no" required> NO</label></div></fieldset>
+                    <fieldset class="ft-tablet-question"><legend>2. Hai ricevuto una diffida, una messa in mora o una richiesta formale di pagamento rimasta senza soluzione?</legend><div class="ft-tablet-options"><label><input type="radio" name="q2" value="si" required> SÌ</label><label><input type="radio" name="q2" value="no" required> NO</label></div></fieldset>
+                    <fieldset class="ft-tablet-question"><legend>3. Hai ricevuto una cartella esattoriale, un'ingiunzione o un'intimazione di pagamento che non hai saldato?</legend><div class="ft-tablet-options"><label><input type="radio" name="q3" value="si" required> SÌ</label><label><input type="radio" name="q3" value="no" required> NO</label></div></fieldset>
+                    <fieldset class="ft-tablet-question"><legend>4. Hai ricevuto un atto di precetto?</legend><div class="ft-tablet-options"><label><input type="radio" name="q4" value="si" required> SÌ</label><label><input type="radio" name="q4" value="no" required> NO</label></div></fieldset>
+                    <fieldset class="ft-tablet-question"><legend>5. Hai ricevuto un atto di pignoramento o una comunicazione di esecuzione su conto corrente, stipendio o pensione?</legend><div class="ft-tablet-options"><label><input type="radio" name="q5" value="si" required> SÌ</label><label><input type="radio" name="q5" value="no" required> NO</label></div></fieldset>
+                    <button class="ft-tablet-question-submit" type="submit">HO COMPLETATO LE RISPOSTE</button>
+                  </form>
+                  <p class="ft-tablet-copy" style="font-size:10px;margin-top:12px;margin-bottom:0">La verifica descrive una fotografia delle informazioni dichiarate oggi. Non consulta banche dati e non prevede con certezza eventi futuri.</p>
                   <button class="ft-tablet-back" type="button" id="ftFlipBack">TORNA ALLA CALCOLATRICE</button>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <button class="ft-pign-toggle" type="button" id="ftFlipToggle">VERIFICA IL RISCHIO DI PIGNORAMENTO</button>
-        <p class="ft-pign-hint">Le domande SÌ/NO vengono mostrate esclusivamente dopo la conferma del pagamento Stripe.</p>
         <div class="ft-traffic" id="ftTraffic" aria-live="polite">
           <div class="ft-traffic-title">IL TUO SEMAFORO</div>
           <div class="ft-lights" role="img" aria-label="Semaforo di sostenibilità">
@@ -1434,8 +1438,6 @@ def home():
           <div class="ft-countdown" id="ftCountdown" aria-live="assertive"></div>
           <div class="ft-status" id="ftStatus"></div>
         </div>
-      </form>
-      <form id="ftPignoramentoBuyForm" method="post" action="/verifica-pignoramento/acquista"><input type="hidden" name="csrf_token" value="{{PIGNORAMENTO_CSRF}}"></form>
       <p class="ft-note">Nessuna registrazione. Gli importi sono elaborati per il calcolo e non vengono archiviati in un profilo personale. Il risultato è orientativo.</p>
     </section>
     <script>
@@ -1444,8 +1446,8 @@ def home():
       const flipStage=document.getElementById('ftFlipStage');
       const flipToggle=document.getElementById('ftFlipToggle');
       const flipBack=document.getElementById('ftFlipBack');
-      function flipToTablet(){flipStage.classList.add('is-flipped');flipToggle.textContent='TORNA ALLA CALCOLATRICE';flipToggle.setAttribute('aria-pressed','true');flipStage.scrollIntoView({behavior:'smooth',block:'center'});}
-      function flipToCalculator(){flipStage.classList.remove('is-flipped');flipToggle.textContent='VERIFICA IL RISCHIO DI PIGNORAMENTO';flipToggle.setAttribute('aria-pressed','false');}
+      function flipToTablet(){flipStage.classList.add('is-flipped');flipToggle.setAttribute('aria-pressed','true');flipStage.scrollIntoView({behavior:'smooth',block:'center'});}
+      function flipToCalculator(){flipStage.classList.remove('is-flipped');flipToggle.setAttribute('aria-pressed','false');}
       flipToggle.addEventListener('click',()=>flipStage.classList.contains('is-flipped')?flipToCalculator():flipToTablet());
       flipBack.addEventListener('click',flipToCalculator);
       const fields=['entrate','uscite','debiti'].map(id=>document.getElementById(id));
@@ -1564,7 +1566,8 @@ def _pignoramento_paid_checkout(session_id):
             data.get("mode") != "payment" or
             data.get("currency") != "eur" or
             data.get("amount_total") != PIGNORAMENTO_PRICE_CENTS or
-            metadata.get("fixtude_flow") != PIGNORAMENTO_FLOW):
+            metadata.get("fixtude_flow") != PIGNORAMENTO_FLOW or
+            metadata.get("fixtude_product") != "verifica_rischio_pignoramento"):
         return None
     return data
 
@@ -1588,6 +1591,15 @@ def _pignoramento_page(title, content, status=200):
     .ft-pign-options label{flex:1;display:flex;justify-content:center;align-items:center;gap:7px;padding:11px;border:1px solid #b9c9d7;border-radius:10px;background:#fff;color:#203047;font-weight:900;cursor:pointer}
     .ft-pign-options input{accent-color:#176c92}
     .ft-pign-submit{display:block;width:100%;margin:18px auto 0;padding:15px;border:0;border-radius:12px;background:linear-gradient(145deg,#e7ad35,#f6cb68);color:#17364a;font-weight:950;font-size:14px;cursor:pointer;box-shadow:0 4px 0 #b67d1b}
+    .ft-pign-paywall-tease{text-align:center;margin:18px auto;padding:18px 14px;max-width:440px;border:1px solid #d5e0e8;border-radius:16px;background:linear-gradient(145deg,#fff,#eaf1f6);box-shadow:0 8px 22px #17384d12}
+    .ft-pign-paywall-tease h2{margin:0 0 8px;color:#17384d;font-size:20px}
+    .ft-pign-paywall-tease p{color:#526579;font-size:12px;line-height:1.5}
+    .ft-pign-lock{font-size:25px;color:#b17b20}
+    .ft-pign-price{text-align:center;color:#123b50;font-size:38px;font-weight:950;margin:8px 0 0}
+    .ft-pign-small{text-align:center;color:#6c7d8e;font-size:10px;margin:0 0 10px}
+    .ft-pign-consent{display:flex;align-items:flex-start;gap:9px;max-width:500px;margin:14px auto;color:#526579;font-size:11px;line-height:1.45}
+    .ft-pign-consent input{margin-top:2px;flex:0 0 auto}
+    .ft-pign-consent a{color:#1b6489;font-weight:800}
     .ft-pign-disclaimer{margin:16px 0 0;padding:12px;border-radius:10px;background:#e6eef4;color:#526579;font-size:11px;line-height:1.5}
     .ft-pign-result{text-align:center;padding:16px 8px}
     .ft-pign-answer{font-size:clamp(58px,13vw,84px);font-weight:1000;line-height:1;margin:20px 0 12px;letter-spacing:-3px}
@@ -1601,34 +1613,79 @@ def _pignoramento_page(title, content, status=200):
     return page(title, css + '<main class="ft-pign-page">' + content + '</main>'), status
 
 
+@app.route("/verifica-pignoramento/prepara", methods=["POST"])
+def pignoramento_prepara():
+    # Riceve le cinque risposte e prepara l'anteprima senza rivelare l'esito.
+    supplied = (request.form.get("csrf_token") or "").strip()
+    expected = (session.get("ft_pignoramento_csrf") or "").strip()
+    if not expected or not hmac.compare_digest(supplied, expected):
+        return _pignoramento_page("Sessione scaduta", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Sessione scaduta</h1><p class="ft-pign-lead">Ricarica la homepage e ripeti le cinque risposte.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 400)
+    answers = {key: (request.form.get(key) or "").strip().lower() for key, _ in PIGNORAMENTO_QUESTIONS}
+    if any(value not in ("si", "no") for value in answers.values()):
+        return _pignoramento_page("Risposte incomplete", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Completa tutte le risposte</h1><p class="ft-pign-lead">Seleziona SÌ oppure NO per tutte e cinque le domande. Non devi pagare per rispondere.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna alle domande</a></p></div></section>', 400)
+
+    # Non conserviamo le singole risposte: nella sessione firmata rimane soltanto
+    # il dato booleano necessario a generare l'esito dopo il pagamento.
+    snapshot_token = secrets.token_urlsafe(24)
+    session["ft_pign_snapshot"] = {
+        "token": snapshot_token,
+        "detected": any(value == "si" for value in answers.values()),
+        "created_at": datetime.now(ROME_TZ).isoformat(timespec="seconds"),
+    }
+    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">QUESTIONARIO COMPLETATO · FIXTUDE</div><h1>La tua verifica è pronta</h1><p class="ft-pign-lead">Hai completato tutte le cinque domande. Le risposte sono state elaborate, ma l'esito finale SÌ oppure NO resta riservato fino alla conferma del pagamento.</p><div class="ft-pign-paywall-tease"><div class="ft-pign-lock">●</div><h2>Vuoi conoscere il risultato?</h2><p>Puoi sbloccare adesso l'esito della fotografia della tua situazione dichiarata.</p><div class="ft-pign-price">€ 4,90</div><p class="ft-pign-small">Pagamento una tantum · una verifica</p></div><form method="post" action="/verifica-pignoramento/acquista"><input type="hidden" name="csrf_token" value="{escape(expected, quote=True)}"><label class="ft-pign-consent"><input type="checkbox" name="accept_terms" value="yes" required><span>Ho letto i <a href="/termini" target="_blank" rel="noopener">Termini</a>, la <a href="/privacy" target="_blank" rel="noopener">Privacy</a> e il <a href="/disclaimer" target="_blank" rel="noopener">Disclaimer</a>. Chiedo l'avvio immediato del servizio digitale dopo il pagamento e comprendo che l'esito è informativo, basato sulle risposte fornite e non costituisce una previsione certa né una certificazione.</span></label><button class="ft-pign-submit" type="submit">SCOPRI IL MIO ESITO · € 4,90</button></form><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna alle domande</a></p><p class="ft-pign-disclaimer"><strong>Fotografia del momento:</strong> l'esito rappresenta esclusivamente la situazione dichiarata al momento della compilazione. Non consulta banche dati, registri giudiziari, banche o creditori e non può rilevare atti non conosciuti o non notificati.</p></div></section>'''
+    return _pignoramento_page("Questionario completato | FixTude", content)
+
+
 @app.route("/verifica-pignoramento/acquista", methods=["POST"])
 def pignoramento_acquista():
     supplied = (request.form.get("csrf_token") or "").strip()
     expected = (session.get("ft_pignoramento_csrf") or "").strip()
+    snapshot = session.get("ft_pign_snapshot") or {}
     if not expected or not hmac.compare_digest(supplied, expected):
-        return _pignoramento_page("Richiesta non valida", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Sessione scaduta</h1><p class="ft-pign-lead">Ricarica la homepage e ripeti l’operazione.</p><p class="ft-pign-actions"><a href="/">Torna a FixTude</a></p></div></section>', 400)
+        return _pignoramento_page("Richiesta non valida", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Sessione scaduta</h1><p class="ft-pign-lead">Ricarica la homepage e ripeti l’operazione.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 400)
+    if not snapshot.get("token") or not isinstance(snapshot.get("detected"), bool):
+        return redirect("/#ftPignoramento")
     if request.form.get("accept_terms") != "yes":
         return redirect("/#ftPignoramento")
     if rate_limited("pignoramento_checkout", 8, 3600):
-        return _pignoramento_page("Riprova più tardi", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Hai effettuato troppe richieste</h1><p class="ft-pign-lead">Attendi qualche minuto prima di riprovare.</p><p class="ft-pign-actions"><a href="/">Torna alla homepage</a></p></div></section>', 429)
+        return _pignoramento_page("Riprova più tardi", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Hai effettuato troppe richieste</h1><p class="ft-pign-lead">Attendi qualche minuto prima di riprovare.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 429)
     secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
     if stripe is None or not secret_key:
-        return _pignoramento_page("Pagamento non disponibile", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Pagamento temporaneamente non disponibile</h1><p class="ft-pign-lead">Il pagamento non è configurato. Non è stato effettuato alcun addebito.</p><p class="ft-pign-actions"><a href="/">Torna alla homepage</a></p></div></section>', 503)
+        return _pignoramento_page("Pagamento non disponibile", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Pagamento temporaneamente non disponibile</h1><p class="ft-pign-lead">Il pagamento non è configurato. Non è stato effettuato alcun addebito.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 503)
     stripe.api_key = secret_key
     try:
         checkout = stripe.checkout.Session.create(
             mode="payment",
-            line_items=[{"price_data": {"currency": "eur", "unit_amount": PIGNORAMENTO_PRICE_CENTS, "product_data": {"name": "FixTude - Verifica istantanea rischio pignoramento", "description": "Questionario digitale di cinque domande SÌ/NO con esito informativo riferito alla situazione dichiarata al momento della verifica."}}, "quantity": 1}],
+            line_items=[{"price_data": {"currency": "eur", "unit_amount": PIGNORAMENTO_PRICE_CENTS, "product_data": {"name": "FixTude - Esito verifica rischio pignoramento", "description": "Sblocco dell'esito SÌ/NO di un questionario di cinque domande, riferito alla situazione dichiarata al momento della verifica."}}, "quantity": 1}],
             success_url=request.host_url.rstrip("/") + "/verifica-pignoramento/conferma?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url=request.host_url.rstrip("/") + "/?verifica_annullata=1#ftPignoramento",
+            cancel_url=request.host_url.rstrip("/") + "/verifica-pignoramento/annullato",
             billing_address_collection="auto",
             customer_creation="if_required",
-            metadata={"fixtude_flow": PIGNORAMENTO_FLOW, "fixtude_product": "verifica_rischio_pignoramento", "snapshot_notice": "yes"},
+            metadata={"fixtude_flow": PIGNORAMENTO_FLOW, "fixtude_product": "verifica_rischio_pignoramento", "snapshot_notice": "yes", "snapshot_token": snapshot["token"]},
         )
         return redirect(checkout.url, code=303)
     except Exception:
         app.logger.exception("Creazione checkout verifica pignoramento non riuscita")
-        return _pignoramento_page("Pagamento non disponibile", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Non è stato possibile avviare il pagamento</h1><p class="ft-pign-lead">Nessun pagamento è stato confermato. Riprova più tardi.</p><p class="ft-pign-actions"><a href="/">Torna alla homepage</a></p></div></section>', 502)
+        return _pignoramento_page("Pagamento non disponibile", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Non è stato possibile avviare il pagamento</h1><p class="ft-pign-lead">Nessun pagamento è stato confermato. Riprova più tardi.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 502)
+
+
+@app.route("/verifica-pignoramento/annullato", methods=["GET"])
+def pignoramento_annullato():
+    content = """<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">PAGAMENTO NON COMPLETATO</div><h1>La tua verifica è ancora disponibile</h1><p class="ft-pign-lead">Non è stato effettuato alcun addebito. Se vuoi conoscere l’esito delle risposte che hai appena fornito, puoi riprendere il pagamento.</p><p class="ft-pign-actions"><a href="/verifica-pignoramento/anteprima">Torna al pagamento</a> · <a href="/#ftPignoramento">Torna alla homepage</a></p></div></section>"""
+    snapshot = session.get("ft_pign_snapshot") or {}
+    if not snapshot.get("token"):
+        content = content.replace('<a href="/verifica-pignoramento/anteprima">Torna al pagamento</a> · ', '')
+    return _pignoramento_page("Pagamento annullato | FixTude", content)
+
+
+@app.route("/verifica-pignoramento/anteprima", methods=["GET"])
+def pignoramento_anteprima():
+    snapshot = session.get("ft_pign_snapshot") or {}
+    if not snapshot.get("token"):
+        return redirect("/#ftPignoramento")
+    csrf = escape(session.get("ft_pignoramento_csrf", ""), quote=True)
+    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">QUESTIONARIO COMPLETATO · FIXTUDE</div><h1>Vuoi conoscere il tuo esito?</h1><p class="ft-pign-lead">Le tue risposte sono già state elaborate. Il risultato SÌ oppure NO è disponibile dopo il pagamento.</p><div class="ft-pign-paywall-tease"><h2>La tua istantanea è pronta</h2><div class="ft-pign-price">€ 4,90</div><p class="ft-pign-small">Pagamento una tantum · una verifica</p></div><form method="post" action="/verifica-pignoramento/acquista"><input type="hidden" name="csrf_token" value="{csrf}"><label class="ft-pign-consent"><input type="checkbox" name="accept_terms" value="yes" required><span>Ho letto Termini, Privacy e Disclaimer. Comprendo la natura informativa del servizio e la fotografia della situazione dichiarata.</span></label><button class="ft-pign-submit" type="submit">SCOPRI IL MIO ESITO · € 4,90</button></form><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna alla homepage</a></p></div></section>'''
+    return _pignoramento_page("Sblocca il tuo esito | FixTude", content)
 
 
 @app.route("/verifica-pignoramento/conferma", methods=["GET"])
@@ -1639,41 +1696,24 @@ def pignoramento_conferma():
     except Exception:
         app.logger.exception("Verifica Stripe del servizio pignoramento non riuscita")
         paid = None
-    if not paid:
-        return _pignoramento_page("Pagamento da verificare", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Pagamento non verificato</h1><p class="ft-pign-lead">Le domande sono disponibili soltanto dopo la conferma effettiva del pagamento. Se hai pagato, aggiorna la pagina tra qualche istante oppure contatta contatto@fixtude.it.</p><p class="ft-pign-actions"><a href="/">Torna a FixTude</a></p></div></section>', 402)
-    token = session.setdefault("ft_pignoramento_csrf", secrets.token_urlsafe(24))
-    questions_html = []
-    for key, question in PIGNORAMENTO_QUESTIONS:
-        questions_html.append(f'''<fieldset class="ft-pign-question"><legend>{escape(question)}</legend><div class="ft-pign-options"><label><input type="radio" name="{key}" value="si" required> SÌ</label><label><input type="radio" name="{key}" value="no" required> NO</label></div></fieldset>''')
-    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">PAGAMENTO CONFERMATO · FIXTUDE</div><h1>Verifica rischio pignoramento</h1><p class="ft-pign-lead">Rispondi pensando alla situazione attuale. Per ogni domanda puoi selezionare soltanto SÌ oppure NO.</p><form method="post" action="/verifica-pignoramento/risultato"><input type="hidden" name="session_id" value="{escape(session_id, quote=True)}"><input type="hidden" name="csrf_token" value="{escape(token, quote=True)}">{''.join(questions_html)}<button class="ft-pign-submit" type="submit">MOSTRA IL MIO ESITO</button></form><p class="ft-pign-disclaimer"><strong>Fotografia del momento:</strong> il risultato descrive esclusivamente gli elementi che dichiari al momento della compilazione. Non è una previsione certa, non verifica registri giudiziari o bancari e non può rilevare atti che non conosci o non hai ricevuto.</p></div></section>'''
-    return _pignoramento_page("Verifica rischio pignoramento | FixTude", content)
+    snapshot = session.get("ft_pign_snapshot") or {}
+    if (not paid or not snapshot.get("token") or
+            (paid.get("metadata") or {}).get("snapshot_token") != snapshot.get("token") or
+            not isinstance(snapshot.get("detected"), bool)):
+        return _pignoramento_page("Pagamento da verificare", """<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Pagamento non verificato</h1><p class="ft-pign-lead">Non possiamo mostrare l’esito senza una conferma di pagamento valida e collegata alle risposte. Se hai pagato, aggiorna la pagina tra qualche istante oppure contatta contatto@fixtude.it.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>""", 402)
+    now = datetime.now(ROME_TZ).strftime("%d/%m/%Y alle %H:%M")
+    if snapshot["detected"]:
+        answer_html = '<div class="ft-pign-answer yes">SÌ</div><h2>Emergono indicatori di possibile esposizione</h2><p class="ft-pign-result-copy">Almeno una delle risposte segnala una situazione che merita attenzione. Questo esito non significa automaticamente che un pignoramento sia già stato disposto o sia imminente. La natura e la gravità del rischio dipendono dal tipo di debito, dagli atti effettivamente notificati, dai termini e dalle circostanze concrete.</p>'
+    else:
+        answer_html = """<div class="ft-pign-answer no">NO</div><h2>Nessun indicatore dichiarato rilevato</h2><p class="ft-pign-result-copy">In base alle risposte fornite non emergono gli indicatori considerati da questa verifica. L’esito non certifica che il conto sia al sicuro e non esclude atti non conosciuti, notifiche non lette o altre circostanze non considerate.</p>"""
+    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">ESITO DELLA TUA VERIFICA FIXTUDE</div><div class="ft-pign-result">{answer_html}<p class="ft-pign-date">Istantanea riferita al {now}</p></div><div class="ft-pign-disclaimer"><strong>Fotografia del momento:</strong> il risultato è elaborato esclusivamente sulla base delle dichiarazioni rese nel questionario, non consulta banche dati, registri dei tribunali, banche o creditori e non costituisce consulenza legale né una certificazione. In presenza di precetto, pignoramento o termini indicati in un atto, rivolgiti tempestivamente a un avvocato.</div><p class="ft-pign-actions"><a href="/">Torna alla homepage FixTude</a></p></div></section>'''
+    return _pignoramento_page("Esito verifica rischio pignoramento | FixTude", content)
 
 
 @app.route("/verifica-pignoramento/risultato", methods=["POST"])
 def pignoramento_risultato():
-    supplied = (request.form.get("csrf_token") or "").strip()
-    expected = (session.get("ft_pignoramento_csrf") or "").strip()
-    if not expected or not hmac.compare_digest(supplied, expected):
-        return _pignoramento_page("Sessione scaduta", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Sessione scaduta</h1><p class="ft-pign-lead">Per ragioni di sicurezza, torna alla homepage e ripeti la verifica.</p><p class="ft-pign-actions"><a href="/">Torna a FixTude</a></p></div></section>', 400)
-    session_id = (request.form.get("session_id") or "").strip()
-    try:
-        paid = _pignoramento_paid_checkout(session_id)
-    except Exception:
-        app.logger.exception("Nuova verifica Stripe prima del risultato non riuscita")
-        paid = None
-    if not paid:
-        return _pignoramento_page("Pagamento non verificato", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Accesso non autorizzato</h1><p class="ft-pign-lead">Non possiamo mostrare l’esito senza un pagamento verificato.</p><p class="ft-pign-actions"><a href="/">Torna a FixTude</a></p></div></section>', 402)
-    answers = {key: (request.form.get(key) or "").strip().lower() for key, _ in PIGNORAMENTO_QUESTIONS}
-    if any(value not in ("si", "no") for value in answers.values()):
-        return _pignoramento_page("Risposte incomplete", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Completa tutte le risposte</h1><p class="ft-pign-lead">Per elaborare l’istantanea devi selezionare SÌ oppure NO per ciascuna delle cinque domande.</p><p class="ft-pign-actions"><a href="/verifica-pignoramento/conferma?session_id=' + escape(session_id, quote=True) + '">Torna alle domande</a></p></div></section>', 400)
-    detected = any(value == "si" for value in answers.values())
-    now = datetime.now(ROME_TZ).strftime("%d/%m/%Y alle %H:%M")
-    if detected:
-        answer_html = '<div class="ft-pign-answer yes">SÌ</div><h2>Emergono indicatori di possibile esposizione</h2><p class="ft-pign-result-copy">Almeno una delle risposte segnala una situazione che merita attenzione. Questo esito non significa automaticamente che un pignoramento sia già stato disposto o sia imminente. La natura e la gravità del rischio dipendono dal tipo di debito, dagli atti effettivamente notificati, dai termini e dalle circostanze concrete.</p>'
-    else:
-        answer_html = '<div class="ft-pign-answer no">NO</div><h2>Nessun indicatore dichiarato rilevato</h2><p class="ft-pign-result-copy">In base alle risposte fornite non emergono gli indicatori considerati da questa verifica. L’esito non certifica che il conto sia al sicuro e non esclude atti non conosciuti, notifiche non lette o altre circostanze non considerate.</p>'
-    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">ESITO DELLA TUA VERIFICA FIXTUDE</div><div class="ft-pign-result">{answer_html}<p class="ft-pign-date">Istantanea riferita al {now}</p></div><div class="ft-pign-disclaimer"><strong>Importante:</strong> il risultato è elaborato esclusivamente sulla base delle dichiarazioni rese, non consulta banche dati, registri dei tribunali, banche o creditori e non costituisce consulenza legale né una certificazione. In presenza di precetto, pignoramento o termini indicati in un atto, rivolgiti tempestivamente a un avvocato.</div><p class="ft-pign-actions"><a href="/">Torna alla homepage FixTude</a></p></div></section>'''
-    return _pignoramento_page("Esito verifica rischio pignoramento | FixTude", content)
+    # Compatibilità: il vecchio endpoint non accetta più risposte dopo il pagamento.
+    return redirect("/#ftPignoramento")
 
 
 @app.route("/analisi", methods=["POST"])
