@@ -1454,8 +1454,8 @@ def home():
       const flipStage=document.getElementById('ftFlipStage');
       const flipToggle=document.getElementById('ftFlipToggle');
       const flipBack=document.getElementById('ftFlipBack');
-      function flipToTablet(){flipStage.classList.add('is-flipped');flipToggle.setAttribute('aria-pressed','true');flipStage.scrollIntoView({behavior:'smooth',block:'center'});}
-      function flipToCalculator(){flipStage.classList.remove('is-flipped');flipToggle.setAttribute('aria-pressed','false');}
+      function flipToTablet(){windWhoosh();flipStage.classList.add('is-flipped');flipToggle.setAttribute('aria-pressed','true');flipStage.scrollIntoView({behavior:'smooth',block:'center'});}
+      function flipToCalculator(){windWhoosh();flipStage.classList.remove('is-flipped');flipToggle.setAttribute('aria-pressed','false');}
       flipToggle.addEventListener('click',()=>flipStage.classList.contains('is-flipped')?flipToCalculator():flipToTablet());
       flipBack.addEventListener('click',flipToCalculator);
       const fields=['entrate','uscite','debiti'].map(id=>document.getElementById(id));
@@ -1488,6 +1488,21 @@ def home():
           src.buffer=noise;filter.type='lowpass';filter.frequency.value=1500;gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.20,now+.003);gain.gain.exponentialRampToValueAtTime(.0001,now+.045);
           src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);src.start(now);
           const osc=audioCtx.createOscillator(),og=audioCtx.createGain();osc.type='triangle';osc.frequency.setValueAtTime(125,now);osc.frequency.exponentialRampToValueAtTime(72,now+.035);og.gain.setValueAtTime(.0001,now);og.gain.exponentialRampToValueAtTime(.10,now+.003);og.gain.exponentialRampToValueAtTime(.0001,now+.05);osc.connect(og);og.connect(audioCtx.destination);osc.start(now);osc.stop(now+.055);
+        }catch(e){}
+      }
+      // Soffio d'aria sintetizzato con Web Audio per accompagnare la rotazione.
+      function windWhoosh(){
+        try{
+          const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+          if(!audioCtx)audioCtx=new AC();
+          if(audioCtx.state==='suspended')audioCtx.resume();
+          const now=audioCtx.currentTime,duration=.62,length=Math.floor(audioCtx.sampleRate*duration);
+          const noise=audioCtx.createBuffer(1,length,audioCtx.sampleRate),data=noise.getChannelData(0);
+          for(let i=0;i<length;i++){const fade=Math.sin(Math.PI*(i/length));data[i]=(Math.random()*2-1)*fade;}
+          const src=audioCtx.createBufferSource(),filter=audioCtx.createBiquadFilter(),gain=audioCtx.createGain();
+          src.buffer=noise;filter.type='bandpass';filter.frequency.setValueAtTime(1500,now);filter.frequency.exponentialRampToValueAtTime(260,now+duration);filter.Q.setValueAtTime(.65,now);
+          gain.gain.setValueAtTime(.0001,now);gain.gain.linearRampToValueAtTime(.105,now+.12);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+          src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);src.start(now);src.stop(now+duration);
         }catch(e){}
       }
       function press(button){button.classList.add('pressed');setTimeout(()=>button.classList.remove('pressed'),110);sound();}
@@ -1605,8 +1620,10 @@ def _pignoramento_page(title, content, status=200):
     .ft-pign-lock{font-size:25px;color:#b17b20}
     .ft-pign-price{text-align:center;color:#123b50;font-size:38px;font-weight:950;margin:8px 0 0}
     .ft-pign-small{text-align:center;color:#6c7d8e;font-size:10px;margin:0 0 10px}
-    .ft-pign-consent{display:flex;align-items:flex-start;gap:9px;max-width:500px;margin:14px auto;color:#526579;font-size:11px;line-height:1.45}
-    .ft-pign-consent input{margin-top:2px;flex:0 0 auto}
+    /* Consenso: checkbox centrata sopra, testo sotto a tutta larghezza e giustificato. */
+    .ft-pign-consent{display:block;width:100%;max-width:560px;box-sizing:border-box;margin:18px auto 14px;padding:0 8px;color:#526579;font-size:12px;line-height:1.6;text-align:center}
+    .ft-pign-consent input{display:block;width:17px;height:17px;margin:0 auto 11px;flex:none;accent-color:#176c92}
+    .ft-pign-consent span{display:block;width:100%;min-width:0;box-sizing:border-box;text-align:justify;text-justify:inter-word;overflow-wrap:anywhere}
     .ft-pign-consent a{color:#1b6489;font-weight:800}
     .ft-pign-disclaimer{margin:16px 0 0;padding:12px;border-radius:10px;background:#e6eef4;color:#526579;font-size:11px;line-height:1.5}
     .ft-pign-result{text-align:center;padding:16px 8px}
