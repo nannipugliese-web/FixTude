@@ -370,7 +370,7 @@ def page(title, content, include_chat=False):
     seo_title = seo.get("title", f"{title} | FixTude")
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
-    noindex_paths = ("/chat-staff", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
+    noindex_paths = ("/chat-staff", "/verifica-pignoramento/conferma", "/verifica-pignoramento/risultato", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
     robots = "noindex, nofollow" if path in noindex_paths or path.startswith("/api/") else "index, follow, max-image-preview:large"
     structured_data = None
     if path == "/":
@@ -1258,6 +1258,7 @@ def fixtude_v1_route_guard():
     path = request.path or "/"
     allowed = {
         "/", "/analisi", "/percorso", "/percorso/risultato", "/checkout", "/checkout/crea", "/checkout/conferma", "/checkout/consulenza", "/checkout/download",
+        "/verifica-pignoramento/acquista", "/verifica-pignoramento/conferma", "/verifica-pignoramento/risultato",
         "/chi-siamo", "/educazione-finanziaria",
         "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo",
         "/educazione-finanziaria/guida-saldo-e-stralcio",
@@ -1325,17 +1326,44 @@ def home():
       .ft-countdown{min-height:32px;margin:12px auto 0;font-size:24px;font-weight:900;color:#8fc4ff;text-align:center;letter-spacing:.04em}
       .ft-status{min-height:24px;margin:12px 0 0;font-weight:800;font-size:14px;color:#f4f6fa}
       .ft-note{text-align:center;font-size:12px;color:#aab5c4;margin:13px auto 0;max-width:540px}
-      @media(max-width:520px){.ft-calc-shell{padding:12px;border-radius:21px}.ft-key{min-height:56px;font-size:22px}.ft-light{width:46px;height:46px}.ft-lights{gap:8px;padding:10px 12px}.ft-tagline{font-size:26px}}
+      .ft-flip-stage{max-width:520px;margin:0 auto;perspective:1400px;}
+      .ft-flip-inner{display:grid;transform-style:preserve-3d;transition:transform .9s cubic-bezier(.2,.75,.2,1);}
+      .ft-flip-stage.is-flipped .ft-flip-inner{transform:rotateY(180deg);}
+      .ft-flip-face{grid-area:1/1;backface-visibility:hidden;-webkit-backface-visibility:hidden;}
+      .ft-flip-front{position:relative;}
+      .ft-flip-back{transform:rotateY(180deg);display:flex;align-items:stretch;}
+      .ft-tablet-shell{width:100%;min-height:100%;padding:13px;border-radius:29px;background:linear-gradient(145deg,#111a25,#050a11 55%,#26384a);border:2px solid #687b8d;box-shadow:0 20px 45px #07131f88,inset 0 2px 3px #ffffff35;display:flex;}
+      .ft-tablet-screen{position:relative;flex:1;border-radius:18px;background:linear-gradient(155deg,#f7fbff,#e8f1f8 55%,#d9e7f1);color:#203047;padding:clamp(18px,4vw,27px);display:flex;flex-direction:column;justify-content:center;overflow:hidden;}
+      .ft-tablet-screen:before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:#65788b;box-shadow:0 0 0 3px #c5d2de;}
+      .ft-tablet-kicker{font-size:10px;letter-spacing:.16em;font-weight:900;color:#39718e;text-align:center;margin:9px 0 8px;}
+      .ft-tablet-title{font-size:clamp(22px,4vw,30px);line-height:1.12;text-align:center;color:#17384d;font-weight:950;margin:0 0 12px;}
+      .ft-tablet-copy{font-size:13px;line-height:1.55;text-align:center;color:#526579;margin:0 auto 15px;max-width:390px;}
+      .ft-tablet-points{display:grid;gap:8px;margin:0 auto 17px;padding:0;list-style:none;width:100%;max-width:390px;}
+      .ft-tablet-points li{display:flex;gap:9px;align-items:flex-start;font-size:12px;line-height:1.4;color:#30475b;}
+      .ft-tablet-points li:before{content:"✓";font-weight:900;color:#16835f;}
+      .ft-tablet-price{text-align:center;font-size:34px;font-weight:950;color:#123b50;letter-spacing:-1px;margin:0 0 2px;}
+      .ft-tablet-price-note{text-align:center;color:#6c7d8e;font-size:10px;margin:0 0 13px;}
+      .ft-tablet-consent{display:flex;align-items:flex-start;gap:8px;font-size:10px;line-height:1.4;color:#526579;margin:0 auto 13px;max-width:390px;}
+      .ft-tablet-consent input{margin-top:2px;flex:0 0 auto;}
+      .ft-tablet-pay{width:100%;max-width:390px;align-self:center;border:0;border-radius:12px;padding:14px 12px;background:linear-gradient(145deg,#e7ad35,#f6cb68);color:#17364a;font-weight:950;font-size:13px;letter-spacing:.035em;box-shadow:0 4px 0 #b67d1b;cursor:pointer;}
+      .ft-tablet-back{align-self:center;margin:14px auto 0;border:0;background:transparent;color:#32627c;font-size:11px;font-weight:800;text-decoration:underline;cursor:pointer;}
+      .ft-pign-toggle{display:block;width:min(520px,100%);margin:15px auto 0;padding:14px 16px;border:1px solid #e6bd62;border-radius:13px;background:linear-gradient(145deg,#f7cf75,#e8ad39);color:#17364a;font-weight:950;font-size:14px;letter-spacing:.02em;box-shadow:0 5px 0 #b67d1b,0 12px 20px #07131f33;cursor:pointer;}
+      .ft-pign-hint{text-align:center;color:#c8d8e2;font-size:11px;line-height:1.45;margin:10px auto 0;max-width:480px;}
+      @media(max-width:520px){.ft-calc-shell{padding:12px;border-radius:21px}.ft-key{min-height:56px;font-size:22px}.ft-light{width:46px;height:46px}.ft-lights{gap:8px;padding:10px 12px}.ft-tagline{font-size:26px}.ft-tablet-shell{padding:8px;border-radius:23px}.ft-tablet-screen{border-radius:15px;padding:18px 14px}.ft-pign-toggle{font-size:12px}}
+      @media(prefers-reduced-motion:reduce){.ft-flip-inner{transition:none}}
       @media(prefers-reduced-motion:reduce){.ft-key,.ft-light{transition:none}}
     </style>
-    <section class="ft-v1">
+    <section class="ft-v1" id="ftPignoramento">
       <h1 class="ft-tagline">Non farti cercare<span>dal recupero crediti, cerca tu stesso la soluzione.</span></h1>
       <p class="ft-explain">Inserisci i tre importi con la calcolatrice FixTude<br>e scopri il colore del tuo semaforo di sostenibilità.</p>
       <form class="ft-fields" method="post" action="/analisi" id="ftCalculator" novalidate>
         <input type="hidden" id="entrate" name="entrate">
         <input type="hidden" id="uscite" name="uscite">
         <input type="hidden" id="debiti" name="debiti">
-        <div class="ft-calc-shell" id="ftCalculatorPanel">
+        <div class="ft-flip-stage" id="ftFlipStage">
+          <div class="ft-flip-inner">
+            <div class="ft-flip-face ft-flip-front">
+              <div class="ft-calc-shell" id="ftCalculatorPanel">
           <div class="ft-display-wrap">
             <div class="ft-display-label" id="ftDisplayLabel">ENTRATE MENSILI NETTE (€)</div>
             <div class="ft-display" id="ftDisplay" role="status" aria-live="polite">0</div>
@@ -1370,7 +1398,32 @@ def home():
             <div class="ft-value"><small>DEBITO</small><strong id="ftValue2">—</strong></div>
           </div>
           <p class="ft-calc-foot">Premi AVANTI per passare al dato successivo. Puoi tornare sui passaggi precedenti e correggere gli importi.</p>
+              </div>
+            </div>
+            <div class="ft-flip-face ft-flip-back">
+              <div class="ft-tablet-shell">
+                <div class="ft-tablet-screen">
+                  <div class="ft-tablet-kicker">SERVIZIO PREMIUM FIXTUDE</div>
+                  <h2 class="ft-tablet-title">Sei a rischio di pignoramento?</h2>
+                  <p class="ft-tablet-copy">Una verifica rapida basata su cinque domande. Scopri se, in base alle informazioni che dichiari, emergono indicatori di possibile esposizione a procedure esecutive.</p>
+                  <ul class="ft-tablet-points">
+                    <li>5 domande con risposte esclusivamente SÌ oppure NO</li>
+                    <li>Esito immediato dopo la conferma del pagamento</li>
+                    <li>Nessuna registrazione e nessun archivio permanente delle risposte</li>
+                    <li>Una fotografia della situazione dichiarata in quel momento</li>
+                  </ul>
+                  <div class="ft-tablet-price">€ 4,90</div>
+                  <p class="ft-tablet-price-note">Pagamento una tantum · verifica singola</p>
+                  <label class="ft-tablet-consent"><input type="checkbox" name="accept_terms" value="yes" form="ftPignoramentoBuyForm" required> <span>Ho letto i <a href="/termini" target="_blank" rel="noopener">Termini</a>, il <a href="/privacy" target="_blank" rel="noopener">Trattamento dei dati</a> e il <a href="/disclaimer" target="_blank" rel="noopener">Disclaimer</a>. Chiedo l'avvio immediato del servizio digitale dopo il pagamento e riconosco che, una volta iniziata l'esecuzione, il diritto di recesso può venire meno nei casi e nei limiti previsti dalla legge. Comprendo che l'esito è informativo e non costituisce una previsione certa.</span></label>
+                  <button class="ft-tablet-pay" type="submit" form="ftPignoramentoBuyForm">PAGA € 4,90 E SBLOCCA LA VERIFICA</button>
+                  <button class="ft-tablet-back" type="button" id="ftFlipBack">TORNA ALLA CALCOLATRICE</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+        <button class="ft-pign-toggle" type="button" id="ftFlipToggle">VERIFICA IL RISCHIO DI PIGNORAMENTO</button>
+        <p class="ft-pign-hint">Le domande SÌ/NO vengono mostrate esclusivamente dopo la conferma del pagamento Stripe.</p>
         <div class="ft-traffic" id="ftTraffic" aria-live="polite">
           <div class="ft-traffic-title">IL TUO SEMAFORO</div>
           <div class="ft-lights" role="img" aria-label="Semaforo di sostenibilità">
@@ -1382,11 +1435,19 @@ def home():
           <div class="ft-status" id="ftStatus"></div>
         </div>
       </form>
+      <form id="ftPignoramentoBuyForm" method="post" action="/verifica-pignoramento/acquista"><input type="hidden" name="csrf_token" value="{{PIGNORAMENTO_CSRF}}"></form>
       <p class="ft-note">Nessuna registrazione. Gli importi sono elaborati per il calcolo e non vengono archiviati in un profilo personale. Il risultato è orientativo.</p>
     </section>
     <script>
     (()=>{
       const form=document.getElementById('ftCalculator');
+      const flipStage=document.getElementById('ftFlipStage');
+      const flipToggle=document.getElementById('ftFlipToggle');
+      const flipBack=document.getElementById('ftFlipBack');
+      function flipToTablet(){flipStage.classList.add('is-flipped');flipToggle.textContent='TORNA ALLA CALCOLATRICE';flipToggle.setAttribute('aria-pressed','true');flipStage.scrollIntoView({behavior:'smooth',block:'center'});}
+      function flipToCalculator(){flipStage.classList.remove('is-flipped');flipToggle.textContent='VERIFICA IL RISCHIO DI PIGNORAMENTO';flipToggle.setAttribute('aria-pressed','false');}
+      flipToggle.addEventListener('click',()=>flipStage.classList.contains('is-flipped')?flipToCalculator():flipToTablet());
+      flipBack.addEventListener('click',flipToCalculator);
       const fields=['entrate','uscite','debiti'].map(id=>document.getElementById(id));
       const labels=['ENTRATE MENSILI NETTE (€)','USCITE MENSILI (€)','SITUAZIONE DEBITORIA COMPLESSIVA (€)'];
       const names=['ENTRATE','USCITE','DEBITO'];
@@ -1468,7 +1529,151 @@ def home():
     })();
     </script>
     """
-    return page("Calcolatore gratuito di sostenibilità del debito", content)
+    pignoramento_csrf = session.setdefault("ft_pignoramento_csrf", secrets.token_urlsafe(24))
+    content = content.replace("{{PIGNORAMENTO_CSRF}}", escape(pignoramento_csrf, quote=True))
+    return page("Calcolatore gratuito e verifica rischio pignoramento | FixTude", content)
+
+
+# =========================================================
+# VERIFICA RISCHIO PIGNORAMENTO - SERVIZIO A PAGAMENTO
+# Le risposte non vengono archiviate: vengono elaborate nella singola richiesta.
+# L'esito è una fotografia dichiarativa del momento, non una previsione certa.
+# =========================================================
+
+PIGNORAMENTO_PRICE_CENTS = 490
+PIGNORAMENTO_FLOW = "pignoramento_snapshot_v1"
+PIGNORAMENTO_QUESTIONS = [
+    ("q1", "Hai attualmente debiti scaduti che non sei riuscito a pagare?"),
+    ("q2", "Hai ricevuto una diffida, una messa in mora o una richiesta formale di pagamento rimasta senza soluzione?"),
+    ("q3", "Hai ricevuto una cartella esattoriale, un'ingiunzione o un'intimazione di pagamento che non hai saldato?"),
+    ("q4", "Hai ricevuto un atto di precetto?"),
+    ("q5", "Hai ricevuto un atto di pignoramento o una comunicazione di esecuzione su conto corrente, stipendio o pensione?"),
+]
+
+
+def _pignoramento_paid_checkout(session_id):
+    'Verifica lato server pagamento, importo, valuta e prodotto acquistato.'
+    secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+    if not session_id or stripe is None or not secret_key:
+        return None
+    stripe.api_key = secret_key
+    checkout = stripe.checkout.Session.retrieve(session_id)
+    data = checkout.to_dict()
+    metadata = data.get("metadata") or {}
+    if (data.get("payment_status") != "paid" or
+            data.get("mode") != "payment" or
+            data.get("currency") != "eur" or
+            data.get("amount_total") != PIGNORAMENTO_PRICE_CENTS or
+            metadata.get("fixtude_flow") != PIGNORAMENTO_FLOW):
+        return None
+    return data
+
+
+def _pignoramento_page(title, content, status=200):
+    css = r'''<style>
+    body:has(.ft-pign-page){background:#123B50!important;color:#f4f6fa!important}
+    body:has(.ft-pign-page) header{background:#123B50!important;border-bottom:1px solid #28566a!important}
+    body:has(.ft-pign-page) .brand{color:#f4f6fa!important}
+    body:has(.ft-pign-page) footer{background:#123B50!important;color:#d2e0e7!important;border-top:1px solid #28566a!important}
+    body:has(.ft-pign-page) footer a{color:#b9e2f2!important}
+    .ft-pign-page{max-width:760px;margin:0 auto;padding:24px 4px 40px}
+    .ft-pign-tablet{padding:12px;border-radius:28px;background:linear-gradient(145deg,#101a25,#050a11 55%,#26384a);border:2px solid #687b8d;box-shadow:0 20px 45px #07131f88}
+    .ft-pign-screen{border-radius:18px;background:linear-gradient(155deg,#f7fbff,#e8f1f8 55%,#d9e7f1);color:#203047;padding:clamp(18px,4vw,30px)}
+    .ft-pign-kicker{text-align:center;color:#39718e;font-size:10px;font-weight:900;letter-spacing:.15em}
+    .ft-pign-screen h1{text-align:center;color:#17384d;font-size:clamp(23px,5vw,32px);line-height:1.15;margin:10px 0 12px}
+    .ft-pign-lead{text-align:center;color:#526579;font-size:13px;line-height:1.55}
+    .ft-pign-question{border:1px solid #d1dde7;border-radius:13px;padding:14px;margin:13px 0;background:#ffffffb8}
+    .ft-pign-question legend{font-weight:800;color:#20384d;font-size:14px;line-height:1.45;padding:0 4px}
+    .ft-pign-options{display:flex;gap:10px;margin-top:12px}
+    .ft-pign-options label{flex:1;display:flex;justify-content:center;align-items:center;gap:7px;padding:11px;border:1px solid #b9c9d7;border-radius:10px;background:#fff;color:#203047;font-weight:900;cursor:pointer}
+    .ft-pign-options input{accent-color:#176c92}
+    .ft-pign-submit{display:block;width:100%;margin:18px auto 0;padding:15px;border:0;border-radius:12px;background:linear-gradient(145deg,#e7ad35,#f6cb68);color:#17364a;font-weight:950;font-size:14px;cursor:pointer;box-shadow:0 4px 0 #b67d1b}
+    .ft-pign-disclaimer{margin:16px 0 0;padding:12px;border-radius:10px;background:#e6eef4;color:#526579;font-size:11px;line-height:1.5}
+    .ft-pign-result{text-align:center;padding:16px 8px}
+    .ft-pign-answer{font-size:clamp(58px,13vw,84px);font-weight:1000;line-height:1;margin:20px 0 12px;letter-spacing:-3px}
+    .ft-pign-answer.yes{color:#b52d36}.ft-pign-answer.no{color:#16835f}
+    .ft-pign-result-copy{font-size:15px;line-height:1.6;color:#30475b}
+    .ft-pign-date{font-size:11px;color:#6c7d8e;margin-top:12px}
+    .ft-pign-actions{text-align:center;margin-top:18px}
+    .ft-pign-actions a{color:#1b6489;font-weight:800}
+    @media(max-width:520px){.ft-pign-tablet{padding:8px;border-radius:22px}.ft-pign-screen{padding:17px 13px;border-radius:15px}.ft-pign-question{padding:12px 10px}.ft-pign-question legend{font-size:13px}}
+    </style>'''
+    return page(title, css + '<main class="ft-pign-page">' + content + '</main>'), status
+
+
+@app.route("/verifica-pignoramento/acquista", methods=["POST"])
+def pignoramento_acquista():
+    supplied = (request.form.get("csrf_token") or "").strip()
+    expected = (session.get("ft_pignoramento_csrf") or "").strip()
+    if not expected or not hmac.compare_digest(supplied, expected):
+        return _pignoramento_page("Richiesta non valida", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Sessione scaduta</h1><p class="ft-pign-lead">Ricarica la homepage e ripeti l’operazione.</p><p class="ft-pign-actions"><a href="/">Torna a FixTude</a></p></div></section>', 400)
+    if request.form.get("accept_terms") != "yes":
+        return redirect("/#ftPignoramento")
+    if rate_limited("pignoramento_checkout", 8, 3600):
+        return _pignoramento_page("Riprova più tardi", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Hai effettuato troppe richieste</h1><p class="ft-pign-lead">Attendi qualche minuto prima di riprovare.</p><p class="ft-pign-actions"><a href="/">Torna alla homepage</a></p></div></section>', 429)
+    secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+    if stripe is None or not secret_key:
+        return _pignoramento_page("Pagamento non disponibile", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Pagamento temporaneamente non disponibile</h1><p class="ft-pign-lead">Il pagamento non è configurato. Non è stato effettuato alcun addebito.</p><p class="ft-pign-actions"><a href="/">Torna alla homepage</a></p></div></section>', 503)
+    stripe.api_key = secret_key
+    try:
+        checkout = stripe.checkout.Session.create(
+            mode="payment",
+            line_items=[{"price_data": {"currency": "eur", "unit_amount": PIGNORAMENTO_PRICE_CENTS, "product_data": {"name": "FixTude - Verifica istantanea rischio pignoramento", "description": "Questionario digitale di cinque domande SÌ/NO con esito informativo riferito alla situazione dichiarata al momento della verifica."}}, "quantity": 1}],
+            success_url=request.host_url.rstrip("/") + "/verifica-pignoramento/conferma?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=request.host_url.rstrip("/") + "/?verifica_annullata=1#ftPignoramento",
+            billing_address_collection="auto",
+            customer_creation="if_required",
+            metadata={"fixtude_flow": PIGNORAMENTO_FLOW, "fixtude_product": "verifica_rischio_pignoramento", "snapshot_notice": "yes"},
+        )
+        return redirect(checkout.url, code=303)
+    except Exception:
+        app.logger.exception("Creazione checkout verifica pignoramento non riuscita")
+        return _pignoramento_page("Pagamento non disponibile", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Non è stato possibile avviare il pagamento</h1><p class="ft-pign-lead">Nessun pagamento è stato confermato. Riprova più tardi.</p><p class="ft-pign-actions"><a href="/">Torna alla homepage</a></p></div></section>', 502)
+
+
+@app.route("/verifica-pignoramento/conferma", methods=["GET"])
+def pignoramento_conferma():
+    session_id = (request.args.get("session_id") or "").strip()
+    try:
+        paid = _pignoramento_paid_checkout(session_id)
+    except Exception:
+        app.logger.exception("Verifica Stripe del servizio pignoramento non riuscita")
+        paid = None
+    if not paid:
+        return _pignoramento_page("Pagamento da verificare", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Pagamento non verificato</h1><p class="ft-pign-lead">Le domande sono disponibili soltanto dopo la conferma effettiva del pagamento. Se hai pagato, aggiorna la pagina tra qualche istante oppure contatta contatto@fixtude.it.</p><p class="ft-pign-actions"><a href="/">Torna a FixTude</a></p></div></section>', 402)
+    token = session.setdefault("ft_pignoramento_csrf", secrets.token_urlsafe(24))
+    questions_html = []
+    for key, question in PIGNORAMENTO_QUESTIONS:
+        questions_html.append(f'''<fieldset class="ft-pign-question"><legend>{escape(question)}</legend><div class="ft-pign-options"><label><input type="radio" name="{key}" value="si" required> SÌ</label><label><input type="radio" name="{key}" value="no" required> NO</label></div></fieldset>''')
+    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">PAGAMENTO CONFERMATO · FIXTUDE</div><h1>Verifica rischio pignoramento</h1><p class="ft-pign-lead">Rispondi pensando alla situazione attuale. Per ogni domanda puoi selezionare soltanto SÌ oppure NO.</p><form method="post" action="/verifica-pignoramento/risultato"><input type="hidden" name="session_id" value="{escape(session_id, quote=True)}"><input type="hidden" name="csrf_token" value="{escape(token, quote=True)}">{''.join(questions_html)}<button class="ft-pign-submit" type="submit">MOSTRA IL MIO ESITO</button></form><p class="ft-pign-disclaimer"><strong>Fotografia del momento:</strong> il risultato descrive esclusivamente gli elementi che dichiari al momento della compilazione. Non è una previsione certa, non verifica registri giudiziari o bancari e non può rilevare atti che non conosci o non hai ricevuto.</p></div></section>'''
+    return _pignoramento_page("Verifica rischio pignoramento | FixTude", content)
+
+
+@app.route("/verifica-pignoramento/risultato", methods=["POST"])
+def pignoramento_risultato():
+    supplied = (request.form.get("csrf_token") or "").strip()
+    expected = (session.get("ft_pignoramento_csrf") or "").strip()
+    if not expected or not hmac.compare_digest(supplied, expected):
+        return _pignoramento_page("Sessione scaduta", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Sessione scaduta</h1><p class="ft-pign-lead">Per ragioni di sicurezza, torna alla homepage e ripeti la verifica.</p><p class="ft-pign-actions"><a href="/">Torna a FixTude</a></p></div></section>', 400)
+    session_id = (request.form.get("session_id") or "").strip()
+    try:
+        paid = _pignoramento_paid_checkout(session_id)
+    except Exception:
+        app.logger.exception("Nuova verifica Stripe prima del risultato non riuscita")
+        paid = None
+    if not paid:
+        return _pignoramento_page("Pagamento non verificato", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Accesso non autorizzato</h1><p class="ft-pign-lead">Non possiamo mostrare l’esito senza un pagamento verificato.</p><p class="ft-pign-actions"><a href="/">Torna a FixTude</a></p></div></section>', 402)
+    answers = {key: (request.form.get(key) or "").strip().lower() for key, _ in PIGNORAMENTO_QUESTIONS}
+    if any(value not in ("si", "no") for value in answers.values()):
+        return _pignoramento_page("Risposte incomplete", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Completa tutte le risposte</h1><p class="ft-pign-lead">Per elaborare l’istantanea devi selezionare SÌ oppure NO per ciascuna delle cinque domande.</p><p class="ft-pign-actions"><a href="/verifica-pignoramento/conferma?session_id=' + escape(session_id, quote=True) + '">Torna alle domande</a></p></div></section>', 400)
+    detected = any(value == "si" for value in answers.values())
+    now = datetime.now(ROME_TZ).strftime("%d/%m/%Y alle %H:%M")
+    if detected:
+        answer_html = '<div class="ft-pign-answer yes">SÌ</div><h2>Emergono indicatori di possibile esposizione</h2><p class="ft-pign-result-copy">Almeno una delle risposte segnala una situazione che merita attenzione. Questo esito non significa automaticamente che un pignoramento sia già stato disposto o sia imminente. La natura e la gravità del rischio dipendono dal tipo di debito, dagli atti effettivamente notificati, dai termini e dalle circostanze concrete.</p>'
+    else:
+        answer_html = '<div class="ft-pign-answer no">NO</div><h2>Nessun indicatore dichiarato rilevato</h2><p class="ft-pign-result-copy">In base alle risposte fornite non emergono gli indicatori considerati da questa verifica. L’esito non certifica che il conto sia al sicuro e non esclude atti non conosciuti, notifiche non lette o altre circostanze non considerate.</p>'
+    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">ESITO DELLA TUA VERIFICA FIXTUDE</div><div class="ft-pign-result">{answer_html}<p class="ft-pign-date">Istantanea riferita al {now}</p></div><div class="ft-pign-disclaimer"><strong>Importante:</strong> il risultato è elaborato esclusivamente sulla base delle dichiarazioni rese, non consulta banche dati, registri dei tribunali, banche o creditori e non costituisce consulenza legale né una certificazione. In presenza di precetto, pignoramento o termini indicati in un atto, rivolgiti tempestivamente a un avvocato.</div><p class="ft-pign-actions"><a href="/">Torna alla homepage FixTude</a></p></div></section>'''
+    return _pignoramento_page("Esito verifica rischio pignoramento | FixTude", content)
 
 
 @app.route("/analisi", methods=["POST"])
@@ -4419,7 +4624,8 @@ def legal_disclaimer():
     <h2>5. Limiti e professionisti abilitati</h2><p>I contenuti generali del sito non sostituiscono una consulenza legale, fiscale, contabile o finanziaria personalizzata. FixTude non si presenta, in forza del solo uso del sito, come avvocato, commercialista, consulente finanziario abilitato, organismo di composizione della crisi o rappresentante del cliente. In presenza di saldo nullo o negativo, atti giudiziari, precetti, pignoramenti o termini di opposizione, è opportuno rivolgersi tempestivamente a un avvocato esperto in diritto bancario/credito. Nei casi di possibile sovraindebitamento può essere utile verificare con un professionista l'accesso a un Organismo di composizione della crisi (OCC) e alle procedure previste dal Codice della crisi. Eventuali attività ulteriori, se offerte, dovranno essere descritte e concordate separatamente prima del loro avvio.</p>
     <h2>6. Documenti e informazioni inseriti dall'utente</h2><p>L'utente è responsabile di verificare i dati inseriti, gli importi dei debiti, l'identità dei creditori, le scadenze e i documenti ricevuti. Non caricare o inviare tramite moduli o chat documenti integrali, credenziali bancarie o dati personali non necessari. In presenza di atti giudiziari, termini di opposizione, procedure esecutive o scadenze imminenti, richiedi tempestivamente assistenza qualificata.</p>
     <h2>7. Elaborazione dei dati nel calcolatore</h2><p>Gli importi inseriti nel calcolatore sono trasmessi al server tramite HTTPS e conservati temporaneamente nella sessione tecnica firmata necessaria a mostrare il risultato, proseguire al checkout e generare il report dopo il pagamento. Non viene creato un account utente né un archivio permanente dei dati economici. I dati possono essere inclusi nel report scaricato e nel pacchetto inviato via email, se la consegna email è configurata. Per i dettagli sui dati del pagamento e sui fornitori consulta l'<a href="/privacy">Informativa Privacy</a>.</p>
-    <h2>8. Contatti e aggiornamenti</h2><p>Per chiarimenti sul servizio scrivi a contatto@fixtude.it. Questo Disclaimer può essere aggiornato quando cambiano le funzionalità o le condizioni del servizio. Le informazioni presenti sul sito non sostituiscono la lettura delle comunicazioni ufficiali ricevute dai creditori né la verifica della normativa applicabile al caso concreto.</p>"""
+    <h2>8. Verifica rischio pignoramento: istantanea dichiarativa</h2><p>La verifica a pagamento basata su cinque domande SÌ/NO restituisce una fotografia della situazione dichiarata dall’utente al momento della compilazione. L’esito “SÌ” segnala la presenza di almeno un indicatore dichiarato tra quelli considerati; non attesta che un pignoramento sia già stato disposto o sia imminente. L’esito “NO” indica soltanto che, in base alle risposte fornite, non sono emersi gli indicatori previsti: non certifica l’assenza di procedure o atti non conosciuti, non ricevuti o non considerati. Il servizio non accede a conti correnti, banche dati creditizie, registri giudiziari, archivi dei creditori o sistemi dell’Agenzia delle Entrate-Riscossione e non verifica autonomamente la correttezza o completezza delle dichiarazioni. Non è una previsione certa, una certificazione di sicurezza patrimoniale o una consulenza legale personalizzata.</p>
+    <h2>9. Contatti e aggiornamenti</h2><p>Per chiarimenti sul servizio scrivi a contatto@fixtude.it. Questo Disclaimer può essere aggiornato quando cambiano le funzionalità o le condizioni del servizio. Le informazioni presenti sul sito non sostituiscono la lettura delle comunicazioni ufficiali ricevute dai creditori né la verifica della normativa applicabile al caso concreto.</p>"""
     return legal_page("Disclaimer", body)
 
 
@@ -4430,12 +4636,13 @@ def legal_terms():
     <h2>2. Calcolatore gratuito V5</h2><p>Il calcolatore è accessibile senza registrazione e richiede tre importi: entrate mensili nette, uscite mensili e situazione debitoria complessiva. I dati sono trasmessi al server tramite HTTPS e mantenuti temporaneamente nella sessione tecnica necessaria a mostrare il risultato, completare il checkout e generare il report; non viene creato un account o un archivio economico permanente. Il semaforo considera anche l’importo del debito e la possibilità teorica di rientrare entro 6 o 12 mesi. Il motore ipotizza di destinare al rimborso il 30% nel verde e il 25% nel giallo. Tutte queste percentuali sono parametri convenzionali FixTude, non standard universali né una certificazione di solvibilità. Leggi anche il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
     <h2>3. Limiti delle informazioni</h2><p>I contenuti hanno finalità informative e organizzative. Non costituiscono consulenza legale, fiscale o finanziaria personalizzata, non sostituiscono un professionista abilitato e non garantiscono riduzioni del debito, cancellazioni da banche dati o accettazione di proposte da parte dei creditori. L'utente deve verificare i dati e adattare i modelli alla propria situazione. Per i dettagli sui limiti del calcolatore e delle simulazioni consulta il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
     <h2>4. Chat e richieste di contatto</h2><p>L'invio di una richiesta di contatto non comporta obbligo di acquistare servizi né garantisce tempi di risposta specifici. La chat non è un servizio di emergenza. Non inserire nella chat o nel modulo dati bancari, credenziali, documenti completi o dati personali non necessari.</p>
-    <h2>5. Kit digitale e pagamenti</h2><p>Il Kit FixTude è proposto al prezzo promozionale di € 49,90 e comprende un dossier personalizzato generato sulla base dei dati inseriti, i modelli fac-simile disponibili, un libro digitale PDF a scelta tra quelli proposti nella pagina di checkout e la possibilità di richiedere una prima consulenza legale gratuita prima del pagamento, inserendo i recapiti e prestando un consenso specifico al ricontatto. I recapiti vengono inviati alla casella contatto@fixtude.it soltanto dopo la verifica del pagamento; il titolare gestisce la richiesta e può trasmetterli successivamente all’avvocato incaricato in conformità al consenso espresso. Se il pagamento non viene completato, non vengono inviati. La consulenza iniziale è un colloquio di primo orientamento; eventuali attività professionali ulteriori sono oggetto di valutazione e accordo diretto e separato con l’avvocato. La consulenza è facoltativa: il dossier e i materiali acquistati restano disponibili anche se l’utente non richiede il ricontatto. I libri disponibili sono: <em>NIENTE PANICO</em>, <em>Guida al Saldo e Stralcio</em> oppure <em>Piano di rientro con cambiali: pro, contro e rischi</em>. Il pagamento è elaborato da Stripe; il download del pacchetto viene reso disponibile dopo la verifica della transazione e, se il servizio email è configurato, inviato all'indirizzo comunicato durante il checkout. Non inviare i dati della carta a FixTude via email.</p>
-    <h2>6. Consumatori e recesso</h2><p>Restano fermi i diritti inderogabili riconosciuti ai consumatori dalla normativa applicabile. Per contenuti digitali forniti senza supporto materiale, l'eventuale perdita del diritto di recesso richiede che ricorrano tutte le condizioni previste dalla legge, incluse le dichiarazioni espresse richieste prima dell'inizio dell'esecuzione e la conferma su supporto durevole. Il flusso di acquisto deve prevedere le informazioni e le dichiarazioni espresse richieste dalla normativa prima dell'inizio della fornitura del contenuto digitale, oltre alla conferma su supporto durevole quando prevista.</p>
-    <h2>7. Uso corretto</h2><p>L'utente si impegna a usare il sito in modo lecito, a non tentare accessi non autorizzati, a non inviare spam e a non caricare dati di terzi senza una base legittima.</p>
-    <h2>8. Proprietà intellettuale</h2><p>Testi, grafica, marchio e materiali originali del sito sono protetti dalle norme applicabili. I modelli scaricabili possono essere utilizzati per esigenze personali, senza rimuovere avvertenze o presentare i contenuti come pareri professionali garantiti.</p>
-    <h2>9. Privacy</h2><p>Il trattamento dei dati personali è descritto nell'<a href="/privacy">Informativa Privacy</a>. L'accettazione dei presenti Termini non sostituisce l'informativa e non costituisce consenso generale a trattamenti facoltativi.</p>
-    <h2>10. Area Professionisti</h2><p>L’area professionisti è in fase di attivazione. La registrazione non comporta automaticamente la pubblicazione del profilo o l’attivazione di un abbonamento. I profili sono pubblicati solo dopo verifica e approvazione. Le eventuali funzionalità di inoltro richieste e i pacchetti di lead non sono pubblicati come offerta commerciale, non sono acquistabili e non saranno attivati fino alla definizione delle condizioni contrattuali e alla verifica legale e deontologica.</p><h2>11. Assistenza e modifiche</h2><p>Per richieste o reclami scrivere a contatto@fixtude.it. I termini potranno essere aggiornati per modifiche normative o tecniche; per gli acquisti conclusi restano fermi i diritti già acquisiti.</p>"""
+    <h2>5. Verifica rischio pignoramento</h2><p>La verifica rischio pignoramento è un servizio digitale singolo al prezzo di € 4,90, pagato tramite Stripe. Dopo la conferma del pagamento vengono rese disponibili cinque domande con risposte SÌ/NO e un esito immediato. L’esito è una fotografia della situazione dichiarata dall’utente al momento della compilazione e non costituisce previsione certa, certificazione o consulenza legale. Il servizio non consulta registri giudiziari, conti bancari, banche dati dei creditori o archivi pubblici e non può rilevare atti non conosciuti dall’utente. Le risposte sono elaborate per produrre l’esito e non vengono inserite in un archivio applicativo permanente. Il pagamento è verificato lato server prima di mostrare le domande e il risultato.</p>
+    <h2>6. Kit digitale e pagamenti</h2><p>Il Kit FixTude è proposto al prezzo promozionale di € 49,90 e comprende un dossier personalizzato generato sulla base dei dati inseriti, i modelli fac-simile disponibili, un libro digitale PDF a scelta tra quelli proposti nella pagina di checkout e la possibilità di richiedere una prima consulenza legale gratuita prima del pagamento, inserendo i recapiti e prestando un consenso specifico al ricontatto. I recapiti vengono inviati alla casella contatto@fixtude.it soltanto dopo la verifica del pagamento; il titolare gestisce la richiesta e può trasmetterli successivamente all’avvocato incaricato in conformità al consenso espresso. Se il pagamento non viene completato, non vengono inviati. La consulenza iniziale è un colloquio di primo orientamento; eventuali attività professionali ulteriori sono oggetto di valutazione e accordo diretto e separato con l’avvocato. La consulenza è facoltativa: il dossier e i materiali acquistati restano disponibili anche se l’utente non richiede il ricontatto. I libri disponibili sono: <em>NIENTE PANICO</em>, <em>Guida al Saldo e Stralcio</em> oppure <em>Piano di rientro con cambiali: pro, contro e rischi</em>. Il pagamento è elaborato da Stripe; il download del pacchetto viene reso disponibile dopo la verifica della transazione e, se il servizio email è configurato, inviato all'indirizzo comunicato durante il checkout. Non inviare i dati della carta a FixTude via email.</p>
+    <h2>7. Consumatori e recesso</h2><p>Restano fermi i diritti inderogabili riconosciuti ai consumatori dalla normativa applicabile. Per contenuti digitali forniti senza supporto materiale, l'eventuale perdita del diritto di recesso richiede che ricorrano tutte le condizioni previste dalla legge, incluse le dichiarazioni espresse richieste prima dell'inizio dell'esecuzione e la conferma su supporto durevole. Il flusso di acquisto deve prevedere le informazioni e le dichiarazioni espresse richieste dalla normativa prima dell'inizio della fornitura del contenuto digitale, oltre alla conferma su supporto durevole quando prevista.</p>
+    <h2>8. Uso corretto</h2><p>L'utente si impegna a usare il sito in modo lecito, a non tentare accessi non autorizzati, a non inviare spam e a non caricare dati di terzi senza una base legittima.</p>
+    <h2>9. Proprietà intellettuale</h2><p>Testi, grafica, marchio e materiali originali del sito sono protetti dalle norme applicabili. I modelli scaricabili possono essere utilizzati per esigenze personali, senza rimuovere avvertenze o presentare i contenuti come pareri professionali garantiti.</p>
+    <h2>10. Privacy</h2><p>Il trattamento dei dati personali è descritto nell'<a href="/privacy">Informativa Privacy</a>. L'accettazione dei presenti Termini non sostituisce l'informativa e non costituisce consenso generale a trattamenti facoltativi.</p>
+    <h2>11. Area Professionisti</h2><p>L’area professionisti è in fase di attivazione. La registrazione non comporta automaticamente la pubblicazione del profilo o l’attivazione di un abbonamento. I profili sono pubblicati solo dopo verifica e approvazione. Le eventuali funzionalità di inoltro richieste e i pacchetti di lead non sono pubblicati come offerta commerciale, non sono acquistabili e non saranno attivati fino alla definizione delle condizioni contrattuali e alla verifica legale e deontologica.</p><h2>12. Assistenza e modifiche</h2><p>Per richieste o reclami scrivere a contatto@fixtude.it. I termini potranno essere aggiornati per modifiche normative o tecniche; per gli acquisti conclusi restano fermi i diritti già acquisiti.</p>"""
     return legal_page("Termini e Condizioni", body)
 
 
@@ -4443,7 +4650,7 @@ def legal_terms():
 def privacy():
     body = """<p>Questa informativa descrive i principali trattamenti connessi alla versione attuale del sito FixTude. Viene aggiornata quando cambiano in modo rilevante le funzionalità, i fornitori o le modalità di trattamento.</p>
     <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è Giovanni Pugliese, che gestisce il servizio denominato FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per richieste relative ai dati personali: contatto@fixtude.it.</p>
-    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio direttamente a Web3Forms tramite HTTPS per l’inoltro al titolare. L’applicazione non conserva una copia in un proprio database; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude al prezzo promozionale di € 49,90. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del dossier, di una guida a scelta e dei modelli fac-simile. Se l’utente richiede la consulenza prima del pagamento, nome, telefono, email e riferimento temporale del consenso vengono inseriti nei metadati della sessione Stripe per poterli associare alla transazione.</li><li><strong>Richiesta facoltativa di consulenza legale:</strong> prima di accedere al pagamento l’utente può scegliere di inserire nome, telefono ed email e prestare un consenso specifico all’invio dei recapiti a contatto@fixtude.it e alla loro eventuale comunicazione all’avvocato incaricato, per essere ricontattato e organizzare una prima consulenza. Se l’utente sceglie questa opzione, i recapiti e il riferimento del consenso vengono associati alla sessione di checkout Stripe; Stripe li tratta nell’ambito della sessione di pagamento. Dopo la verifica del pagamento, FixTude invia i recapiti via email alla casella nannipugliese@gmail.com. Il titolare gestisce la richiesta e, se necessario, trasmette i recapiti all’avvocato incaricato in conformità al consenso espresso. Se il pagamento non viene completato, i recapiti non vengono inviati alla casella FixTude né inoltrati al professionista. La richiesta non viene archiviata in un database FixTude. Il dossier e i dettagli economici/debitori non vengono trasmessi con questa email. La consulenza è facoltativa e il materiale acquistato resta scaricabile anche senza consenso.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
+    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Verifica rischio pignoramento:</strong> le risposte SÌ/NO alle cinque domande vengono trasmesse tramite HTTPS ed elaborate per generare l’esito richiesto dopo il pagamento. Le risposte non vengono inserite in un archivio applicativo permanente né aggiunte ai metadati Stripe. Stripe tratta i dati necessari al pagamento e FixTude riceve il riferimento tecnico necessario a verificarne l’esito. Il risultato viene mostrato nella sessione di navigazione e non viene conservato in un profilo personale.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio direttamente a Web3Forms tramite HTTPS per l’inoltro al titolare. L’applicazione non conserva una copia in un proprio database; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude al prezzo promozionale di € 49,90. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del dossier, di una guida a scelta e dei modelli fac-simile. Se l’utente richiede la consulenza prima del pagamento, nome, telefono, email e riferimento temporale del consenso vengono inseriti nei metadati della sessione Stripe per poterli associare alla transazione.</li><li><strong>Richiesta facoltativa di consulenza legale:</strong> prima di accedere al pagamento l’utente può scegliere di inserire nome, telefono ed email e prestare un consenso specifico all’invio dei recapiti a contatto@fixtude.it e alla loro eventuale comunicazione all’avvocato incaricato, per essere ricontattato e organizzare una prima consulenza. Se l’utente sceglie questa opzione, i recapiti e il riferimento del consenso vengono associati alla sessione di checkout Stripe; Stripe li tratta nell’ambito della sessione di pagamento. Dopo la verifica del pagamento, FixTude invia i recapiti via email alla casella nannipugliese@gmail.com. Il titolare gestisce la richiesta e, se necessario, trasmette i recapiti all’avvocato incaricato in conformità al consenso espresso. Se il pagamento non viene completato, i recapiti non vengono inviati alla casella FixTude né inoltrati al professionista. La richiesta non viene archiviata in un database FixTude. Il dossier e i dettagli economici/debitori non vengono trasmessi con questa email. La consulenza è facoltativa e il materiale acquistato resta scaricabile anche senza consenso.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
     <h2>3. Basi giuridiche</h2><p>Le richieste di contatto sono trattate per rispondere a una richiesta dell'interessato e adottare misure precontrattuali su sua richiesta. I recapiti per la gestione della richiesta da parte di FixTude e l’eventuale comunicazione all’avvocato incaricato sono trattati soltanto dopo il consenso specifico espresso prima del checkout e dopo la verifica del pagamento; il consenso può essere revocato scrivendo a contatto@fixtude.it, fermo restando quanto già legittimamente effettuato. I dati relativi ad acquisti sono trattati per eseguire il contratto e adempiere agli obblighi di legge. Sicurezza e prevenzione abusi possono basarsi sul legittimo interesse, da valutare e documentare. Eventuali attività promozionali richiedono una valutazione e, ove necessario, un consenso separato.</p>
     <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l’hosting (se confermato in produzione), Web3Forms per le notifiche email della chat e per il modulo di ricontatto, Register per la casella email e Stripe per i pagamenti. Quando l’utente richiede la consulenza legale, i recapiti vengono associati alla sessione Stripe e, soltanto dopo la verifica del pagamento, inviati via email alla casella nannipugliese@gmail.com tramite Web3Forms; il titolare gestisce la richiesta e può successivamente trasmettere i recapiti all’avvocato incaricato in conformità al consenso espresso. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
     <h2>5. Cookie e strumenti di tracciamento</h2><p>Google Analytics (ID di misurazione G-HMBBNLHC7E) viene caricato soltanto dopo la scelta esplicita della categoria statistiche nel pannello cookie. Se la categoria viene rifiutata o disattivata, il sito non avvia nuove richieste di misurazione e aggiorna lo stato di consenso di Google Analytics. I pixel pubblicitari non sono attivi. Prima del lancio definitivo occorre verificare tecnicamente i cookie effettivamente installati e aggiornare questa informativa in base ai risultati.</p>
