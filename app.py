@@ -1469,35 +1469,24 @@ def home():
       const flipStage=document.getElementById('ftFlipStage');
       const flipToggle=document.getElementById('ftFlipToggle');
       const flipBack=document.getElementById('ftFlipBack');
-      // L'altezza del box pignoramento viene copiata dal box calcolatrice.
-      // Questa parte è isolata: un eventuale errore di misurazione non deve
-      // interrompere gli script della calcolatrice, del semaforo o dell'audio.
+      // L'altezza del box pignoramento viene copiata dal solo box calcolatrice.
       const calculatorPanel=document.getElementById('ftCalculatorPanel');
-      const pignoramentoBox=flipStage?flipStage.querySelector('.ft-flip-back'):null;
+      const pignoramentoBox=flipStage.querySelector('.ft-flip-back');
       function syncPignoramentoBoxHeight(){
-        try{
-          if(!flipStage||!calculatorPanel||!pignoramentoBox)return;
-          const h=Math.round(calculatorPanel.getBoundingClientRect().height);
-          if(h>0){
-            flipStage.style.setProperty('--ft-calculator-height',h+'px');
-            pignoramentoBox.style.height=h+'px';
-            pignoramentoBox.style.maxHeight=h+'px';
-          }
-        }catch(error){/* Non bloccare gli altri script della pagina. */}
-      }
-      try{
-        syncPignoramentoBoxHeight();
-        if(window.ResizeObserver){
-          const pignoramentoSizeObserver=new window.ResizeObserver(syncPignoramentoBoxHeight);
-          if(calculatorPanel)pignoramentoSizeObserver.observe(calculatorPanel);
-        }else{
-          window.addEventListener('resize',syncPignoramentoBoxHeight,{passive:true});
+        if(!calculatorPanel||!pignoramentoBox)return;
+        const h=Math.round(calculatorPanel.getBoundingClientRect().height);
+        if(h>0){
+          flipStage.style.setProperty('--ft-calculator-height',h+'px');
+          pignoramentoBox.style.height=h+'px';
+          pignoramentoBox.style.maxHeight=h+'px';
         }
-        window.addEventListener('load',syncPignoramentoBoxHeight,{once:true});
-      }catch(error){
-        window.addEventListener('load',syncPignoramentoBoxHeight,{once:true});
-        window.addEventListener('resize',syncPignoramentoBoxHeight,{passive:true});
       }
+      syncPignoramentoBoxHeight();
+      if('ResizeObserver' in window){
+        const pignoramentoSizeObserver=new ResizeObserver(syncPignoramentoBoxHeight);
+        pignoramentoSizeObserver.observe(calculatorPanel);
+      }else{window.addEventListener('resize',syncPignoramentoBoxHeight,{passive:true});}
+      window.addEventListener('load',syncPignoramentoBoxHeight,{once:true});
       function flipToTablet(){windWhoosh();flipStage.classList.add('is-flipped');flipToggle.setAttribute('aria-pressed','true');flipStage.scrollIntoView({behavior:'smooth',block:'center'});}
       function flipToCalculator(){windWhoosh();flipStage.classList.remove('is-flipped');flipToggle.setAttribute('aria-pressed','false');}
       flipToggle.addEventListener('click',()=>flipStage.classList.contains('is-flipped')?flipToCalculator():flipToTablet());
@@ -1512,6 +1501,20 @@ def home():
       const status=document.getElementById('ftStatus'),countdown=document.getElementById('ftCountdown');
       const next=document.getElementById('ftNext'),equals=document.getElementById('ftEquals'),traffic=document.getElementById('ftTraffic');
       let current=0,buffer='',busy=false,audioCtx=null;
+      // Sblocca l'audio alla prima interazione reale dell'utente (policy browser).
+      function unlockAudio(){
+        try{
+          const AC=window.AudioContext||window.webkitAudioContext;
+          if(!AC)return;
+          if(!audioCtx)audioCtx=new AC();
+          if(audioCtx.state==='suspended'){
+            const resumePromise=audioCtx.resume();
+            if(resumePromise&&typeof resumePromise.catch==='function')resumePromise.catch(()=>{});
+          }
+        }catch(error){}
+      }
+      document.addEventListener('pointerdown',unlockAudio,{capture:true,once:true});
+      document.addEventListener('keydown',unlockAudio,{capture:true,once:true});
       const fmt=n=>new Intl.NumberFormat('it-IT',{maximumFractionDigits:2}).format(n);
       const parsed=s=>s===''?null:Number(s.replace(',','.'));
       function update(){
@@ -1521,10 +1524,12 @@ def home():
         values.forEach((el,i)=>el.textContent=fields[i].value===''?'—':fmt(Number(fields[i].value)));
         next.hidden=current===2;equals.hidden=current!==2;
       }
-      function sound(){
+      async function sound(){
         try{
           const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
-          if(!audioCtx)audioCtx=new AC();if(audioCtx.state==='suspended')audioCtx.resume();
+          if(!audioCtx)audioCtx=new AC();
+          if(audioCtx.state==='suspended')await audioCtx.resume();
+          if(audioCtx.state!=='running')return;
           const now=audioCtx.currentTime;
           const length=Math.floor(audioCtx.sampleRate*.045),noise=audioCtx.createBuffer(1,length,audioCtx.sampleRate),data=noise.getChannelData(0);
           for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*(1-i/length);
@@ -1532,14 +1537,15 @@ def home():
           src.buffer=noise;filter.type='lowpass';filter.frequency.value=1500;gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.20,now+.003);gain.gain.exponentialRampToValueAtTime(.0001,now+.045);
           src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);src.start(now);
           const osc=audioCtx.createOscillator(),og=audioCtx.createGain();osc.type='triangle';osc.frequency.setValueAtTime(125,now);osc.frequency.exponentialRampToValueAtTime(72,now+.035);og.gain.setValueAtTime(.0001,now);og.gain.exponentialRampToValueAtTime(.10,now+.003);og.gain.exponentialRampToValueAtTime(.0001,now+.05);osc.connect(og);og.connect(audioCtx.destination);osc.start(now);osc.stop(now+.055);
-        }catch(e){}
+        }catch(error){}
       }
       // Soffio d'aria sintetizzato con Web Audio per accompagnare la rotazione.
-      function windWhoosh(){
+      async function windWhoosh(){
         try{
           const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
           if(!audioCtx)audioCtx=new AC();
-          if(audioCtx.state==='suspended')audioCtx.resume();
+          if(audioCtx.state==='suspended')await audioCtx.resume();
+          if(audioCtx.state!=='running')return;
           const now=audioCtx.currentTime,duration=.62,length=Math.floor(audioCtx.sampleRate*duration);
           const noise=audioCtx.createBuffer(1,length,audioCtx.sampleRate),data=noise.getChannelData(0);
           for(let i=0;i<length;i++){const fade=Math.sin(Math.PI*(i/length));data[i]=(Math.random()*2-1)*fade;}
@@ -1547,7 +1553,7 @@ def home():
           src.buffer=noise;filter.type='bandpass';filter.frequency.setValueAtTime(1500,now);filter.frequency.exponentialRampToValueAtTime(260,now+duration);filter.Q.setValueAtTime(.65,now);
           gain.gain.setValueAtTime(.0001,now);gain.gain.linearRampToValueAtTime(.105,now+.12);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
           src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);src.start(now);src.stop(now+duration);
-        }catch(e){}
+        }catch(error){}
       }
       function press(button){button.classList.add('pressed');setTimeout(()=>button.classList.remove('pressed'),110);sound();}
       function setCurrent(index){current=Math.max(0,Math.min(2,index));buffer=fields[current].value;update();}
@@ -1587,7 +1593,7 @@ def home():
         await new Promise(r=>setTimeout(r,450));
         const color=evaluateColor(v[0],v[1],v[2]),cls={rosso:'red',giallo:'yellow',verde:'green'};
         countdown.textContent='PRONTI…';
-        for(let n=3;n>=1;n--){countdown.textContent=String(n);sound();await new Promise(r=>setTimeout(r,650));}
+        for(let n=3;n>=1;n--){countdown.textContent=String(n);await sound();await new Promise(r=>setTimeout(r,650));}
         countdown.textContent='RISULTATO';lights[color].className='ft-light on '+cls[color];
         status.textContent=({rosso:'ROSSO · situazione critica',giallo:'GIALLO · attenzione',verde:'VERDE · margine più favorevole'}[color]);
         await new Promise(r=>setTimeout(r,550));
