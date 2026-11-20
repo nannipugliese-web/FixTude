@@ -1335,11 +1335,8 @@ def home():
       .ft-flip-stage.is-flipped .ft-flip-back{height:auto;overflow:visible;}
       .ft-flip-front{position:relative;display:flex;flex-direction:column;gap:12px;}
       .ft-flip-back{transform:rotateY(180deg);display:flex;align-items:stretch;}
-      .ft-tablet-shell{width:100%;height:auto;min-height:0;box-sizing:border-box;padding:13px;border-radius:29px;background:linear-gradient(145deg,#111a25,#050a11 55%,#26384a);border:2px solid #687b8d;box-shadow:0 20px 45px #07131f88,inset 0 2px 3px #ffffff35;display:flex;}
-      .ft-tablet-screen{position:relative;flex:1;min-height:0;min-width:0;box-sizing:border-box;border-radius:18px;background:linear-gradient(155deg,#f7fbff,#e8f1f8 55%,#d9e7f1);color:#203047;padding:clamp(18px,4vw,27px);display:flex;flex-direction:column;justify-content:flex-start;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#7894aa #dce7ef;}
-      .ft-tablet-screen::-webkit-scrollbar{width:8px;}
-      .ft-tablet-screen::-webkit-scrollbar-track{background:#dce7ef;border-radius:8px;}
-      .ft-tablet-screen::-webkit-scrollbar-thumb{background:#7894aa;border-radius:8px;border:2px solid #dce7ef;}
+      .ft-tablet-shell{width:100%;min-height:100%;padding:13px;border-radius:29px;background:linear-gradient(145deg,#111a25,#050a11 55%,#26384a);border:2px solid #687b8d;box-shadow:0 20px 45px #07131f88,inset 0 2px 3px #ffffff35;display:flex;}
+      .ft-tablet-screen{position:relative;flex:1;border-radius:18px;background:linear-gradient(155deg,#f7fbff,#e8f1f8 55%,#d9e7f1);color:#203047;padding:clamp(18px,4vw,27px);display:flex;flex-direction:column;justify-content:center;overflow:hidden;}
       .ft-tablet-screen:before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:#65788b;box-shadow:0 0 0 3px #c5d2de;}
       .ft-tablet-kicker{font-size:10px;letter-spacing:.16em;font-weight:900;color:#39718e;text-align:center;margin:9px 0 8px;}
       .ft-tablet-title{font-size:clamp(22px,4vw,30px);line-height:1.12;text-align:center;color:#17384d;font-weight:950;margin:0 0 12px;}
@@ -1370,6 +1367,20 @@ def home():
       @media(max-width:520px){.ft-calc-shell{padding:12px;border-radius:21px}.ft-key{min-height:56px;font-size:22px}.ft-light{width:46px;height:46px}.ft-lights{gap:8px;padding:10px 12px}.ft-tagline{font-size:26px}.ft-tablet-shell{padding:8px;border-radius:23px}.ft-tablet-screen{border-radius:15px;padding:18px 14px}.ft-tablet-question{padding:11px 10px}.ft-tablet-question legend{font-size:12px;line-height:1.5}.ft-tablet-screen .ft-tablet-copy{font-size:12px}.ft-pign-toggle-main{font-size:12px}.ft-pign-toggle-sub{font-size:9px}}
       @media(prefers-reduced-motion:reduce){.ft-flip-inner{transition:none}}
       @media(prefers-reduced-motion:reduce){.ft-key,.ft-light{transition:none}}
+      /* Fix mirata: il lato questionario occupa esattamente l'altezza del lato calcolatrice. */
+      #ftFlipStage{box-sizing:border-box;}
+      #ftFlipStage .ft-flip-inner{height:100%;min-height:0;}
+      #ftFlipStage .ft-flip-face{min-height:0;box-sizing:border-box;}
+      #ftFlipStage .ft-flip-front{height:100%;min-height:0;}
+      #ftFlipStage .ft-flip-back{height:100%;min-height:0;overflow:hidden;}
+      #ftFlipStage.is-flipped .ft-flip-front{height:0;min-height:0;overflow:hidden;}
+      #ftFlipStage.is-flipped .ft-flip-back{height:100%;min-height:0;overflow:hidden;}
+      #ftFlipStage .ft-tablet-shell{height:100%;min-height:0;box-sizing:border-box;}
+      #ftFlipStage .ft-tablet-screen{height:100%;min-height:0;box-sizing:border-box;justify-content:flex-start;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#8295a7 #dce6ee;}
+      #ftFlipStage .ft-tablet-screen::-webkit-scrollbar{width:9px}
+      #ftFlipStage .ft-tablet-screen::-webkit-scrollbar-track{background:#dce6ee;border-radius:9px}
+      #ftFlipStage .ft-tablet-screen::-webkit-scrollbar-thumb{background:#8295a7;border-radius:9px;border:2px solid #dce6ee}
+      @media(max-width:520px){#ftFlipStage .ft-tablet-screen{padding:18px 14px}}
     </style>
     <section class="ft-v1" id="ftPignoramento">
       <h1 class="ft-tagline">Non farti cercare<span>dal recupero crediti, cerca tu stesso la soluzione.</span></h1>
@@ -1463,35 +1474,24 @@ def home():
       const flipStage=document.getElementById('ftFlipStage');
       const flipToggle=document.getElementById('ftFlipToggle');
       const flipBack=document.getElementById('ftFlipBack');
-      const calculatorPanel=document.getElementById('ftCalculatorPanel');
-      const tabletShell=flipStage.querySelector('.ft-tablet-shell');
-      function syncTabletHeight(){
-        if(!calculatorPanel||!tabletShell)return;
-        const panelHeight=Math.ceil(calculatorPanel.getBoundingClientRect().height);
-        if(panelHeight>0)tabletShell.style.height=panelHeight+'px';
+      const flipFront=flipStage.querySelector('.ft-flip-front');
+      function syncFlipStageHeight(){
+        if(!flipFront||flipStage.classList.contains('is-flipped'))return;
+        flipStage.style.height='auto';
+        const h=Math.ceil(flipFront.getBoundingClientRect().height);
+        if(h>0)flipStage.style.height=h+'px';
       }
-      function centerActivePanel(target){
-        if(!target)return;
-        requestAnimationFrame(()=>requestAnimationFrame(()=>{
-          target.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
-        }));
+      function centerFlipStage(){
+        requestAnimationFrame(()=>requestAnimationFrame(()=>flipStage.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'})));
       }
-      syncTabletHeight();
-      if('ResizeObserver' in window&&calculatorPanel){
-        const tabletHeightObserver=new ResizeObserver(syncTabletHeight);
-        tabletHeightObserver.observe(calculatorPanel);
-      }else{
-        window.addEventListener('resize',syncTabletHeight,{passive:true});
-      }
-      window.addEventListener('load',syncTabletHeight,{once:true});
       function flipToTablet(){
-        windWhoosh();syncTabletHeight();flipStage.classList.add('is-flipped');
-        flipToggle.setAttribute('aria-pressed','true');centerActivePanel(tabletShell);
+        windWhoosh();syncFlipStageHeight();flipStage.classList.add('is-flipped');flipToggle.setAttribute('aria-pressed','true');centerFlipStage();
       }
       function flipToCalculator(){
-        windWhoosh();flipStage.classList.remove('is-flipped');
-        flipToggle.setAttribute('aria-pressed','false');centerActivePanel(calculatorPanel);
+        windWhoosh();flipStage.classList.remove('is-flipped');flipToggle.setAttribute('aria-pressed','false');centerFlipStage();
       }
+      syncFlipStageHeight();
+      window.addEventListener('resize',()=>{if(!flipStage.classList.contains('is-flipped'))syncFlipStageHeight();});
       flipToggle.addEventListener('click',()=>flipStage.classList.contains('is-flipped')?flipToCalculator():flipToTablet());
       flipBack.addEventListener('click',flipToCalculator);
       const fields=['entrate','uscite','debiti'].map(id=>document.getElementById(id));
