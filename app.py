@@ -1351,7 +1351,13 @@ def home():
     <style>
       body:has(.ft-new-home){background:#05070c!important;color:#eaf2ff!important}
       body:has(.ft-new-home) header{background:#05070c!important;border-bottom:1px solid #172a45!important}
-      body:has(.ft-new-home) .brand{color:#fff!important}
+      body:has(.ft-new-home) .brand{color:#fff!important;white-space:nowrap}
+      body:has(.ft-new-home) .brand span{display:inline-block;overflow:hidden;white-space:nowrap;vertical-align:baseline;width:0;animation:ftTypeFix .42s steps(3,end) .18s forwards}
+      body:has(.ft-new-home) .brand span:last-of-type{animation:ftTypeTude .55s steps(4,end) .62s forwards;position:relative}
+      body:has(.ft-new-home) .brand span:last-of-type:after{content:"";display:inline-block;height:.92em;width:2px;margin-left:3px;vertical-align:-.08em;background:#168cff;box-shadow:0 0 9px #168cff;animation:ftCursorBlink .8s steps(2,start) infinite}
+      @keyframes ftTypeFix{to{width:3ch}}
+      @keyframes ftTypeTude{to{width:4.35ch}}
+      @keyframes ftCursorBlink{to{opacity:0}}
       body:has(.ft-new-home) .menu-toggle{background:#101827!important;color:#fff!important;border-color:#24436b!important}
       body:has(.ft-new-home) .nav-menu{background:#0b111d!important;border-color:#24436b!important}
       body:has(.ft-new-home) .nav-menu a{color:#eef4ff!important}
@@ -1360,20 +1366,32 @@ def home():
       body:has(.ft-new-home) footer a,body:has(.ft-new-home) .cookie-footer-link{color:#66b5ff!important}
       body:has(.ft-new-home) main{width:100%;max-width:none;margin:0;padding:0;min-height:0}
       .ft-new-home{--ft-blue:#0879e8;--ft-blue-bright:#42a5ff;--ft-black:#05070c;--ft-ink:#111722;--ft-muted:#596579;width:100%;overflow:hidden}
-      .ft-new-hero{position:relative;isolation:isolate;background:radial-gradient(ellipse at 82% 18%,#123e70 0,transparent 38%),linear-gradient(135deg,#05070c 0%,#0a111d 58%,#101b2b 100%);color:#fff;padding:clamp(42px,7vw,82px) 20px 62px}
-      .ft-new-hero:after{content:"";position:absolute;z-index:-1;right:-130px;bottom:-230px;width:480px;height:480px;border:1px solid #168cff33;border-radius:50%;box-shadow:0 0 0 34px #168cff0a,0 0 0 72px #168cff08}
-      .ft-new-inner{width:min(100%,980px);margin:0 auto}
+      .ft-new-hero{position:relative;isolation:isolate;overflow:hidden;background:radial-gradient(ellipse at 82% 18%,#123e70 0,transparent 38%),linear-gradient(135deg,#05070c 0%,#0a111d 58%,#101b2b 100%);color:#fff;padding:clamp(52px,8vw,96px) 20px 76px}
+      .ft-neural-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.88}
+      .ft-new-hero:before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(90deg,#05070cdd 0%,#05070c99 48%,#05070c55 100%)}
+      .ft-new-inner{position:relative;z-index:1;width:min(100%,980px);margin:0 auto}
+      .ft-new-kicker{animation:ftRise .75s ease both}
+      .ft-new-title{animation:ftRise .9s cubic-bezier(.2,.7,.2,1) .12s both;text-wrap:balance}
+      .ft-new-lead{animation:ftRise .9s ease .28s both}
+      .ft-new-action-row{animation:ftRise .9s ease .42s both}
+      .ft-new-upload-note-inner{animation:ftRise .8s ease .2s both}
+      .ft-new-card{opacity:0;animation:ftCardIn .75s cubic-bezier(.2,.7,.2,1) forwards;transition:transform .3s ease,border-color .3s ease,box-shadow .3s ease}
+      .ft-new-card:nth-child(1){animation-delay:.12s}.ft-new-card:nth-child(2){animation-delay:.28s}.ft-new-card:nth-child(3){animation-delay:.44s}
+      .ft-new-card:hover{transform:translateY(-7px);border-color:#168cff88;box-shadow:0 18px 38px #0007,0 0 24px #168cff18}
+      .ft-new-card-icon{animation:ftIconFloat 4s ease-in-out infinite}
+      .ft-new-card:nth-child(2) .ft-new-card-icon{animation-delay:.7s}.ft-new-card:nth-child(3) .ft-new-card-icon{animation-delay:1.4s}
+      .ft-new-cta{position:relative;overflow:hidden;animation:ftCtaGlow 3.2s ease-in-out infinite}
+      .ft-new-cta:after{content:"";position:absolute;top:-80%;left:-45%;width:35%;height:260%;transform:rotate(24deg);background:linear-gradient(90deg,transparent,#ffffff55,transparent);animation:ftShine 4.8s ease-in-out 1.4s infinite}
+      @keyframes ftRise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+      @keyframes ftCardIn{from{opacity:0;transform:translateY(24px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+      @keyframes ftIconFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+      @keyframes ftCtaGlow{0%,100%{box-shadow:0 10px 28px #0879e833,inset 0 1px #ffffff55}50%{box-shadow:0 13px 34px #0879e877,inset 0 1px #ffffff66}}
+      @keyframes ftShine{0%,65%,100%{left:-45%}82%{left:125%}}
       .ft-new-kicker{display:inline-flex;align-items:center;gap:9px;color:#79bdff;font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;margin-bottom:20px}
       .ft-new-kicker:before{content:"";width:25px;height:2px;background:#168cff;box-shadow:0 0 12px #168cff}
       .ft-new-title{max-width:850px;margin:0 0 20px;color:#fff;font-size:clamp(32px,5.4vw,58px);font-weight:900;line-height:1.08;letter-spacing:-1.7px}
       .ft-new-title .blue{color:#168cff;text-shadow:0 0 24px #168cff35}
       .ft-new-lead{max-width:720px;margin:0;color:#c6d2e1;font-size:clamp(16px,2vw,19px);line-height:1.65}
-      .ft-new-docs{display:flex;flex-wrap:wrap;gap:9px;margin:28px 0 30px;max-width:830px}
-      .ft-new-doc{position:relative;padding:9px 13px;border:1px solid #315277;border-radius:999px;background:#0c1b2d;color:#eaf4ff;font:inherit;font-size:12px;font-weight:750;cursor:help;transition:background .18s,border-color .18s,transform .18s}
-      .ft-new-doc:hover,.ft-new-doc:focus-visible,.ft-new-doc.is-open{background:#12345a;border-color:#168cff;color:#fff;outline:none;transform:translateY(-1px)}
-      .ft-new-doc:after{content:attr(data-tip);position:absolute;z-index:20;left:50%;bottom:calc(100% + 12px);transform:translate(-50%,5px);width:min(270px,80vw);padding:12px 14px;border:1px solid #3c6d9e;border-radius:10px;background:#050b14;color:#eaf4ff;font-size:12px;font-weight:500;line-height:1.5;text-align:left;white-space:normal;box-shadow:0 12px 30px #0009;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s,transform .16s}
-      .ft-new-doc:hover:after,.ft-new-doc:focus-visible:after,.ft-new-doc.is-open:after{opacity:1;visibility:visible;transform:translate(-50%,0)}
-      @media(hover:none){.ft-new-doc:after{bottom:auto;top:calc(100% + 9px)}.ft-new-doc:hover:after{opacity:0;visibility:hidden}.ft-new-doc.is-open:after{opacity:1;visibility:visible}}
       .ft-new-action-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
       .ft-new-cta{display:inline-flex;align-items:center;justify-content:center;gap:11px;min-height:56px;padding:0 25px;border:1px solid #58b2ff;border-radius:12px;background:linear-gradient(135deg,#168cff,#0759bd);color:#fff;text-decoration:none;font-size:14px;font-weight:950;letter-spacing:.045em;box-shadow:0 10px 28px #0879e855,inset 0 1px #ffffff55;transition:transform .18s,box-shadow .18s}
       .ft-new-cta:hover{transform:translateY(-2px);box-shadow:0 14px 34px #0879e877,inset 0 1px #ffffff66}
@@ -1400,23 +1418,16 @@ def home():
       .ft-upload-modal-card h2{margin:0 0 10px;color:#fff;font-size:23px}
       .ft-upload-modal-card p{color:#c0cede;font-size:14px;line-height:1.6}
       .ft-upload-modal-close{display:block;margin:20px 0 0 auto;padding:10px 17px;border:1px solid #3d6b9d;border-radius:9px;background:#102746;color:#fff;font-weight:800;cursor:pointer}
-      @media(max-width:700px){.ft-new-hero{padding:42px 18px 46px}.ft-new-title{font-size:clamp(30px,9vw,43px);letter-spacing:-1px}.ft-new-docs{gap:7px;margin:22px 0 25px}.ft-new-doc{font-size:11px;padding:8px 10px}.ft-new-action-row{align-items:stretch;flex-direction:column}.ft-new-cta{width:100%;min-height:54px}.ft-new-cta-note{max-width:none;text-align:center}.ft-new-upload-note{padding:0 12px}.ft-new-upload-note-inner{padding:14px 15px}.ft-new-section{padding:42px 16px 48px}.ft-new-cards{grid-template-columns:1fr;gap:11px}.ft-new-card{padding:18px}.ft-new-bottom{padding:25px 18px 34px}}
-      @media(prefers-reduced-motion:reduce){.ft-new-cta{transition:none}}
+      @media(max-width:700px){.ft-new-hero{padding:46px 18px 54px}.ft-new-title{font-size:clamp(30px,9vw,43px);letter-spacing:-1px}.ft-new-action-row{align-items:stretch;flex-direction:column}.ft-new-cta{width:100%;min-height:54px}.ft-new-cta-note{max-width:none;text-align:center}.ft-new-upload-note{padding:0 12px}.ft-new-upload-note-inner{padding:14px 15px}.ft-new-section{padding:42px 16px 48px}.ft-new-cards{grid-template-columns:1fr;gap:11px}.ft-new-card{padding:18px}}
+      @media(prefers-reduced-motion:reduce){body:has(.ft-new-home) .brand span{width:auto!important;animation:none!important}body:has(.ft-new-home) .brand span:last-of-type:after{display:none}.ft-new-kicker,.ft-new-title,.ft-new-lead,.ft-new-action-row,.ft-new-upload-note-inner,.ft-new-card{opacity:1;animation:none!important;transform:none!important}.ft-new-card-icon,.ft-new-cta:after{animation:none!important}.ft-new-cta{transition:none}}
     </style>
     <div class="ft-new-home">
       <section class="ft-new-hero">
+        <canvas class="ft-neural-canvas" id="ftNeuralNetwork" aria-hidden="true"></canvas>
         <div class="ft-new-inner">
           <div class="ft-new-kicker">UN PUNTO DI PARTENZA, NON UN GIUDIZIO</div>
           <h1 class="ft-new-title">Hai ricevuto un sollecito, una messa in mora, una diffida, un decreto ingiuntivo o un <span class="blue">atto di pignoramento?</span></h1>
           <p class="ft-new-lead">Non sai come comportarti? Non ignorare quello che hai ricevuto. Carica il documento e cerchiamo insieme di capire la tua situazione e quali possibilità puoi valutare.</p>
-          <div class="ft-new-docs" aria-label="Documenti che puoi sottoporre a FixTude">
-            <button class="ft-new-doc" type="button" aria-expanded="false" data-tip="Una richiesta con cui il creditore sollecita il pagamento di una somma che ritiene dovuta.">Sollecito di pagamento</button>
-            <button class="ft-new-doc" type="button" aria-expanded="false" data-tip="Una comunicazione formale che intima di adempiere e può avere effetti sulla mora del debitore.">Messa in mora</button>
-            <button class="ft-new-doc" type="button" aria-expanded="false" data-tip="Una richiesta formale che invita a porre rimedio a un inadempimento entro un termine indicato.">Diffida</button>
-            <button class="ft-new-doc" type="button" aria-expanded="false" data-tip="Un provvedimento del giudice che ingiunge il pagamento; dopo la notifica possono decorrere termini importanti.">Decreto ingiuntivo</button>
-            <button class="ft-new-doc" type="button" aria-expanded="false" data-tip="Un atto che avvia o documenta un'esecuzione forzata su beni, stipendio, pensione o conto: va esaminato tempestivamente.">Atto di pignoramento</button>
-            <button class="ft-new-doc" type="button" aria-expanded="false" data-tip="Contratti, comunicazioni di recupero crediti, precetti o altri documenti collegati a una richiesta di pagamento.">Altra comunicazione</button>
-          </div>
           <div class="ft-new-action-row">
             <a class="ft-new-cta" href="/registrazione" id="ftOpenUploadInfo">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M4 16.5v2A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-2"/></svg>
@@ -1442,7 +1453,44 @@ def home():
       </section>
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
       <script>
-      (()=>{const pills=[...document.querySelectorAll('.ft-new-doc')];pills.forEach(p=>p.addEventListener('click',()=>{const open=!p.classList.contains('is-open');pills.forEach(x=>{x.classList.remove('is-open');x.setAttribute('aria-expanded','false')});if(open){p.classList.add('is-open');p.setAttribute('aria-expanded','true')}}));document.addEventListener('click',e=>{if(!e.target.closest('.ft-new-doc'))pills.forEach(p=>{p.classList.remove('is-open');p.setAttribute('aria-expanded','false')})})})();
+      (()=>{
+        const canvas=document.getElementById('ftNeuralNetwork');
+        if(!canvas) return;
+        const ctx=canvas.getContext('2d',{alpha:true});
+        if(!ctx) return;
+        const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        let w=0,h=0,dpr=1,nodes=[],raf=0,last=0;
+        const mobile=()=>window.innerWidth<700;
+        function resize(){
+          const box=canvas.getBoundingClientRect(); dpr=Math.min(window.devicePixelRatio||1,1.6);
+          w=Math.max(1,box.width);h=Math.max(1,box.height);
+          canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+          ctx.setTransform(dpr,0,0,dpr,0,0);
+          const count=mobile()?34:68;
+          nodes=Array.from({length:count},(_,i)=>({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-.5)*.22,vy:(Math.random()-.5)*.22,r:1+Math.random()*1.7,phase:Math.random()*Math.PI*2}));
+          draw(0);
+        }
+        function draw(time){
+          ctx.clearRect(0,0,w,h);
+          const reach=mobile()?112:155;
+          for(let i=0;i<nodes.length;i++){
+            const a=nodes[i];
+            if(!reduce){a.x+=a.vx;a.y+=a.vy;if(a.x<0||a.x>w)a.vx*=-1;if(a.y<0||a.y>h)a.vy*=-1;}
+            for(let j=i+1;j<nodes.length;j++){
+              const b=nodes[j],dx=a.x-b.x,dy=a.y-b.y,dist=Math.hypot(dx,dy);
+              if(dist<reach){const alpha=(1-dist/reach)*.22;ctx.strokeStyle=`rgba(64,157,255,${alpha})`;ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+            }
+            const pulse=reduce?1:(.65+.35*Math.sin(time*.001+a.phase));
+            ctx.beginPath();ctx.arc(a.x,a.y,a.r*pulse,0,Math.PI*2);
+            ctx.fillStyle=`rgba(105,190,255,${.35+.5*pulse})`;ctx.shadowColor='#168cff';ctx.shadowBlur=8;ctx.fill();ctx.shadowBlur=0;
+          }
+        }
+        function frame(t){if(t-last>30){draw(t);last=t;}raf=requestAnimationFrame(frame);}
+        resize();
+        if(!reduce)raf=requestAnimationFrame(frame);
+        window.addEventListener('resize',resize,{passive:true});
+        document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf);}else if(!reduce){last=0;raf=requestAnimationFrame(frame);}});
+      })();
       </script>
     </div>
     """
@@ -5604,7 +5652,6 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5000")),
         debug=False
     )
-
 
 
 
