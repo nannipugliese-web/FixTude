@@ -515,6 +515,9 @@ def page(title, content, include_chat=False):
               letter-spacing:-.8px;
               text-decoration:none;
             }
+            /* FIXTUDE: le due parti del marchio devono risultare unite */
+            .brand {font-size:0!important;white-space:nowrap}
+            .brand span {font-size:25px!important;letter-spacing:-.8px!important}
             .menu-toggle{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font-size:25px;cursor:pointer;line-height:1}
             .nav-menu{display:none;position:absolute;right:max(18px,calc((100vw - 1080px)/2));top:68px;z-index:1000;min-width:245px;max-width:calc(100vw - 32px);padding:10px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 32px rgba(20,40,70,.18)}
             .nav-menu.open{display:flex;flex-direction:column;gap:0}
@@ -1352,11 +1355,6 @@ def home():
       body:has(.ft-new-home){background:#05070c!important;color:#eaf2ff!important}
       body:has(.ft-new-home) header{background:#05070c!important;border-bottom:1px solid #172a45!important}
       body:has(.ft-new-home) .brand{color:#fff!important;white-space:nowrap}
-      body:has(.ft-new-home) .brand span{display:inline-block;overflow:hidden;white-space:nowrap;vertical-align:baseline;width:0;animation:ftTypeFix .42s steps(3,end) .18s forwards}
-      body:has(.ft-new-home) .brand span:last-of-type{animation:ftTypeTude .55s steps(4,end) .62s forwards;position:relative}
-      body:has(.ft-new-home) .brand span:last-of-type:after{content:"";display:inline-block;height:.92em;width:2px;margin-left:3px;vertical-align:-.08em;background:#168cff;box-shadow:0 0 9px #168cff;animation:ftCursorBlink .8s steps(2,start) infinite}
-      @keyframes ftTypeFix{to{width:3ch}}
-      @keyframes ftTypeTude{to{width:4.35ch}}
       @keyframes ftCursorBlink{to{opacity:0}}
       body:has(.ft-new-home) .menu-toggle{background:#101827!important;color:#fff!important;border-color:#24436b!important}
       body:has(.ft-new-home) .nav-menu{background:#0b111d!important;border-color:#24436b!important}
@@ -1367,7 +1365,7 @@ def home():
       body:has(.ft-new-home) main{width:100%;max-width:none;margin:0;padding:0;min-height:0}
       .ft-new-home{--ft-blue:#0879e8;--ft-blue-bright:#42a5ff;--ft-black:#05070c;--ft-ink:#111722;--ft-muted:#596579;width:100%;overflow:hidden}
       .ft-new-hero{position:relative;isolation:isolate;overflow:hidden;background:radial-gradient(ellipse at 82% 18%,#123e70 0,transparent 38%),linear-gradient(135deg,#05070c 0%,#0a111d 58%,#101b2b 100%);color:#fff;padding:clamp(52px,8vw,96px) 20px 76px}
-      .ft-neural-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.88}
+      .ft-neural-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:1}
       .ft-new-hero:before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(90deg,#05070cdd 0%,#05070c99 48%,#05070c55 100%)}
       .ft-new-inner{position:relative;z-index:1;width:min(100%,980px);margin:0 auto}
       .ft-new-kicker{animation:ftRise .75s ease both}
@@ -1419,14 +1417,14 @@ def home():
       .ft-upload-modal-card p{color:#c0cede;font-size:14px;line-height:1.6}
       .ft-upload-modal-close{display:block;margin:20px 0 0 auto;padding:10px 17px;border:1px solid #3d6b9d;border-radius:9px;background:#102746;color:#fff;font-weight:800;cursor:pointer}
       @media(max-width:700px){.ft-new-hero{padding:46px 18px 54px}.ft-new-title{font-size:clamp(30px,9vw,43px);letter-spacing:-1px}.ft-new-action-row{align-items:stretch;flex-direction:column}.ft-new-cta{width:100%;min-height:54px}.ft-new-cta-note{max-width:none;text-align:center}.ft-new-upload-note{padding:0 12px}.ft-new-upload-note-inner{padding:14px 15px}.ft-new-section{padding:42px 16px 48px}.ft-new-cards{grid-template-columns:1fr;gap:11px}.ft-new-card{padding:18px}}
-      @media(prefers-reduced-motion:reduce){body:has(.ft-new-home) .brand span{width:auto!important;animation:none!important}body:has(.ft-new-home) .brand span:last-of-type:after{display:none}.ft-new-kicker,.ft-new-title,.ft-new-lead,.ft-new-action-row,.ft-new-upload-note-inner,.ft-new-card{opacity:1;animation:none!important;transform:none!important}.ft-new-card-icon,.ft-new-cta:after{animation:none!important}.ft-new-cta{transition:none}}
+      @media(prefers-reduced-motion:reduce){.ft-new-title.is-typing:after{display:none}.ft-new-kicker,.ft-new-title,.ft-new-lead,.ft-new-action-row,.ft-new-upload-note-inner,.ft-new-card{opacity:1;animation:none!important;transform:none!important}.ft-new-card-icon,.ft-new-cta:after{animation:none!important}.ft-new-cta{transition:none}}
     </style>
     <div class="ft-new-home">
       <section class="ft-new-hero">
         <canvas class="ft-neural-canvas" id="ftNeuralNetwork" aria-hidden="true"></canvas>
         <div class="ft-new-inner">
           <div class="ft-new-kicker">UN PUNTO DI PARTENZA, NON UN GIUDIZIO</div>
-          <h1 class="ft-new-title">Hai ricevuto un sollecito, una messa in mora, una diffida, un decreto ingiuntivo o un <span class="blue">atto di pignoramento?</span></h1>
+          <h1 class="ft-new-title" id="ftHomeTypewriter" aria-label="Hai ricevuto un sollecito, una messa in mora, una diffida, un decreto ingiuntivo o un atto di pignoramento?"><span class="ft-type-part" data-text="Hai ricevuto un sollecito, una messa in mora, una diffida, un decreto ingiuntivo o un "></span><span class="ft-type-part blue" data-text="atto di pignoramento?"></span></h1>
           <p class="ft-new-lead">Non sai come comportarti? Non ignorare quello che hai ricevuto. Carica il documento e cerchiamo insieme di capire la tua situazione e quali possibilità puoi valutare.</p>
           <div class="ft-new-action-row">
             <a class="ft-new-cta" href="/registrazione" id="ftOpenUploadInfo">
@@ -1454,6 +1452,25 @@ def home():
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
       <script>
       (()=>{
+        const title=document.getElementById('ftHomeTypewriter');
+        if(title){
+          const parts=[...title.querySelectorAll('.ft-type-part')];
+          const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if(reduce){parts.forEach(part=>part.textContent=part.dataset.text);}
+          else{
+            title.classList.add('is-typing');
+            let partIndex=0,charIndex=0;
+            const typeNext=()=>{
+              if(partIndex>=parts.length){title.classList.remove('is-typing');title.classList.add('is-typed');return;}
+              const part=parts[partIndex],value=part.dataset.text||'';
+              if(charIndex<value.length){part.textContent+=value.charAt(charIndex++);window.setTimeout(typeNext,34);}
+              else{partIndex++;charIndex=0;window.setTimeout(typeNext,90);}
+            };
+            window.setTimeout(typeNext,420);
+          }
+        }
+      })();
+      (()=>{
         const canvas=document.getElementById('ftNeuralNetwork');
         if(!canvas) return;
         const ctx=canvas.getContext('2d',{alpha:true});
@@ -1466,23 +1483,26 @@ def home():
           w=Math.max(1,box.width);h=Math.max(1,box.height);
           canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
           ctx.setTransform(dpr,0,0,dpr,0,0);
-          const count=mobile()?34:68;
-          nodes=Array.from({length:count},(_,i)=>({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-.5)*.22,vy:(Math.random()-.5)*.22,r:1+Math.random()*1.7,phase:Math.random()*Math.PI*2}));
+          const count=mobile()?58:112;
+          nodes=Array.from({length:count},(_,i)=>({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-.5)*.62,vy:(Math.random()-.5)*.62,r:1.25+Math.random()*2.1,phase:Math.random()*Math.PI*2,hot:Math.random()<.22}));
           draw(0);
         }
         function draw(time){
           ctx.clearRect(0,0,w,h);
-          const reach=mobile()?112:155;
+          const reach=mobile()?142:190;
           for(let i=0;i<nodes.length;i++){
             const a=nodes[i];
             if(!reduce){a.x+=a.vx;a.y+=a.vy;if(a.x<0||a.x>w)a.vx*=-1;if(a.y<0||a.y>h)a.vy*=-1;}
             for(let j=i+1;j<nodes.length;j++){
               const b=nodes[j],dx=a.x-b.x,dy=a.y-b.y,dist=Math.hypot(dx,dy);
-              if(dist<reach){const alpha=(1-dist/reach)*.22;ctx.strokeStyle=`rgba(64,157,255,${alpha})`;ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+              if(dist<reach){const alpha=(1-dist/reach)*.34;ctx.strokeStyle=`rgba(75,165,255,${alpha})`;ctx.lineWidth=.85;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
             }
-            const pulse=reduce?1:(.65+.35*Math.sin(time*.001+a.phase));
-            ctx.beginPath();ctx.arc(a.x,a.y,a.r*pulse,0,Math.PI*2);
-            ctx.fillStyle=`rgba(105,190,255,${.35+.5*pulse})`;ctx.shadowColor='#168cff';ctx.shadowBlur=8;ctx.fill();ctx.shadowBlur=0;
+            const pulse=reduce?1:(.55+.45*Math.sin(time*.0018+a.phase));
+            const glow=a.hot?19:12;
+            ctx.beginPath();ctx.arc(a.x,a.y,a.r*(a.hot?2.05:1.55)*pulse,0,Math.PI*2);
+            ctx.fillStyle=a.hot?`rgba(170,220,255,${.82+.18*pulse})`:`rgba(105,190,255,${.58+.38*pulse})`;
+            ctx.shadowColor=a.hot?'#8fd0ff':'#168cff';ctx.shadowBlur=glow;ctx.fill();ctx.shadowBlur=0;
+            if(a.hot){ctx.beginPath();ctx.arc(a.x,a.y,a.r*3.5*pulse,0,Math.PI*2);ctx.strokeStyle=`rgba(95,180,255,${.18+.22*pulse})`;ctx.lineWidth=.8;ctx.stroke();}
           }
         }
         function frame(t){if(t-last>30){draw(t);last=t;}raf=requestAnimationFrame(frame);}
