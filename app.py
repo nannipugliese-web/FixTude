@@ -293,8 +293,12 @@ SEO_DEFAULT_DESCRIPTION = (
 )
 SEO_PAGES = {
     "/": {
-        "title": "FixTude | Valutazione orientativa della sostenibilità economica",
-        "description": SEO_DEFAULT_DESCRIPTION,
+        "title": "Hai ricevuto un sollecito o un atto? | FixTude",
+        "description": "Hai ricevuto un sollecito, una messa in mora, una diffida, un decreto ingiuntivo o un atto di pignoramento? FixTude ti aiuta a capire la situazione e valutare i prossimi passi.",
+    },
+    "/assistenza": {
+        "title": "Calcolatore e verifica del pignoramento | FixTude",
+        "description": "Accedi alla precedente homepage FixTude con il calcolatore di sostenibilità economica e lo strumento di verifica preliminare del rischio di pignoramento.",
     },
     "/chi-siamo": {
         "title": "Chi siamo | Il sistema di valutazione FixTude",
@@ -447,7 +451,7 @@ def page(title, content, include_chat=False):
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
-          <meta name="theme-color" content="#123B50">
+          <meta name="theme-color" content="#05070c">
           <meta name="color-scheme" content="light">
           <title>{{ seo_title }}</title>
           <meta name="description" content="{{ seo_description }}">
@@ -471,8 +475,8 @@ def page(title, content, include_chat=False):
           {% if structured_data %}<script type="application/ld+json">{{ structured_data|tojson }}</script>{% endif %}
           <style>
             :root {
-              --blue:#174b91;
-              --blue2:#2468b8;
+              --blue:#0879e8;
+              --blue2:#42a5ff;
               --ink:#203047;
               --muted:#65758b;
               --bg:#f5f8fc;
@@ -846,9 +850,10 @@ def page(title, content, include_chat=False):
         <body>
           <header>
             <div class="nav">
-              <a class="brand" href="/" aria-label="FixTude, homepage">FixTude</a>
+              <a class="brand" href="/" aria-label="FixTude, homepage"><img src="/static/fixtude-512.png" alt="" width="42" height="42" style="width:42px;height:42px;object-fit:contain;vertical-align:middle;margin-right:9px"><span style="color:#fff">Fix</span><span style="color:#168cff">Tude</span></a>
               <button class="menu-toggle" id="siteMenuToggle" type="button" aria-label="Apri menu" aria-expanded="false" aria-controls="siteMenu">☰</button>
               <nav class="nav-menu" id="siteMenu" aria-label="Menu principale">
+                <a href="/assistenza">Calcolatore e verifica pignoramento</a>
                 <a href="/educazione-finanziaria">Educazione finanziaria</a>
                 <a href="/chi-siamo">Chi siamo</a>
               </nav>
@@ -1275,6 +1280,110 @@ def fixtude_v1_route_guard():
 
 @app.route("/", methods=["GET"])
 def home():
+    """Nuova homepage FixTude: ingresso semplice per chi ha ricevuto un atto."""
+    content = r"""
+    <style>
+      body:has(.ft-new-home){background:#f4f6fa!important;color:#10131b!important}
+      body:has(.ft-new-home) header{background:#05070c!important;border-bottom:1px solid #172a45!important}
+      body:has(.ft-new-home) .brand{color:#fff!important}
+      body:has(.ft-new-home) .menu-toggle{background:#101827!important;color:#fff!important;border-color:#24436b!important}
+      body:has(.ft-new-home) .nav-menu{background:#0b111d!important;border-color:#24436b!important}
+      body:has(.ft-new-home) .nav-menu a{color:#eef4ff!important}
+      body:has(.ft-new-home) .nav-menu a:hover{background:#132b4c!important;color:#65b5ff!important}
+      body:has(.ft-new-home) footer{background:#05070c!important;border-top:1px solid #172a45!important;color:#b9c7d9!important}
+      body:has(.ft-new-home) footer a,body:has(.ft-new-home) .cookie-footer-link{color:#66b5ff!important}
+      body:has(.ft-new-home) main{width:100%;max-width:none;margin:0;padding:0;min-height:0}
+      .ft-new-home{--ft-blue:#0879e8;--ft-blue-bright:#42a5ff;--ft-black:#05070c;--ft-ink:#111722;--ft-muted:#596579;width:100%;overflow:hidden}
+      .ft-new-hero{position:relative;isolation:isolate;background:radial-gradient(ellipse at 82% 18%,#123e70 0,transparent 38%),linear-gradient(135deg,#05070c 0%,#0a111d 58%,#101b2b 100%);color:#fff;padding:clamp(42px,7vw,82px) 20px 62px}
+      .ft-new-hero:after{content:"";position:absolute;z-index:-1;right:-130px;bottom:-230px;width:480px;height:480px;border:1px solid #168cff33;border-radius:50%;box-shadow:0 0 0 34px #168cff0a,0 0 0 72px #168cff08}
+      .ft-new-inner{width:min(100%,980px);margin:0 auto}
+      .ft-new-kicker{display:inline-flex;align-items:center;gap:9px;color:#79bdff;font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;margin-bottom:20px}
+      .ft-new-kicker:before{content:"";width:25px;height:2px;background:#168cff;box-shadow:0 0 12px #168cff}
+      .ft-new-title{max-width:850px;margin:0 0 20px;color:#fff;font-size:clamp(32px,5.4vw,58px);font-weight:900;line-height:1.08;letter-spacing:-1.7px}
+      .ft-new-title .blue{color:#168cff;text-shadow:0 0 24px #168cff35}
+      .ft-new-lead{max-width:720px;margin:0;color:#c6d2e1;font-size:clamp(16px,2vw,19px);line-height:1.65}
+      .ft-new-docs{display:flex;flex-wrap:wrap;gap:9px;margin:28px 0 30px;max-width:830px}
+      .ft-new-doc{padding:9px 13px;border:1px solid #315277;border-radius:999px;background:#0c1b2d;color:#eaf4ff;font-size:12px;font-weight:750}
+      .ft-new-action-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+      .ft-new-cta{display:inline-flex;align-items:center;justify-content:center;gap:11px;min-height:56px;padding:0 25px;border:1px solid #58b2ff;border-radius:12px;background:linear-gradient(135deg,#168cff,#0759bd);color:#fff;text-decoration:none;font-size:14px;font-weight:950;letter-spacing:.045em;box-shadow:0 10px 28px #0879e855,inset 0 1px #ffffff55;transition:transform .18s,box-shadow .18s}
+      .ft-new-cta:hover{transform:translateY(-2px);box-shadow:0 14px 34px #0879e877,inset 0 1px #ffffff66}
+      .ft-new-cta svg{width:19px;height:19px}
+      .ft-new-cta-note{max-width:290px;color:#9eafc4;font-size:12px;line-height:1.5}
+      .ft-new-upload-note{width:min(100%,980px);margin:0 auto;padding:0 20px}
+      .ft-new-upload-note-inner{display:flex;gap:12px;align-items:flex-start;margin-top:-1px;padding:17px 20px;background:#fff;border:1px solid #dce4ef;border-top:0;border-radius:0 0 14px 14px;color:#536174;font-size:12px;line-height:1.55;box-shadow:0 12px 28px #11182708}
+      .ft-new-upload-note-inner strong{color:#111722}
+      .ft-new-upload-note-inner .ft-info{flex:0 0 22px;width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:#e7f2ff;color:#0879e8;font-weight:900}
+      .ft-new-section{padding:56px 20px 62px;background:#f4f6fa}
+      .ft-new-section h2{margin:0 0 12px;color:#101722;text-align:center;font-size:clamp(24px,3.6vw,34px);line-height:1.2;letter-spacing:-.7px}
+      .ft-new-section-intro{max-width:650px;margin:0 auto 30px;text-align:center;color:#657184;font-size:15px;line-height:1.65}
+      .ft-new-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+      .ft-new-card{padding:22px 20px;border:1px solid #dce3ed;border-radius:15px;background:#fff;box-shadow:0 8px 24px #0b172508}
+      .ft-new-card-icon{width:42px;height:42px;display:grid;place-items:center;margin-bottom:15px;border-radius:12px;background:linear-gradient(145deg,#e9f4ff,#d5eaff);color:#0879e8;font-size:20px;font-weight:900}
+      .ft-new-card h3{margin:0 0 7px;color:#111722;font-size:16px}
+      .ft-new-card p{margin:0;color:#657184;font-size:13px;line-height:1.6}
+      .ft-new-bottom{padding:30px 20px 42px;background:#eaf0f7;text-align:center}
+      .ft-new-bottom p{max-width:760px;margin:0 auto;color:#39475a;font-size:13px;line-height:1.65}
+      .ft-new-bottom strong{color:#101722}
+      .ft-upload-modal{position:fixed;z-index:99998;inset:0;display:none;align-items:center;justify-content:center;padding:18px;background:#02050bcc}
+      .ft-upload-modal.open{display:flex}
+      .ft-upload-modal-card{width:min(100%,460px);padding:26px;border:1px solid #315277;border-radius:18px;background:#0b111d;color:#eef4ff;box-shadow:0 25px 80px #0009}
+      .ft-upload-modal-card h2{margin:0 0 10px;color:#fff;font-size:23px}
+      .ft-upload-modal-card p{color:#c0cede;font-size:14px;line-height:1.6}
+      .ft-upload-modal-close{display:block;margin:20px 0 0 auto;padding:10px 17px;border:1px solid #3d6b9d;border-radius:9px;background:#102746;color:#fff;font-weight:800;cursor:pointer}
+      @media(max-width:700px){.ft-new-hero{padding:42px 18px 46px}.ft-new-title{font-size:clamp(30px,9vw,43px);letter-spacing:-1px}.ft-new-docs{gap:7px;margin:22px 0 25px}.ft-new-doc{font-size:11px;padding:8px 10px}.ft-new-action-row{align-items:stretch;flex-direction:column}.ft-new-cta{width:100%;min-height:54px}.ft-new-cta-note{max-width:none;text-align:center}.ft-new-upload-note{padding:0 12px}.ft-new-upload-note-inner{padding:14px 15px}.ft-new-section{padding:42px 16px 48px}.ft-new-cards{grid-template-columns:1fr;gap:11px}.ft-new-card{padding:18px}.ft-new-bottom{padding:25px 18px 34px}}
+      @media(prefers-reduced-motion:reduce){.ft-new-cta{transition:none}}
+    </style>
+    <div class="ft-new-home">
+      <section class="ft-new-hero">
+        <div class="ft-new-inner">
+          <div class="ft-new-kicker">UN PUNTO DI PARTENZA, NON UN GIUDIZIO</div>
+          <h1 class="ft-new-title">Hai ricevuto un sollecito, una messa in mora, una diffida, un decreto ingiuntivo o un <span class="blue">atto di pignoramento?</span></h1>
+          <p class="ft-new-lead">Non sai come comportarti? Non ignorare quello che hai ricevuto. Carica il documento e cerchiamo insieme di capire la tua situazione e quali possibilità puoi valutare.</p>
+          <div class="ft-new-docs" aria-label="Documenti che puoi sottoporre a FixTude">
+            <span class="ft-new-doc">Sollecito di pagamento</span>
+            <span class="ft-new-doc">Messa in mora</span>
+            <span class="ft-new-doc">Diffida</span>
+            <span class="ft-new-doc">Decreto ingiuntivo</span>
+            <span class="ft-new-doc">Atto di pignoramento</span>
+            <span class="ft-new-doc">Altra comunicazione</span>
+          </div>
+          <div class="ft-new-action-row">
+            <a class="ft-new-cta" href="#caricamento-documento" id="ftOpenUploadInfo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M4 16.5v2A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-2"/></svg>
+              CARICA IL DOCUMENTO
+            </a>
+            <span class="ft-new-cta-note">Il caricamento sarà preceduto da una registrazione gratuita, così potrai ritrovare documenti e aggiornamenti nella tua area personale.</span>
+          </div>
+        </div>
+      </section>
+      <div class="ft-new-upload-note" id="caricamento-documento">
+        <div class="ft-new-upload-note-inner"><span class="ft-info">i</span><span><strong>Un passaggio alla volta.</strong> L'area riservata per registrazione e caricamento protetto dei documenti è il prossimo elemento da attivare. Per il momento non inviare documenti contenenti dati personali o finanziari via email.</span></div>
+      </div>
+      <section class="ft-new-section">
+        <div class="ft-new-inner">
+          <h2>Capire cosa hai ricevuto è il primo passo.</h2>
+          <p class="ft-new-section-intro">Comunicazioni e atti diversi possono avere significati, conseguenze e scadenze differenti. Prima di decidere come muoverti, è importante capire di che cosa si tratta.</p>
+          <div class="ft-new-cards">
+            <article class="ft-new-card"><div class="ft-new-card-icon">01</div><h3>Riconosci il documento</h3><p>Individua la natura della comunicazione e le informazioni che meritano attenzione.</p></article>
+            <article class="ft-new-card"><div class="ft-new-card-icon">02</div><h3>Metti a fuoco la situazione</h3><p>Ricostruisci i passaggi principali e verifica se nel documento sono indicati termini o scadenze.</p></article>
+            <article class="ft-new-card"><div class="ft-new-card-icon">03</div><h3>Valuta il prossimo passo</h3><p>Esamina le possibilità da approfondire, coinvolgendo un professionista quando necessario.</p></article>
+          </div>
+        </div>
+      </section>
+      <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
+      <div class="ft-upload-modal" id="ftUploadInfoModal" role="dialog" aria-modal="true" aria-labelledby="ftUploadInfoTitle">
+        <div class="ft-upload-modal-card"><h2 id="ftUploadInfoTitle">Caricamento documenti</h2><p>Stiamo preparando l'area riservata con registrazione gratuita e caricamento protetto. Sarà il prossimo passaggio di sviluppo di FixTude.</p><p>Per tutelare i tuoi dati, non inviare per ora documenti personali o finanziari tramite email.</p><button class="ft-upload-modal-close" type="button" id="ftCloseUploadInfo">Ho capito</button></div>
+      </div>
+      <script>
+      (()=>{const open=document.getElementById('ftOpenUploadInfo'),modal=document.getElementById('ftUploadInfoModal'),close=document.getElementById('ftCloseUploadInfo');if(!open||!modal||!close)return;function hide(){modal.classList.remove('open');open.focus()}open.addEventListener('click',e=>{e.preventDefault();modal.classList.add('open');close.focus()});close.addEventListener('click',hide);modal.addEventListener('click',e=>{if(e.target===modal)hide()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('open'))hide()})})();
+      </script>
+    </div>
+    """
+    return page("Hai ricevuto un atto o un sollecito? | FixTude", content)
+
+
+@app.route("/assistenza", methods=["GET"])
+def assistenza_home():
     content = r"""
     <style>
       body:has(.ft-v1){background:#123B50!important;color:#f4f6fa!important}
@@ -1469,24 +1578,35 @@ def home():
       const flipStage=document.getElementById('ftFlipStage');
       const flipToggle=document.getElementById('ftFlipToggle');
       const flipBack=document.getElementById('ftFlipBack');
-      // L'altezza del box pignoramento viene copiata dal solo box calcolatrice.
+      // L'altezza del box pignoramento viene copiata dal box calcolatrice.
+      // Questa parte è isolata: un eventuale errore di misurazione non deve
+      // interrompere gli script della calcolatrice, del semaforo o dell'audio.
       const calculatorPanel=document.getElementById('ftCalculatorPanel');
-      const pignoramentoBox=flipStage.querySelector('.ft-flip-back');
+      const pignoramentoBox=flipStage?flipStage.querySelector('.ft-flip-back'):null;
       function syncPignoramentoBoxHeight(){
-        if(!calculatorPanel||!pignoramentoBox)return;
-        const h=Math.round(calculatorPanel.getBoundingClientRect().height);
-        if(h>0){
-          flipStage.style.setProperty('--ft-calculator-height',h+'px');
-          pignoramentoBox.style.height=h+'px';
-          pignoramentoBox.style.maxHeight=h+'px';
-        }
+        try{
+          if(!flipStage||!calculatorPanel||!pignoramentoBox)return;
+          const h=Math.round(calculatorPanel.getBoundingClientRect().height);
+          if(h>0){
+            flipStage.style.setProperty('--ft-calculator-height',h+'px');
+            pignoramentoBox.style.height=h+'px';
+            pignoramentoBox.style.maxHeight=h+'px';
+          }
+        }catch(error){/* Non bloccare gli altri script della pagina. */}
       }
-      syncPignoramentoBoxHeight();
-      if('ResizeObserver' in window){
-        const pignoramentoSizeObserver=new ResizeObserver(syncPignoramentoBoxHeight);
-        pignoramentoSizeObserver.observe(calculatorPanel);
-      }else{window.addEventListener('resize',syncPignoramentoBoxHeight,{passive:true});}
-      window.addEventListener('load',syncPignoramentoBoxHeight,{once:true});
+      try{
+        syncPignoramentoBoxHeight();
+        if(window.ResizeObserver){
+          const pignoramentoSizeObserver=new window.ResizeObserver(syncPignoramentoBoxHeight);
+          if(calculatorPanel)pignoramentoSizeObserver.observe(calculatorPanel);
+        }else{
+          window.addEventListener('resize',syncPignoramentoBoxHeight,{passive:true});
+        }
+        window.addEventListener('load',syncPignoramentoBoxHeight,{once:true});
+      }catch(error){
+        window.addEventListener('load',syncPignoramentoBoxHeight,{once:true});
+        window.addEventListener('resize',syncPignoramentoBoxHeight,{passive:true});
+      }
       function flipToTablet(){windWhoosh();flipStage.classList.add('is-flipped');flipToggle.setAttribute('aria-pressed','true');flipStage.scrollIntoView({behavior:'smooth',block:'center'});}
       function flipToCalculator(){windWhoosh();flipStage.classList.remove('is-flipped');flipToggle.setAttribute('aria-pressed','false');}
       flipToggle.addEventListener('click',()=>flipStage.classList.contains('is-flipped')?flipToCalculator():flipToTablet());
@@ -1501,20 +1621,6 @@ def home():
       const status=document.getElementById('ftStatus'),countdown=document.getElementById('ftCountdown');
       const next=document.getElementById('ftNext'),equals=document.getElementById('ftEquals'),traffic=document.getElementById('ftTraffic');
       let current=0,buffer='',busy=false,audioCtx=null;
-      // Sblocca l'audio alla prima interazione reale dell'utente (policy browser).
-      function unlockAudio(){
-        try{
-          const AC=window.AudioContext||window.webkitAudioContext;
-          if(!AC)return;
-          if(!audioCtx)audioCtx=new AC();
-          if(audioCtx.state==='suspended'){
-            const resumePromise=audioCtx.resume();
-            if(resumePromise&&typeof resumePromise.catch==='function')resumePromise.catch(()=>{});
-          }
-        }catch(error){}
-      }
-      document.addEventListener('pointerdown',unlockAudio,{capture:true,once:true});
-      document.addEventListener('keydown',unlockAudio,{capture:true,once:true});
       const fmt=n=>new Intl.NumberFormat('it-IT',{maximumFractionDigits:2}).format(n);
       const parsed=s=>s===''?null:Number(s.replace(',','.'));
       function update(){
@@ -1524,12 +1630,10 @@ def home():
         values.forEach((el,i)=>el.textContent=fields[i].value===''?'—':fmt(Number(fields[i].value)));
         next.hidden=current===2;equals.hidden=current!==2;
       }
-      async function sound(){
+      function sound(){
         try{
           const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
-          if(!audioCtx)audioCtx=new AC();
-          if(audioCtx.state==='suspended')await audioCtx.resume();
-          if(audioCtx.state!=='running')return;
+          if(!audioCtx)audioCtx=new AC();if(audioCtx.state==='suspended')audioCtx.resume();
           const now=audioCtx.currentTime;
           const length=Math.floor(audioCtx.sampleRate*.045),noise=audioCtx.createBuffer(1,length,audioCtx.sampleRate),data=noise.getChannelData(0);
           for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*(1-i/length);
@@ -1537,15 +1641,14 @@ def home():
           src.buffer=noise;filter.type='lowpass';filter.frequency.value=1500;gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.20,now+.003);gain.gain.exponentialRampToValueAtTime(.0001,now+.045);
           src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);src.start(now);
           const osc=audioCtx.createOscillator(),og=audioCtx.createGain();osc.type='triangle';osc.frequency.setValueAtTime(125,now);osc.frequency.exponentialRampToValueAtTime(72,now+.035);og.gain.setValueAtTime(.0001,now);og.gain.exponentialRampToValueAtTime(.10,now+.003);og.gain.exponentialRampToValueAtTime(.0001,now+.05);osc.connect(og);og.connect(audioCtx.destination);osc.start(now);osc.stop(now+.055);
-        }catch(error){}
+        }catch(e){}
       }
       // Soffio d'aria sintetizzato con Web Audio per accompagnare la rotazione.
-      async function windWhoosh(){
+      function windWhoosh(){
         try{
           const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
           if(!audioCtx)audioCtx=new AC();
-          if(audioCtx.state==='suspended')await audioCtx.resume();
-          if(audioCtx.state!=='running')return;
+          if(audioCtx.state==='suspended')audioCtx.resume();
           const now=audioCtx.currentTime,duration=.62,length=Math.floor(audioCtx.sampleRate*duration);
           const noise=audioCtx.createBuffer(1,length,audioCtx.sampleRate),data=noise.getChannelData(0);
           for(let i=0;i<length;i++){const fade=Math.sin(Math.PI*(i/length));data[i]=(Math.random()*2-1)*fade;}
@@ -1553,7 +1656,7 @@ def home():
           src.buffer=noise;filter.type='bandpass';filter.frequency.setValueAtTime(1500,now);filter.frequency.exponentialRampToValueAtTime(260,now+duration);filter.Q.setValueAtTime(.65,now);
           gain.gain.setValueAtTime(.0001,now);gain.gain.linearRampToValueAtTime(.105,now+.12);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
           src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);src.start(now);src.stop(now+duration);
-        }catch(error){}
+        }catch(e){}
       }
       function press(button){button.classList.add('pressed');setTimeout(()=>button.classList.remove('pressed'),110);sound();}
       function setCurrent(index){current=Math.max(0,Math.min(2,index));buffer=fields[current].value;update();}
@@ -1593,7 +1696,7 @@ def home():
         await new Promise(r=>setTimeout(r,450));
         const color=evaluateColor(v[0],v[1],v[2]),cls={rosso:'red',giallo:'yellow',verde:'green'};
         countdown.textContent='PRONTI…';
-        for(let n=3;n>=1;n--){countdown.textContent=String(n);await sound();await new Promise(r=>setTimeout(r,650));}
+        for(let n=3;n>=1;n--){countdown.textContent=String(n);sound();await new Promise(r=>setTimeout(r,650));}
         countdown.textContent='RISULTATO';lights[color].className='ft-light on '+cls[color];
         status.textContent=({rosso:'ROSSO · situazione critica',giallo:'GIALLO · attenzione',verde:'VERDE · margine più favorevole'}[color]);
         await new Promise(r=>setTimeout(r,550));
@@ -1699,7 +1802,7 @@ def pignoramento_prepara():
     supplied = (request.form.get("csrf_token") or "").strip()
     expected = (session.get("ft_pignoramento_csrf") or "").strip()
     if not expected or not hmac.compare_digest(supplied, expected):
-        return _pignoramento_page("Sessione scaduta", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Sessione scaduta</h1><p class="ft-pign-lead">Ricarica la homepage e ripeti le risposte.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 400)
+        return _pignoramento_page("Sessione scaduta", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Sessione scaduta</h1><p class="ft-pign-lead">Ricarica la homepage e ripeti le risposte.</p><p class="ft-pign-actions"><a href="/assistenza#ftPignoramento">Torna a FixTude</a></p></div></section>', 400)
 
     answers = {key: (request.form.get(key) or "").strip().lower() for key, _ in PIGNORAMENTO_QUESTIONS}
     target = (request.form.get("target") or "").strip().lower()
@@ -1708,7 +1811,7 @@ def pignoramento_prepara():
     valid_creditors = {"banca_finanziaria", "privato", "riscossione", "altro"}
     if (any(value not in ("si", "no") for value in answers.values()) or
             target not in valid_targets or creditor not in valid_creditors):
-        return _pignoramento_page("Risposte incomplete", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Completa tutte le risposte</h1><p class="ft-pign-lead">Seleziona il tipo di situazione, il creditore e SÌ oppure NO per tutte le cinque domande. Non devi pagare per rispondere.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna alle domande</a></p></div></section>', 400)
+        return _pignoramento_page("Risposte incomplete", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Completa tutte le risposte</h1><p class="ft-pign-lead">Seleziona il tipo di situazione, il creditore e SÌ oppure NO per tutte le cinque domande. Non devi pagare per rispondere.</p><p class="ft-pign-actions"><a href="/assistenza#ftPignoramento">Torna alle domande</a></p></div></section>', 400)
 
     # Pesi orientativi: il semplice ritardo è un segnale debole; precetto e
     # pignoramento indicano passaggi procedurali molto più avanzati.
@@ -1734,7 +1837,7 @@ def pignoramento_prepara():
         "creditor": creditor,
         "created_at": datetime.now(ROME_TZ).isoformat(timespec="seconds"),
     }
-    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">QUESTIONARIO COMPLETATO · FIXTUDE</div><h1>La tua valutazione è pronta</h1><p class="ft-pign-lead">Hai completato le domande sulla situazione che vuoi verificare. La valutazione distingue i segnali iniziali dagli eventuali passaggi esecutivi già dichiarati. Il risultato dettagliato è riservato fino alla conferma del pagamento.</p><div class="ft-pign-paywall-tease"><div class="ft-pign-lock">●</div><h2>Vuoi conoscere il livello di attenzione?</h2><p>Riceverai una valutazione preliminare riferita a: <strong>{escape(target.replace('_', ' ').title())}</strong>.</p><div class="ft-pign-price">€ 4,90</div><p class="ft-pign-small">Pagamento una tantum · una verifica</p></div><form method="post" action="/verifica-pignoramento/acquista"><input type="hidden" name="csrf_token" value="{escape(expected, quote=True)}"><label class="ft-pign-consent"><input type="checkbox" name="accept_terms" value="yes" required><span>Ho letto i <a href="/termini" target="_blank" rel="noopener">Termini</a>, la <a href="/privacy" target="_blank" rel="noopener">Privacy</a> e il <a href="/disclaimer" target="_blank" rel="noopener">Disclaimer</a>. Chiedo l'avvio immediato del servizio digitale dopo il pagamento e comprendo che si tratta di una valutazione preliminare basata sulle risposte fornite, non di una previsione certa né di una certificazione.</span></label><button class="ft-pign-submit" type="submit">SCOPRI LA MIA VALUTAZIONE · € 4,90</button></form><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna alle domande</a></p><p class="ft-pign-disclaimer"><strong>Importante:</strong> il servizio non consulta banche, creditori, registri giudiziari o archivi pubblici e non può conoscere atti non ricevuti o non dichiarati. Per verificare gli atti e le possibilità di tutela, puoi richiedere un approfondimento legale.</p></div></section>'''
+    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">QUESTIONARIO COMPLETATO · FIXTUDE</div><h1>La tua valutazione è pronta</h1><p class="ft-pign-lead">Hai completato le domande sulla situazione che vuoi verificare. La valutazione distingue i segnali iniziali dagli eventuali passaggi esecutivi già dichiarati. Il risultato dettagliato è riservato fino alla conferma del pagamento.</p><div class="ft-pign-paywall-tease"><div class="ft-pign-lock">●</div><h2>Vuoi conoscere il livello di attenzione?</h2><p>Riceverai una valutazione preliminare riferita a: <strong>{escape(target.replace('_', ' ').title())}</strong>.</p><div class="ft-pign-price">€ 4,90</div><p class="ft-pign-small">Pagamento una tantum · una verifica</p></div><form method="post" action="/verifica-pignoramento/acquista"><input type="hidden" name="csrf_token" value="{escape(expected, quote=True)}"><label class="ft-pign-consent"><input type="checkbox" name="accept_terms" value="yes" required><span>Ho letto i <a href="/termini" target="_blank" rel="noopener">Termini</a>, la <a href="/privacy" target="_blank" rel="noopener">Privacy</a> e il <a href="/disclaimer" target="_blank" rel="noopener">Disclaimer</a>. Chiedo l'avvio immediato del servizio digitale dopo il pagamento e comprendo che si tratta di una valutazione preliminare basata sulle risposte fornite, non di una previsione certa né di una certificazione.</span></label><button class="ft-pign-submit" type="submit">SCOPRI LA MIA VALUTAZIONE · € 4,90</button></form><p class="ft-pign-actions"><a href="/assistenza#ftPignoramento">Torna alle domande</a></p><p class="ft-pign-disclaimer"><strong>Importante:</strong> il servizio non consulta banche, creditori, registri giudiziari o archivi pubblici e non può conoscere atti non ricevuti o non dichiarati. Per verificare gli atti e le possibilità di tutela, puoi richiedere un approfondimento legale.</p></div></section>'''
     return _pignoramento_page("Questionario completato | FixTude", content)
 
 
@@ -1744,16 +1847,16 @@ def pignoramento_acquista():
     expected = (session.get("ft_pignoramento_csrf") or "").strip()
     snapshot = session.get("ft_pign_snapshot") or {}
     if not expected or not hmac.compare_digest(supplied, expected):
-        return _pignoramento_page("Richiesta non valida", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Sessione scaduta</h1><p class="ft-pign-lead">Ricarica la homepage e ripeti l’operazione.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 400)
+        return _pignoramento_page("Richiesta non valida", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Sessione scaduta</h1><p class="ft-pign-lead">Ricarica la homepage e ripeti l’operazione.</p><p class="ft-pign-actions"><a href="/assistenza#ftPignoramento">Torna a FixTude</a></p></div></section>', 400)
     if not snapshot.get("token") or snapshot.get("level") not in {"nessun_segnale_dichiarato", "segnali_iniziali", "attenzione_concreta", "fase_avanzata", "esecuzione_dichiarata"}:
-        return redirect("/#ftPignoramento")
+        return redirect("/assistenza#ftPignoramento")
     if request.form.get("accept_terms") != "yes":
-        return redirect("/#ftPignoramento")
+        return redirect("/assistenza#ftPignoramento")
     if rate_limited("pignoramento_checkout", 8, 3600):
-        return _pignoramento_page("Riprova più tardi", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Hai effettuato troppe richieste</h1><p class="ft-pign-lead">Attendi qualche minuto prima di riprovare.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 429)
+        return _pignoramento_page("Riprova più tardi", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Hai effettuato troppe richieste</h1><p class="ft-pign-lead">Attendi qualche minuto prima di riprovare.</p><p class="ft-pign-actions"><a href="/assistenza#ftPignoramento">Torna a FixTude</a></p></div></section>', 429)
     secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
     if stripe is None or not secret_key:
-        return _pignoramento_page("Pagamento non disponibile", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Pagamento temporaneamente non disponibile</h1><p class="ft-pign-lead">Il pagamento non è configurato. Non è stato effettuato alcun addebito.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 503)
+        return _pignoramento_page("Pagamento non disponibile", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Pagamento temporaneamente non disponibile</h1><p class="ft-pign-lead">Il pagamento non è configurato. Non è stato effettuato alcun addebito.</p><p class="ft-pign-actions"><a href="/assistenza#ftPignoramento">Torna a FixTude</a></p></div></section>', 503)
     stripe.api_key = secret_key
     try:
         checkout = stripe.checkout.Session.create(
@@ -1768,12 +1871,12 @@ def pignoramento_acquista():
         return redirect(checkout.url, code=303)
     except Exception:
         app.logger.exception("Creazione checkout verifica pignoramento non riuscita")
-        return _pignoramento_page("Pagamento non disponibile", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Non è stato possibile avviare il pagamento</h1><p class="ft-pign-lead">Nessun pagamento è stato confermato. Riprova più tardi.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 502)
+        return _pignoramento_page("Pagamento non disponibile", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Non è stato possibile avviare il pagamento</h1><p class="ft-pign-lead">Nessun pagamento è stato confermato. Riprova più tardi.</p><p class="ft-pign-actions"><a href="/assistenza#ftPignoramento">Torna a FixTude</a></p></div></section>', 502)
 
 
 @app.route("/verifica-pignoramento/annullato", methods=["GET"])
 def pignoramento_annullato():
-    content = """<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">PAGAMENTO NON COMPLETATO</div><h1>La tua verifica è ancora disponibile</h1><p class="ft-pign-lead">Non è stato effettuato alcun addebito. Se vuoi conoscere l’esito delle risposte che hai appena fornito, puoi riprendere il pagamento.</p><p class="ft-pign-actions"><a href="/verifica-pignoramento/anteprima">Torna al pagamento</a> · <a href="/#ftPignoramento">Torna alla homepage</a></p></div></section>"""
+    content = """<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">PAGAMENTO NON COMPLETATO</div><h1>La tua verifica è ancora disponibile</h1><p class="ft-pign-lead">Non è stato effettuato alcun addebito. Se vuoi conoscere l’esito delle risposte che hai appena fornito, puoi riprendere il pagamento.</p><p class="ft-pign-actions"><a href="/verifica-pignoramento/anteprima">Torna al pagamento</a> · <a href="/assistenza#ftPignoramento">Torna alla homepage</a></p></div></section>"""
     snapshot = session.get("ft_pign_snapshot") or {}
     if not snapshot.get("token"):
         content = content.replace('<a href="/verifica-pignoramento/anteprima">Torna al pagamento</a> · ', '')
@@ -1784,9 +1887,9 @@ def pignoramento_annullato():
 def pignoramento_anteprima():
     snapshot = session.get("ft_pign_snapshot") or {}
     if not snapshot.get("token"):
-        return redirect("/#ftPignoramento")
+        return redirect("/assistenza#ftPignoramento")
     csrf = escape(session.get("ft_pignoramento_csrf", ""), quote=True)
-    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">QUESTIONARIO COMPLETATO · FIXTUDE</div><h1>Vuoi conoscere il tuo esito?</h1><p class="ft-pign-lead">Le tue risposte sono già state elaborate. Il livello preliminare di attenzione è disponibile dopo il pagamento.</p><div class="ft-pign-paywall-tease"><h2>La tua valutazione è pronta</h2><div class="ft-pign-price">€ 4,90</div><p class="ft-pign-small">Pagamento una tantum · una verifica</p></div><form method="post" action="/verifica-pignoramento/acquista"><input type="hidden" name="csrf_token" value="{csrf}"><label class="ft-pign-consent"><input type="checkbox" name="accept_terms" value="yes" required><span>Ho letto Termini, Privacy e Disclaimer. Comprendo la natura informativa del servizio e la fotografia della situazione dichiarata.</span></label><button class="ft-pign-submit" type="submit">SCOPRI LA MIA VALUTAZIONE · € 4,90</button></form><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna alla homepage</a></p></div></section>'''
+    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">QUESTIONARIO COMPLETATO · FIXTUDE</div><h1>Vuoi conoscere il tuo esito?</h1><p class="ft-pign-lead">Le tue risposte sono già state elaborate. Il livello preliminare di attenzione è disponibile dopo il pagamento.</p><div class="ft-pign-paywall-tease"><h2>La tua valutazione è pronta</h2><div class="ft-pign-price">€ 4,90</div><p class="ft-pign-small">Pagamento una tantum · una verifica</p></div><form method="post" action="/verifica-pignoramento/acquista"><input type="hidden" name="csrf_token" value="{csrf}"><label class="ft-pign-consent"><input type="checkbox" name="accept_terms" value="yes" required><span>Ho letto Termini, Privacy e Disclaimer. Comprendo la natura informativa del servizio e la fotografia della situazione dichiarata.</span></label><button class="ft-pign-submit" type="submit">SCOPRI LA MIA VALUTAZIONE · € 4,90</button></form><p class="ft-pign-actions"><a href="/assistenza#ftPignoramento">Torna alla homepage</a></p></div></section>'''
     return _pignoramento_page("Sblocca il tuo esito | FixTude", content)
 
 
@@ -1802,7 +1905,7 @@ def pignoramento_conferma():
     if (not paid or not snapshot.get("token") or
             (paid.get("metadata") or {}).get("snapshot_token") != snapshot.get("token") or
             snapshot.get("level") not in {"nessun_segnale_dichiarato", "segnali_iniziali", "attenzione_concreta", "fase_avanzata", "esecuzione_dichiarata"}):
-        return _pignoramento_page("Pagamento da verificare", """<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Pagamento non verificato</h1><p class="ft-pign-lead">Non possiamo mostrare l’esito senza una conferma di pagamento valida e collegata alle risposte. Se hai pagato, aggiorna la pagina tra qualche istante oppure contatta contatto@fixtude.it.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>""", 402)
+        return _pignoramento_page("Pagamento da verificare", """<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Pagamento non verificato</h1><p class="ft-pign-lead">Non possiamo mostrare l’esito senza una conferma di pagamento valida e collegata alle risposte. Se hai pagato, aggiorna la pagina tra qualche istante oppure contatta contatto@fixtude.it.</p><p class="ft-pign-actions"><a href="/assistenza#ftPignoramento">Torna a FixTude</a></p></div></section>""", 402)
     now = datetime.now(ROME_TZ).strftime("%d/%m/%Y alle %H:%M")
     target_labels = {"stipendio": "Stipendio / busta paga", "pensione": "Pensione", "conto": "Conto corrente", "tutti": "Stipendio, pensione e conto corrente"}
     target_label = target_labels.get(snapshot.get("target"), "situazione selezionata")
@@ -1827,7 +1930,7 @@ def pignoramento_conferma():
 @app.route("/verifica-pignoramento/risultato", methods=["POST"])
 def pignoramento_risultato():
     # Compatibilità: il vecchio endpoint non accetta più risposte dopo il pagamento.
-    return redirect("/#ftPignoramento")
+    return redirect("/assistenza#ftPignoramento")
 
 
 @app.route("/analisi", methods=["POST"])
@@ -5271,6 +5374,7 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5000")),
         debug=False
     )
+
 
 
 
