@@ -1367,20 +1367,15 @@ def home():
       @media(max-width:520px){.ft-calc-shell{padding:12px;border-radius:21px}.ft-key{min-height:56px;font-size:22px}.ft-light{width:46px;height:46px}.ft-lights{gap:8px;padding:10px 12px}.ft-tagline{font-size:26px}.ft-tablet-shell{padding:8px;border-radius:23px}.ft-tablet-screen{border-radius:15px;padding:18px 14px}.ft-tablet-question{padding:11px 10px}.ft-tablet-question legend{font-size:12px;line-height:1.5}.ft-tablet-screen .ft-tablet-copy{font-size:12px}.ft-pign-toggle-main{font-size:12px}.ft-pign-toggle-sub{font-size:9px}}
       @media(prefers-reduced-motion:reduce){.ft-flip-inner{transition:none}}
       @media(prefers-reduced-motion:reduce){.ft-key,.ft-light{transition:none}}
-      /* Fix mirata: il lato questionario occupa esattamente l'altezza del lato calcolatrice. */
-      #ftFlipStage{box-sizing:border-box;}
-      #ftFlipStage .ft-flip-inner{height:100%;min-height:0;}
-      #ftFlipStage .ft-flip-face{min-height:0;box-sizing:border-box;}
-      #ftFlipStage .ft-flip-front{height:100%;min-height:0;}
-      #ftFlipStage .ft-flip-back{height:100%;min-height:0;overflow:hidden;}
-      #ftFlipStage.is-flipped .ft-flip-front{height:0;min-height:0;overflow:hidden;}
-      #ftFlipStage.is-flipped .ft-flip-back{height:100%;min-height:0;overflow:hidden;}
-      #ftFlipStage .ft-tablet-shell{height:100%;min-height:0;box-sizing:border-box;}
-      #ftFlipStage .ft-tablet-screen{height:100%;min-height:0;box-sizing:border-box;justify-content:flex-start;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#8295a7 #dce6ee;}
-      #ftFlipStage .ft-tablet-screen::-webkit-scrollbar{width:9px}
-      #ftFlipStage .ft-tablet-screen::-webkit-scrollbar-track{background:#dce6ee;border-radius:9px}
-      #ftFlipStage .ft-tablet-screen::-webkit-scrollbar-thumb{background:#8295a7;border-radius:9px;border:2px solid #dce6ee}
-      @media(max-width:520px){#ftFlipStage .ft-tablet-screen{padding:18px 14px}}
+
+      /* Fix richiesto: box pignoramento alto quanto la calcolatrice; domande in scroll interno. */
+      #ftFlipStage .ft-flip-back{height:var(--ft-calculator-height,auto);min-height:0;max-height:var(--ft-calculator-height,none);box-sizing:border-box;overflow:hidden;align-self:start;}
+      #ftFlipStage.is-flipped .ft-flip-back{height:var(--ft-calculator-height,auto);max-height:var(--ft-calculator-height,none);overflow:hidden;}
+      #ftFlipStage .ft-tablet-shell{height:100%;min-height:0;max-height:100%;box-sizing:border-box;overflow:hidden;}
+      #ftFlipStage .ft-tablet-screen{height:100%;min-height:0;max-height:100%;box-sizing:border-box;justify-content:flex-start;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#7892a5 #d5e1e9;}
+      #ftFlipStage .ft-tablet-screen::-webkit-scrollbar{width:9px;}
+      #ftFlipStage .ft-tablet-screen::-webkit-scrollbar-track{background:#d5e1e9;border-radius:8px;}
+      #ftFlipStage .ft-tablet-screen::-webkit-scrollbar-thumb{background:#7892a5;border:2px solid #d5e1e9;border-radius:8px;}
     </style>
     <section class="ft-v1" id="ftPignoramento">
       <h1 class="ft-tagline">Non farti cercare<span>dal recupero crediti, cerca tu stesso la soluzione.</span></h1>
@@ -1474,24 +1469,26 @@ def home():
       const flipStage=document.getElementById('ftFlipStage');
       const flipToggle=document.getElementById('ftFlipToggle');
       const flipBack=document.getElementById('ftFlipBack');
-      const flipFront=flipStage.querySelector('.ft-flip-front');
-      function syncFlipStageHeight(){
-        if(!flipFront||flipStage.classList.contains('is-flipped'))return;
-        flipStage.style.height='auto';
-        const h=Math.ceil(flipFront.getBoundingClientRect().height);
-        if(h>0)flipStage.style.height=h+'px';
+      // L'altezza del box pignoramento viene copiata dal solo box calcolatrice.
+      const calculatorPanel=document.getElementById('ftCalculatorPanel');
+      const pignoramentoBox=flipStage.querySelector('.ft-flip-back');
+      function syncPignoramentoBoxHeight(){
+        if(!calculatorPanel||!pignoramentoBox)return;
+        const h=Math.round(calculatorPanel.getBoundingClientRect().height);
+        if(h>0){
+          flipStage.style.setProperty('--ft-calculator-height',h+'px');
+          pignoramentoBox.style.height=h+'px';
+          pignoramentoBox.style.maxHeight=h+'px';
+        }
       }
-      function centerFlipStage(){
-        requestAnimationFrame(()=>requestAnimationFrame(()=>flipStage.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'})));
-      }
-      function flipToTablet(){
-        windWhoosh();syncFlipStageHeight();flipStage.classList.add('is-flipped');flipToggle.setAttribute('aria-pressed','true');centerFlipStage();
-      }
-      function flipToCalculator(){
-        windWhoosh();flipStage.classList.remove('is-flipped');flipToggle.setAttribute('aria-pressed','false');centerFlipStage();
-      }
-      syncFlipStageHeight();
-      window.addEventListener('resize',()=>{if(!flipStage.classList.contains('is-flipped'))syncFlipStageHeight();});
+      syncPignoramentoBoxHeight();
+      if('ResizeObserver' in window){
+        const pignoramentoSizeObserver=new ResizeObserver(syncPignoramentoBoxHeight);
+        pignoramentoSizeObserver.observe(calculatorPanel);
+      }else{window.addEventListener('resize',syncPignoramentoBoxHeight,{passive:true});}
+      window.addEventListener('load',syncPignoramentoBoxHeight,{once:true});
+      function flipToTablet(){windWhoosh();flipStage.classList.add('is-flipped');flipToggle.setAttribute('aria-pressed','true');flipStage.scrollIntoView({behavior:'smooth',block:'center'});}
+      function flipToCalculator(){windWhoosh();flipStage.classList.remove('is-flipped');flipToggle.setAttribute('aria-pressed','false');}
       flipToggle.addEventListener('click',()=>flipStage.classList.contains('is-flipped')?flipToCalculator():flipToTablet());
       flipBack.addEventListener('click',flipToCalculator);
       const fields=['entrate','uscite','debiti'].map(id=>document.getElementById(id));
