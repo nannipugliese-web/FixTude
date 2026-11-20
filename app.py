@@ -1469,24 +1469,35 @@ def home():
       const flipStage=document.getElementById('ftFlipStage');
       const flipToggle=document.getElementById('ftFlipToggle');
       const flipBack=document.getElementById('ftFlipBack');
-      // L'altezza del box pignoramento viene copiata dal solo box calcolatrice.
+      // L'altezza del box pignoramento viene copiata dal box calcolatrice.
+      // Questa parte è isolata: un eventuale errore di misurazione non deve
+      // interrompere gli script della calcolatrice, del semaforo o dell'audio.
       const calculatorPanel=document.getElementById('ftCalculatorPanel');
-      const pignoramentoBox=flipStage.querySelector('.ft-flip-back');
+      const pignoramentoBox=flipStage?flipStage.querySelector('.ft-flip-back'):null;
       function syncPignoramentoBoxHeight(){
-        if(!calculatorPanel||!pignoramentoBox)return;
-        const h=Math.round(calculatorPanel.getBoundingClientRect().height);
-        if(h>0){
-          flipStage.style.setProperty('--ft-calculator-height',h+'px');
-          pignoramentoBox.style.height=h+'px';
-          pignoramentoBox.style.maxHeight=h+'px';
-        }
+        try{
+          if(!flipStage||!calculatorPanel||!pignoramentoBox)return;
+          const h=Math.round(calculatorPanel.getBoundingClientRect().height);
+          if(h>0){
+            flipStage.style.setProperty('--ft-calculator-height',h+'px');
+            pignoramentoBox.style.height=h+'px';
+            pignoramentoBox.style.maxHeight=h+'px';
+          }
+        }catch(error){/* Non bloccare gli altri script della pagina. */}
       }
-      syncPignoramentoBoxHeight();
-      if('ResizeObserver' in window){
-        const pignoramentoSizeObserver=new ResizeObserver(syncPignoramentoBoxHeight);
-        pignoramentoSizeObserver.observe(calculatorPanel);
-      }else{window.addEventListener('resize',syncPignoramentoBoxHeight,{passive:true});}
-      window.addEventListener('load',syncPignoramentoBoxHeight,{once:true});
+      try{
+        syncPignoramentoBoxHeight();
+        if(window.ResizeObserver){
+          const pignoramentoSizeObserver=new window.ResizeObserver(syncPignoramentoBoxHeight);
+          if(calculatorPanel)pignoramentoSizeObserver.observe(calculatorPanel);
+        }else{
+          window.addEventListener('resize',syncPignoramentoBoxHeight,{passive:true});
+        }
+        window.addEventListener('load',syncPignoramentoBoxHeight,{once:true});
+      }catch(error){
+        window.addEventListener('load',syncPignoramentoBoxHeight,{once:true});
+        window.addEventListener('resize',syncPignoramentoBoxHeight,{passive:true});
+      }
       function flipToTablet(){windWhoosh();flipStage.classList.add('is-flipped');flipToggle.setAttribute('aria-pressed','true');flipStage.scrollIntoView({behavior:'smooth',block:'center'});}
       function flipToCalculator(){windWhoosh();flipStage.classList.remove('is-flipped');flipToggle.setAttribute('aria-pressed','false');}
       flipToggle.addEventListener('click',()=>flipStage.classList.contains('is-flipped')?flipToCalculator():flipToTablet());
