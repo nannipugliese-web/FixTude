@@ -370,7 +370,7 @@ def page(title, content, include_chat=False):
     seo_title = seo.get("title", f"{title} | FixTude")
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
-    noindex_paths = ("/chat-staff", "/verifica-pignoramento/conferma", "/verifica-pignoramento/risultato", "/verifica-pignoramento/anteprima", "/verifica-pignoramento/annullato", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
+    noindex_paths = ("/chat-staff", "/verifica-pignoramento/conferma", "/verifica-pignoramento/risultato", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
     robots = "noindex, nofollow" if path in noindex_paths or path.startswith("/api/") else "index, follow, max-image-preview:large"
     structured_data = None
     if path == "/":
@@ -1258,7 +1258,7 @@ def fixtude_v1_route_guard():
     path = request.path or "/"
     allowed = {
         "/", "/analisi", "/percorso", "/percorso/risultato", "/checkout", "/checkout/crea", "/checkout/conferma", "/checkout/consulenza", "/checkout/download",
-        "/verifica-pignoramento/prepara", "/verifica-pignoramento/acquista", "/verifica-pignoramento/conferma", "/verifica-pignoramento/risultato", "/verifica-pignoramento/anteprima", "/verifica-pignoramento/annullato",
+        "/verifica-pignoramento/acquista", "/verifica-pignoramento/conferma", "/verifica-pignoramento/risultato",
         "/chi-siamo", "/educazione-finanziaria",
         "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo",
         "/educazione-finanziaria/guida-saldo-e-stralcio",
@@ -1292,29 +1292,29 @@ def home():
       .ft-tagline{text-align:center;margin:4px auto 22px;max-width:650px;font-weight:800;font-size:clamp(22px,4.4vw,35px);line-height:1.18;letter-spacing:-.6px;color:#f5f7fb}
       .ft-tagline span{display:block;color:#a8d9ee;margin-top:5px}
       .ft-explain{text-align:center;color:#e0ebf0;font-size:14px;line-height:1.65;margin:0 auto 22px;max-width:580px}
-      .ft-calc-shell{max-width:520px;margin:0 auto;padding:17px;border-radius:27px;background:linear-gradient(145deg,#343a42 0%,#171c23 46%,#090c11 100%);border:1px solid #737d89;box-shadow:0 24px 48px #02070d99,inset 0 2px 3px #ffffff35,inset 0 -5px 12px #000b}
+      .ft-calc-shell{max-width:520px;margin:0 auto;padding:17px;border-radius:27px;background:linear-gradient(145deg,#f8fbff,#dce6f2 48%,#eef4fa);border:1px solid #c7d4e4;box-shadow:0 20px 45px #18365b22,inset 0 2px 3px #fff}
       .ft-display-wrap{padding:13px;border-radius:17px;background:linear-gradient(145deg,#27384b,#101a28);box-shadow:inset 0 5px 12px #0009,0 4px 0 #aab8c8;margin-bottom:14px}
       .ft-display-label{color:#9eb6cc;font-size:11px;font-weight:850;letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px}
       .ft-display{height:64px;display:flex;align-items:center;justify-content:flex-end;overflow:hidden;padding:5px 10px;border-radius:10px;background:linear-gradient(180deg,#d9e8d6,#b7d1b3);color:#18351f;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:clamp(28px,7vw,42px);font-weight:900;letter-spacing:.02em;text-shadow:0 1px #fff8;box-shadow:inset 0 3px 8px #203b2455}
       .ft-display-hint{display:flex;justify-content:space-between;gap:8px;color:#a9bfd1;font-size:10px;margin-top:7px}
       .ft-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px}
-      .ft-step{border:1px solid #66717f;border-radius:11px;padding:9px 5px;background:linear-gradient(145deg,#454d58,#252b34);color:#d8e0e9;font-size:11px;font-weight:850;box-shadow:0 3px 0 #090d12;cursor:pointer;transition:transform .08s,box-shadow .08s}
-      .ft-step.active{color:#fff;border-color:#d4aa55;background:linear-gradient(145deg,#8b713e,#4b3a1c);box-shadow:0 3px 0 #21190d,inset 0 1px #ffffff55}
-      .ft-step.done{color:#9fe0bd;border-color:#39795a}
+      .ft-step{border:1px solid #c4d1e0;border-radius:11px;padding:9px 5px;background:linear-gradient(145deg,#fff,#e5edf6);color:#42536a;font-size:11px;font-weight:850;box-shadow:0 3px 0 #b6c4d4;cursor:pointer;transition:transform .08s,box-shadow .08s}
+      .ft-step.active{color:#174b91;border-color:#77a7da;background:linear-gradient(145deg,#fff,#dcecff);box-shadow:0 3px 0 #7ea4cc,inset 0 1px #fff}
+      .ft-step.done{color:#176b46}
       .ft-step:active{transform:translateY(2px);box-shadow:0 1px 0 #9eafc2}
       .ft-keypad{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
-      .ft-key{min-height:61px;border:1px solid #727d8b;border-radius:14px;background:linear-gradient(145deg,#f1f3f5 0%,#bfc5cc 52%,#858e99 100%);color:#101820;font-size:24px;font-weight:900;cursor:pointer;user-select:none;touch-action:manipulation;box-shadow:0 5px 0 #080b10,0 8px 12px #0008,inset 0 1px 1px #fff;transition:transform .07s,box-shadow .07s;text-shadow:0 1px #fff}
+      .ft-key{min-height:61px;border:1px solid #c2cedd;border-radius:14px;background:linear-gradient(145deg,#fff 0%,#edf2f8 55%,#dce5ef 100%);color:#1d3048;font-size:24px;font-weight:900;cursor:pointer;user-select:none;touch-action:manipulation;box-shadow:0 5px 0 #aab8c8,0 8px 12px #243b561c,inset 0 1px 1px #fff;transition:transform .07s,box-shadow .07s; text-shadow:0 1px #fff}
       .ft-key:active,.ft-key.pressed{transform:translateY(4px);box-shadow:0 1px 0 #aab8c8,0 2px 4px #243b5622,inset 0 2px 5px #64748b22}
-      .ft-key.fn{font-size:15px;background:linear-gradient(145deg,#626d79,#303943);color:#f3f5f7;border-color:#89939f;text-shadow:0 1px #000}
-      .ft-key.clear{background:linear-gradient(145deg,#d96b70,#8e252d);color:#fff;border-color:#f08a90;box-shadow:0 5px 0 #471016,0 8px 12px #0008;text-shadow:0 1px #0005}
+      .ft-key.fn{font-size:15px;background:linear-gradient(145deg,#e9f0f8,#cbd8e7);color:#344b66}
+      .ft-key.clear{background:linear-gradient(145deg,#ffe9e9,#f6caca);color:#a12632;border-color:#e4b2b5;box-shadow:0 5px 0 #d39a9f,0 8px 12px #8c24301c}
       .ft-key.next{grid-column:span 2;background:linear-gradient(145deg,#267ac8,#145091);color:#fff;border-color:#12457b;box-shadow:0 5px 0 #0b3768,0 8px 12px #174b9133;text-shadow:0 1px #0004}
       .ft-key.equals{grid-column:span 2;background:linear-gradient(145deg,#26a56d,#087447);color:#fff;border-color:#086b42;box-shadow:0 5px 0 #075b38,0 8px 12px #08744733;text-shadow:0 1px #0004}
       .ft-key.next:active,.ft-key.equals:active{box-shadow:0 1px 0 #0b3768;transform:translateY(4px)}
-      .ft-calc-foot{margin:13px 2px 0;text-align:center;color:#b9c2cd;font-size:11px;line-height:1.45}
+      .ft-calc-foot{margin:13px 2px 0;text-align:center;color:#64758b;font-size:11px;line-height:1.45}
       .ft-values{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:13px auto 0}
-      .ft-value{border-radius:10px;padding:8px 6px;background:linear-gradient(145deg,#303741,#171c23);border:1px solid #596574;text-align:center;min-width:0}
-      .ft-value small{display:block;color:#aeb9c6;font-size:9px;font-weight:850;letter-spacing:.04em}
-      .ft-value strong{display:block;color:#f3f5f7;font-size:13px;overflow-wrap:anywhere;margin-top:3px}
+      .ft-value{border-radius:10px;padding:8px 6px;background:#ffffffa8;border:1px solid #d4dfeb;text-align:center;min-width:0}
+      .ft-value small{display:block;color:#687a90;font-size:9px;font-weight:850;letter-spacing:.04em}
+      .ft-value strong{display:block;color:#203047;font-size:13px;overflow-wrap:anywhere;margin-top:3px}
       .ft-traffic{margin:30px auto 14px;text-align:center;scroll-margin-top:24px}
       .ft-traffic-title{font-weight:900;letter-spacing:.08em;color:#f1f5fa;font-size:14px;margin-bottom:13px}
       .ft-lights{display:flex;flex-direction:row;justify-content:center;gap:9px;background:linear-gradient(145deg,#454d59,#111722 48%,#303846);border:4px solid #778292;border-radius:25px;padding:13px 14px;width:max-content;max-width:100%;margin:auto;box-shadow:inset 0 4px 8px #ffffff22,0 12px 24px #14253a38,0 5px 0 #080c12}
@@ -1326,17 +1326,19 @@ def home():
       .ft-countdown{min-height:32px;margin:12px auto 0;font-size:24px;font-weight:900;color:#8fc4ff;text-align:center;letter-spacing:.04em}
       .ft-status{min-height:24px;margin:12px 0 0;font-weight:800;font-size:14px;color:#f4f6fa}
       .ft-note{text-align:center;font-size:12px;color:#aab5c4;margin:13px auto 0;max-width:540px}
-      .ft-flip-stage{max-width:520px;margin:0 auto;perspective:1400px;scroll-margin-top:20px;}
-      .ft-flip-inner{display:grid;transform-style:preserve-3d;transition:transform .9s cubic-bezier(.2,.75,.2,1);}
+      .ft-flip-stage{width:100%;max-width:520px;margin:0 auto;perspective:1400px;position:relative;}
+      .ft-flip-inner{display:grid;grid-template-columns:minmax(0,1fr);height:100%;transform-style:preserve-3d;transition:transform .9s cubic-bezier(.2,.75,.2,1);}
       .ft-flip-stage.is-flipped .ft-flip-inner{transform:rotateY(180deg);}
-      .ft-flip-face{grid-area:1/1;backface-visibility:hidden;-webkit-backface-visibility:hidden;}
-      .ft-flip-back{height:0;min-height:0;overflow:hidden;}
-      .ft-flip-stage.is-flipped .ft-flip-front{height:0;overflow:hidden;}
-      .ft-flip-stage.is-flipped .ft-flip-back{height:auto;overflow:visible;}
-      .ft-flip-front{position:relative;display:flex;flex-direction:column;gap:12px;}
+      .ft-flip-face{grid-area:1/1;min-width:0;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;}
+      .ft-flip-front{position:relative;}
+      .ft-flip-front .ft-calc-shell{height:100%;min-height:100%;box-sizing:border-box;}
       .ft-flip-back{transform:rotateY(180deg);display:flex;align-items:stretch;}
-      .ft-tablet-shell{width:100%;min-height:100%;padding:13px;border-radius:29px;background:linear-gradient(145deg,#111a25,#050a11 55%,#26384a);border:2px solid #687b8d;box-shadow:0 20px 45px #07131f88,inset 0 2px 3px #ffffff35;display:flex;}
-      .ft-tablet-screen{position:relative;flex:1;border-radius:18px;background:linear-gradient(155deg,#f7fbff,#e8f1f8 55%,#d9e7f1);color:#203047;padding:clamp(18px,4vw,27px);display:flex;flex-direction:column;justify-content:center;overflow:hidden;}
+      .ft-tablet-shell{width:100%;height:100%;min-height:0;box-sizing:border-box;padding:13px;border-radius:29px;background:linear-gradient(145deg,#111a25,#050a11 55%,#26384a);border:2px solid #687b8d;box-shadow:0 20px 45px #07131f88,inset 0 2px 3px #ffffff35;display:flex;}
+      .ft-tablet-screen{position:relative;flex:1;min-height:0;min-width:0;box-sizing:border-box;border-radius:18px;background:linear-gradient(155deg,#f7fbff,#e8f1f8 55%,#d9e7f1);color:#203047;padding:clamp(18px,4vw,27px);display:flex;flex-direction:column;justify-content:flex-start;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;}
+      .ft-tablet-screen{scrollbar-width:thin;scrollbar-color:#7894aa #dce7ef;}
+      .ft-tablet-screen::-webkit-scrollbar{width:8px;}
+      .ft-tablet-screen::-webkit-scrollbar-track{background:#dce7ef;border-radius:8px;}
+      .ft-tablet-screen::-webkit-scrollbar-thumb{background:#7894aa;border-radius:8px;border:2px solid #dce7ef;}
       .ft-tablet-screen:before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:#65788b;box-shadow:0 0 0 3px #c5d2de;}
       .ft-tablet-kicker{font-size:10px;letter-spacing:.16em;font-weight:900;color:#39718e;text-align:center;margin:9px 0 8px;}
       .ft-tablet-title{font-size:clamp(22px,4vw,30px);line-height:1.12;text-align:center;color:#17384d;font-weight:950;margin:0 0 12px;}
@@ -1344,27 +1346,15 @@ def home():
       .ft-tablet-points{display:grid;gap:8px;margin:0 auto 17px;padding:0;list-style:none;width:100%;max-width:390px;}
       .ft-tablet-points li{display:flex;gap:9px;align-items:flex-start;font-size:12px;line-height:1.4;color:#30475b;}
       .ft-tablet-points li:before{content:"✓";font-weight:900;color:#16835f;}
-      .ft-tablet-question-form{display:block;width:100%;max-width:430px;margin:0 auto;box-sizing:border-box;align-self:center}
-      .ft-tablet-question{display:block;width:100%;box-sizing:border-box;border:1px solid #cbd8e2;border-radius:11px;padding:12px 14px;margin:10px 0;background:#ffffffb8;text-align:left;min-width:0}
-      .ft-tablet-question legend{display:block;width:100%;box-sizing:border-box;font-size:12px;line-height:1.5;font-weight:850;color:#243c50;padding:0 2px;text-align:justify;text-justify:inter-word;white-space:normal}
-      .ft-tablet-options{display:flex;width:100%;box-sizing:border-box;gap:10px;margin-top:10px;justify-content:center}
-      .ft-tablet-options label{flex:1;min-width:0;display:flex;justify-content:center;align-items:center;gap:7px;padding:9px;border:1px solid #b9c9d7;border-radius:9px;background:#fff;color:#203047;font-size:12px;font-weight:900;cursor:pointer}
-      .ft-tablet-options input{accent-color:#176c92;margin:0}
-      .ft-pign-select-wrap{width:100%;margin-top:10px}
-      .ft-pign-select{display:block;width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #b9c9d7;border-radius:9px;background:#fff;color:#203047;font-size:13px;line-height:1.4}
-      .ft-tablet-question-submit{display:block;width:100%;box-sizing:border-box;margin:15px auto 0;padding:13px;border:0;border-radius:11px;background:linear-gradient(145deg,#e7ad35,#f6cb68);color:#17364a;font-weight:950;font-size:13px;cursor:pointer;box-shadow:0 4px 0 #b67d1b}
-      .ft-tablet-screen .ft-tablet-copy{display:block;width:100%;max-width:430px;box-sizing:border-box;margin-left:auto;margin-right:auto;text-align:justify;text-justify:inter-word;line-height:1.6;}
       .ft-tablet-price{text-align:center;font-size:34px;font-weight:950;color:#123b50;letter-spacing:-1px;margin:0 0 2px;}
       .ft-tablet-price-note{text-align:center;color:#6c7d8e;font-size:10px;margin:0 0 13px;}
       .ft-tablet-consent{display:flex;align-items:flex-start;gap:8px;font-size:10px;line-height:1.4;color:#526579;margin:0 auto 13px;max-width:390px;}
       .ft-tablet-consent input{margin-top:2px;flex:0 0 auto;}
       .ft-tablet-pay{width:100%;max-width:390px;align-self:center;border:0;border-radius:12px;padding:14px 12px;background:linear-gradient(145deg,#e7ad35,#f6cb68);color:#17364a;font-weight:950;font-size:13px;letter-spacing:.035em;box-shadow:0 4px 0 #b67d1b;cursor:pointer;}
       .ft-tablet-back{align-self:center;margin:14px auto 0;border:0;background:transparent;color:#32627c;font-size:11px;font-weight:800;text-decoration:underline;cursor:pointer;}
-      .ft-pign-toggle{display:block;width:100%;margin:0 auto;padding:13px 16px;border:1px solid #e6bd62;border-radius:13px;background:linear-gradient(145deg,#f7cf75,#e8ad39);color:#17364a;font-weight:950;font-size:14px;letter-spacing:.02em;box-shadow:0 5px 0 #b67d1b,0 12px 20px #07131f33;cursor:pointer;}
-      .ft-pign-toggle-main{display:block;font-size:14px;line-height:1.25}
-      .ft-pign-toggle-sub{display:block;margin-top:4px;font-size:10px;line-height:1.2;font-weight:750;letter-spacing:.01em;color:#39566a}
-      .ft-pign-hint{text-align:center;color:#c8d8e2;font-size:11px;line-height:1.45;margin:-3px auto 0;max-width:480px;}
-      @media(max-width:520px){.ft-calc-shell{padding:12px;border-radius:21px}.ft-key{min-height:56px;font-size:22px}.ft-light{width:46px;height:46px}.ft-lights{gap:8px;padding:10px 12px}.ft-tagline{font-size:26px}.ft-tablet-shell{padding:8px;border-radius:23px}.ft-tablet-screen{border-radius:15px;padding:18px 14px}.ft-tablet-question{padding:11px 10px}.ft-tablet-question legend{font-size:12px;line-height:1.5}.ft-tablet-screen .ft-tablet-copy{font-size:12px}.ft-pign-toggle-main{font-size:12px}.ft-pign-toggle-sub{font-size:9px}}
+      .ft-pign-toggle{display:block;width:min(520px,100%);margin:15px auto 0;padding:14px 16px;border:1px solid #e6bd62;border-radius:13px;background:linear-gradient(145deg,#f7cf75,#e8ad39);color:#17364a;font-weight:950;font-size:14px;letter-spacing:.02em;box-shadow:0 5px 0 #b67d1b,0 12px 20px #07131f33;cursor:pointer;}
+      .ft-pign-hint{text-align:center;color:#c8d8e2;font-size:11px;line-height:1.45;margin:10px auto 0;max-width:480px;}
+      @media(max-width:520px){.ft-calc-shell{padding:12px;border-radius:21px}.ft-key{min-height:56px;font-size:22px}.ft-light{width:46px;height:46px}.ft-lights{gap:8px;padding:10px 12px}.ft-tagline{font-size:26px}.ft-tablet-shell{padding:8px;border-radius:23px}.ft-tablet-screen{border-radius:15px;padding:18px 14px}.ft-pign-toggle{font-size:12px}}
       @media(prefers-reduced-motion:reduce){.ft-flip-inner{transition:none}}
       @media(prefers-reduced-motion:reduce){.ft-key,.ft-light{transition:none}}
     </style>
@@ -1375,8 +1365,7 @@ def home():
         <input type="hidden" id="entrate" name="entrate">
         <input type="hidden" id="uscite" name="uscite">
         <input type="hidden" id="debiti" name="debiti">
-      </form>
-      <div class="ft-flip-stage" id="ftFlipStage">
+        <div class="ft-flip-stage" id="ftFlipStage">
           <div class="ft-flip-inner">
             <div class="ft-flip-face ft-flip-front">
               <div class="ft-calc-shell" id="ftCalculatorPanel">
@@ -1415,33 +1404,31 @@ def home():
           </div>
           <p class="ft-calc-foot">Premi AVANTI per passare al dato successivo. Puoi tornare sui passaggi precedenti e correggere gli importi.</p>
               </div>
-              <button class="ft-pign-toggle" type="button" id="ftFlipToggle"><span class="ft-pign-toggle-main">VERIFICA IL RISCHIO DI PIGNORAMENTO</span><span class="ft-pign-toggle-sub">(stipendio, conto, pensione, busta paga)</span></button>
-              <p class="ft-pign-hint">5 domande gratuite · paghi soltanto se vuoi conoscere il risultato.</p>
             </div>
             <div class="ft-flip-face ft-flip-back">
               <div class="ft-tablet-shell">
                 <div class="ft-tablet-screen">
-                  <div class="ft-tablet-kicker">VERIFICA GRATUITA · 5 DOMANDE</div>
+                  <div class="ft-tablet-kicker">SERVIZIO PREMIUM FIXTUDE</div>
                   <h2 class="ft-tablet-title">Sei a rischio di pignoramento?</h2>
-                  <p class="ft-tablet-copy">Indica quale entrata o rapporto vuoi valutare e rispondi alle domande sugli atti ricevuti. La verifica distingue i primi segnali dalle fasi esecutive più avanzate. Le risposte sono gratuite: paghi € 4,90 soltanto se vuoi sbloccare la valutazione.</p>
-                  <form class="ft-tablet-question-form" method="post" action="/verifica-pignoramento/prepara" id="ftPignoramentoQuestionsForm">
-                    <input type="hidden" name="csrf_token" value="{{PIGNORAMENTO_CSRF}}">
-                    <fieldset class="ft-tablet-question"><legend>Quale situazione vuoi valutare?</legend><div class="ft-pign-select-wrap"><select name="target" class="ft-pign-select" required><option value="">Seleziona una voce</option><option value="stipendio">Stipendio / busta paga</option><option value="pensione">Pensione</option><option value="conto">Conto corrente</option><option value="tutti">Tutte queste situazioni</option></select></div></fieldset>
-                    <fieldset class="ft-tablet-question"><legend>Da chi proviene principalmente il debito?</legend><div class="ft-pign-select-wrap"><select name="creditor" class="ft-pign-select" required><option value="">Seleziona il creditore</option><option value="banca_finanziaria">Banca o finanziaria</option><option value="privato">Privato o azienda</option><option value="riscossione">Agenzia Entrate-Riscossione o altro ente pubblico</option><option value="altro">Altro / non so</option></select></div></fieldset>
-                    <fieldset class="ft-tablet-question"><legend>1. Hai attualmente debiti scaduti che non sei riuscito a pagare?</legend><div class="ft-tablet-options"><label><input type="radio" name="q1" value="si" required> SÌ</label><label><input type="radio" name="q1" value="no" required> NO</label></div></fieldset>
-                    <fieldset class="ft-tablet-question"><legend>2. Hai ricevuto una diffida, una messa in mora o una richiesta formale di pagamento rimasta senza soluzione?</legend><div class="ft-tablet-options"><label><input type="radio" name="q2" value="si" required> SÌ</label><label><input type="radio" name="q2" value="no" required> NO</label></div></fieldset>
-                    <fieldset class="ft-tablet-question"><legend>3. Hai ricevuto una cartella esattoriale, un'ingiunzione o un'intimazione di pagamento che non hai saldato?</legend><div class="ft-tablet-options"><label><input type="radio" name="q3" value="si" required> SÌ</label><label><input type="radio" name="q3" value="no" required> NO</label></div></fieldset>
-                    <fieldset class="ft-tablet-question"><legend>4. Hai ricevuto un atto di precetto?</legend><div class="ft-tablet-options"><label><input type="radio" name="q4" value="si" required> SÌ</label><label><input type="radio" name="q4" value="no" required> NO</label></div></fieldset>
-                    <fieldset class="ft-tablet-question"><legend>5. Hai ricevuto un atto di pignoramento o una comunicazione di esecuzione su conto corrente, stipendio o pensione?</legend><div class="ft-tablet-options"><label><input type="radio" name="q5" value="si" required> SÌ</label><label><input type="radio" name="q5" value="no" required> NO</label></div></fieldset>
-                    <button class="ft-tablet-question-submit" type="submit">HO COMPLETATO LE RISPOSTE</button>
-                  </form>
-                  <p class="ft-tablet-copy" style="font-size:10px;margin-top:12px;margin-bottom:0">La verifica descrive una fotografia delle informazioni dichiarate oggi. Non consulta banche dati e non prevede con certezza eventi futuri.</p>
+                  <p class="ft-tablet-copy">Una verifica rapida basata su cinque domande. Scopri se, in base alle informazioni che dichiari, emergono indicatori di possibile esposizione a procedure esecutive.</p>
+                  <ul class="ft-tablet-points">
+                    <li>5 domande con risposte esclusivamente SÌ oppure NO</li>
+                    <li>Esito immediato dopo la conferma del pagamento</li>
+                    <li>Nessuna registrazione e nessun archivio permanente delle risposte</li>
+                    <li>Una fotografia della situazione dichiarata in quel momento</li>
+                  </ul>
+                  <div class="ft-tablet-price">€ 4,90</div>
+                  <p class="ft-tablet-price-note">Pagamento una tantum · verifica singola</p>
+                  <label class="ft-tablet-consent"><input type="checkbox" name="accept_terms" value="yes" form="ftPignoramentoBuyForm" required> <span>Ho letto i <a href="/termini" target="_blank" rel="noopener">Termini</a>, il <a href="/privacy" target="_blank" rel="noopener">Trattamento dei dati</a> e il <a href="/disclaimer" target="_blank" rel="noopener">Disclaimer</a>. Chiedo l'avvio immediato del servizio digitale dopo il pagamento e riconosco che, una volta iniziata l'esecuzione, il diritto di recesso può venire meno nei casi e nei limiti previsti dalla legge. Comprendo che l'esito è informativo e non costituisce una previsione certa.</span></label>
+                  <button class="ft-tablet-pay" type="submit" form="ftPignoramentoBuyForm">PAGA € 4,90 E SBLOCCA LA VERIFICA</button>
                   <button class="ft-tablet-back" type="button" id="ftFlipBack">TORNA ALLA CALCOLATRICE</button>
                 </div>
               </div>
             </div>
           </div>
         </div>
+        <button class="ft-pign-toggle" type="button" id="ftFlipToggle">VERIFICA IL RISCHIO DI PIGNORAMENTO</button>
+        <p class="ft-pign-hint">Le domande SÌ/NO vengono mostrate esclusivamente dopo la conferma del pagamento Stripe.</p>
         <div class="ft-traffic" id="ftTraffic" aria-live="polite">
           <div class="ft-traffic-title">IL TUO SEMAFORO</div>
           <div class="ft-lights" role="img" aria-label="Semaforo di sostenibilità">
@@ -1452,6 +1439,8 @@ def home():
           <div class="ft-countdown" id="ftCountdown" aria-live="assertive"></div>
           <div class="ft-status" id="ftStatus"></div>
         </div>
+      </form>
+      <form id="ftPignoramentoBuyForm" method="post" action="/verifica-pignoramento/acquista"><input type="hidden" name="csrf_token" value="{{PIGNORAMENTO_CSRF}}"></form>
       <p class="ft-note">Nessuna registrazione. Gli importi sono elaborati per il calcolo e non vengono archiviati in un profilo personale. Il risultato è orientativo.</p>
     </section>
     <script>
@@ -1460,8 +1449,37 @@ def home():
       const flipStage=document.getElementById('ftFlipStage');
       const flipToggle=document.getElementById('ftFlipToggle');
       const flipBack=document.getElementById('ftFlipBack');
-      function flipToTablet(){windWhoosh();flipStage.classList.add('is-flipped');flipToggle.setAttribute('aria-pressed','true');flipStage.scrollIntoView({behavior:'smooth',block:'center'});}
-      function flipToCalculator(){windWhoosh();flipStage.classList.remove('is-flipped');flipToggle.setAttribute('aria-pressed','false');}
+      const calculatorPanel=document.getElementById('ftCalculatorPanel');
+      function syncFlipSize(){
+        if(!flipStage||!calculatorPanel)return;
+        const height=calculatorPanel.getBoundingClientRect().height;
+        if(height>0)flipStage.style.height=Math.ceil(height)+'px';
+      }
+      function centerActivePanel(){
+        // Aspetta il layout dopo il cambio di faccia, poi centra l'intero riquadro.
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{
+          flipStage.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
+        }));
+      }
+      function flipToTablet(){
+        syncFlipSize();
+        flipStage.classList.add('is-flipped');
+        flipToggle.textContent='TORNA ALLA CALCOLATRICE';
+        flipToggle.setAttribute('aria-pressed','true');
+        centerActivePanel();
+      }
+      function flipToCalculator(){
+        flipStage.classList.remove('is-flipped');
+        flipToggle.textContent='VERIFICA IL RISCHIO DI PIGNORAMENTO';
+        flipToggle.setAttribute('aria-pressed','false');
+        centerActivePanel();
+      }
+      syncFlipSize();
+      if('ResizeObserver' in window){
+        const flipResizeObserver=new ResizeObserver(syncFlipSize);
+        flipResizeObserver.observe(calculatorPanel);
+      }else{window.addEventListener('resize',syncFlipSize,{passive:true});}
+      window.addEventListener('load',syncFlipSize,{once:true});
       flipToggle.addEventListener('click',()=>flipStage.classList.contains('is-flipped')?flipToCalculator():flipToTablet());
       flipBack.addEventListener('click',flipToCalculator);
       const fields=['entrate','uscite','debiti'].map(id=>document.getElementById(id));
@@ -1494,21 +1512,6 @@ def home():
           src.buffer=noise;filter.type='lowpass';filter.frequency.value=1500;gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.20,now+.003);gain.gain.exponentialRampToValueAtTime(.0001,now+.045);
           src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);src.start(now);
           const osc=audioCtx.createOscillator(),og=audioCtx.createGain();osc.type='triangle';osc.frequency.setValueAtTime(125,now);osc.frequency.exponentialRampToValueAtTime(72,now+.035);og.gain.setValueAtTime(.0001,now);og.gain.exponentialRampToValueAtTime(.10,now+.003);og.gain.exponentialRampToValueAtTime(.0001,now+.05);osc.connect(og);og.connect(audioCtx.destination);osc.start(now);osc.stop(now+.055);
-        }catch(e){}
-      }
-      // Soffio d'aria sintetizzato con Web Audio per accompagnare la rotazione.
-      function windWhoosh(){
-        try{
-          const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
-          if(!audioCtx)audioCtx=new AC();
-          if(audioCtx.state==='suspended')audioCtx.resume();
-          const now=audioCtx.currentTime,duration=.62,length=Math.floor(audioCtx.sampleRate*duration);
-          const noise=audioCtx.createBuffer(1,length,audioCtx.sampleRate),data=noise.getChannelData(0);
-          for(let i=0;i<length;i++){const fade=Math.sin(Math.PI*(i/length));data[i]=(Math.random()*2-1)*fade;}
-          const src=audioCtx.createBufferSource(),filter=audioCtx.createBiquadFilter(),gain=audioCtx.createGain();
-          src.buffer=noise;filter.type='bandpass';filter.frequency.setValueAtTime(1500,now);filter.frequency.exponentialRampToValueAtTime(260,now+duration);filter.Q.setValueAtTime(.65,now);
-          gain.gain.setValueAtTime(.0001,now);gain.gain.linearRampToValueAtTime(.105,now+.12);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
-          src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);src.start(now);src.stop(now+duration);
         }catch(e){}
       }
       function press(button){button.classList.add('pressed');setTimeout(()=>button.classList.remove('pressed'),110);sound();}
@@ -1572,7 +1575,7 @@ def home():
 # =========================================================
 
 PIGNORAMENTO_PRICE_CENTS = 490
-PIGNORAMENTO_FLOW = "pignoramento_snapshot_v2"
+PIGNORAMENTO_FLOW = "pignoramento_snapshot_v1"
 PIGNORAMENTO_QUESTIONS = [
     ("q1", "Hai attualmente debiti scaduti che non sei riuscito a pagare?"),
     ("q2", "Hai ricevuto una diffida, una messa in mora o una richiesta formale di pagamento rimasta senza soluzione?"),
@@ -1595,8 +1598,7 @@ def _pignoramento_paid_checkout(session_id):
             data.get("mode") != "payment" or
             data.get("currency") != "eur" or
             data.get("amount_total") != PIGNORAMENTO_PRICE_CENTS or
-            metadata.get("fixtude_flow") != PIGNORAMENTO_FLOW or
-            metadata.get("fixtude_product") != "verifica_rischio_pignoramento"):
+            metadata.get("fixtude_flow") != PIGNORAMENTO_FLOW):
         return None
     return data
 
@@ -1620,25 +1622,10 @@ def _pignoramento_page(title, content, status=200):
     .ft-pign-options label{flex:1;display:flex;justify-content:center;align-items:center;gap:7px;padding:11px;border:1px solid #b9c9d7;border-radius:10px;background:#fff;color:#203047;font-weight:900;cursor:pointer}
     .ft-pign-options input{accent-color:#176c92}
     .ft-pign-submit{display:block;width:100%;margin:18px auto 0;padding:15px;border:0;border-radius:12px;background:linear-gradient(145deg,#e7ad35,#f6cb68);color:#17364a;font-weight:950;font-size:14px;cursor:pointer;box-shadow:0 4px 0 #b67d1b}
-    .ft-pign-paywall-tease{text-align:center;margin:18px auto;padding:18px 14px;max-width:440px;border:1px solid #d5e0e8;border-radius:16px;background:linear-gradient(145deg,#fff,#eaf1f6);box-shadow:0 8px 22px #17384d12}
-    .ft-pign-paywall-tease h2{margin:0 0 8px;color:#17384d;font-size:20px}
-    .ft-pign-paywall-tease p{color:#526579;font-size:12px;line-height:1.5}
-    .ft-pign-lock{font-size:25px;color:#b17b20}
-    .ft-pign-price{text-align:center;color:#123b50;font-size:38px;font-weight:950;margin:8px 0 0}
-    .ft-pign-small{text-align:center;color:#6c7d8e;font-size:10px;margin:0 0 10px}
-    /* Consenso: checkbox centrata sopra, testo sotto a tutta larghezza e giustificato. */
-    .ft-pign-consent{display:block;width:100%;max-width:560px;box-sizing:border-box;margin:18px auto 14px;padding:0 8px;color:#526579;font-size:12px;line-height:1.6;text-align:center}
-    .ft-pign-consent input{display:block;width:17px;height:17px;margin:0 auto 11px;flex:none;accent-color:#176c92}
-    .ft-pign-consent span{display:block;width:100%;min-width:0;box-sizing:border-box;text-align:justify;text-justify:inter-word;overflow-wrap:anywhere}
-    .ft-pign-consent a{color:#1b6489;font-weight:800}
     .ft-pign-disclaimer{margin:16px 0 0;padding:12px;border-radius:10px;background:#e6eef4;color:#526579;font-size:11px;line-height:1.5}
     .ft-pign-result{text-align:center;padding:16px 8px}
     .ft-pign-answer{font-size:clamp(58px,13vw,84px);font-weight:1000;line-height:1;margin:20px 0 12px;letter-spacing:-3px}
-    .ft-pign-answer.yes{color:#b52d36}.ft-pign-answer.no{color:#16835f}.ft-pign-answer.maybe{color:#b07818;font-size:clamp(30px,7vw,48px);letter-spacing:-1px}
-    .ft-pign-legal{margin:18px 0;padding:16px;border:1px solid #d4dfE8;border-radius:13px;background:#fff;text-align:center}
-    .ft-pign-legal h3{margin:0 0 8px;color:#17384d;font-size:17px}
-    .ft-pign-legal p{color:#526579;font-size:13px;line-height:1.5}
-    .ft-pign-legal a{display:inline-block;margin-top:8px;padding:12px 15px;border-radius:9px;background:#173f56;color:#fff;font-size:12px;font-weight:900;text-decoration:none}
+    .ft-pign-answer.yes{color:#b52d36}.ft-pign-answer.no{color:#16835f}
     .ft-pign-result-copy{font-size:15px;line-height:1.6;color:#30475b}
     .ft-pign-date{font-size:11px;color:#6c7d8e;margin-top:12px}
     .ft-pign-actions{text-align:center;margin-top:18px}
@@ -1648,102 +1635,34 @@ def _pignoramento_page(title, content, status=200):
     return page(title, css + '<main class="ft-pign-page">' + content + '</main>'), status
 
 
-@app.route("/verifica-pignoramento/prepara", methods=["POST"])
-def pignoramento_prepara():
-    # Valutazione preliminare: il punteggio distingue i segnali iniziali
-    # dagli atti che indicano una fase esecutiva più avanzata.
-    supplied = (request.form.get("csrf_token") or "").strip()
-    expected = (session.get("ft_pignoramento_csrf") or "").strip()
-    if not expected or not hmac.compare_digest(supplied, expected):
-        return _pignoramento_page("Sessione scaduta", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Sessione scaduta</h1><p class="ft-pign-lead">Ricarica la homepage e ripeti le risposte.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 400)
-
-    answers = {key: (request.form.get(key) or "").strip().lower() for key, _ in PIGNORAMENTO_QUESTIONS}
-    target = (request.form.get("target") or "").strip().lower()
-    creditor = (request.form.get("creditor") or "").strip().lower()
-    valid_targets = {"stipendio", "pensione", "conto", "tutti"}
-    valid_creditors = {"banca_finanziaria", "privato", "riscossione", "altro"}
-    if (any(value not in ("si", "no") for value in answers.values()) or
-            target not in valid_targets or creditor not in valid_creditors):
-        return _pignoramento_page("Risposte incomplete", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Completa tutte le risposte</h1><p class="ft-pign-lead">Seleziona il tipo di situazione, il creditore e SÌ oppure NO per tutte le cinque domande. Non devi pagare per rispondere.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna alle domande</a></p></div></section>', 400)
-
-    # Pesi orientativi: il semplice ritardo è un segnale debole; precetto e
-    # pignoramento indicano passaggi procedurali molto più avanzati.
-    weights = {"q1": 1, "q2": 2, "q3": 3, "q4": 6, "q5": 10}
-    score = sum(weights[key] for key, value in answers.items() if value == "si")
-    if answers["q5"] == "si":
-        level = "esecuzione_dichiarata"
-    elif answers["q4"] == "si":
-        level = "fase_avanzata"
-    elif score >= 3:
-        level = "attenzione_concreta"
-    elif score > 0:
-        level = "segnali_iniziali"
-    else:
-        level = "nessun_segnale_dichiarato"
-
-    snapshot_token = secrets.token_urlsafe(24)
-    session["ft_pign_snapshot"] = {
-        "token": snapshot_token,
-        "score": score,
-        "level": level,
-        "target": target,
-        "creditor": creditor,
-        "created_at": datetime.now(ROME_TZ).isoformat(timespec="seconds"),
-    }
-    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">QUESTIONARIO COMPLETATO · FIXTUDE</div><h1>La tua valutazione è pronta</h1><p class="ft-pign-lead">Hai completato le domande sulla situazione che vuoi verificare. La valutazione distingue i segnali iniziali dagli eventuali passaggi esecutivi già dichiarati. Il risultato dettagliato è riservato fino alla conferma del pagamento.</p><div class="ft-pign-paywall-tease"><div class="ft-pign-lock">●</div><h2>Vuoi conoscere il livello di attenzione?</h2><p>Riceverai una valutazione preliminare riferita a: <strong>{escape(target.replace('_', ' ').title())}</strong>.</p><div class="ft-pign-price">€ 4,90</div><p class="ft-pign-small">Pagamento una tantum · una verifica</p></div><form method="post" action="/verifica-pignoramento/acquista"><input type="hidden" name="csrf_token" value="{escape(expected, quote=True)}"><label class="ft-pign-consent"><input type="checkbox" name="accept_terms" value="yes" required><span>Ho letto i <a href="/termini" target="_blank" rel="noopener">Termini</a>, la <a href="/privacy" target="_blank" rel="noopener">Privacy</a> e il <a href="/disclaimer" target="_blank" rel="noopener">Disclaimer</a>. Chiedo l'avvio immediato del servizio digitale dopo il pagamento e comprendo che si tratta di una valutazione preliminare basata sulle risposte fornite, non di una previsione certa né di una certificazione.</span></label><button class="ft-pign-submit" type="submit">SCOPRI LA MIA VALUTAZIONE · € 4,90</button></form><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna alle domande</a></p><p class="ft-pign-disclaimer"><strong>Importante:</strong> il servizio non consulta banche, creditori, registri giudiziari o archivi pubblici e non può conoscere atti non ricevuti o non dichiarati. Per verificare gli atti e le possibilità di tutela, puoi richiedere un approfondimento legale.</p></div></section>'''
-    return _pignoramento_page("Questionario completato | FixTude", content)
-
-
 @app.route("/verifica-pignoramento/acquista", methods=["POST"])
 def pignoramento_acquista():
     supplied = (request.form.get("csrf_token") or "").strip()
     expected = (session.get("ft_pignoramento_csrf") or "").strip()
-    snapshot = session.get("ft_pign_snapshot") or {}
     if not expected or not hmac.compare_digest(supplied, expected):
-        return _pignoramento_page("Richiesta non valida", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Sessione scaduta</h1><p class="ft-pign-lead">Ricarica la homepage e ripeti l’operazione.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 400)
-    if not snapshot.get("token") or snapshot.get("level") not in {"nessun_segnale_dichiarato", "segnali_iniziali", "attenzione_concreta", "fase_avanzata", "esecuzione_dichiarata"}:
-        return redirect("/#ftPignoramento")
+        return _pignoramento_page("Richiesta non valida", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Sessione scaduta</h1><p class="ft-pign-lead">Ricarica la homepage e ripeti l’operazione.</p><p class="ft-pign-actions"><a href="/">Torna a FixTude</a></p></div></section>', 400)
     if request.form.get("accept_terms") != "yes":
         return redirect("/#ftPignoramento")
     if rate_limited("pignoramento_checkout", 8, 3600):
-        return _pignoramento_page("Riprova più tardi", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Hai effettuato troppe richieste</h1><p class="ft-pign-lead">Attendi qualche minuto prima di riprovare.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 429)
+        return _pignoramento_page("Riprova più tardi", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Hai effettuato troppe richieste</h1><p class="ft-pign-lead">Attendi qualche minuto prima di riprovare.</p><p class="ft-pign-actions"><a href="/">Torna alla homepage</a></p></div></section>', 429)
     secret_key = os.environ.get("STRIPE_SECRET_KEY", "").strip()
     if stripe is None or not secret_key:
-        return _pignoramento_page("Pagamento non disponibile", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Pagamento temporaneamente non disponibile</h1><p class="ft-pign-lead">Il pagamento non è configurato. Non è stato effettuato alcun addebito.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 503)
+        return _pignoramento_page("Pagamento non disponibile", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Pagamento temporaneamente non disponibile</h1><p class="ft-pign-lead">Il pagamento non è configurato. Non è stato effettuato alcun addebito.</p><p class="ft-pign-actions"><a href="/">Torna alla homepage</a></p></div></section>', 503)
     stripe.api_key = secret_key
     try:
         checkout = stripe.checkout.Session.create(
             mode="payment",
-            line_items=[{"price_data": {"currency": "eur", "unit_amount": PIGNORAMENTO_PRICE_CENTS, "product_data": {"name": "FixTude - Valutazione preliminare rischio pignoramento", "description": "Sblocco di una valutazione preliminare per stipendio, pensione o conto corrente, basata sulle risposte dichiarate."}}, "quantity": 1}],
+            line_items=[{"price_data": {"currency": "eur", "unit_amount": PIGNORAMENTO_PRICE_CENTS, "product_data": {"name": "FixTude - Verifica istantanea rischio pignoramento", "description": "Questionario digitale di cinque domande SÌ/NO con esito informativo riferito alla situazione dichiarata al momento della verifica."}}, "quantity": 1}],
             success_url=request.host_url.rstrip("/") + "/verifica-pignoramento/conferma?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url=request.host_url.rstrip("/") + "/verifica-pignoramento/annullato",
+            cancel_url=request.host_url.rstrip("/") + "/?verifica_annullata=1#ftPignoramento",
             billing_address_collection="auto",
             customer_creation="if_required",
-            metadata={"fixtude_flow": PIGNORAMENTO_FLOW, "fixtude_product": "verifica_rischio_pignoramento", "snapshot_notice": "yes", "snapshot_token": snapshot["token"]},
+            metadata={"fixtude_flow": PIGNORAMENTO_FLOW, "fixtude_product": "verifica_rischio_pignoramento", "snapshot_notice": "yes"},
         )
         return redirect(checkout.url, code=303)
     except Exception:
         app.logger.exception("Creazione checkout verifica pignoramento non riuscita")
-        return _pignoramento_page("Pagamento non disponibile", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Non è stato possibile avviare il pagamento</h1><p class="ft-pign-lead">Nessun pagamento è stato confermato. Riprova più tardi.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>', 502)
-
-
-@app.route("/verifica-pignoramento/annullato", methods=["GET"])
-def pignoramento_annullato():
-    content = """<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">PAGAMENTO NON COMPLETATO</div><h1>La tua verifica è ancora disponibile</h1><p class="ft-pign-lead">Non è stato effettuato alcun addebito. Se vuoi conoscere l’esito delle risposte che hai appena fornito, puoi riprendere il pagamento.</p><p class="ft-pign-actions"><a href="/verifica-pignoramento/anteprima">Torna al pagamento</a> · <a href="/#ftPignoramento">Torna alla homepage</a></p></div></section>"""
-    snapshot = session.get("ft_pign_snapshot") or {}
-    if not snapshot.get("token"):
-        content = content.replace('<a href="/verifica-pignoramento/anteprima">Torna al pagamento</a> · ', '')
-    return _pignoramento_page("Pagamento annullato | FixTude", content)
-
-
-@app.route("/verifica-pignoramento/anteprima", methods=["GET"])
-def pignoramento_anteprima():
-    snapshot = session.get("ft_pign_snapshot") or {}
-    if not snapshot.get("token"):
-        return redirect("/#ftPignoramento")
-    csrf = escape(session.get("ft_pignoramento_csrf", ""), quote=True)
-    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">QUESTIONARIO COMPLETATO · FIXTUDE</div><h1>Vuoi conoscere il tuo esito?</h1><p class="ft-pign-lead">Le tue risposte sono già state elaborate. Il livello preliminare di attenzione è disponibile dopo il pagamento.</p><div class="ft-pign-paywall-tease"><h2>La tua valutazione è pronta</h2><div class="ft-pign-price">€ 4,90</div><p class="ft-pign-small">Pagamento una tantum · una verifica</p></div><form method="post" action="/verifica-pignoramento/acquista"><input type="hidden" name="csrf_token" value="{csrf}"><label class="ft-pign-consent"><input type="checkbox" name="accept_terms" value="yes" required><span>Ho letto Termini, Privacy e Disclaimer. Comprendo la natura informativa del servizio e la fotografia della situazione dichiarata.</span></label><button class="ft-pign-submit" type="submit">SCOPRI LA MIA VALUTAZIONE · € 4,90</button></form><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna alla homepage</a></p></div></section>'''
-    return _pignoramento_page("Sblocca il tuo esito | FixTude", content)
+        return _pignoramento_page("Pagamento non disponibile", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Non è stato possibile avviare il pagamento</h1><p class="ft-pign-lead">Nessun pagamento è stato confermato. Riprova più tardi.</p><p class="ft-pign-actions"><a href="/">Torna alla homepage</a></p></div></section>', 502)
 
 
 @app.route("/verifica-pignoramento/conferma", methods=["GET"])
@@ -1754,36 +1673,41 @@ def pignoramento_conferma():
     except Exception:
         app.logger.exception("Verifica Stripe del servizio pignoramento non riuscita")
         paid = None
-    snapshot = session.get("ft_pign_snapshot") or {}
-    if (not paid or not snapshot.get("token") or
-            (paid.get("metadata") or {}).get("snapshot_token") != snapshot.get("token") or
-            snapshot.get("level") not in {"nessun_segnale_dichiarato", "segnali_iniziali", "attenzione_concreta", "fase_avanzata", "esecuzione_dichiarata"}):
-        return _pignoramento_page("Pagamento da verificare", """<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Pagamento non verificato</h1><p class="ft-pign-lead">Non possiamo mostrare l’esito senza una conferma di pagamento valida e collegata alle risposte. Se hai pagato, aggiorna la pagina tra qualche istante oppure contatta contatto@fixtude.it.</p><p class="ft-pign-actions"><a href="/#ftPignoramento">Torna a FixTude</a></p></div></section>""", 402)
-    now = datetime.now(ROME_TZ).strftime("%d/%m/%Y alle %H:%M")
-    target_labels = {"stipendio": "Stipendio / busta paga", "pensione": "Pensione", "conto": "Conto corrente", "tutti": "Stipendio, pensione e conto corrente"}
-    target_label = target_labels.get(snapshot.get("target"), "situazione selezionata")
-    creditor_labels = {"banca_finanziaria": "Banca o finanziaria", "privato": "Privato o azienda", "riscossione": "Agenzia Entrate-Riscossione o ente pubblico", "altro": "Altro / non so"}
-    creditor_label = creditor_labels.get(snapshot.get("creditor"), "creditore non specificato")
-    level = snapshot.get("level")
-    result_map = {
-        "nessun_segnale_dichiarato": ("LIVELLO CONTENUTO", "no", "Le risposte non segnalano, allo stato, atti o passaggi esecutivi tra quelli considerati. Non significa che il pignoramento sia impossibile: un creditore potrebbe ancora attivarsi o potrebbero esistere atti non conosciuti."),
-        "segnali_iniziali": ("SEGNALI INIZIALI", "maybe", "Risultano debiti scaduti o richieste di pagamento, ma questi elementi da soli non dimostrano che il pignoramento sia imminente. Occorre verificare se il creditore dispone di un titolo esecutivo e quali iniziative abbia già intrapreso."),
-        "attenzione_concreta": ("ATTENZIONE CONCRETA", "maybe", "Le risposte indicano più elementi di attenzione, tra cui atti formali di recupero. È opportuno controllare subito la natura degli atti, le date di notifica, eventuali opposizioni e la presenza di un titolo esecutivo. Non è possibile dedurre da queste sole risposte che il pignoramento avverrà."),
-        "fase_avanzata": ("FASE ESECUTIVA AVANZATA", "yes", "Hai dichiarato di aver ricevuto un atto di precetto. È un segnale serio: se il credito è ancora esigibile e non intervengono sospensioni o altre circostanze, il creditore può procedere con l'esecuzione nei termini di legge. Fai esaminare immediatamente il precetto e la relativa documentazione da un legale."),
-        "esecuzione_dichiarata": ("PIGNORAMENTO DICHIARATO", "yes", "Hai dichiarato di aver già ricevuto un atto o una comunicazione di pignoramento. In questo caso la procedura potrebbe essere già stata avviata: è essenziale verificare il documento, il soggetto terzo coinvolto, le somme interessate e le scadenze. Contatta tempestivamente un legale."),
-    }
-    heading, tone, explanation = result_map[level]
-    tone_class = "yes" if tone == "yes" else ("no" if tone == "no" else "maybe")
-    answer_html = f'<div class="ft-pign-answer {tone_class}">{escape(heading)}</div><h2>Valutazione per: {escape(target_label)}</h2><p class="ft-pign-result-copy"><strong>Categoria del creditore:</strong> {escape(creditor_label)}.</p><p class="ft-pign-result-copy">{escape(explanation)}</p>'
-    legal_cta = '<div class="ft-pign-legal"><h3>Vuoi verificare concretamente la tua situazione?</h3><p>Per un esame degli atti, dei termini e delle possibilità di tutela, puoi richiedere un approfondimento legale tramite FixTude.</p><a href="mailto:contatto@fixtude.it?subject=Richiesta%20approfondimento%20legale%20-%20FixTude">RICHIEDI UN APPROFONDIMENTO LEGALE</a></div>'
-    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">ESITO DELLA TUA VALUTAZIONE FIXTUDE</div><div class="ft-pign-result">{answer_html}<p class="ft-pign-date">Istantanea riferita al {now}</p></div>{legal_cta}<div class="ft-pign-disclaimer"><strong>Limiti della valutazione:</strong> il risultato è una stima preliminare basata esclusivamente sulle risposte dichiarate. Non consulta banche, creditori, registri giudiziari o archivi pubblici, non verifica la validità degli atti e non può garantire se o quando verrà pignorato un conto, uno stipendio o una pensione. Il pignoramento dipende anche dal titolo esecutivo, dalla natura del credito, dalle notifiche, dai termini, dalle eventuali opposizioni e dai limiti di legge applicabili. L'approfondimento legale è necessario per una valutazione del caso concreto.</div><p class="ft-pign-actions"><a href="/">Torna alla homepage FixTude</a></p></div></section>'''
-    return _pignoramento_page("Esito verifica rischio pignoramento | FixTude", content)
+    if not paid:
+        return _pignoramento_page("Pagamento da verificare", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Pagamento non verificato</h1><p class="ft-pign-lead">Le domande sono disponibili soltanto dopo la conferma effettiva del pagamento. Se hai pagato, aggiorna la pagina tra qualche istante oppure contatta contatto@fixtude.it.</p><p class="ft-pign-actions"><a href="/">Torna a FixTude</a></p></div></section>', 402)
+    token = session.setdefault("ft_pignoramento_csrf", secrets.token_urlsafe(24))
+    questions_html = []
+    for key, question in PIGNORAMENTO_QUESTIONS:
+        questions_html.append(f'''<fieldset class="ft-pign-question"><legend>{escape(question)}</legend><div class="ft-pign-options"><label><input type="radio" name="{key}" value="si" required> SÌ</label><label><input type="radio" name="{key}" value="no" required> NO</label></div></fieldset>''')
+    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">PAGAMENTO CONFERMATO · FIXTUDE</div><h1>Verifica rischio pignoramento</h1><p class="ft-pign-lead">Rispondi pensando alla situazione attuale. Per ogni domanda puoi selezionare soltanto SÌ oppure NO.</p><form method="post" action="/verifica-pignoramento/risultato"><input type="hidden" name="session_id" value="{escape(session_id, quote=True)}"><input type="hidden" name="csrf_token" value="{escape(token, quote=True)}">{''.join(questions_html)}<button class="ft-pign-submit" type="submit">MOSTRA IL MIO ESITO</button></form><p class="ft-pign-disclaimer"><strong>Fotografia del momento:</strong> il risultato descrive esclusivamente gli elementi che dichiari al momento della compilazione. Non è una previsione certa, non verifica registri giudiziari o bancari e non può rilevare atti che non conosci o non hai ricevuto.</p></div></section>'''
+    return _pignoramento_page("Verifica rischio pignoramento | FixTude", content)
 
 
 @app.route("/verifica-pignoramento/risultato", methods=["POST"])
 def pignoramento_risultato():
-    # Compatibilità: il vecchio endpoint non accetta più risposte dopo il pagamento.
-    return redirect("/#ftPignoramento")
+    supplied = (request.form.get("csrf_token") or "").strip()
+    expected = (session.get("ft_pignoramento_csrf") or "").strip()
+    if not expected or not hmac.compare_digest(supplied, expected):
+        return _pignoramento_page("Sessione scaduta", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Sessione scaduta</h1><p class="ft-pign-lead">Per ragioni di sicurezza, torna alla homepage e ripeti la verifica.</p><p class="ft-pign-actions"><a href="/">Torna a FixTude</a></p></div></section>', 400)
+    session_id = (request.form.get("session_id") or "").strip()
+    try:
+        paid = _pignoramento_paid_checkout(session_id)
+    except Exception:
+        app.logger.exception("Nuova verifica Stripe prima del risultato non riuscita")
+        paid = None
+    if not paid:
+        return _pignoramento_page("Pagamento non verificato", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Accesso non autorizzato</h1><p class="ft-pign-lead">Non possiamo mostrare l’esito senza un pagamento verificato.</p><p class="ft-pign-actions"><a href="/">Torna a FixTude</a></p></div></section>', 402)
+    answers = {key: (request.form.get(key) or "").strip().lower() for key, _ in PIGNORAMENTO_QUESTIONS}
+    if any(value not in ("si", "no") for value in answers.values()):
+        return _pignoramento_page("Risposte incomplete", '<section class="ft-pign-tablet"><div class="ft-pign-screen"><h1>Completa tutte le risposte</h1><p class="ft-pign-lead">Per elaborare l’istantanea devi selezionare SÌ oppure NO per ciascuna delle cinque domande.</p><p class="ft-pign-actions"><a href="/verifica-pignoramento/conferma?session_id=' + escape(session_id, quote=True) + '">Torna alle domande</a></p></div></section>', 400)
+    detected = any(value == "si" for value in answers.values())
+    now = datetime.now(ROME_TZ).strftime("%d/%m/%Y alle %H:%M")
+    if detected:
+        answer_html = '<div class="ft-pign-answer yes">SÌ</div><h2>Emergono indicatori di possibile esposizione</h2><p class="ft-pign-result-copy">Almeno una delle risposte segnala una situazione che merita attenzione. Questo esito non significa automaticamente che un pignoramento sia già stato disposto o sia imminente. La natura e la gravità del rischio dipendono dal tipo di debito, dagli atti effettivamente notificati, dai termini e dalle circostanze concrete.</p>'
+    else:
+        answer_html = '<div class="ft-pign-answer no">NO</div><h2>Nessun indicatore dichiarato rilevato</h2><p class="ft-pign-result-copy">In base alle risposte fornite non emergono gli indicatori considerati da questa verifica. L’esito non certifica che il conto sia al sicuro e non esclude atti non conosciuti, notifiche non lette o altre circostanze non considerate.</p>'
+    content = f'''<section class="ft-pign-tablet"><div class="ft-pign-screen"><div class="ft-pign-kicker">ESITO DELLA TUA VERIFICA FIXTUDE</div><div class="ft-pign-result">{answer_html}<p class="ft-pign-date">Istantanea riferita al {now}</p></div><div class="ft-pign-disclaimer"><strong>Importante:</strong> il risultato è elaborato esclusivamente sulla base delle dichiarazioni rese, non consulta banche dati, registri dei tribunali, banche o creditori e non costituisce consulenza legale né una certificazione. In presenza di precetto, pignoramento o termini indicati in un atto, rivolgiti tempestivamente a un avvocato.</div><p class="ft-pign-actions"><a href="/">Torna alla homepage FixTude</a></p></div></section>'''
+    return _pignoramento_page("Esito verifica rischio pignoramento | FixTude", content)
 
 
 @app.route("/analisi", methods=["POST"])
@@ -2138,7 +2062,7 @@ def checkout_v2():
       <p class="muted" style="text-align:center">Il colore è un primo esito orientativo. L'analisi della tua situazione, la valutazione dei possibili piani di rientro e le indicazioni per affrontare la trattativa sono contenute nel report personalizzato.</p>
       {annullato}
       <div class="ft-promo"><span class="ft-promo-label">OFFERTA DI LANCIO · PREZZO PROMOZIONALE</span><div class="ft-promo-price">€ 49,90</div><p>Un unico acquisto per il <strong>Kit FixTude con prima consulenza legale gratuita</strong>.</p></div>
-      <p>Ricevi il <strong>dossier personalizzato</strong>, con l'elaborazione dei dati inseriti, la spiegazione del risultato, gli scenari orientativi e le indicazioni operative; i modelli fac-simile disponibili e <strong>una delle tre guide digitali a tua scelta</strong>. Prima di passare al pagamento potrai scegliere se richiedere la prima consulenza legale gratuita. Se la richiedi, i recapiti saranno inviati a contatto@fixtude.it soltanto dopo la conferma del pagamento; FixTude gestirà la richiesta e potrà trasmetterli al professionista incaricato.</p>
+      <p>Ricevi il <strong>dossier personalizzato</strong>, con l'elaborazione dei dati inseriti, la spiegazione del risultato, gli scenari orientativi e le indicazioni operative; i modelli fac-simile disponibili e <strong>una delle tre guide digitali a tua scelta</strong>. Prima di passare al pagamento potrai scegliere se richiedere la prima consulenza legale gratuita. Se la richiedi, i recapiti saranno inviati a nannipugliese@gmail.com soltanto dopo la conferma del pagamento; FixTude gestirà la richiesta e potrà trasmetterli al professionista incaricato.</p>
       <form id="ft-checkout-form" method="post" action="/checkout/crea">
         <div class="book-choice"><label><input type="radio" name="prodotto" value="niente_panico_pdf" required><strong>NIENTE PANICO</strong><br><span class="muted">Guida pratica per mettere ordine nella situazione debitoria.</span></label></div>
         <div class="book-choice"><label><input type="radio" name="prodotto" value="guida_saldo_stralcio_pdf" required><strong>GUIDA AL SALDO E STRALCIO</strong><br><span class="muted">Guida dedicata alla trattativa e alla chiusura dei debiti.</span></label></div>
@@ -2153,12 +2077,12 @@ def checkout_v2():
             <button type="button" class="ft-beforepay-close" aria-label="Chiudi">×</button>
             <div class="ft-modal-kicker">PRIMA DI PROCEDERE</div>
             <h2 id="ft-beforepay-title">Vuoi essere ricontattato dall’avvocato?</h2>
-            <p>Con il Kit FixTude è inclusa una prima consulenza legale gratuita. Se vuoi richiederla, lascia qui i recapiti: dopo la conferma del pagamento saranno inviati a <strong>contatto@fixtude.it</strong> per gestire la tua richiesta e, se necessario, trasmetterli all’avvocato incaricato.</p>
+            <p>Con il Kit FixTude è inclusa una prima consulenza legale gratuita. Se vuoi richiederla, lascia qui i recapiti: dopo la conferma del pagamento saranno inviati a <strong>nannipugliese@gmail.com</strong> per gestire la tua richiesta e, se necessario, trasmetterli all’avvocato incaricato.</p>
             <div class="ft-beforepay-fields">
               <label>Nome e cognome<input id="ft-legal-name" name="legal_name" type="text" maxlength="100" autocomplete="name" placeholder="Nome e cognome"></label>
               <label>Numero di telefono<input id="ft-legal-phone" name="legal_phone" type="tel" maxlength="30" autocomplete="tel" placeholder="Il numero al quale contattarti"></label>
               <label>Indirizzo email<input id="ft-legal-email" name="legal_email" type="email" maxlength="254" autocomplete="email" placeholder="nome@esempio.it"></label>
-              <label class="ft-beforepay-consent"><input id="ft-legal-consent" name="legal_consent" type="checkbox" value="yes"><span>Acconsento espressamente all’invio dei miei recapiti a FixTude, all’indirizzo contatto@fixtude.it, e alla loro eventuale comunicazione all’avvocato incaricato, esclusivamente per gestire la mia richiesta di ricontatto e organizzare la prima consulenza legale gratuita. Ho letto l’<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>. Il consenso è facoltativo.</span></label>
+              <label class="ft-beforepay-consent"><input id="ft-legal-consent" name="legal_consent" type="checkbox" value="yes"><span>Acconsento espressamente all’invio dei miei recapiti a FixTude, all’indirizzo nannipugliese@gmail.com, e alla loro eventuale comunicazione all’avvocato incaricato, esclusivamente per gestire la mia richiesta di ricontatto e organizzare la prima consulenza legale gratuita. Ho letto l’<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>. Il consenso è facoltativo.</span></label>
             </div>
             <p class="ft-beforepay-note">Il colloquio iniziale è di primo orientamento. Eventuali incarichi successivi saranno concordati direttamente con il professionista.</p>
             <button class="btn ft-beforepay-primary" id="ft-pay-with-consultation" type="button">CONTINUA AL PAGAMENTO E RICHIEDI LA CONSULENZA</button>
@@ -2641,7 +2565,7 @@ def checkout_consulenza_v2():
             return page("Modulo di contatto", '<section class="card"><h1>Modulo non disponibile</h1><p>Per compilare il modulo è necessario utilizzare il collegamento presente nella pagina di conferma di un pagamento verificato.</p></section>'), 402
         token = secrets.token_urlsafe(24)
         session["fixtude_consulenza_csrf"] = token
-        form = f'''<section class="card"><h1>Richiedi la prima consulenza legale gratuita</h1><p>Il pagamento del Kit FixTude è stato verificato. Inserisci i tuoi recapiti: saranno inviati a contatto@fixtude.it per gestire la richiesta e, se necessario, trasmetterli all’avvocato incaricato.</p><form method="post" action="/checkout/consulenza" class="ft-legal-contact"><input type="hidden" name="session_id" value="{escape(session_id, quote=True)}"><input type="hidden" name="csrf_token" value="{token}"><label>Nome e cognome<input name="nome" type="text" maxlength="100" autocomplete="name" placeholder="Nome e cognome" required></label><label>Numero di telefono<input name="telefono" type="tel" maxlength="30" autocomplete="tel" placeholder="Numero al quale desideri essere contattato" required></label><label>Indirizzo email<input name="email" type="email" maxlength="254" autocomplete="email" placeholder="nome@esempio.it" required></label><label class="ft-consent"><input type="checkbox" name="consenso" value="yes" required><span>Acconsento espressamente all’invio di nome, telefono ed email a FixTude, all’indirizzo contatto@fixtude.it, e alla loro eventuale comunicazione all’avvocato incaricato, esclusivamente per gestire la mia richiesta e organizzare una prima consulenza legale gratuita. Ho letto l’<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>. Il consenso è facoltativo: posso scaricare il materiale acquistato anche senza richiedere la consulenza.</span></label><button class="btn" type="submit">INVIA I MIEI RECAPITI A FIXTUDE</button></form><p class="muted">Il colloquio iniziale è di primo orientamento. Eventuali attività professionali successive saranno valutate e concordate direttamente con l’avvocato.</p><a href="/checkout/download?session_id={escape(session_id, quote=True)}">Scarica comunque il dossier e i materiali acquistati</a></section><style>.ft-legal-contact{{display:grid!important;gap:14px;margin-top:18px}}.ft-legal-contact label{{display:grid;gap:6px;font-weight:700}}.ft-legal-contact input[type=text],.ft-legal-contact input[type=tel],.ft-legal-contact input[type=email]{{width:100%;box-sizing:border-box;padding:12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}}.ft-legal-contact .ft-consent{{display:flex;align-items:flex-start;gap:10px;font-size:14px;font-weight:400;line-height:1.5}}.ft-legal-contact .ft-consent input{{margin-top:4px;flex:0 0 auto}}</style>'''
+        form = f'''<section class="card"><h1>Richiedi la prima consulenza legale gratuita</h1><p>Il pagamento del Kit FixTude è stato verificato. Inserisci i tuoi recapiti: saranno inviati a contatto@fixtude.it per gestire la richiesta e, se necessario, trasmetterli all’avvocato incaricato.</p><form method="post" action="/checkout/consulenza" class="ft-legal-contact"><input type="hidden" name="session_id" value="{escape(session_id, quote=True)}"><input type="hidden" name="csrf_token" value="{token}"><label>Nome e cognome<input name="nome" type="text" maxlength="100" autocomplete="name" placeholder="Nome e cognome" required></label><label>Numero di telefono<input name="telefono" type="tel" maxlength="30" autocomplete="tel" placeholder="Numero al quale desideri essere contattato" required></label><label>Indirizzo email<input name="email" type="email" maxlength="254" autocomplete="email" placeholder="nome@esempio.it" required></label><label class="ft-consent"><input type="checkbox" name="consenso" value="yes" required><span>Acconsento espressamente all’invio di nome, telefono ed email a FixTude, all’indirizzo nannipugliese@gmail.com, e alla loro eventuale comunicazione all’avvocato incaricato, esclusivamente per gestire la mia richiesta e organizzare una prima consulenza legale gratuita. Ho letto l’<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a>. Il consenso è facoltativo: posso scaricare il materiale acquistato anche senza richiedere la consulenza.</span></label><button class="btn" type="submit">INVIA I MIEI RECAPITI A FIXTUDE</button></form><p class="muted">Il colloquio iniziale è di primo orientamento. Eventuali attività professionali successive saranno valutate e concordate direttamente con l’avvocato.</p><a href="/checkout/download?session_id={escape(session_id, quote=True)}">Scarica comunque il dossier e i materiali acquistati</a></section><style>.ft-legal-contact{{display:grid!important;gap:14px;margin-top:18px}}.ft-legal-contact label{{display:grid;gap:6px;font-weight:700}}.ft-legal-contact input[type=text],.ft-legal-contact input[type=tel],.ft-legal-contact input[type=email]{{width:100%;box-sizing:border-box;padding:12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}}.ft-legal-contact .ft-consent{{display:flex;align-items:flex-start;gap:10px;font-size:14px;font-weight:400;line-height:1.5}}.ft-legal-contact .ft-consent input{{margin-top:4px;flex:0 0 auto}}</style>'''
         return page("Modulo di contatto per la consulenza legale", form)
 
     session_id = (request.form.get("session_id") or "").strip()
@@ -4734,7 +4658,7 @@ def legal_disclaimer():
     <h2>5. Limiti e professionisti abilitati</h2><p>I contenuti generali del sito non sostituiscono una consulenza legale, fiscale, contabile o finanziaria personalizzata. FixTude non si presenta, in forza del solo uso del sito, come avvocato, commercialista, consulente finanziario abilitato, organismo di composizione della crisi o rappresentante del cliente. In presenza di saldo nullo o negativo, atti giudiziari, precetti, pignoramenti o termini di opposizione, è opportuno rivolgersi tempestivamente a un avvocato esperto in diritto bancario/credito. Nei casi di possibile sovraindebitamento può essere utile verificare con un professionista l'accesso a un Organismo di composizione della crisi (OCC) e alle procedure previste dal Codice della crisi. Eventuali attività ulteriori, se offerte, dovranno essere descritte e concordate separatamente prima del loro avvio.</p>
     <h2>6. Documenti e informazioni inseriti dall'utente</h2><p>L'utente è responsabile di verificare i dati inseriti, gli importi dei debiti, l'identità dei creditori, le scadenze e i documenti ricevuti. Non caricare o inviare tramite moduli o chat documenti integrali, credenziali bancarie o dati personali non necessari. In presenza di atti giudiziari, termini di opposizione, procedure esecutive o scadenze imminenti, richiedi tempestivamente assistenza qualificata.</p>
     <h2>7. Elaborazione dei dati nel calcolatore</h2><p>Gli importi inseriti nel calcolatore sono trasmessi al server tramite HTTPS e conservati temporaneamente nella sessione tecnica firmata necessaria a mostrare il risultato, proseguire al checkout e generare il report dopo il pagamento. Non viene creato un account utente né un archivio permanente dei dati economici. I dati possono essere inclusi nel report scaricato e nel pacchetto inviato via email, se la consegna email è configurata. Per i dettagli sui dati del pagamento e sui fornitori consulta l'<a href="/privacy">Informativa Privacy</a>.</p>
-    <h2>8. Verifica rischio pignoramento: istantanea dichiarativa</h2><p>La verifica a pagamento raccoglie cinque risposte SÌ/NO, il tipo di posizione da valutare e la categoria del creditore. Restituisce un livello preliminare di attenzione basato sulla fase dichiarata: segnali iniziali, attenzione concreta, fase esecutiva avanzata o pignoramento dichiarato. Il risultato non attesta che un pignoramento futuro avverrà o non avverrà e non certifica l'assenza di procedure o atti non conosciuti. Il servizio non accede a conti correnti, banche dati creditizie, registri giudiziari, archivi dei creditori o sistemi dell’Agenzia delle Entrate-Riscossione e non verifica autonomamente la correttezza o completezza delle dichiarazioni. Non è una previsione certa, una certificazione di sicurezza patrimoniale o una consulenza legale personalizzata.</p>
+    <h2>8. Verifica rischio pignoramento: istantanea dichiarativa</h2><p>La verifica a pagamento basata su cinque domande SÌ/NO restituisce una fotografia della situazione dichiarata dall’utente al momento della compilazione. L’esito “SÌ” segnala la presenza di almeno un indicatore dichiarato tra quelli considerati; non attesta che un pignoramento sia già stato disposto o sia imminente. L’esito “NO” indica soltanto che, in base alle risposte fornite, non sono emersi gli indicatori previsti: non certifica l’assenza di procedure o atti non conosciuti, non ricevuti o non considerati. Il servizio non accede a conti correnti, banche dati creditizie, registri giudiziari, archivi dei creditori o sistemi dell’Agenzia delle Entrate-Riscossione e non verifica autonomamente la correttezza o completezza delle dichiarazioni. Non è una previsione certa, una certificazione di sicurezza patrimoniale o una consulenza legale personalizzata.</p>
     <h2>9. Contatti e aggiornamenti</h2><p>Per chiarimenti sul servizio scrivi a contatto@fixtude.it. Questo Disclaimer può essere aggiornato quando cambiano le funzionalità o le condizioni del servizio. Le informazioni presenti sul sito non sostituiscono la lettura delle comunicazioni ufficiali ricevute dai creditori né la verifica della normativa applicabile al caso concreto.</p>"""
     return legal_page("Disclaimer", body)
 
@@ -4746,7 +4670,7 @@ def legal_terms():
     <h2>2. Calcolatore gratuito V5</h2><p>Il calcolatore è accessibile senza registrazione e richiede tre importi: entrate mensili nette, uscite mensili e situazione debitoria complessiva. I dati sono trasmessi al server tramite HTTPS e mantenuti temporaneamente nella sessione tecnica necessaria a mostrare il risultato, completare il checkout e generare il report; non viene creato un account o un archivio economico permanente. Il semaforo considera anche l’importo del debito e la possibilità teorica di rientrare entro 6 o 12 mesi. Il motore ipotizza di destinare al rimborso il 30% nel verde e il 25% nel giallo. Tutte queste percentuali sono parametri convenzionali FixTude, non standard universali né una certificazione di solvibilità. Leggi anche il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
     <h2>3. Limiti delle informazioni</h2><p>I contenuti hanno finalità informative e organizzative. Non costituiscono consulenza legale, fiscale o finanziaria personalizzata, non sostituiscono un professionista abilitato e non garantiscono riduzioni del debito, cancellazioni da banche dati o accettazione di proposte da parte dei creditori. L'utente deve verificare i dati e adattare i modelli alla propria situazione. Per i dettagli sui limiti del calcolatore e delle simulazioni consulta il <a href="/disclaimer">Disclaimer FixTude</a>.</p>
     <h2>4. Chat e richieste di contatto</h2><p>L'invio di una richiesta di contatto non comporta obbligo di acquistare servizi né garantisce tempi di risposta specifici. La chat non è un servizio di emergenza. Non inserire nella chat o nel modulo dati bancari, credenziali, documenti completi o dati personali non necessari.</p>
-    <h2>5. Verifica rischio pignoramento</h2><p>La verifica rischio pignoramento è un servizio digitale singolo al prezzo di € 4,90, pagato tramite Stripe. L'utente indica se desidera valutare stipendio/busta paga, pensione, conto corrente o tutte queste situazioni, seleziona la categoria del creditore e risponde a cinque domande SÌ/NO. Dopo la conferma del pagamento viene mostrato un livello preliminare di attenzione basato sulle risposte. Il risultato non costituisce previsione certa, certificazione o consulenza legale. Il servizio non consulta registri giudiziari, conti bancari, banche dati dei creditori o archivi pubblici e non può rilevare atti non conosciuti dall’utente. Le risposte sono elaborate per produrre l’esito e non vengono inserite in un archivio applicativo permanente. Il pagamento è verificato lato server prima di mostrare le domande e il risultato.</p>
+    <h2>5. Verifica rischio pignoramento</h2><p>La verifica rischio pignoramento è un servizio digitale singolo al prezzo di € 4,90, pagato tramite Stripe. Dopo la conferma del pagamento vengono rese disponibili cinque domande con risposte SÌ/NO e un esito immediato. L’esito è una fotografia della situazione dichiarata dall’utente al momento della compilazione e non costituisce previsione certa, certificazione o consulenza legale. Il servizio non consulta registri giudiziari, conti bancari, banche dati dei creditori o archivi pubblici e non può rilevare atti non conosciuti dall’utente. Le risposte sono elaborate per produrre l’esito e non vengono inserite in un archivio applicativo permanente. Il pagamento è verificato lato server prima di mostrare le domande e il risultato.</p>
     <h2>6. Kit digitale e pagamenti</h2><p>Il Kit FixTude è proposto al prezzo promozionale di € 49,90 e comprende un dossier personalizzato generato sulla base dei dati inseriti, i modelli fac-simile disponibili, un libro digitale PDF a scelta tra quelli proposti nella pagina di checkout e la possibilità di richiedere una prima consulenza legale gratuita prima del pagamento, inserendo i recapiti e prestando un consenso specifico al ricontatto. I recapiti vengono inviati alla casella contatto@fixtude.it soltanto dopo la verifica del pagamento; il titolare gestisce la richiesta e può trasmetterli successivamente all’avvocato incaricato in conformità al consenso espresso. Se il pagamento non viene completato, non vengono inviati. La consulenza iniziale è un colloquio di primo orientamento; eventuali attività professionali ulteriori sono oggetto di valutazione e accordo diretto e separato con l’avvocato. La consulenza è facoltativa: il dossier e i materiali acquistati restano disponibili anche se l’utente non richiede il ricontatto. I libri disponibili sono: <em>NIENTE PANICO</em>, <em>Guida al Saldo e Stralcio</em> oppure <em>Piano di rientro con cambiali: pro, contro e rischi</em>. Il pagamento è elaborato da Stripe; il download del pacchetto viene reso disponibile dopo la verifica della transazione e, se il servizio email è configurato, inviato all'indirizzo comunicato durante il checkout. Non inviare i dati della carta a FixTude via email.</p>
     <h2>7. Consumatori e recesso</h2><p>Restano fermi i diritti inderogabili riconosciuti ai consumatori dalla normativa applicabile. Per contenuti digitali forniti senza supporto materiale, l'eventuale perdita del diritto di recesso richiede che ricorrano tutte le condizioni previste dalla legge, incluse le dichiarazioni espresse richieste prima dell'inizio dell'esecuzione e la conferma su supporto durevole. Il flusso di acquisto deve prevedere le informazioni e le dichiarazioni espresse richieste dalla normativa prima dell'inizio della fornitura del contenuto digitale, oltre alla conferma su supporto durevole quando prevista.</p>
     <h2>8. Uso corretto</h2><p>L'utente si impegna a usare il sito in modo lecito, a non tentare accessi non autorizzati, a non inviare spam e a non caricare dati di terzi senza una base legittima.</p>
@@ -4760,7 +4684,7 @@ def legal_terms():
 def privacy():
     body = """<p>Questa informativa descrive i principali trattamenti connessi alla versione attuale del sito FixTude. Viene aggiornata quando cambiano in modo rilevante le funzionalità, i fornitori o le modalità di trattamento.</p>
     <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è Giovanni Pugliese, che gestisce il servizio denominato FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per richieste relative ai dati personali: contatto@fixtude.it.</p>
-    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Verifica rischio pignoramento:</strong> le cinque risposte SÌ/NO, la tipologia di posizione selezionata (stipendio, pensione, conto corrente o tutte) e la categoria del creditore vengono trasmesse tramite HTTPS. Le singole risposte sono elaborate senza essere conservate nella sessione: viene mantenuto temporaneamente soltanto il livello risultante, insieme alla tipologia e alla categoria selezionate, per poter mostrare il risultato dopo la verifica del pagamento. Questi dati non vengono aggiunti ai metadati Stripe né inseriti in un archivio applicativo permanente. Il risultato viene mostrato nella sessione di navigazione e non viene conservato in un profilo personale.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio direttamente a Web3Forms tramite HTTPS per l’inoltro al titolare. L’applicazione non conserva una copia in un proprio database; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude al prezzo promozionale di € 49,90. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del dossier, di una guida a scelta e dei modelli fac-simile. Se l’utente richiede la consulenza prima del pagamento, nome, telefono, email e riferimento temporale del consenso vengono inseriti nei metadati della sessione Stripe per poterli associare alla transazione.</li><li><strong>Richiesta facoltativa di consulenza legale:</strong> prima di accedere al pagamento l’utente può scegliere di inserire nome, telefono ed email e prestare un consenso specifico all’invio dei recapiti a contatto@fixtude.it e alla loro eventuale comunicazione all’avvocato incaricato, per essere ricontattato e organizzare una prima consulenza. Se l’utente sceglie questa opzione, i recapiti e il riferimento del consenso vengono associati alla sessione di checkout Stripe; Stripe li tratta nell’ambito della sessione di pagamento. Dopo la verifica del pagamento, FixTude invia i recapiti via email alla casella nannipugliese@gmail.com. Il titolare gestisce la richiesta e, se necessario, trasmette i recapiti all’avvocato incaricato in conformità al consenso espresso. Se il pagamento non viene completato, i recapiti non vengono inviati alla casella FixTude né inoltrati al professionista. La richiesta non viene archiviata in un database FixTude. Il dossier e i dettagli economici/debitori non vengono trasmessi con questa email. La consulenza è facoltativa e il materiale acquistato resta scaricabile anche senza consenso.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
+    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Verifica rischio pignoramento:</strong> le risposte SÌ/NO alle cinque domande vengono trasmesse tramite HTTPS ed elaborate per generare l’esito richiesto dopo il pagamento. Le risposte non vengono inserite in un archivio applicativo permanente né aggiunte ai metadati Stripe. Stripe tratta i dati necessari al pagamento e FixTude riceve il riferimento tecnico necessario a verificarne l’esito. Il risultato viene mostrato nella sessione di navigazione e non viene conservato in un profilo personale.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio direttamente a Web3Forms tramite HTTPS per l’inoltro al titolare. L’applicazione non conserva una copia in un proprio database; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude al prezzo promozionale di € 49,90. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del dossier, di una guida a scelta e dei modelli fac-simile. Se l’utente richiede la consulenza prima del pagamento, nome, telefono, email e riferimento temporale del consenso vengono inseriti nei metadati della sessione Stripe per poterli associare alla transazione.</li><li><strong>Richiesta facoltativa di consulenza legale:</strong> prima di accedere al pagamento l’utente può scegliere di inserire nome, telefono ed email e prestare un consenso specifico all’invio dei recapiti a contatto@fixtude.it e alla loro eventuale comunicazione all’avvocato incaricato, per essere ricontattato e organizzare una prima consulenza. Se l’utente sceglie questa opzione, i recapiti e il riferimento del consenso vengono associati alla sessione di checkout Stripe; Stripe li tratta nell’ambito della sessione di pagamento. Dopo la verifica del pagamento, FixTude invia i recapiti via email alla casella nannipugliese@gmail.com. Il titolare gestisce la richiesta e, se necessario, trasmette i recapiti all’avvocato incaricato in conformità al consenso espresso. Se il pagamento non viene completato, i recapiti non vengono inviati alla casella FixTude né inoltrati al professionista. La richiesta non viene archiviata in un database FixTude. Il dossier e i dettagli economici/debitori non vengono trasmessi con questa email. La consulenza è facoltativa e il materiale acquistato resta scaricabile anche senza consenso.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
     <h2>3. Basi giuridiche</h2><p>Le richieste di contatto sono trattate per rispondere a una richiesta dell'interessato e adottare misure precontrattuali su sua richiesta. I recapiti per la gestione della richiesta da parte di FixTude e l’eventuale comunicazione all’avvocato incaricato sono trattati soltanto dopo il consenso specifico espresso prima del checkout e dopo la verifica del pagamento; il consenso può essere revocato scrivendo a contatto@fixtude.it, fermo restando quanto già legittimamente effettuato. I dati relativi ad acquisti sono trattati per eseguire il contratto e adempiere agli obblighi di legge. Sicurezza e prevenzione abusi possono basarsi sul legittimo interesse, da valutare e documentare. Eventuali attività promozionali richiedono una valutazione e, ove necessario, un consenso separato.</p>
     <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l’hosting (se confermato in produzione), Web3Forms per le notifiche email della chat e per il modulo di ricontatto, Register per la casella email e Stripe per i pagamenti. Quando l’utente richiede la consulenza legale, i recapiti vengono associati alla sessione Stripe e, soltanto dopo la verifica del pagamento, inviati via email alla casella nannipugliese@gmail.com tramite Web3Forms; il titolare gestisce la richiesta e può successivamente trasmettere i recapiti all’avvocato incaricato in conformità al consenso espresso. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
     <h2>5. Cookie e strumenti di tracciamento</h2><p>Google Analytics (ID di misurazione G-HMBBNLHC7E) viene caricato soltanto dopo la scelta esplicita della categoria statistiche nel pannello cookie. Se la categoria viene rifiutata o disattivata, il sito non avvia nuove richieste di misurazione e aggiorna lo stato di consenso di Google Analytics. I pixel pubblicitari non sono attivi. Prima del lancio definitivo occorre verificare tecnicamente i cookie effettivamente installati e aggiornare questa informativa in base ai risultati.</p>
