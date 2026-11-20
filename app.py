@@ -374,7 +374,7 @@ def page(title, content, include_chat=False):
     seo_title = seo.get("title", f"{title} | FixTude")
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
-    noindex_paths = ("/chat-staff", "/verifica-pignoramento/conferma", "/verifica-pignoramento/risultato", "/verifica-pignoramento/anteprima", "/verifica-pignoramento/annullato", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
+    noindex_paths = ("/registrazione", "/accedi", "/area-personale", "/esci", "/chat-staff", "/verifica-pignoramento/conferma", "/verifica-pignoramento/risultato", "/verifica-pignoramento/anteprima", "/verifica-pignoramento/annullato", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
     robots = "noindex, nofollow" if path in noindex_paths or path.startswith("/api/") else "index, follow, max-image-preview:large"
     structured_data = None
     if path == "/":
@@ -452,7 +452,7 @@ def page(title, content, include_chat=False):
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <meta name="theme-color" content="#05070c">
-          <meta name="color-scheme" content="light">
+          <meta name="color-scheme" content="dark">
           <title>{{ seo_title }}</title>
           <meta name="description" content="{{ seo_description }}">
           <meta name="robots" content="{{ robots }}">
@@ -845,6 +845,41 @@ def page(title, content, include_chat=False):
               .start-card .grid > div {padding:0 0 12px;border-bottom:1px solid var(--line)}
               .start-card .grid > div:last-child {padding-bottom:0;border-bottom:0}
             }
+
+            /* FIXTUDE GLOBAL BRAND: BLU E NERO SU TUTTE LE PAGINE */
+            body {background:#05070c!important;color:#eaf2ff!important}
+            header {background:#05070c!important;border-bottom:1px solid #1c3555!important}
+            .brand {color:#fff!important;text-shadow:0 1px 10px #0008}
+            .brand span:first-of-type {color:#fff!important}
+            .brand span:last-of-type {color:#168cff!important}
+            .menu-toggle {background:#0d1726!important;color:#fff!important;border-color:#29476d!important}
+            .nav-menu {background:#0b111d!important;border:1px solid #29476d!important}
+            .nav-menu a, nav a {color:#eaf2ff!important}
+            .nav-menu a:hover,.nav-menu a:focus-visible {background:#132b4c!important;color:#68b7ff!important}
+            main {color:#eaf2ff}
+            main h1,main h2,main h3,main h4 {color:#f5f8ff}
+            main p,main li,main label,main .muted {color:#c0cde0}
+            a {color:#63b4ff}
+            .card,.total,.resource-link,.profile,.start-card,.education-card,.education-cta,
+            .panel,.result-card,.box,.form-card {background:#0b1422!important;color:#eaf2ff!important;border-color:#213b5b!important}
+            .card h1,.card h2,.card h3,.total strong,.profile h3 {color:#f5f8ff!important}
+            .card p,.card li,.card label,.card .muted,.resource-link span {color:#c0cde0!important}
+            input,select,textarea {background:#07101c!important;color:#f5f8ff!important;border:1px solid #355477!important;color-scheme:dark}
+            input::placeholder,textarea::placeholder {color:#91a4bd!important}
+            input:focus,select:focus,textarea:focus {outline:2px solid #168cff!important;outline-offset:1px}
+            .btn,.back-button {background:linear-gradient(135deg,#168cff,#0759bd)!important;color:#fff!important;border:1px solid #3a9df5!important}
+            .btn.secondary {background:#0b1a2c!important;color:#9bd0ff!important;border-color:#31577f!important}
+            .notice,.alert,.info-box {background:#0e2036!important;color:#dcecff!important;border-color:#31577f!important}
+            footer {background:#05070c!important;color:#b9c7d9!important;border-top:1px solid #1c3555!important}
+            footer a,.cookie-footer-link {color:#66b5ff!important}
+            .chat-panel {background:#0b1422!important;border-color:#29476d!important}
+            .chat-messages {background:#07101c!important}
+            .chat-msg.staff {background:#101e30!important;color:#eaf2ff!important;border-color:#29476d!important}
+            .chat-form {background:#0b1422!important;border-color:#29476d!important}
+            .traffic-light,.total,.remove-button {color:#eaf2ff}
+            .remove-button {background:#0b1422!important;border-color:#355477!important}
+            @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
           </style>
         </head>
         <body>
@@ -856,6 +891,12 @@ def page(title, content, include_chat=False):
                 <a href="/assistenza">Calcolatore e verifica pignoramento</a>
                 <a href="/educazione-finanziaria">Educazione finanziaria</a>
                 <a href="/chi-siamo">Chi siamo</a>
+                {% if session.get('cliente_id') %}
+                <a href="/area-personale">Area personale</a>
+                {% else %}
+                <a href="/accedi">Accedi</a>
+                <a href="/registrazione">Registrati</a>
+                {% endif %}
               </nav>
             </div>
             <script>
@@ -1239,6 +1280,31 @@ def page(title, content, include_chat=False):
           })();
           </script>
           {% endif %}
+          <style id="fixtude-global-theme-final">
+            body,body:has(.ft-v1),body:has(.ft-wizard-wrap),body:has(.ft-result-wrap){background:#05070c!important;color:#eaf2ff!important}
+            header,body:has(.ft-v1) header,body:has(.ft-wizard-wrap) header{background:#05070c!important;border-color:#1c3555!important}
+            footer,body:has(.ft-v1) footer,body:has(.ft-wizard-wrap) footer{background:#05070c!important;color:#b9c7d9!important;border-color:#1c3555!important}
+            .brand,body:has(.ft-v1) .brand,body:has(.ft-wizard-wrap) .brand{color:#fff!important}
+            .menu-toggle{background:#0d1726!important;color:#fff!important;border-color:#29476d!important}
+            .nav-menu{background:#0b111d!important;border-color:#29476d!important}
+            .nav-menu a{color:#eaf2ff!important}
+            .nav-menu a:hover{background:#132b4c!important;color:#68b7ff!important}
+            main h1,main h2,main h3,main h4,.ft-wizard-card h1,body:has(.ft-result-wrap) h1{color:#f5f8ff!important}
+            main p,main li,main label,main .muted,.ft-wizard-card p{color:#c0cde0!important}
+            .card,.ft-v1 .card,.ft-wizard-card,.ft-result-wrap .card,.total,.resource-link,.profile,.start-card,.education-card,.education-cta,.paper{background:#0b1422!important;color:#eaf2ff!important;border-color:#213b5b!important}
+            .card p,.card li,.card label,.card .muted,.ft-v1 .card p,.ft-wizard-card p{color:#c0cde0!important}
+            input:not([type=checkbox]):not([type=radio]),select,textarea{background:#07101c!important;color:#f5f8ff!important;border-color:#355477!important;color-scheme:dark}
+            input::placeholder,textarea::placeholder{color:#91a4bd!important}
+            .btn,.back-button{background:linear-gradient(135deg,#168cff,#0759bd)!important;color:#fff!important;border-color:#3a9df5!important}
+            .btn.secondary{background:#0b1a2c!important;color:#9bd0ff!important;border-color:#31577f!important}
+            .notice,.alert,.info-box{background:#0e2036!important;color:#dcecff!important;border-color:#31577f!important}
+            .ft-progress{background:#1b2c43!important}.ft-progress span{background:linear-gradient(90deg,#0879e8,#42a5ff)!important}
+            .ft-sheet-kicker,.ft-wizard-top{color:#79bdff!important}
+            footer a,.cookie-footer-link,body:has(.ft-v1) footer a:not(.ft-footer-cta-link){color:#66b5ff!important}
+            .ft-footer-cta-link,body:has(.ft-v1) .ft-footer-cta-link,body:has(.ft-checkout-v9) .ft-footer-cta-link{background:linear-gradient(135deg,#168cff,#0759bd)!important;color:#fff!important;border:1px solid #3a9df5!important}
+            .chat-panel,.chat-form{background:#0b1422!important;border-color:#29476d!important}.chat-messages{background:#07101c!important}
+            .chat-msg.staff{background:#101e30!important;color:#eaf2ff!important;border-color:#29476d!important}
+          </style>
         </body>
         </html>
         """,
@@ -1283,7 +1349,7 @@ def home():
     """Nuova homepage FixTude: ingresso semplice per chi ha ricevuto un atto."""
     content = r"""
     <style>
-      body:has(.ft-new-home){background:#f4f6fa!important;color:#10131b!important}
+      body:has(.ft-new-home){background:#05070c!important;color:#eaf2ff!important}
       body:has(.ft-new-home) header{background:#05070c!important;border-bottom:1px solid #172a45!important}
       body:has(.ft-new-home) .brand{color:#fff!important}
       body:has(.ft-new-home) .menu-toggle{background:#101827!important;color:#fff!important;border-color:#24436b!important}
@@ -1303,27 +1369,31 @@ def home():
       .ft-new-title .blue{color:#168cff;text-shadow:0 0 24px #168cff35}
       .ft-new-lead{max-width:720px;margin:0;color:#c6d2e1;font-size:clamp(16px,2vw,19px);line-height:1.65}
       .ft-new-docs{display:flex;flex-wrap:wrap;gap:9px;margin:28px 0 30px;max-width:830px}
-      .ft-new-doc{padding:9px 13px;border:1px solid #315277;border-radius:999px;background:#0c1b2d;color:#eaf4ff;font-size:12px;font-weight:750}
+      .ft-new-doc{position:relative;padding:9px 13px;border:1px solid #315277;border-radius:999px;background:#0c1b2d;color:#eaf4ff;font:inherit;font-size:12px;font-weight:750;cursor:help;transition:background .18s,border-color .18s,transform .18s}
+      .ft-new-doc:hover,.ft-new-doc:focus-visible,.ft-new-doc.is-open{background:#12345a;border-color:#168cff;color:#fff;outline:none;transform:translateY(-1px)}
+      .ft-new-doc:after{content:attr(data-tip);position:absolute;z-index:20;left:50%;bottom:calc(100% + 12px);transform:translate(-50%,5px);width:min(270px,80vw);padding:12px 14px;border:1px solid #3c6d9e;border-radius:10px;background:#050b14;color:#eaf4ff;font-size:12px;font-weight:500;line-height:1.5;text-align:left;white-space:normal;box-shadow:0 12px 30px #0009;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s,transform .16s}
+      .ft-new-doc:hover:after,.ft-new-doc:focus-visible:after,.ft-new-doc.is-open:after{opacity:1;visibility:visible;transform:translate(-50%,0)}
+      @media(hover:none){.ft-new-doc:after{bottom:auto;top:calc(100% + 9px)}.ft-new-doc:hover:after{opacity:0;visibility:hidden}.ft-new-doc.is-open:after{opacity:1;visibility:visible}}
       .ft-new-action-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
       .ft-new-cta{display:inline-flex;align-items:center;justify-content:center;gap:11px;min-height:56px;padding:0 25px;border:1px solid #58b2ff;border-radius:12px;background:linear-gradient(135deg,#168cff,#0759bd);color:#fff;text-decoration:none;font-size:14px;font-weight:950;letter-spacing:.045em;box-shadow:0 10px 28px #0879e855,inset 0 1px #ffffff55;transition:transform .18s,box-shadow .18s}
       .ft-new-cta:hover{transform:translateY(-2px);box-shadow:0 14px 34px #0879e877,inset 0 1px #ffffff66}
       .ft-new-cta svg{width:19px;height:19px}
       .ft-new-cta-note{max-width:290px;color:#9eafc4;font-size:12px;line-height:1.5}
       .ft-new-upload-note{width:min(100%,980px);margin:0 auto;padding:0 20px}
-      .ft-new-upload-note-inner{display:flex;gap:12px;align-items:flex-start;margin-top:-1px;padding:17px 20px;background:#fff;border:1px solid #dce4ef;border-top:0;border-radius:0 0 14px 14px;color:#536174;font-size:12px;line-height:1.55;box-shadow:0 12px 28px #11182708}
-      .ft-new-upload-note-inner strong{color:#111722}
+      .ft-new-upload-note-inner{display:flex;gap:12px;align-items:flex-start;margin-top:-1px;padding:17px 20px;background:#0b1422;border:1px solid #29476d;border-top:0;border-radius:0 0 14px 14px;color:#c0cde0;font-size:12px;line-height:1.55;box-shadow:0 12px 28px #0005}
+      .ft-new-upload-note-inner strong{color:#fff}
       .ft-new-upload-note-inner .ft-info{flex:0 0 22px;width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:#e7f2ff;color:#0879e8;font-weight:900}
-      .ft-new-section{padding:56px 20px 62px;background:#f4f6fa}
-      .ft-new-section h2{margin:0 0 12px;color:#101722;text-align:center;font-size:clamp(24px,3.6vw,34px);line-height:1.2;letter-spacing:-.7px}
-      .ft-new-section-intro{max-width:650px;margin:0 auto 30px;text-align:center;color:#657184;font-size:15px;line-height:1.65}
+      .ft-new-section{padding:56px 20px 62px;background:#070d17}
+      .ft-new-section h2{margin:0 0 12px;color:#f5f8ff;text-align:center;font-size:clamp(24px,3.6vw,34px);line-height:1.2;letter-spacing:-.7px}
+      .ft-new-section-intro{max-width:650px;margin:0 auto 30px;text-align:center;color:#aebed2;font-size:15px;line-height:1.65}
       .ft-new-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-      .ft-new-card{padding:22px 20px;border:1px solid #dce3ed;border-radius:15px;background:#fff;box-shadow:0 8px 24px #0b172508}
+      .ft-new-card{padding:22px 20px;border:1px solid #213b5b;border-radius:15px;background:#0b1422;box-shadow:0 8px 24px #0004}
       .ft-new-card-icon{width:42px;height:42px;display:grid;place-items:center;margin-bottom:15px;border-radius:12px;background:linear-gradient(145deg,#e9f4ff,#d5eaff);color:#0879e8;font-size:20px;font-weight:900}
-      .ft-new-card h3{margin:0 0 7px;color:#111722;font-size:16px}
-      .ft-new-card p{margin:0;color:#657184;font-size:13px;line-height:1.6}
-      .ft-new-bottom{padding:30px 20px 42px;background:#eaf0f7;text-align:center}
-      .ft-new-bottom p{max-width:760px;margin:0 auto;color:#39475a;font-size:13px;line-height:1.65}
-      .ft-new-bottom strong{color:#101722}
+      .ft-new-card h3{margin:0 0 7px;color:#f5f8ff;font-size:16px}
+      .ft-new-card p{margin:0;color:#b7c6d9;font-size:13px;line-height:1.6}
+      .ft-new-bottom{padding:30px 20px 42px;background:#05070c;text-align:center;border-top:1px solid #1c3555}
+      .ft-new-bottom p{max-width:760px;margin:0 auto;color:#b9c7d9;font-size:13px;line-height:1.65}
+      .ft-new-bottom strong{color:#fff}
       .ft-upload-modal{position:fixed;z-index:99998;inset:0;display:none;align-items:center;justify-content:center;padding:18px;background:#02050bcc}
       .ft-upload-modal.open{display:flex}
       .ft-upload-modal-card{width:min(100%,460px);padding:26px;border:1px solid #315277;border-radius:18px;background:#0b111d;color:#eef4ff;box-shadow:0 25px 80px #0009}
@@ -1340,24 +1410,24 @@ def home():
           <h1 class="ft-new-title">Hai ricevuto un sollecito, una messa in mora, una diffida, un decreto ingiuntivo o un <span class="blue">atto di pignoramento?</span></h1>
           <p class="ft-new-lead">Non sai come comportarti? Non ignorare quello che hai ricevuto. Carica il documento e cerchiamo insieme di capire la tua situazione e quali possibilità puoi valutare.</p>
           <div class="ft-new-docs" aria-label="Documenti che puoi sottoporre a FixTude">
-            <span class="ft-new-doc">Sollecito di pagamento</span>
-            <span class="ft-new-doc">Messa in mora</span>
-            <span class="ft-new-doc">Diffida</span>
-            <span class="ft-new-doc">Decreto ingiuntivo</span>
-            <span class="ft-new-doc">Atto di pignoramento</span>
-            <span class="ft-new-doc">Altra comunicazione</span>
+            <button class="ft-new-doc" type="button" aria-expanded="false" data-tip="Una richiesta con cui il creditore sollecita il pagamento di una somma che ritiene dovuta.">Sollecito di pagamento</button>
+            <button class="ft-new-doc" type="button" aria-expanded="false" data-tip="Una comunicazione formale che intima di adempiere e può avere effetti sulla mora del debitore.">Messa in mora</button>
+            <button class="ft-new-doc" type="button" aria-expanded="false" data-tip="Una richiesta formale che invita a porre rimedio a un inadempimento entro un termine indicato.">Diffida</button>
+            <button class="ft-new-doc" type="button" aria-expanded="false" data-tip="Un provvedimento del giudice che ingiunge il pagamento; dopo la notifica possono decorrere termini importanti.">Decreto ingiuntivo</button>
+            <button class="ft-new-doc" type="button" aria-expanded="false" data-tip="Un atto che avvia o documenta un'esecuzione forzata su beni, stipendio, pensione o conto: va esaminato tempestivamente.">Atto di pignoramento</button>
+            <button class="ft-new-doc" type="button" aria-expanded="false" data-tip="Contratti, comunicazioni di recupero crediti, precetti o altri documenti collegati a una richiesta di pagamento.">Altra comunicazione</button>
           </div>
           <div class="ft-new-action-row">
-            <a class="ft-new-cta" href="#caricamento-documento" id="ftOpenUploadInfo">
+            <a class="ft-new-cta" href="/registrazione" id="ftOpenUploadInfo">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M4 16.5v2A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-2"/></svg>
               CARICA IL DOCUMENTO
             </a>
-            <span class="ft-new-cta-note">Il caricamento sarà preceduto da una registrazione gratuita, così potrai ritrovare documenti e aggiornamenti nella tua area personale.</span>
+            <span class="ft-new-cta-note">Crea gratuitamente il tuo account per accedere alla tua area personale. Il caricamento dei documenti sarà attivato in un passaggio successivo.</span>
           </div>
         </div>
       </section>
       <div class="ft-new-upload-note" id="caricamento-documento">
-        <div class="ft-new-upload-note-inner"><span class="ft-info">i</span><span><strong>Un passaggio alla volta.</strong> L'area riservata per registrazione e caricamento protetto dei documenti è il prossimo elemento da attivare. Per il momento non inviare documenti contenenti dati personali o finanziari via email.</span></div>
+        <div class="ft-new-upload-note-inner"><span class="ft-info">i</span><span><strong>Un passaggio alla volta.</strong> L'area personale è pronta per la registrazione e l'accesso. Il caricamento protetto dei documenti e gli aggiornamenti delle pratiche saranno attivati in un passaggio successivo. Per ora non inviare documenti contenenti dati personali o finanziari via email.</span></div>
       </div>
       <section class="ft-new-section">
         <div class="ft-new-inner">
@@ -1371,11 +1441,8 @@ def home():
         </div>
       </section>
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
-      <div class="ft-upload-modal" id="ftUploadInfoModal" role="dialog" aria-modal="true" aria-labelledby="ftUploadInfoTitle">
-        <div class="ft-upload-modal-card"><h2 id="ftUploadInfoTitle">Caricamento documenti</h2><p>Stiamo preparando l'area riservata con registrazione gratuita e caricamento protetto. Sarà il prossimo passaggio di sviluppo di FixTude.</p><p>Per tutelare i tuoi dati, non inviare per ora documenti personali o finanziari tramite email.</p><button class="ft-upload-modal-close" type="button" id="ftCloseUploadInfo">Ho capito</button></div>
-      </div>
       <script>
-      (()=>{const open=document.getElementById('ftOpenUploadInfo'),modal=document.getElementById('ftUploadInfoModal'),close=document.getElementById('ftCloseUploadInfo');if(!open||!modal||!close)return;function hide(){modal.classList.remove('open');open.focus()}open.addEventListener('click',e=>{e.preventDefault();modal.classList.add('open');close.focus()});close.addEventListener('click',hide);modal.addEventListener('click',e=>{if(e.target===modal)hide()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('open'))hide()})})();
+      (()=>{const pills=[...document.querySelectorAll('.ft-new-doc')];pills.forEach(p=>p.addEventListener('click',()=>{const open=!p.classList.contains('is-open');pills.forEach(x=>{x.classList.remove('is-open');x.setAttribute('aria-expanded','false')});if(open){p.classList.add('is-open');p.setAttribute('aria-expanded','true')}}));document.addEventListener('click',e=>{if(!e.target.closest('.ft-new-doc'))pills.forEach(p=>{p.classList.remove('is-open');p.setAttribute('aria-expanded','false')})})})();
       </script>
     </div>
     """
@@ -4868,7 +4935,7 @@ def legal_page(title, body):
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
     owner_line = f"{escape(LEGAL_OWNER_NAME)} · P. IVA {escape(LEGAL_VAT_NUMBER)} · {escape(LEGAL_OWNER_ADDRESS)} · {LEGAL_EMAIL}"
-    return Response(f"""<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123B50"><meta name="description" content="{escape(seo_description, quote=True)}"><meta name="robots" content="index, follow, max-image-preview:large"><link rel="canonical" href="{escape(canonical_url, quote=True)}"><link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261019" sizes="48x48"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=20261019"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20261019"><meta property="og:locale" content="it_IT"><meta property="og:type" content="website"><meta property="og:site_name" content="FixTude"><meta property="og:title" content="{escape(seo_title, quote=True)}"><meta property="og:description" content="{escape(seo_description, quote=True)}"><meta property="og:url" content="{escape(canonical_url, quote=True)}"><meta property="og:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><meta property="og:image:alt" content="Logo FixTude"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{escape(seo_title, quote=True)}"><meta name="twitter:description" content="{escape(seo_description, quote=True)}"><meta name="twitter:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><title>{escape(seo_title)}</title><style>body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.65 Arial,sans-serif}}main{{width:min(920px,calc(100% - 28px));margin:28px auto 50px}}.paper{{background:#fff;border:1px solid #dce5ef;border-radius:16px;padding:clamp(20px,4vw,38px)}}h1,h2{{line-height:1.25}}h1{{color:#174b91}}h2{{font-size:21px;margin-top:28px}}a{{color:#174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}footer{{border-top:1px solid #dce5ef;margin-top:28px;padding-top:16px;font-size:13px;color:#65758b}}.top{{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}}.brand{{font-size:24px;font-weight:800;color:#174b91;text-decoration:none}}</style></head><body><main><div class="top"><a class="brand" href="/">FixTude</a><a href="/">Torna al sito</a></div><article class="paper"><h1>{escape(title)}</h1><p class="muted">Versione {LEGAL_VERSION}</p><div class="notice"><strong>Denominazione del servizio:</strong> FixTude · <strong>Titolare:</strong> {escape(LEGAL_OWNER_NAME)} · <strong>P. IVA:</strong> {escape(LEGAL_VAT_NUMBER)}</div>{body}<footer><strong>Contatti:</strong> {owner_line}<br>Ultimo aggiornamento: 19 ottobre 2026<br><button type="button" id="ft-cookie-reopen-footer" style="border:0;background:transparent;color:#174b91;text-decoration:underline;cursor:pointer;font:inherit">Preferenze cookie</button></footer></article></main></body></html>""", mimetype="text/html")
+    return Response(f"""<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123B50"><meta name="description" content="{escape(seo_description, quote=True)}"><meta name="robots" content="index, follow, max-image-preview:large"><link rel="canonical" href="{escape(canonical_url, quote=True)}"><link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261019" sizes="48x48"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=20261019"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20261019"><meta property="og:locale" content="it_IT"><meta property="og:type" content="website"><meta property="og:site_name" content="FixTude"><meta property="og:title" content="{escape(seo_title, quote=True)}"><meta property="og:description" content="{escape(seo_description, quote=True)}"><meta property="og:url" content="{escape(canonical_url, quote=True)}"><meta property="og:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><meta property="og:image:alt" content="Logo FixTude"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{escape(seo_title, quote=True)}"><meta name="twitter:description" content="{escape(seo_description, quote=True)}"><meta name="twitter:image" content="{SEO_BASE_URL}/static/fixtude-512.png"><title>{escape(seo_title)}</title><style>body{{margin:0;background:#05070c;color:#eaf2ff;font:16px/1.65 Arial,sans-serif}}main{{width:min(920px,calc(100% - 28px));margin:28px auto 50px}}.paper{{background:#0b1422;border:1px solid #213b5b;border-radius:16px;padding:clamp(20px,4vw,38px)}}h1,h2{{line-height:1.25;color:#f5f8ff}}h1{{color:#fff}}h2{{font-size:21px;margin-top:28px}}a{{color:#66b5ff}}.notice{{background:#0e2036;color:#dcecff;border:1px solid #31577f;border-radius:10px;padding:13px 15px}}.muted{{color:#aebed2;font-size:14px}}footer{{border-top:1px solid #213b5b;margin-top:28px;padding-top:16px;font-size:13px;color:#b9c7d9}}.top{{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}}.brand{{font-size:24px;font-weight:800;color:#fff;text-decoration:none}}</style></head><body><main><div class="top"><a class="brand" href="/">FixTude</a><a href="/">Torna al sito</a></div><article class="paper"><h1>{escape(title)}</h1><p class="muted">Versione {LEGAL_VERSION}</p><div class="notice"><strong>Denominazione del servizio:</strong> FixTude · <strong>Titolare:</strong> {escape(LEGAL_OWNER_NAME)} · <strong>P. IVA:</strong> {escape(LEGAL_VAT_NUMBER)}</div>{body}<footer><strong>Contatti:</strong> {owner_line}<br>Ultimo aggiornamento: 19 ottobre 2026<br><button type="button" id="ft-cookie-reopen-footer" style="border:0;background:transparent;color:#174b91;text-decoration:underline;cursor:pointer;font:inherit">Preferenze cookie</button></footer></article></main></body></html>""", mimetype="text/html")
 
 
 @app.route("/disclaimer")
@@ -5167,7 +5234,7 @@ def pro_shell(title, body, robots="noindex, nofollow"):
     safe_title = escape(title)
     safe_body = body
     html = f'''<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="{escape(robots)}"><meta name="theme-color" content="#123B50"><link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261019" sizes="48x48"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=20261019"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20261019"><title>{safe_title} | FixTude</title><style>
-    *{{box-sizing:border-box}}body{{margin:0;background:#f5f8fc;color:#203047;font:16px/1.6 Arial,sans-serif}}main{{width:min(960px,calc(100% - 28px));margin:28px auto 55px}}header{{background:#fff;border-bottom:1px solid #dce5ef;padding:14px max(14px,calc((100% - 960px)/2));display:flex;justify-content:space-between;align-items:center;gap:16px}}header a{{color:#174b91;text-decoration:none;font-weight:700}}.brand{{font-size:24px}}.card{{background:#fff;border:1px solid #dce5ef;border-radius:15px;padding:20px;margin:16px 0}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}}h1,h2,h3{{line-height:1.25}}h1{{color:#174b91}}label{{display:block;font-weight:700;margin:12px 0 5px}}input,select,textarea{{width:100%;font:inherit;padding:11px 12px;border:1px solid #bdcbdc;border-radius:8px;background:#fff}}textarea{{min-height:100px;resize:vertical}}.btn,button.btn{{display:inline-block;background:#174b91;color:#fff;border:0;border-radius:9px;padding:11px 16px;text-decoration:none;font:inherit;font-weight:700;cursor:pointer}}.btn.secondary{{background:#fff;color:#174b91;border:1px solid #174b91}}.notice{{background:#fff7df;border:1px solid #efd58b;border-radius:10px;padding:13px 15px}}.muted{{color:#65758b;font-size:14px}}.profile{{border:1px solid #dce5ef;border-radius:12px;padding:16px;background:#fff}}.profile h3{{margin:0 0 6px}}.tag{{display:inline-block;background:#eaf2fc;color:#174b91;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:700}}.actions{{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}}.price{{font-size:22px;font-weight:800;color:#174b91}}.doc h2{{margin-top:26px}}.signature{{margin-top:38px;display:grid;grid-template-columns:1fr 1fr;gap:35px}}.line{{border-top:1px solid #64748b;padding-top:8px;margin-top:55px}}@media(max-width:600px){{header{{padding:12px 14px}}.card{{padding:16px}}.signature{{grid-template-columns:1fr}}}}
+    *{{box-sizing:border-box}}body{{margin:0;background:#05070c;color:#eaf2ff;font:16px/1.6 Arial,sans-serif}}main{{width:min(960px,calc(100% - 28px));margin:28px auto 55px}}header{{background:#05070c;border-bottom:1px solid #1c3555;padding:14px max(14px,calc((100% - 960px)/2));display:flex;justify-content:space-between;align-items:center;gap:16px}}header a{{color:#8bcaff;text-decoration:none;font-weight:700}}.brand{{font-size:24px;color:#fff!important}}.card{{background:#0b1422;border:1px solid #213b5b;border-radius:15px;padding:20px;margin:16px 0;color:#eaf2ff}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}}h1,h2,h3{{line-height:1.25}}h1{{color:#f5f8ff}}h2,h3{{color:#f5f8ff}}p,label,.muted{{color:#c0cde0}}label{{display:block;font-weight:700;margin:12px 0 5px}}input,select,textarea{{width:100%;font:inherit;padding:11px 12px;border:1px solid #355477;border-radius:8px;background:#07101c;color:#f5f8ff;color-scheme:dark}}textarea{{min-height:100px;resize:vertical}}.btn,button.btn{{display:inline-block;background:linear-gradient(135deg,#168cff,#0759bd);color:#fff;border:1px solid #3a9df5;border-radius:9px;padding:11px 16px;text-decoration:none;font:inherit;font-weight:700;cursor:pointer}}.btn.secondary{{background:#0b1a2c;color:#9bd0ff;border:1px solid #31577f}}.notice{{background:#0e2036;border:1px solid #31577f;border-radius:10px;padding:13px 15px;color:#dcecff}}.muted{{color:#aebed2;font-size:14px}}.profile{{border:1px solid #213b5b;border-radius:12px;padding:16px;background:#0b1422}}.profile h3{{margin:0 0 6px}}.tag{{display:inline-block;background:#12345a;color:#9bd0ff;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:700}}.actions{{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}}.price{{font-size:22px;font-weight:800;color:#65b5ff}}.doc h2{{margin-top:26px}}.signature{{margin-top:38px;display:grid;grid-template-columns:1fr 1fr;gap:35px}}.line{{border-top:1px solid #64748b;padding-top:8px;margin-top:55px}}@media(max-width:600px){{header{{padding:12px 14px}}.card{{padding:16px}}.signature{{grid-template-columns:1fr}}}}
     @media print{{header,.no-print,.back-row{{display:none!important}}body{{background:#fff}}main{{width:100%;margin:0}}.card{{border:0;padding:0}}}}
     </style></head><body><header><a class="brand" href="/">FixTude</a><nav><a href="/professionisti">Area Professionisti</a> · <a href="/">Sito</a></nav></header><main>{safe_body}</main></body></html>'''
     return Response(html, mimetype="text/html; charset=utf-8")
@@ -5366,6 +5433,169 @@ def bozza_incarico_legale():
 @app.route("/health")
 def health():
     return jsonify(status="ok", service="FixTude")
+
+
+# =========================================================
+# AREA PERSONALE CLIENTI FIXTUDE
+# Usa lo stesso archivio SQLite persistente già previsto dal progetto.
+# Per Render: FIXTUDE_DB_PATH=/var/data/fixtude.sqlite3 e SECRET_KEY stabile.
+# =========================================================
+
+def clienti_registration_ready():
+    return bool(os.environ.get("FIXTUDE_DB_PATH", "").strip() and os.environ.get("SECRET_KEY", "").strip())
+
+
+def clienti_db():
+    parent = os.path.dirname(PRO_DB_PATH)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    db = sqlite3.connect(PRO_DB_PATH, timeout=15)
+    db.row_factory = sqlite3.Row
+    db.execute("PRAGMA foreign_keys = ON")
+    db.execute("PRAGMA journal_mode = WAL")
+    db.execute("CREATE TABLE IF NOT EXISTS clienti ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "email TEXT NOT NULL COLLATE NOCASE UNIQUE, "
+        "nome TEXT NOT NULL, password_hash TEXT NOT NULL, "
+        "created_at TEXT NOT NULL, updated_at TEXT NOT NULL)")
+    db.commit()
+    return db
+
+
+def cliente_csrf_token():
+    token = session.get("cliente_csrf")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["cliente_csrf"] = token
+    return token
+
+
+def cliente_csrf_valid():
+    supplied = str(request.form.get("csrf_token", ""))
+    expected = str(session.get("cliente_csrf", ""))
+    return bool(supplied and expected and hmac.compare_digest(supplied, expected))
+
+
+def cliente_current_user():
+    user_id = session.get("cliente_id")
+    if not user_id:
+        return None
+    db = clienti_db()
+    try:
+        return db.execute("SELECT id,email,nome,created_at FROM clienti WHERE id=?", (user_id,)).fetchone()
+    finally:
+        db.close()
+
+
+def clienti_shell(title, body):
+    return page(title, body)
+
+
+@app.route("/registrazione", methods=["GET", "POST"])
+def clienti_registrazione():
+    if session.get("cliente_id"):
+        return redirect("/area-personale", code=303)
+    ready = clienti_registration_ready()
+    error = ""
+    if request.method == "POST":
+        if not ready:
+            error = "La registrazione non è ancora attiva: manca la configurazione dell'archivio persistente e della chiave di sicurezza su Render. I dati non sono stati salvati."
+        elif rate_limited("clienti_registrazione", 5, 900):
+            error = "Hai effettuato troppe richieste. Attendi qualche minuto e riprova."
+        elif not cliente_csrf_valid():
+            return clienti_shell("Richiesta non valida", '<section class="card"><h1>Richiesta non valida</h1><p>Ricarica la pagina e riprova.</p></section>'), 400
+        else:
+            nome = request.form.get("nome", "").strip()
+            email = request.form.get("email", "").strip().lower()
+            password = request.form.get("password", "")
+            conferma = request.form.get("password_conferma", "")
+            if not nome or len(nome) > 100:
+                error = "Inserisci il tuo nome (massimo 100 caratteri)."
+            elif not valid_email(email):
+                error = "Inserisci un indirizzo email valido."
+            elif len(password) < 12:
+                error = "La password deve contenere almeno 12 caratteri."
+            elif password != conferma:
+                error = "Le due password non coincidono."
+            elif request.form.get("privacy_ack") != "yes":
+                error = "Per creare l'account devi confermare di aver letto l'informativa privacy."
+            else:
+                db = clienti_db()
+                try:
+                    now = datetime.now(ROME_TZ).isoformat(timespec="seconds")
+                    cur = db.execute("INSERT INTO clienti(email,nome,password_hash,created_at,updated_at) VALUES(?,?,?,?,?)",
+                        (email, nome, generate_password_hash(password), now, now))
+                    db.commit()
+                    session.pop("cliente_id", None)
+                    session["cliente_id"] = cur.lastrowid
+                    session["cliente_csrf"] = secrets.token_urlsafe(32)
+                    return redirect("/area-personale?benvenuto=1", code=303)
+                except sqlite3.IntegrityError:
+                    error = "Esiste già un account con questo indirizzo email. Prova ad accedere."
+                except Exception:
+                    app.logger.exception("Registrazione cliente FixTude non riuscita")
+                    error = "Non è stato possibile creare l'account. Riprova più tardi."
+                finally:
+                    db.close()
+    token = escape(cliente_csrf_token(), quote=True)
+    readiness = '' if ready else '<p class="notice"><strong>Attivazione tecnica necessaria.</strong> Il modulo è pronto, ma l’invio resterà disabilitato finché su Render non saranno configurati il disco persistente e SECRET_KEY. Nessun dato verrà salvato prima dell’attivazione.</p>'
+    err_html = f'<p class="notice">{escape(error)}</p>' if error else ''
+    body = f'''<section class="card" style="max-width:620px;margin:30px auto"><p class="ft-new-kicker">AREA PERSONALE FIXTUDE</p><h1>Crea il tuo account gratuito</h1><p>Registrati per avere un accesso personale a FixTude e ritrovare in seguito le informazioni relative al tuo percorso.</p>{readiness}{err_html}<form method="post" action="/registrazione"><input type="hidden" name="csrf_token" value="{token}"><label for="cliente_nome">Nome</label><input id="cliente_nome" name="nome" maxlength="100" autocomplete="name" required><label for="cliente_email">Indirizzo email</label><input id="cliente_email" name="email" type="email" maxlength="254" autocomplete="email" required><label for="cliente_password">Crea una password</label><input id="cliente_password" name="password" type="password" minlength="12" autocomplete="new-password" required><label for="cliente_password2">Conferma la password</label><input id="cliente_password2" name="password_conferma" type="password" minlength="12" autocomplete="new-password" required><p class="muted">La password deve contenere almeno 12 caratteri. Viene conservata in forma protetta tramite hash, non in chiaro.</p><p><label style="display:flex;gap:10px;align-items:flex-start"><input style="width:auto;margin-top:5px" type="checkbox" name="privacy_ack" value="yes" required><span>Ho letto l’<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a> e acconsento al trattamento dei dati necessari alla creazione e gestione dell’account.</span></label></p><button class="btn" type="submit" {'disabled' if not ready else ''}>Crea account gratuito</button></form><p class="muted">Hai già un account? <a href="/accedi">Accedi</a>.</p></section>'''
+    return clienti_shell("Registrazione", body), (503 if request.method == "POST" and not ready else 200)
+
+
+@app.route("/accedi", methods=["GET", "POST"])
+def clienti_login():
+    if session.get("cliente_id"):
+        return redirect("/area-personale", code=303)
+    ready = clienti_registration_ready()
+    error = ""
+    if request.method == "POST":
+        if not ready:
+            error = "L'accesso sarà attivato dopo la configurazione dell'archivio persistente e della chiave di sicurezza su Render."
+        elif rate_limited("clienti_login", 10, 600):
+            error = "Troppi tentativi. Attendi qualche minuto e riprova."
+        elif not cliente_csrf_valid():
+            return clienti_shell("Richiesta non valida", '<section class="card"><h1>Richiesta non valida</h1><p>Ricarica la pagina e riprova.</p></section>'), 400
+        else:
+            email = request.form.get("email", "").strip().lower()
+            password = request.form.get("password", "")
+            db = clienti_db()
+            try:
+                user = db.execute("SELECT id,email,password_hash FROM clienti WHERE email=?", (email,)).fetchone()
+                if user and check_password_hash(user["password_hash"], password):
+                    session.pop("cliente_id", None)
+                    session["cliente_id"] = user["id"]
+                    session["cliente_csrf"] = secrets.token_urlsafe(32)
+                    return redirect("/area-personale", code=303)
+                error = "Email o password non corretti."
+            finally:
+                db.close()
+    token = escape(cliente_csrf_token(), quote=True)
+    err_html = f'<p class="notice">{escape(error)}</p>' if error else ''
+    notice = '' if ready else '<p class="notice">L’accesso è in attesa della configurazione tecnica su Render.</p>'
+    body = f'''<section class="card" style="max-width:540px;margin:30px auto"><p class="ft-new-kicker">AREA PERSONALE FIXTUDE</p><h1>Accedi al tuo account</h1>{notice}{err_html}<form method="post"><input type="hidden" name="csrf_token" value="{token}"><label for="login_email">Email</label><input id="login_email" name="email" type="email" autocomplete="username" required><label for="login_password">Password</label><input id="login_password" name="password" type="password" autocomplete="current-password" required><p><button class="btn" type="submit" {'disabled' if not ready else ''}>Accedi</button></p></form><p class="muted">Non hai ancora un account? <a href="/registrazione">Registrati gratuitamente</a>.</p></section>'''
+    return clienti_shell("Accesso", body), (503 if request.method == "POST" and not ready else 200)
+
+
+@app.route("/area-personale", methods=["GET"])
+def clienti_area_personale():
+    user = cliente_current_user()
+    if not user:
+        return redirect("/accedi", code=303)
+    welcome = '<p class="notice">Account creato correttamente. Benvenuto in FixTude.</p>' if request.args.get("benvenuto") == "1" else ''
+    created = escape(user["created_at"][:10])
+    body = f'''<section class="card"><p class="ft-new-kicker">AREA RISERVATA</p><h1>Ciao {escape(user['nome'])}</h1><p>Questa è la tua area personale FixTude.</p>{welcome}<div class="grid"><div class="card"><h2>Il tuo account</h2><p><strong>Email:</strong> {escape(user['email'])}</p><p><strong>Registrato il:</strong> {created}</p><p><span class="tag">Account attivo</span></p></div><div class="card"><h2>La tua pratica</h2><p>La sezione per caricare documenti e consultare gli aggiornamenti sarà attivata nel passaggio successivo.</p><p class="muted">Per ora non inviare documenti personali o finanziari via email.</p></div></div><form method="post" action="/esci"><input type="hidden" name="csrf_token" value="{escape(cliente_csrf_token(), quote=True)}"><button class="btn secondary" type="submit">Esci dall’account</button></form></section>'''
+    return clienti_shell("Area personale", body)
+
+
+@app.route("/esci", methods=["POST"])
+def clienti_logout():
+    if not cliente_csrf_valid():
+        return clienti_shell("Richiesta non valida", '<section class="card"><h1>Richiesta non valida</h1><p>Ricarica la pagina e riprova.</p></section>'), 400
+    session.pop("cliente_id", None)
+    session.pop("cliente_csrf", None)
+    return redirect("/", code=303)
 
 
 if __name__ == "__main__":
