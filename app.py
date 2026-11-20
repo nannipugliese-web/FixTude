@@ -1389,6 +1389,7 @@ def home():
       .ft-new-kicker:before{content:"";width:25px;height:2px;background:#168cff;box-shadow:0 0 12px #168cff}
       .ft-new-title{max-width:850px;margin:0 0 20px;color:#fff;font-size:clamp(32px,5.4vw,58px);font-weight:900;line-height:1.08;letter-spacing:-1.7px}
       .ft-new-title .blue{color:#168cff;text-shadow:0 0 24px #168cff35}
+      .ft-new-title:after{content:"";display:inline-block;width:2px;height:.88em;margin-left:5px;vertical-align:-.08em;background:#168cff;box-shadow:0 0 12px #168cff;animation:ftCursorBlink .75s steps(2,start) infinite}
       .ft-new-lead{max-width:720px;margin:0;color:#c6d2e1;font-size:clamp(16px,2vw,19px);line-height:1.65}
       .ft-new-action-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
       .ft-new-cta{display:inline-flex;align-items:center;justify-content:center;gap:11px;min-height:56px;padding:0 25px;border:1px solid #58b2ff;border-radius:12px;background:linear-gradient(135deg,#168cff,#0759bd);color:#fff;text-decoration:none;font-size:14px;font-weight:950;letter-spacing:.045em;box-shadow:0 10px 28px #0879e855,inset 0 1px #ffffff55;transition:transform .18s,box-shadow .18s}
@@ -1417,14 +1418,14 @@ def home():
       .ft-upload-modal-card p{color:#c0cede;font-size:14px;line-height:1.6}
       .ft-upload-modal-close{display:block;margin:20px 0 0 auto;padding:10px 17px;border:1px solid #3d6b9d;border-radius:9px;background:#102746;color:#fff;font-weight:800;cursor:pointer}
       @media(max-width:700px){.ft-new-hero{padding:46px 18px 54px}.ft-new-title{font-size:clamp(30px,9vw,43px);letter-spacing:-1px}.ft-new-action-row{align-items:stretch;flex-direction:column}.ft-new-cta{width:100%;min-height:54px}.ft-new-cta-note{max-width:none;text-align:center}.ft-new-upload-note{padding:0 12px}.ft-new-upload-note-inner{padding:14px 15px}.ft-new-section{padding:42px 16px 48px}.ft-new-cards{grid-template-columns:1fr;gap:11px}.ft-new-card{padding:18px}}
-      @media(prefers-reduced-motion:reduce){.ft-new-title.is-typing:after{display:none}.ft-new-kicker,.ft-new-title,.ft-new-lead,.ft-new-action-row,.ft-new-upload-note-inner,.ft-new-card{opacity:1;animation:none!important;transform:none!important}.ft-new-card-icon,.ft-new-cta:after{animation:none!important}.ft-new-cta{transition:none}}
+      @media(prefers-reduced-motion:reduce){.ft-new-kicker,.ft-new-title,.ft-new-lead,.ft-new-action-row,.ft-new-upload-note-inner,.ft-new-card{opacity:1;animation:none!important;transform:none!important}.ft-new-card-icon,.ft-new-cta:after{animation:none!important}.ft-new-cta{transition:none}}
     </style>
     <div class="ft-new-home">
       <section class="ft-new-hero">
         <canvas class="ft-neural-canvas" id="ftNeuralNetwork" aria-hidden="true"></canvas>
         <div class="ft-new-inner">
           <div class="ft-new-kicker">UN PUNTO DI PARTENZA, NON UN GIUDIZIO</div>
-          <h1 class="ft-new-title" id="ftHomeTypewriter" aria-label="Hai ricevuto un sollecito, una messa in mora, una diffida, un decreto ingiuntivo o un atto di pignoramento?"><span class="ft-type-part" data-text="Hai ricevuto un sollecito, una messa in mora, una diffida, un decreto ingiuntivo o un "></span><span class="ft-type-part blue" data-text="atto di pignoramento?"></span></h1>
+          <h1 class="ft-new-title" id="ftHomeTypewriter">Hai ricevuto un sollecito, una messa in mora, una diffida, un decreto ingiuntivo o un <span class="blue">atto di pignoramento?</span></h1>
           <p class="ft-new-lead">Non sai come comportarti? Non ignorare quello che hai ricevuto. Carica il documento e cerchiamo insieme di capire la tua situazione e quali possibilità puoi valutare.</p>
           <div class="ft-new-action-row">
             <a class="ft-new-cta" href="/registrazione" id="ftOpenUploadInfo">
@@ -1451,25 +1452,6 @@ def home():
       </section>
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
       <script>
-      (()=>{
-        const title=document.getElementById('ftHomeTypewriter');
-        if(title){
-          const parts=[...title.querySelectorAll('.ft-type-part')];
-          const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-          if(reduce){parts.forEach(part=>part.textContent=part.dataset.text);}
-          else{
-            title.classList.add('is-typing');
-            let partIndex=0,charIndex=0;
-            const typeNext=()=>{
-              if(partIndex>=parts.length){title.classList.remove('is-typing');title.classList.add('is-typed');return;}
-              const part=parts[partIndex],value=part.dataset.text||'';
-              if(charIndex<value.length){part.textContent+=value.charAt(charIndex++);window.setTimeout(typeNext,34);}
-              else{partIndex++;charIndex=0;window.setTimeout(typeNext,90);}
-            };
-            window.setTimeout(typeNext,420);
-          }
-        }
-      })();
       (()=>{
         const canvas=document.getElementById('ftNeuralNetwork');
         if(!canvas) return;
