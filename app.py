@@ -1447,6 +1447,8 @@ def fixtude_v1_route_guard():
         or path in customer_paths
         or customer_document_path
         or customer_reset_path
+        or path == "/bo"
+        or path.startswith("/bo/")
         or path.startswith("/static/")
         or chat_api_path
         or staff_chat_api_path
