@@ -759,7 +759,7 @@ def page(title, content, include_chat=False):
               position:fixed;
               right:20px;
               bottom:20px;
-              z-index:1000;
+              z-index:100001;
               border:0;
               border-radius:30px;
               background:var(--blue);
@@ -771,7 +771,7 @@ def page(title, content, include_chat=False):
             }
             .chat-panel {
               position:fixed;
-              z-index:1001;
+              z-index:100002;
               right:20px;
               bottom:82px;
               width:min(365px,calc(100vw - 28px));
@@ -1426,12 +1426,25 @@ def fixtude_v1_route_guard():
     customer_document_path = path.startswith("/documenti/")
     customer_reset_path = path.startswith("/reimposta-password/")
 
+    # Le API della chat pubblica e dell'area staff devono raggiungere
+    # le rispettive route Flask: non devono essere intercettate dal filtro
+    # generale che protegge le altre API non pubbliche.
+    chat_api_path = (
+        path in {"/api/chat/start", "/api/chat/send"}
+        or bool(re.fullmatch(r"/api/chat/[a-fA-F0-9-]{32,36}/messages", path))
+    )
+    staff_chat_api_path = path.startswith("/api/staff/")
+    push_api_path = path.startswith("/api/push/")
+
     if (
         path in allowed
         or path in customer_paths
         or customer_document_path
         or customer_reset_path
         or path.startswith("/static/")
+        or chat_api_path
+        or staff_chat_api_path
+        or push_api_path
     ):
         return None
 
