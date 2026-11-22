@@ -922,6 +922,16 @@ def page(title, content, include_chat=False):
             .chat-panel {background:#0b1422!important;border-color:#29476d!important}
             .chat-messages {background:#07101c!important}
             .chat-msg.staff {background:#101e30!important;color:#eaf2ff!important;border-color:#29476d!important}
+            /* I messaggi inviati dall'utente hanno sfondo chiaro: testo scuro ad alto contrasto. */
+            .chat-msg.visitor,
+            .chat-msg.visitor > div:first-child {
+              color:#10243b!important;
+              -webkit-text-fill-color:#10243b!important;
+            }
+            .chat-msg.visitor .chat-time {
+              color:#52657a!important;
+              -webkit-text-fill-color:#52657a!important;
+            }
             .chat-form {background:#0b1422!important;border-color:#29476d!important}
             .traffic-light,.total,.remove-button {color:#eaf2ff}
             .remove-button {background:#0b1422!important;border-color:#355477!important}
@@ -1373,6 +1383,8 @@ def page(title, content, include_chat=False):
             #chatInput::placeholder{color:#91a4bd!important;-webkit-text-fill-color:#91a4bd!important;opacity:1!important}
             #chatInput:focus{outline:2px solid #168cff!important;outline-offset:1px}
             .chat-msg.staff{background:#101e30!important;color:#eaf2ff!important;border-color:#29476d!important}
+            .chat-msg.visitor,.chat-msg.visitor>div:first-child{color:#10243b!important;-webkit-text-fill-color:#10243b!important}
+            .chat-msg.visitor .chat-time{color:#52657a!important;-webkit-text-fill-color:#52657a!important}
           </style>
         </body>
         </html>
