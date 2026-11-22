@@ -1118,7 +1118,7 @@ def page(title, content, include_chat=False):
                  aria-live="polite">
               <p class="muted">Chat FixTude: disponibile dal lunedì al venerdì, dalle 9:30 alle 14:30. Fuori orario e nel fine settimana puoi lasciare un messaggio: ti risponderemo nel più breve tempo possibile.</p>
             </div>
-            <form class="chat-form" id="chatForm">
+            <form class="chat-form" id="chatForm" onsubmit="return false;" novalidate>
               <input id="chatInput" maxlength="1000"
                      placeholder="Scrivi qui…" autocomplete="off"
                      aria-label="Messaggio" required>
@@ -1314,8 +1314,9 @@ def page(title, content, include_chat=False):
                   throw new Error(data.error || "Il server non ha confermato il salvataggio del messaggio.");
                 }
 
-                // Ripristino del metodo storico che funzionava: la notifica
-                // viene spedita direttamente a Web3Forms dal browser via HTTPS.
+                // Metodo storico FixTude: invio diretto a Web3Forms via HTTPS.
+                // La chiave è collegata all'account che recapita su
+                // nannipugliese@gmail.com.
                 let emailConfirmed = false;
                 try {
                   const notification = await fetch("https://api.web3forms.com/submit", {
@@ -1354,7 +1355,7 @@ def page(title, content, include_chat=False):
                 await refreshMessages();
                 status.textContent = emailConfirmed
                   ? "Messaggio inviato e notifica email confermata."
-                  : "Messaggio inviato in chat. La notifica email non è stata confermata: controllare la connessione.";
+                  : "Messaggio inviato in chat. Notifica email non confermata: riprova tra poco.";
               } catch (err) {
                 status.textContent = err.message || "Invio non riuscito. Riprova.";
               } finally {
@@ -4014,8 +4015,7 @@ def chat_send():
         url="/chat-staff"
     )
     # La notifica email viene inviata dal browser tramite Web3Forms HTTPS,
-    # come nella versione storica funzionante. Il server conferma qui
-    # esclusivamente il salvataggio del messaggio nella conversazione.
+    # come nella versione storica funzionante. Qui confermiamo il salvataggio.
     return jsonify(ok=True)
 
 
