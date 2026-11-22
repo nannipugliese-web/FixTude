@@ -24,6 +24,7 @@ from email.message import EmailMessage
 from html import escape
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 
 from flask import (
     Flask, request, render_template_string, jsonify, Response,
@@ -1357,15 +1358,18 @@ def fixtude_v1_route_guard():
     customer_paths = {
         "/registrazione",
         "/accedi",
+        "/recupera-password",
         "/area-personale",
         "/esci",
     }
     customer_document_path = path.startswith("/documenti/")
+    customer_reset_path = path.startswith("/reimposta-password/")
 
     if (
         path in allowed
         or path in customer_paths
         or customer_document_path
+        or customer_reset_path
         or path.startswith("/static/")
     ):
         return None
@@ -5592,6 +5596,34 @@ def clienti_shell(title, body):
     return page(title, body)
 
 
+def cliente_password_ui():
+    return """<style>.ft-password-field{position:relative;display:flex;align-items:center;width:100%;margin:6px 0 14px}.ft-password-field input{width:100%;padding-right:48px!important;box-sizing:border-box}.ft-password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;background:transparent;color:#49657b;cursor:pointer;display:grid;place-items:center;padding:6px}.ft-password-toggle svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}</style><script>document.addEventListener('click',function(e){const b=e.target.closest('[data-password-target]');if(!b)return;const i=document.getElementById(b.dataset.passwordTarget);if(!i)return;const show=i.type==='password';i.type=show?'text':'password';b.setAttribute('aria-label',show?'Nascondi password':'Mostra password');});</script>"""
+
+
+def cliente_password_serializer():
+    return URLSafeTimedSerializer(app.secret_key, salt="fixtude-password-reset-v1")
+
+
+def cliente_send_password_reset_email(email, nome, reset_url):
+    if not all([SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SMTP_FROM]):
+        raise RuntimeError("Configurazione SMTP incompleta")
+    msg = EmailMessage()
+    msg["Subject"] = "Recupero password FixTude"
+    msg["From"] = SMTP_FROM
+    msg["To"] = email
+    msg.set_content(f"Ciao {nome},\n\nPer reimpostare la password FixTude apri questo link entro 30 minuti:\n{reset_url}\n\nSe non hai richiesto tu il recupero, ignora questa email.\n")
+    context = ssl.create_default_context()
+    if SMTP_PORT == 465:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=20) as server:
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
+    else:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+            server.starttls(context=context)
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
+
+
 @app.route("/registrazione", methods=["GET", "POST"])
 def clienti_registrazione():
     if session.get("cliente_id"):
@@ -5641,7 +5673,8 @@ def clienti_registrazione():
     token = escape(cliente_csrf_token(), quote=True)
     readiness = '' if ready else '<p class="notice"><strong>Attivazione tecnica necessaria.</strong> Il modulo è pronto, ma l’invio resterà disabilitato finché su Render non saranno configurati il disco persistente e SECRET_KEY. Nessun dato verrà salvato prima dell’attivazione.</p>'
     err_html = f'<p class="notice">{escape(error)}</p>' if error else ''
-    body = f'''<section class="card" style="max-width:620px;margin:30px auto"><p class="ft-new-kicker">AREA PERSONALE FIXTUDE</p><h1>Crea il tuo account gratuito</h1><p>Registrati per avere un accesso personale a FixTude e ritrovare in seguito le informazioni relative al tuo percorso.</p>{readiness}{err_html}<form method="post" action="/registrazione"><input type="hidden" name="csrf_token" value="{token}"><label for="cliente_nome">Nome</label><input id="cliente_nome" name="nome" maxlength="100" autocomplete="name" required><label for="cliente_email">Indirizzo email</label><input id="cliente_email" name="email" type="email" maxlength="254" autocomplete="email" required><label for="cliente_password">Crea una password</label><input id="cliente_password" name="password" type="password" minlength="12" autocomplete="new-password" required><label for="cliente_password2">Conferma la password</label><input id="cliente_password2" name="password_conferma" type="password" minlength="12" autocomplete="new-password" required><p class="muted">La password deve contenere almeno 12 caratteri. Viene conservata in forma protetta tramite hash, non in chiaro.</p><p><label style="display:flex;gap:10px;align-items:flex-start"><input style="width:auto;margin-top:5px" type="checkbox" name="privacy_ack" value="yes" required><span>Ho letto l’<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a> e acconsento al trattamento dei dati necessari alla creazione e gestione dell’account.</span></label></p><button class="btn" type="submit" {'disabled' if not ready else ''}>Crea account gratuito</button></form><p class="muted">Hai già un account? <a href="/accedi">Accedi</a>.</p></section>'''
+    body = f'''<section class="card" style="max-width:620px;margin:30px auto"><p class="ft-new-kicker">AREA PERSONALE FIXTUDE</p><h1>Crea il tuo account gratuito</h1><p>Registrati per avere un accesso personale a FixTude e ritrovare in seguito le informazioni relative al tuo percorso.</p>{readiness}{err_html}<form method="post" action="/registrazione"><input type="hidden" name="csrf_token" value="{token}"><label for="cliente_nome">Nome</label><input id="cliente_nome" name="nome" maxlength="100" autocomplete="name" required><label for="cliente_email">Indirizzo email</label><input id="cliente_email" name="email" type="email" maxlength="254" autocomplete="email" required><label for="cliente_password">Crea una password</label><div class="ft-password-field"><input id="cliente_password" name="password" type="password" minlength="12" autocomplete="new-password" required><button class="ft-password-toggle" type="button" data-password-target="cliente_password" aria-label="Mostra password" title="Mostra password">◉</button></div><label for="cliente_password2">Conferma la password</label><div class="ft-password-field"><input id="cliente_password2" name="password_conferma" type="password" minlength="12" autocomplete="new-password" required><button class="ft-password-toggle" type="button" data-password-target="cliente_password2" aria-label="Mostra password" title="Mostra password">◉</button></div><p class="muted">La password deve contenere almeno 12 caratteri. Viene conservata in forma protetta tramite hash, non in chiaro.</p><p><label style="display:flex;gap:10px;align-items:flex-start"><input style="width:auto;margin-top:5px" type="checkbox" name="privacy_ack" value="yes" required><span>Ho letto l’<a href="/privacy" target="_blank" rel="noopener">Informativa Privacy</a> e acconsento al trattamento dei dati necessari alla creazione e gestione dell’account.</span></label></p><button class="btn" type="submit" {'disabled' if not ready else ''}>Crea account gratuito</button></form><p class="muted">Hai già un account? <a href="/accedi">Accedi</a>.</p></section>'''
+    body += cliente_password_ui()
     return clienti_shell("Registrazione", body), (503 if request.method == "POST" and not ready else 200)
 
 
@@ -5674,9 +5707,81 @@ def clienti_login():
                 db.close()
     token = escape(cliente_csrf_token(), quote=True)
     err_html = f'<p class="notice">{escape(error)}</p>' if error else ''
-    notice = '' if ready else '<p class="notice">L’accesso è in attesa della configurazione tecnica su Render.</p>'
-    body = f'''<section class="card" style="max-width:540px;margin:30px auto"><p class="ft-new-kicker">AREA PERSONALE FIXTUDE</p><h1>Accedi al tuo account</h1>{notice}{err_html}<form method="post"><input type="hidden" name="csrf_token" value="{token}"><label for="login_email">Email</label><input id="login_email" name="email" type="email" autocomplete="username" required><label for="login_password">Password</label><input id="login_password" name="password" type="password" autocomplete="current-password" required><p><button class="btn" type="submit" {'disabled' if not ready else ''}>Accedi</button></p></form><p class="muted">Non hai ancora un account? <a href="/registrazione">Registrati gratuitamente</a>.</p></section>'''
+    notice = '<p class="notice">Password aggiornata correttamente. Ora puoi accedere.</p>' if request.args.get("password_aggiornata") == "1" else ('' if ready else '<p class="notice">L’accesso è in attesa della configurazione tecnica su Render.</p>')
+    body = f'''<section class="card" style="max-width:540px;margin:30px auto"><p class="ft-new-kicker">AREA PERSONALE FIXTUDE</p><h1>Accedi al tuo account</h1>{notice}{err_html}<form method="post"><input type="hidden" name="csrf_token" value="{token}"><label for="login_email">Email</label><input id="login_email" name="email" type="email" autocomplete="username" required><label for="login_password">Password</label><div class="ft-password-field"><input id="login_password" name="password" type="password" autocomplete="current-password" required><button class="ft-password-toggle" type="button" data-password-target="login_password" aria-label="Mostra password" title="Mostra password">◉</button></div><p><button class="btn" type="submit" {'disabled' if not ready else ''}>Accedi</button></p></form><p class="muted"><a href="/recupera-password">Hai dimenticato la password?</a></p><p class="muted">Non hai ancora un account? <a href="/registrazione">Registrati gratuitamente</a>.</p></section>'''
+    body += cliente_password_ui()
     return clienti_shell("Accesso", body), (503 if request.method == "POST" and not ready else 200)
+
+
+@app.route("/recupera-password", methods=["GET", "POST"])
+def clienti_recupera_password():
+    error = ""
+    sent = False
+    if request.method == "POST":
+        if not cliente_csrf_valid():
+            return clienti_shell("Richiesta non valida", '<section class="card"><h1>Richiesta non valida</h1><p>Ricarica la pagina e riprova.</p></section>'), 400
+        if rate_limited("clienti_password_reset", 5, 3600):
+            error = "Hai effettuato troppe richieste. Attendi e riprova più tardi."
+        else:
+            email = request.form.get("email", "").strip().lower()
+            db = clienti_db()
+            try:
+                user = db.execute("SELECT id,email,nome,updated_at FROM clienti WHERE email=?", (email,)).fetchone()
+            finally:
+                db.close()
+            sent = True
+            if user:
+                try:
+                    signed = cliente_password_serializer().dumps({"id": user["id"], "email": user["email"], "updated_at": user["updated_at"]})
+                    base = os.environ.get("PUBLIC_BASE_URL", "https://fixtude.it").rstrip("/")
+                    cliente_send_password_reset_email(user["email"], user["nome"], base + "/reimposta-password/" + signed)
+                except Exception:
+                    app.logger.exception("Invio email recupero password FixTude non riuscito")
+                    error = "Il servizio email non è ancora configurato. Contatta contatto@fixtude.it per assistenza."
+                    sent = False
+    csrf = escape(cliente_csrf_token(), quote=True)
+    err = f'<p class="notice">{escape(error)}</p>' if error else ""
+    ok = '<p class="notice">Se l’indirizzo è associato a un account, riceverai un link per creare una nuova password. Controlla anche la cartella spam.</p>' if sent and not error else ""
+    body = (f'<section class="card" style="max-width:560px;margin:30px auto"><h1>Recupera la password</h1><p>Inserisci l’email usata per registrarti. Il link sarà valido 30 minuti.</p>{err}{ok}<form method="post"><input type="hidden" name="csrf_token" value="{csrf}"><label for="reset_email">Indirizzo email</label><input id="reset_email" name="email" type="email" maxlength="254" autocomplete="email" required><p><button class="btn" type="submit">Invia link di recupero</button></p></form><p><a href="/accedi">Torna all’accesso</a></p></section>')
+    return clienti_shell("Recupera password", body)
+
+
+@app.route("/reimposta-password/<token>", methods=["GET", "POST"])
+def clienti_reimposta_password(token):
+    try:
+        payload = cliente_password_serializer().loads(token, max_age=1800)
+    except SignatureExpired:
+        return clienti_shell("Link scaduto", '<section class="card"><h1>Link scaduto</h1><p>Richiedine uno nuovo.</p><a href="/recupera-password">Recupera password</a></section>'), 400
+    except BadSignature:
+        return clienti_shell("Link non valido", '<section class="card"><h1>Link non valido</h1><a href="/recupera-password">Richiedi un nuovo link</a></section>'), 400
+    db = clienti_db()
+    try:
+        user = db.execute("SELECT id,email,updated_at FROM clienti WHERE id=? AND email=?", (payload.get("id"), payload.get("email"))).fetchone()
+        if not user or user["updated_at"] != payload.get("updated_at"):
+            return clienti_shell("Link non valido", '<section class="card"><h1>Link non più valido</h1><p>Richiedine uno nuovo.</p><a href="/recupera-password">Recupera password</a></section>'), 400
+        error = ""
+        if request.method == "POST":
+            if not cliente_csrf_valid():
+                return clienti_shell("Richiesta non valida", '<section class="card"><h1>Richiesta non valida</h1><p>Ricarica la pagina.</p></section>'), 400
+            password = request.form.get("password", "")
+            confirm = request.form.get("password_conferma", "")
+            if len(password) < 12:
+                error = "La password deve contenere almeno 12 caratteri."
+            elif password != confirm:
+                error = "Le due password non coincidono."
+            else:
+                now = datetime.now(ROME_TZ).isoformat(timespec="seconds")
+                db.execute("UPDATE clienti SET password_hash=?,updated_at=? WHERE id=?", (generate_password_hash(password), now, user["id"]))
+                db.commit()
+                session.pop("cliente_id", None)
+                session.pop("cliente_csrf", None)
+                return redirect("/accedi?password_aggiornata=1", code=303)
+    finally:
+        db.close()
+    csrf = escape(cliente_csrf_token(), quote=True)
+    err = f'<p class="notice">{escape(error)}</p>' if error else ""
+    body = (f'<section class="card" style="max-width:560px;margin:30px auto"><h1>Crea una nuova password</h1>{err}<form method="post"><input type="hidden" name="csrf_token" value="{csrf}"><label for="new_password">Nuova password</label><div class="ft-password-field"><input id="new_password" name="password" type="password" minlength="12" autocomplete="new-password" required><button class="ft-password-toggle" type="button" data-password-target="new_password">◉</button></div><label for="confirm_new_password">Conferma nuova password</label><div class="ft-password-field"><input id="confirm_new_password" name="password_conferma" type="password" minlength="12" autocomplete="new-password" required><button class="ft-password-toggle" type="button" data-password-target="confirm_new_password">◉</button></div><p class="muted">Usa almeno 12 caratteri.</p><button class="btn" type="submit">Salva nuova password</button></form></section>')
+    return clienti_shell("Reimposta password", body + cliente_password_ui())
 
 
 @app.route("/area-personale", methods=["GET", "POST"])
