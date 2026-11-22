@@ -1263,36 +1263,87 @@ def page(title, content, include_chat=False):
 
               const button = form.querySelector("button");
               button.disabled = true;
+              status.textContent = "Invio in corso…";
+
+              async function readJson(response, operation) {
+                const raw = await response.text();
+                let data = {};
+                try {
+                  data = raw ? JSON.parse(raw) : {};
+                } catch (_) {
+                  const preview = raw.replace(/<[^>]*>/g, " ").trim().slice(0, 120);
+                  throw new Error(operation + ": risposta non valida dal server (HTTP " +
+                    response.status + ")" + (preview ? " — " + preview : ""));
+                }
+                if (!response.ok) {
+                  throw new Error(data.error || operation + " non riuscito (HTTP " + response.status + ")");
+                }
+                return data;
+              }
 
               try {
-                if (!chatId) await ensureChat();
+                // Riattiva sempre la sessione sul server prima dell'invio:
+                // evita che un ID conservato nel browser punti a una chat scaduta.
+                await ensureChat();
 
-                const r = await fetch("/api/chat/send", {
-                  method:"POST",
-                  headers:{"Content-Type":"application/json", "Accept":"application/json"},
-                  body:JSON.stringify({chat_id:chatId,text})
+                const response = await fetch("/api/chat/send", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                  },
+                  cache: "no-store",
+                  credentials: "same-origin",
+                  body: JSON.stringify({chat_id: chatId, text: text})
                 });
-                // Non presumere che ogni risposta del server sia JSON: in caso
-                // di pagina 404/errore mostriamo un messaggio leggibile, senza
-                // generare "Unexpected token N".
-                const rawResponse = await r.text();
-                let data = {};
-                try { data = rawResponse ? JSON.parse(rawResponse) : {}; }
-                catch (_) {
-                  const preview = rawResponse.replace(/<[^>]*>/g, " ").trim().slice(0, 140);
-                  throw new Error("Il server ha risposto con un formato inatteso" +
-                    (preview ? ": " + preview : "") + " (HTTP " + r.status + "). Riprova tra poco.");
+                const data = await readJson(response, "Invio messaggio");
+                if (data.ok !== true) {
+                  throw new Error(data.error || "Il server non ha confermato il salvataggio del messaggio.");
                 }
 
-                if (!r.ok || data.ok !== true) {
-                  throw new Error(data.error || "Invio non riuscito (HTTP " + r.status + ").");
+                // Ripristino del metodo storico che funzionava: la notifica
+                // viene spedita direttamente a Web3Forms dal browser via HTTPS.
+                let emailConfirmed = false;
+                try {
+                  const notification = await fetch("https://api.web3forms.com/submit", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "Accept": "application/json"
+                    },
+                    body: JSON.stringify({
+                      access_key: "6cfd757e-6b16-49e0-96b5-e055a159f403",
+                      subject: "FixTude - nuovo messaggio in chat",
+                      from_name: "FixTude - chat cliente",
+                      message: "È arrivato un nuovo messaggio nella chat FixTude.\n\n" +
+                        "Conversazione: " + chatId.slice(0, 8) + "\n" +
+                        "Orario: " + new Date().toLocaleString("it-IT") + "\n\n" +
+                        "Messaggio ricevuto:\n" + text + "\n\n" +
+                        "Rispondi dall'area staff: https://fixtude.it/chat-staff"
+                    })
+                  });
+                  const notificationRaw = await notification.text();
+                  let notificationData = {};
+                  try {
+                    notificationData = notificationRaw ? JSON.parse(notificationRaw) : {};
+                  } catch (_) {
+                    notificationData = {};
+                  }
+                  emailConfirmed = notification.ok && notificationData.success === true;
+                  if (!emailConfirmed) {
+                    console.error("Notifica email FixTude non confermata:", notification.status, notificationRaw);
+                  }
+                } catch (notificationError) {
+                  console.error("Errore notifica email FixTude:", notificationError);
                 }
 
                 input.value = "";
                 await refreshMessages();
+                status.textContent = emailConfirmed
+                  ? "Messaggio inviato e notifica email confermata."
+                  : "Messaggio inviato in chat. La notifica email non è stata confermata: controllare la connessione.";
               } catch (err) {
-                status.textContent = err.message ||
-                  "Invio non riuscito. Riprova.";
+                status.textContent = err.message || "Invio non riuscito. Riprova.";
               } finally {
                 button.disabled = false;
               }
@@ -3850,7 +3901,7 @@ def push_subscribe():
 # CHAT LIVE - VISITATORE
 # =========================================================
 
-@app.route("/api/chat/start", methods=["POST"])
+@app.route("/api/chat/start", methods=["POST"], strict_slashes=False)
 def chat_start():
     if rate_limited("chat_start", 15, 60):
         return jsonify(error="Riprova tra qualche minuto."), 429
@@ -3883,7 +3934,7 @@ def chat_start():
     return jsonify(ok=True, **stato)
 
 
-@app.route("/api/chat/<chat_id>/messages", methods=["GET"])
+@app.route("/api/chat/<chat_id>/messages", methods=["GET"], strict_slashes=False)
 def chat_messages(chat_id):
     if not re.fullmatch(r"[a-fA-F0-9-]{32,36}", chat_id):
         return jsonify(error="Sessione non valida."), 400
@@ -3901,7 +3952,7 @@ def chat_messages(chat_id):
     return jsonify(messages=messages, **stato)
 
 
-@app.route("/api/chat/send", methods=["POST"])
+@app.route("/api/chat/send", methods=["POST"], strict_slashes=False)
 def chat_send():
     if rate_limited("chat_send", 40, 60):
         return jsonify(error="Hai inviato troppi messaggi. Attendi un momento."), 429
@@ -3936,10 +3987,10 @@ def chat_send():
         body="Un visitatore ha scritto nella chat. Apri l’Area Riservata per rispondere.",
         url="/chat-staff"
     )
-    # Invio email dal server tramite la stessa chiave Web3Forms già configurata.
-    # Il browser non effettua una seconda chiamata, evitando errori JS e duplicati.
-    send_chat_email_async(chat_id, message)
-    return jsonify(ok=True, email_notification="queued")
+    # La notifica email viene inviata dal browser tramite Web3Forms HTTPS,
+    # come nella versione storica funzionante. Il server conferma qui
+    # esclusivamente il salvataggio del messaggio nella conversazione.
+    return jsonify(ok=True)
 
 
 # =========================================================
