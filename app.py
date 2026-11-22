@@ -1369,6 +1369,9 @@ def page(title, content, include_chat=False):
             footer a,.cookie-footer-link,body:has(.ft-v1) footer a:not(.ft-footer-cta-link){color:#66b5ff!important}
             .ft-footer-cta-link,body:has(.ft-v1) .ft-footer-cta-link,body:has(.ft-checkout-v9) .ft-footer-cta-link{background:linear-gradient(135deg,#168cff,#0759bd)!important;color:#fff!important;border:1px solid #3a9df5!important}
             .chat-panel,.chat-form{background:#0b1422!important;border-color:#29476d!important}.chat-messages{background:#07101c!important}
+            #chatInput{display:block!important;flex:1 1 auto!important;min-width:0!important;background:#07101c!important;color:#f5f8ff!important;-webkit-text-fill-color:#f5f8ff!important;caret-color:#ffffff!important;border:1px solid #55718f!important;border-radius:8px!important;opacity:1!important}
+            #chatInput::placeholder{color:#91a4bd!important;-webkit-text-fill-color:#91a4bd!important;opacity:1!important}
+            #chatInput:focus{outline:2px solid #168cff!important;outline-offset:1px}
             .chat-msg.staff{background:#101e30!important;color:#eaf2ff!important;border-color:#29476d!important}
           </style>
         </body>
