@@ -1122,7 +1122,7 @@ def page(title, content, include_chat=False):
               <input id="chatInput" maxlength="1000"
                      placeholder="Scrivi qui…" autocomplete="off"
                      aria-label="Messaggio" required>
-              <button class="btn" type="submit">Invia</button>
+              <button class="btn" type="button" onclick="window.fixtudeSendChatMessage && window.fixtudeSendChatMessage()">Invia</button>
             </form>
             <div class="chat-hint">
               Non inserire dati bancari o documenti personali.
@@ -1269,34 +1269,28 @@ def page(title, content, include_chat=False):
               launcher.setAttribute("aria-expanded", "false");
             });
 
-            form.addEventListener("submit", async e => {
-              e.preventDefault();
+            let chatSending = false;
+
+            async function sendChatMessage() {
+              if (chatSending) return;
               const text = input.value.trim();
-              if (!text || text.length > 1000) return;
+              if (!text) {
+                status.textContent = "Scrivi un messaggio prima di inviare.";
+                input.focus();
+                return;
+              }
+              if (text.length > 1000) {
+                status.textContent = "Il messaggio è troppo lungo (massimo 1000 caratteri).";
+                return;
+              }
 
               const button = form.querySelector("button");
+              chatSending = true;
               button.disabled = true;
               status.textContent = "Invio in corso…";
 
-              async function readJson(response, operation) {
-                const raw = await response.text();
-                let data = {};
-                try {
-                  data = raw ? JSON.parse(raw) : {};
-                } catch (_) {
-                  const preview = raw.replace(/<[^>]*>/g, " ").trim().slice(0, 120);
-                  throw new Error(operation + ": risposta non valida dal server (HTTP " +
-                    response.status + ")" + (preview ? " — " + preview : ""));
-                }
-                if (!response.ok) {
-                  throw new Error(data.error || operation + " non riuscito (HTTP " + response.status + ")");
-                }
-                return data;
-              }
-
               try {
-                // Riattiva sempre la sessione sul server prima dell'invio:
-                // evita che un ID conservato nel browser punti a una chat scaduta.
+                // La sessione viene sempre riattivata prima di salvare il messaggio.
                 await ensureChat();
 
                 const response = await fetch("/api/chat/send", {
@@ -1309,58 +1303,41 @@ def page(title, content, include_chat=False):
                   credentials: "same-origin",
                   body: JSON.stringify({chat_id: chatId, text: text})
                 });
-                const data = await readJson(response, "Invio messaggio");
-                if (data.ok !== true) {
-                  throw new Error(data.error || "Il server non ha confermato il salvataggio del messaggio.");
-                }
 
-                // Metodo storico FixTude: invio diretto a Web3Forms via HTTPS.
-                // La chiave è collegata all'account che recapita su
-                // nannipugliese@gmail.com.
-                let emailConfirmed = false;
+                const raw = await response.text();
+                let data = {};
                 try {
-                  const notification = await fetch("https://api.web3forms.com/submit", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "Accept": "application/json"
-                    },
-                    body: JSON.stringify({
-                      access_key: "6cfd757e-6b16-49e0-96b5-e055a159f403",
-                      subject: "FixTude - nuovo messaggio in chat",
-                      from_name: "FixTude - chat cliente",
-                      message: "È arrivato un nuovo messaggio nella chat FixTude.\n\n" +
-                        "Conversazione: " + chatId.slice(0, 8) + "\n" +
-                        "Orario: " + new Date().toLocaleString("it-IT") + "\n\n" +
-                        "Messaggio ricevuto:\n" + text + "\n\n" +
-                        "Rispondi dall'area staff: https://fixtude.it/chat-staff"
-                    })
-                  });
-                  const notificationRaw = await notification.text();
-                  let notificationData = {};
-                  try {
-                    notificationData = notificationRaw ? JSON.parse(notificationRaw) : {};
-                  } catch (_) {
-                    notificationData = {};
-                  }
-                  emailConfirmed = notification.ok && notificationData.success === true;
-                  if (!emailConfirmed) {
-                    console.error("Notifica email FixTude non confermata:", notification.status, notificationRaw);
-                  }
-                } catch (notificationError) {
-                  console.error("Errore notifica email FixTude:", notificationError);
+                  data = raw ? JSON.parse(raw) : {};
+                } catch (_) {
+                  throw new Error("Risposta non valida dal server (HTTP " + response.status + ").");
+                }
+                if (!response.ok || data.ok !== true) {
+                  throw new Error(data.error || "Invio del messaggio non riuscito (HTTP " + response.status + ").");
                 }
 
                 input.value = "";
+                lastCount = -1;
                 await refreshMessages();
-                status.textContent = emailConfirmed
-                  ? "Messaggio inviato e notifica email confermata."
-                  : "Messaggio inviato in chat. Notifica email non confermata: riprova tra poco.";
+                status.textContent = data.email_sent
+                  ? "Messaggio inviato. Notifica email recapitata al gestore."
+                  : "Messaggio inviato in chat; notifica email non confermata. " +
+                    (data.email_error || "Riprova più tardi.");
               } catch (err) {
-                status.textContent = err.message || "Invio non riuscito. Riprova.";
+                status.textContent = (err && err.message) || "Invio non riuscito. Riprova.";
               } finally {
+                chatSending = false;
                 button.disabled = false;
+                input.focus();
               }
+            }
+
+            // Espone il comando usato direttamente dal pulsante Invia.
+            window.fixtudeSendChatMessage = sendChatMessage;
+
+            // Invio anche con il tasto Invio dalla casella di testo.
+            form.addEventListener("submit", e => {
+              e.preventDefault();
+              sendChatMessage();
             });
 
             setInterval(() => {
@@ -4014,9 +3991,50 @@ def chat_send():
         body="Un visitatore ha scritto nella chat. Apri l’Area Riservata per rispondere.",
         url="/chat-staff"
     )
-    # La notifica email viene inviata dal browser tramite Web3Forms HTTPS,
-    # come nella versione storica funzionante. Qui confermiamo il salvataggio.
-    return jsonify(ok=True)
+
+    # Notifica email dal server tramite l'account Web3Forms storico di FixTude.
+    # La chiave è associata alla casella nannipugliese@gmail.com.
+    email_sent = False
+    email_error = ""
+    email_body = (
+        "È arrivato un nuovo messaggio nella chat FixTude.\n\n"
+        f"Conversazione: {chat_id[:8]}\n"
+        f"Orario: {ora_italiana()}\n\n"
+        "Messaggio ricevuto:\n"
+        f"{message}\n\n"
+        "Rispondi dall'area staff: https://fixtude.it/chat-staff"
+    )
+    try:
+        # Primo tentativo: SMTP diretto verso EMAIL_DESTINATARIO.
+        # Se SMTP non è configurato o non risponde, usa il Web3Forms storico.
+        try:
+            send_email(
+                subject="FixTude - nuovo messaggio in chat",
+                body=email_body
+            )
+            email_method = "SMTP"
+        except Exception as smtp_exc:
+            app.logger.warning(
+                "SMTP chat non disponibile (%s); provo Web3Forms",
+                str(smtp_exc)
+            )
+            send_web3forms_email(
+                subject="FixTude - nuovo messaggio in chat",
+                body=email_body
+            )
+            email_method = "Web3Forms"
+
+        email_sent = True
+        app.logger.info(
+            "Notifica chat inviata con %s al recapito %s",
+            email_method, EMAIL_DESTINATARIO
+        )
+    except Exception as exc:
+        email_error = str(exc)[:240]
+        app.logger.exception("Invio email chat FixTude non riuscito")
+
+    # Il messaggio resta salvato anche se il fornitore email è momentaneamente indisponibile.
+    return jsonify(ok=True, email_sent=email_sent, email_error=email_error)
 
 
 # =========================================================
