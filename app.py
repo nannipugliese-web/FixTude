@@ -278,29 +278,29 @@ def send_chat_start_email_async(chat_id):
 
 
 def send_chat_email_async(chat_id, message):
-    """Invia una notifica email per ogni nuovo messaggio del visitatore."""
+    """Invia la notifica chat tramite lo stesso Web3Forms già configurato."""
     def worker():
+        body = (
+            "È arrivato un nuovo messaggio nella chat FixTude.\n\n"
+            f"Conversazione: {chat_id[:8]}\n"
+            f"Orario: {ora_italiana()}\n\n"
+            "Messaggio ricevuto:\n"
+            f"{message}\n\n"
+            "Accedi all'area staff per rispondere:\n"
+            "https://fixtude.it/chat-staff\n"
+        )
         try:
-            body = (
-                "È arrivato un nuovo messaggio nella chat FixTude.\n\n"
-                f"Conversazione: {chat_id[:8]}\n"
-                f"Orario: {ora_italiana()}\n\n"
-                "Messaggio ricevuto:\n"
-                f"{message}\n\n"
-                "Accedi all'area riservata per rispondere:\n"
-                "https://fixtude.it/chat-staff\n"
-            )
-            send_email(
+            send_web3forms_email(
                 subject="FixTude - nuovo messaggio in chat",
                 body=body
             )
             app.logger.info(
-                "Email notifica chat inviata per la conversazione %s",
+                "Notifica Web3Forms chat confermata per conversazione %s",
                 chat_id[:8]
             )
         except Exception as exc:
             app.logger.error(
-                "Invio email notifica chat fallito (%s): %s",
+                "Notifica Web3Forms chat fallita (%s): %s",
                 type(exc).__name__, str(exc)
             )
 
@@ -1269,41 +1269,23 @@ def page(title, content, include_chat=False):
 
                 const r = await fetch("/api/chat/send", {
                   method:"POST",
-                  headers:{"Content-Type":"application/json"},
+                  headers:{"Content-Type":"application/json", "Accept":"application/json"},
                   body:JSON.stringify({chat_id:chatId,text})
                 });
-                const data = await r.json();
+                // Non presumere che ogni risposta del server sia JSON: in caso
+                // di pagina 404/errore mostriamo un messaggio leggibile, senza
+                // generare "Unexpected token N".
+                const rawResponse = await r.text();
+                let data = {};
+                try { data = rawResponse ? JSON.parse(rawResponse) : {}; }
+                catch (_) {
+                  const preview = rawResponse.replace(/<[^>]*>/g, " ").trim().slice(0, 140);
+                  throw new Error("Il server ha risposto con un formato inatteso" +
+                    (preview ? ": " + preview : "") + " (HTTP " + r.status + "). Riprova tra poco.");
+                }
 
-                if (!r.ok) throw new Error(data.error || "Invio non riuscito");
-
-                // La notifica email viene inviata dal browser via HTTPS,
-                // evitando SMTP in uscita da Render.
-                try {
-                  const notification = await fetch("https://api.web3forms.com/submit", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "Accept": "application/json"
-                    },
-                    body: JSON.stringify({
-                      access_key: "6cfd757e-6b16-49e0-96b5-e055a159f403",
-                      subject: "FixTude - nuovo messaggio in chat",
-                      from_name: "FixTude - chat cliente",
-                      message: "È arrivato un nuovo messaggio nella chat FixTude.\\n\\n" +
-                        "Conversazione: " + chatId.slice(0, 8) + "\\n" +
-                        "Orario: " + new Date().toLocaleString("it-IT") + "\\n\\n" +
-                        "Messaggio ricevuto:\\n" + text + "\\n\\n" +
-                        "Rispondi dall'area staff: https://fixtude.it/chat-staff"
-                    })
-                  });
-                  const notificationData = await notification.json();
-                  if (!notification.ok || notificationData.success !== true) {
-                    console.error("Notifica email chat non confermata:", notificationData.message || notification.status);
-                    status.textContent = "Messaggio inviato, ma la notifica email non è stata confermata.";
-                  }
-                } catch (notificationError) {
-                  console.error("Errore notifica email chat:", notificationError);
-                  status.textContent = "Messaggio inviato, ma non è stato possibile confermare la notifica email.";
+                if (!r.ok || data.ok !== true) {
+                  throw new Error(data.error || "Invio non riuscito (HTTP " + r.status + ").");
                 }
 
                 input.value = "";
@@ -1556,7 +1538,7 @@ def home():
       </script>
     </div>
     """
-    return page("Hai ricevuto un atto o un sollecito? | FixTude", content)
+    return page("Hai ricevuto un atto o un sollecito? | FixTude", content, include_chat=True)
 
 
 @app.route("/assistenza", methods=["GET"])
@@ -3954,9 +3936,10 @@ def chat_send():
         body="Un visitatore ha scritto nella chat. Apri l’Area Riservata per rispondere.",
         url="/chat-staff"
     )
-    # La notifica email viene inviata dal browser via Web3Forms HTTPS.
-    # Non usare SMTP da Render per questa notifica.
-    return jsonify(ok=True)
+    # Invio email dal server tramite la stessa chiave Web3Forms già configurata.
+    # Il browser non effettua una seconda chiamata, evitando errori JS e duplicati.
+    send_chat_email_async(chat_id, message)
+    return jsonify(ok=True, email_notification="queued")
 
 
 # =========================================================
@@ -5089,7 +5072,7 @@ def legal_terms():
 def privacy():
     body = """<p>Questa informativa descrive i principali trattamenti connessi alla versione attuale del sito FixTude. Viene aggiornata quando cambiano in modo rilevante le funzionalità, i fornitori o le modalità di trattamento.</p>
     <h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è Giovanni Pugliese, che gestisce il servizio denominato FixTude, con domicilio professionale indicato in Via Saronno 65, 00188 Roma, Italia, Partita IVA 15990471003. Per richieste relative ai dati personali: contatto@fixtude.it.</p>
-    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Verifica rischio pignoramento:</strong> le cinque risposte SÌ/NO, la tipologia di posizione selezionata (stipendio, pensione, conto corrente o tutte) e la categoria del creditore vengono trasmesse tramite HTTPS. Le singole risposte sono elaborate senza essere conservate nella sessione: viene mantenuto temporaneamente soltanto il livello risultante, insieme alla tipologia e alla categoria selezionate, per poter mostrare il risultato dopo la verifica del pagamento. Questi dati non vengono aggiunti ai metadati Stripe né inseriti in un archivio applicativo permanente. Il risultato viene mostrato nella sessione di navigazione e non viene conservato in un profilo personale.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio direttamente a Web3Forms tramite HTTPS per l’inoltro al titolare. L’applicazione non conserva una copia in un proprio database; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms dal browser; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude al prezzo promozionale di € 49,90. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del dossier, di una guida a scelta e dei modelli fac-simile. Se l’utente richiede la consulenza prima del pagamento, nome, telefono, email e riferimento temporale del consenso vengono inseriti nei metadati della sessione Stripe per poterli associare alla transazione.</li><li><strong>Richiesta facoltativa di consulenza legale:</strong> prima di accedere al pagamento l’utente può scegliere di inserire nome, telefono ed email e prestare un consenso specifico all’invio dei recapiti a contatto@fixtude.it e alla loro eventuale comunicazione all’avvocato incaricato, per essere ricontattato e organizzare una prima consulenza. Se l’utente sceglie questa opzione, i recapiti e il riferimento del consenso vengono associati alla sessione di checkout Stripe; Stripe li tratta nell’ambito della sessione di pagamento. Dopo la verifica del pagamento, FixTude invia i recapiti via email alla casella nannipugliese@gmail.com. Il titolare gestisce la richiesta e, se necessario, trasmette i recapiti all’avvocato incaricato in conformità al consenso espresso. Se il pagamento non viene completato, i recapiti non vengono inviati alla casella FixTude né inoltrati al professionista. La richiesta non viene archiviata in un database FixTude. Il dossier e i dettagli economici/debitori non vengono trasmessi con questa email. La consulenza è facoltativa e il materiale acquistato resta scaricabile anche senza consenso.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
+    <h2>2. Dati trattati e finalità</h2><ul><li><strong>Calcolatore e report:</strong> entrate mensili, uscite mensili e situazione debitoria sono trasmesse al server tramite HTTPS e mantenute temporaneamente nella sessione tecnica firmata per mostrare il risultato, completare il checkout e generare il report dopo il pagamento. Non viene creato un account o un archivio economico permanente. Il report e il pacchetto digitale contengono i valori inseriti e l'esito del calcolo.</li><li><strong>Verifica rischio pignoramento:</strong> le cinque risposte SÌ/NO, la tipologia di posizione selezionata (stipendio, pensione, conto corrente o tutte) e la categoria del creditore vengono trasmesse tramite HTTPS. Le singole risposte sono elaborate senza essere conservate nella sessione: viene mantenuto temporaneamente soltanto il livello risultante, insieme alla tipologia e alla categoria selezionate, per poter mostrare il risultato dopo la verifica del pagamento. Questi dati non vengono aggiunti ai metadati Stripe né inseriti in un archivio applicativo permanente. Il risultato viene mostrato nella sessione di navigazione e non viene conservato in un profilo personale.</li><li><strong>Modulo di ricontatto:</strong> il modulo visibile invia nome, email, telefono facoltativo e messaggio direttamente a Web3Forms tramite HTTPS per l’inoltro al titolare. L’applicazione non conserva una copia in un proprio database; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Chat:</strong> i messaggi sono conservati temporaneamente nella memoria del processo server; le chat inattive vengono eliminate dopo circa due ore, ma un riavvio può eliminarle prima. L’invio di un messaggio genera una notifica email tramite Web3Forms, attivata dal server dopo la ricezione del messaggio; i dati possono essere trattati da Web3Forms e dal sistema email del destinatario secondo le rispettive condizioni.</li><li><strong>Area Professionisti:</strong> per la registrazione e l'accesso vengono trattati email, password in forma di hash, nome/denominazione professionale, categoria, città, indicazione dell'Ordine/Albo e presentazione pubblica. I profili restano non pubblici fino all'approvazione manuale. I dati sono conservati nel database applicativo configurato dal titolare; prima di attivare la funzione va configurato un archivio persistente e definito un periodo di conservazione. La vetrina non mostra email, telefono o altri recapiti diretti.</li><li><strong>Kit digitale:</strong> Stripe tratta i dati necessari a elaborare e verificare il pagamento del Kit FixTude al prezzo promozionale di € 49,90. FixTude riceve le informazioni necessarie a verificare la transazione e, quando disponibile, l'indirizzo email per la consegna del dossier, di una guida a scelta e dei modelli fac-simile. Se l’utente richiede la consulenza prima del pagamento, nome, telefono, email e riferimento temporale del consenso vengono inseriti nei metadati della sessione Stripe per poterli associare alla transazione.</li><li><strong>Richiesta facoltativa di consulenza legale:</strong> prima di accedere al pagamento l’utente può scegliere di inserire nome, telefono ed email e prestare un consenso specifico all’invio dei recapiti a contatto@fixtude.it e alla loro eventuale comunicazione all’avvocato incaricato, per essere ricontattato e organizzare una prima consulenza. Se l’utente sceglie questa opzione, i recapiti e il riferimento del consenso vengono associati alla sessione di checkout Stripe; Stripe li tratta nell’ambito della sessione di pagamento. Dopo la verifica del pagamento, FixTude invia i recapiti via email alla casella nannipugliese@gmail.com. Il titolare gestisce la richiesta e, se necessario, trasmette i recapiti all’avvocato incaricato in conformità al consenso espresso. Se il pagamento non viene completato, i recapiti non vengono inviati alla casella FixTude né inoltrati al professionista. La richiesta non viene archiviata in un database FixTude. Il dossier e i dettagli economici/debitori non vengono trasmessi con questa email. La consulenza è facoltativa e il materiale acquistato resta scaricabile anche senza consenso.</li><li><strong>Dati tecnici:</strong> hosting e infrastruttura possono trattare dati tecnici, log e informazioni necessarie a sicurezza e funzionamento.</li></ul>
     <h2>3. Basi giuridiche</h2><p>Le richieste di contatto sono trattate per rispondere a una richiesta dell'interessato e adottare misure precontrattuali su sua richiesta. I recapiti per la gestione della richiesta da parte di FixTude e l’eventuale comunicazione all’avvocato incaricato sono trattati soltanto dopo il consenso specifico espresso prima del checkout e dopo la verifica del pagamento; il consenso può essere revocato scrivendo a contatto@fixtude.it, fermo restando quanto già legittimamente effettuato. I dati relativi ad acquisti sono trattati per eseguire il contratto e adempiere agli obblighi di legge. Sicurezza e prevenzione abusi possono basarsi sul legittimo interesse, da valutare e documentare. Eventuali attività promozionali richiedono una valutazione e, ove necessario, un consenso separato.</p>
     <h2>4. Destinatari e fornitori</h2><p>I fornitori attualmente coinvolti o da verificare includono Render per l’hosting (se confermato in produzione), Web3Forms per le notifiche email della chat e per il modulo di ricontatto, Register per la casella email e Stripe per i pagamenti. Quando l’utente richiede la consulenza legale, i recapiti vengono associati alla sessione Stripe e, soltanto dopo la verifica del pagamento, inviati via email alla casella nannipugliese@gmail.com tramite Web3Forms; il titolare gestisce la richiesta e può successivamente trasmettere i recapiti all’avvocato incaricato in conformità al consenso espresso. Devono essere controllati termini, ruoli privacy, subfornitori, tempi di conservazione e possibili trasferimenti fuori dallo Spazio Economico Europeo.</p>
     <h2>5. Cookie e strumenti di tracciamento</h2><p>Google Analytics (ID di misurazione G-HMBBNLHC7E) viene caricato soltanto dopo la scelta esplicita della categoria statistiche nel pannello cookie. Se la categoria viene rifiutata o disattivata, il sito non avvia nuove richieste di misurazione e aggiorna lo stato di consenso di Google Analytics. I pixel pubblicitari non sono attivi. Prima del lancio definitivo occorre verificare tecnicamente i cookie effettivamente installati e aggiornare questa informativa in base ai risultati.</p>
