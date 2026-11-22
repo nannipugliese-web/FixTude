@@ -405,7 +405,7 @@ def page(title, content, include_chat=False):
     seo_description = seo.get("description", SEO_DEFAULT_DESCRIPTION)
     canonical_url = SEO_BASE_URL + ("" if path == "/" else path)
     noindex_paths = ("/registrazione", "/accedi", "/area-personale", "/esci", "/chat-staff", "/verifica-pignoramento/conferma", "/verifica-pignoramento/risultato", "/verifica-pignoramento/anteprima", "/verifica-pignoramento/annullato", "/shop/conferma", "/shop/scarica", "/shop/anteprima", "/assistenza-legale/conferma", "/professionisti/login", "/professionisti/registrazione", "/professionisti/area", "/professionisti/logout", "/professionisti/admin")
-    robots = "noindex, nofollow" if path in noindex_paths or path.startswith("/api/") else "index, follow, max-image-preview:large"
+    robots = "noindex, nofollow" if path in noindex_paths or path == "/bo" or path.startswith("/bo/") or path.startswith("/api/") else "index, follow, max-image-preview:large"
     structured_data = None
     if path == "/":
         structured_data = {
@@ -4057,12 +4057,13 @@ def chat_send():
 # =========================================================
 
 def staff_required():
-    return bool(session.get("chat_staff") is True)
+    # L'accesso BO autorizza anche l'uso della chat operativa.
+    return bool(session.get("chat_staff") is True or session.get("bo_admin") is True)
 
 
 @app.route("/chat-staff", methods=["GET", "POST"])
 def chat_staff():
-    if not CHAT_ADMIN_PASSWORD:
+    if not CHAT_ADMIN_PASSWORD and not bo_required():
         content = """
         <section class="card">
           <h1>Chat riservata all’esperto FixTude</h1>
@@ -6102,6 +6103,208 @@ def clienti_logout():
     session.pop("cliente_id", None)
     session.pop("cliente_csrf", None)
     return redirect("/", code=303)
+
+
+# =========================================================
+# BACK OFFICE FIXTUDE - ACCESSO RISERVATO
+# Prima versione: consultazione pratiche/documenti e aggiornamento stato.
+# Non aggiunge link al menu pubblico.
+# =========================================================
+
+BO_ADMIN_PASSWORD = os.environ.get("BO_ADMIN_PASSWORD", "").strip() or CHAT_ADMIN_PASSWORD
+BO_STATI_PRATICA = {
+    "ricevuta": "Pratica ricevuta",
+    "verifica_documenti": "Verifica documenti",
+    "analisi": "Analisi della pratica",
+    "elaborazione_dossier": "Elaborazione dossier",
+    "completata": "Dossier completato",
+}
+
+
+def bo_required():
+    return session.get("bo_admin") is True
+
+
+def bo_csrf_token():
+    token = session.get("bo_csrf")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["bo_csrf"] = token
+    return token
+
+
+def bo_csrf_valid():
+    supplied = str(request.form.get("csrf_token", ""))
+    expected = str(session.get("bo_csrf", ""))
+    return bool(supplied and expected and hmac.compare_digest(supplied, expected))
+
+
+def bo_pratica_codice(pratica_id, created_at):
+    """Codice stabile e progressivo ricavato dalla PK autoincrementale."""
+    year = str(created_at or "")[:4]
+    if not re.fullmatch(r"20\d{2}", year):
+        year = str(datetime.now(ROME_TZ).year)
+    return f"FX-{year}-{int(pratica_id):06d}"
+
+
+def bo_page(title, body, status=200):
+    response = page(title, body, include_chat=False)
+    response.status_code = status
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
+
+
+@app.route("/bo", methods=["GET", "POST"])
+def back_office():
+    if not BO_ADMIN_PASSWORD:
+        body = """<section class=\"card\" style=\"max-width:560px;margin:35px auto\"><h1>Back office FixTude</h1><p class=\"notice\">Accesso non configurato. Imposta BO_ADMIN_PASSWORD nelle variabili d'ambiente di Render. In alternativa, per la prima attivazione è accettata la variabile CHAT_ADMIN_PASSWORD già utilizzata dalla chat staff.</p></section>"""
+        return bo_page("Back office", body, 503)
+
+    if request.method == "POST":
+        if not bo_csrf_valid():
+            return bo_page("Richiesta non valida", '<section class="card"><h1>Richiesta non valida</h1><p>Ricarica la pagina e riprova.</p><a class="btn" href="/bo">Torna al login</a></section>', 400)
+        password = str(request.form.get("password", ""))
+        if hmac.compare_digest(password.encode("utf-8"), BO_ADMIN_PASSWORD.encode("utf-8")):
+            session["bo_admin"] = True
+            # Riutilizza l'autorizzazione BO anche per la revisione professionisti,
+            # se il relativo archivio e token amministrativo sono configurati.
+            if PROFESSIONISTI_ADMIN_TOKEN and PRO_DB_CONFIGURED:
+                session["professionisti_admin"] = True
+            session.permanent = False
+            session.pop("bo_csrf", None)
+            return redirect(url_for("back_office"), code=303)
+        body = f"""<section class="card" style="max-width:460px;margin:35px auto"><h1>Accesso non riuscito</h1><p class="error">Password non corretta.</p><a class="btn" href="/bo">Riprova</a></section>"""
+        return bo_page("Accesso back office", body, 401)
+
+    if not bo_required():
+        token = escape(bo_csrf_token(), quote=True)
+        body = f"""<section class="card" style="max-width:480px;margin:45px auto"><p class="ft-new-kicker">AREA RISERVATA</p><h1>Back office FixTude</h1><p>Accesso consentito esclusivamente all'amministratore e allo staff autorizzato.</p><form method="post" action="/bo"><input type="hidden" name="csrf_token" value="{token}"><div class="field"><label for="boPassword">Password di accesso</label><input id="boPassword" name="password" type="password" autocomplete="current-password" required></div><button class="btn" type="submit">Accedi al back office</button></form></section>"""
+        return bo_page("Accesso back office", body)
+
+    if not clienti_registration_ready():
+        body = '<section class="card"><h1>Archivio pratiche non configurato</h1><p>Per utilizzare il back office occorrono SECRET_KEY e FIXTUDE_DB_PATH configurati su Render, con il database collocato sul disco persistente.</p></section>'
+        return bo_page("Archivio non configurato", body, 503)
+
+    db = clienti_db()
+    try:
+        rows = db.execute("""
+            SELECT p.id AS pratica_id, p.stato, p.messaggio, p.created_at AS pratica_created,
+                   p.updated_at, c.id AS cliente_id, c.nome, c.email,
+                   COUNT(d.id) AS documenti
+            FROM cliente_pratiche p
+            JOIN clienti c ON c.id = p.cliente_id
+            LEFT JOIN cliente_documenti d ON d.cliente_id = c.id
+            GROUP BY p.id, c.id
+            ORDER BY p.updated_at DESC, p.id DESC
+        """).fetchall()
+        clienti_totali = db.execute("SELECT COUNT(*) FROM clienti").fetchone()[0]
+        documenti_totali = db.execute("SELECT COUNT(*) FROM cliente_documenti").fetchone()[0]
+        in_lavorazione = db.execute("SELECT COUNT(*) FROM cliente_pratiche WHERE stato != 'completata'").fetchone()[0]
+    finally:
+        db.close()
+
+    table_rows = []
+    for item in rows:
+        code = bo_pratica_codice(item["pratica_id"], item["pratica_created"])
+        state = BO_STATI_PRATICA.get(item["stato"], item["stato"] or "Da verificare")
+        updated = escape((item["updated_at"] or "")[:16].replace("T", " "))
+        table_rows.append(
+            '<tr>'
+            f'<td><strong>{escape(code)}</strong></td>'
+            f'<td>{escape(item["nome"] or "")}</td>'
+            f'<td>{escape(item["email"] or "")}</td>'
+            f'<td>{escape(state)}</td>'
+            f'<td>{int(item["documenti"] or 0)}</td>'
+            f'<td>{updated}</td>'
+            f'<td><a class="btn secondary" href="/bo/pratiche/{int(item["pratica_id"])}">Apri pratica</a></td>'
+            '</tr>'
+        )
+    table = ''.join(table_rows) or '<tr><td colspan="7">Non risultano ancora pratiche registrate.</td></tr>'
+    body = f"""<section class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><p class="ft-new-kicker">GESTIONE INTERNA</p><h1>Back office FixTude</h1><p>Centro operativo per consultare le pratiche e la documentazione ricevuta.</p></div><form method="post" action="/bo/logout"><input type="hidden" name="csrf_token" value="{escape(bo_csrf_token(), quote=True)}"><button class="btn secondary" type="submit">Esci</button></form></div>
+    <div class="grid"><div class="card"><p class="muted">Clienti registrati</p><h2>{int(clienti_totali)}</h2></div><div class="card"><p class="muted">Pratiche da lavorare</p><h2>{int(in_lavorazione)}</h2></div><div class="card"><p class="muted">Documenti caricati</p><h2>{int(documenti_totali)}</h2></div></div>
+    <div class="actions"><a class="btn" href="/chat-staff">Apri chat clienti</a><a class="btn secondary" href="/professionisti/admin">Gestione professionisti</a><a class="btn secondary" href="/bo">Aggiorna elenco</a></div>
+    <h2 style="margin-top:28px">Pratiche registrate</h2><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:850px"><thead><tr><th style="text-align:left;padding:10px">Numero pratica</th><th style="text-align:left;padding:10px">Cliente</th><th style="text-align:left;padding:10px">Email</th><th style="text-align:left;padding:10px">Stato</th><th style="text-align:left;padding:10px">File</th><th style="text-align:left;padding:10px">Aggiornata</th><th style="text-align:left;padding:10px">Dettaglio</th></tr></thead><tbody>{table}</tbody></table></div>
+    <p class="muted" style="margin-top:18px">I numeri pratica mostrati sono identificativi stabili derivati dall'ID progressivo del database. Questa prima versione mantiene il modello attuale: una pratica per account cliente.</p></section>
+    <style>table th,table td{{border-bottom:1px solid #29476d;padding:10px;vertical-align:middle}}.ft-new-kicker{{color:#72bfff;font-size:12px;font-weight:800;letter-spacing:1.5px}}</style>"""
+    return bo_page("Back office FixTude", body)
+
+
+@app.route("/bo/pratiche/<int:pratica_id>", methods=["GET", "POST"])
+def back_office_pratica(pratica_id):
+    if not bo_required():
+        return redirect(url_for("back_office"), code=303)
+    db = clienti_db()
+    try:
+        pratica = db.execute("""
+            SELECT p.*, c.nome, c.email, c.id AS cliente_id
+            FROM cliente_pratiche p JOIN clienti c ON c.id=p.cliente_id
+            WHERE p.id=?
+        """, (pratica_id,)).fetchone()
+        if not pratica:
+            return bo_page("Pratica non trovata", '<section class="card"><h1>Pratica non trovata</h1><a class="btn" href="/bo">Torna al back office</a></section>', 404)
+
+        if request.method == "POST":
+            if not bo_csrf_valid():
+                return bo_page("Richiesta non valida", '<section class="card"><h1>Richiesta non valida</h1><p>Ricarica la pagina e riprova.</p></section>', 400)
+            stato = str(request.form.get("stato", ""))
+            messaggio = str(request.form.get("messaggio", "")).strip()[:2000]
+            if stato not in BO_STATI_PRATICA:
+                error = "Stato della pratica non valido."
+            else:
+                now = datetime.now(ROME_TZ).isoformat(timespec="seconds")
+                db.execute("UPDATE cliente_pratiche SET stato=?, messaggio=?, updated_at=? WHERE id=?", (stato, messaggio or BO_STATI_PRATICA[stato], now, pratica_id))
+                db.commit()
+                return redirect(url_for("back_office_pratica", pratica_id=pratica_id) + "?salvato=1", code=303)
+        else:
+            error = ""
+
+        docs = db.execute("SELECT id,nome_originale,estensione,dimensione,uploaded_at FROM cliente_documenti WHERE cliente_id=? ORDER BY uploaded_at DESC", (pratica["cliente_id"],)).fetchall()
+    finally:
+        db.close()
+
+    code = bo_pratica_codice(pratica_id, pratica["created_at"])
+    options = ''.join(f'<option value="{key}"{" selected" if pratica["stato"] == key else ""}>{escape(label)}</option>' for key,label in BO_STATI_PRATICA.items())
+    doc_rows = []
+    for doc in docs:
+        size = f'{doc["dimensione"] / (1024*1024):.2f} MB' if doc["dimensione"] >= 1024*1024 else f'{max(1, doc["dimensione"] // 1024)} KB'
+        doc_rows.append(f'<tr><td>{escape(doc["nome_originale"])}</td><td>{escape(doc["estensione"].upper())}</td><td>{size}</td><td><a class="btn secondary" href="/bo/documenti/{int(doc["id"])}/scarica">Scarica documento</a></td></tr>')
+    docs_html = ''.join(doc_rows) or '<tr><td colspan="4">Nessun documento caricato.</td></tr>'
+    token = escape(bo_csrf_token(), quote=True)
+    saved = '<p class="notice">Aggiornamento salvato.</p>' if request.args.get("salvato") == "1" else ''
+    err_html = f'<p class="error">{escape(error)}</p>' if error else ''
+    body = f"""<section class="card"><a href="/bo" class="muted">← Torna all'elenco pratiche</a><p class="ft-new-kicker" style="margin-top:20px">SCHEDA PRATICA</p><h1>{escape(code)}</h1><div class="grid"><div class="card"><h3>Cliente</h3><p><strong>{escape(pratica["nome"])}</strong></p><p>{escape(pratica["email"])}</p></div><div class="card"><h3>Riepilogo</h3><p>Creata: {escape((pratica["created_at"] or "")[:16].replace("T", " "))}</p><p>Ultimo aggiornamento: {escape((pratica["updated_at"] or "")[:16].replace("T", " "))}</p></div></div>
+    {saved}{err_html}<h2>Documenti del cliente</h2><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:600px"><thead><tr><th style="text-align:left;padding:9px">Nome file</th><th style="text-align:left;padding:9px">Formato</th><th style="text-align:left;padding:9px">Dimensione</th><th style="text-align:left;padding:9px">Download</th></tr></thead><tbody>{docs_html}</tbody></table></div>
+    <h2 style="margin-top:28px">Aggiornamento pratica</h2><form method="post"><input type="hidden" name="csrf_token" value="{token}"><div class="field"><label for="stato">Stato di avanzamento</label><select id="stato" name="stato">{options}</select></div><div class="field"><label for="messaggio">Messaggio visibile al cliente nella sua area personale</label><textarea id="messaggio" name="messaggio" maxlength="2000">{escape(pratica["messaggio"] or "")}</textarea></div><button class="btn" type="submit">Salva aggiornamento</button></form></section><style>.ft-new-kicker{{color:#72bfff;font-size:12px;font-weight:800;letter-spacing:1.5px}}table th,table td{{border-bottom:1px solid #29476d;padding:10px;vertical-align:middle}}</style>"""
+    return bo_page(f"Pratica {code}", body)
+
+
+@app.route("/bo/documenti/<int:document_id>/scarica")
+def back_office_documento_scarica(document_id):
+    if not bo_required():
+        return redirect(url_for("back_office"), code=303)
+    db = clienti_db()
+    try:
+        doc = db.execute("SELECT cliente_id,nome_originale,nome_archivio FROM cliente_documenti WHERE id=?", (document_id,)).fetchone()
+    finally:
+        db.close()
+    if not doc:
+        return bo_page("Documento non trovato", '<section class="card"><h1>Documento non trovato</h1><a class="btn" href="/bo">Torna al back office</a></section>', 404)
+    path = os.path.join(cliente_upload_folder(doc["cliente_id"]), doc["nome_archivio"])
+    if not os.path.isfile(path):
+        return bo_page("Documento non disponibile", '<section class="card"><h1>Documento non disponibile</h1><p>Il file non è presente nell’archivio.</p></section>', 404)
+    return send_file(path, as_attachment=True, download_name=doc["nome_originale"], conditional=True)
+
+
+@app.route("/bo/logout", methods=["POST"])
+def back_office_logout():
+    if not bo_required() or not bo_csrf_valid():
+        return bo_page("Richiesta non valida", '<section class="card"><h1>Richiesta non valida</h1></section>', 400)
+    session.pop("bo_admin", None)
+    session.pop("bo_csrf", None)
+    session.pop("professionisti_admin", None)
+    return redirect(url_for("back_office"), code=303)
 
 
 if __name__ == "__main__":
