@@ -1350,8 +1350,26 @@ def fixtude_v1_route_guard():
         "/disclaimer", "/termini", "/privacy", "/cookie",
         "/robots.txt", "/sitemap.xml", "/favicon.svg", "/favicon-16.png", "/apple-touch-icon.png", "/favicon.ico", "/health",
     }
-    if path in allowed or path.startswith("/static/"):
+    # Le route dell'area personale clienti devono superare il filtro globale.
+    # Senza questa eccezione il before_request restituiva 404 prima che Flask
+    # potesse raggiungere i rispettivi endpoint, anche se erano correttamente
+    # registrati con @app.route.
+    customer_paths = {
+        "/registrazione",
+        "/accedi",
+        "/area-personale",
+        "/esci",
+    }
+    customer_document_path = path.startswith("/documenti/")
+
+    if (
+        path in allowed
+        or path in customer_paths
+        or customer_document_path
+        or path.startswith("/static/")
+    ):
         return None
+
     if path.startswith("/api/") or path.startswith("/chat-") or path.startswith("/professionisti"):
         return ("Not Found", 404)
     return ("Not Found", 404)
