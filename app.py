@@ -6149,8 +6149,8 @@ def bo_pratica_codice(pratica_id, created_at):
     return f"FX-{year}-{int(pratica_id):06d}"
 
 
-def bo_page(title, body, status=200):
-    response = page(title, body, include_chat=False)
+def def bo_page(title, body, status=200):
+    response = app.make_response(page(title, body, include_chat=False))
     response.status_code = status
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
