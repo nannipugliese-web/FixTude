@@ -756,10 +756,14 @@ def page(title, content, include_chat=False):
             @media(max-width:600px) {.ft-footer-cta span {max-width:310px}.ft-footer-legal {line-height:2.1}}
             .cookie-footer-link {border:0;background:transparent;color:var(--blue);text-decoration:underline;cursor:pointer;font:inherit;font-size:13px;padding:0}
             .chat-launcher {
-              position:fixed;
+              position:fixed !important;
               right:20px;
               bottom:20px;
-              z-index:100001;
+              z-index:2147483647 !important;
+              display:inline-flex !important;
+              align-items:center;
+              justify-content:center;
+              pointer-events:auto !important;
               border:0;
               border-radius:30px;
               background:var(--blue);
@@ -770,8 +774,9 @@ def page(title, content, include_chat=False):
               cursor:pointer;
             }
             .chat-panel {
-              position:fixed;
-              z-index:100002;
+              position:fixed !important;
+              z-index:2147483646 !important;
+              pointer-events:auto !important;
               right:20px;
               bottom:82px;
               width:min(365px,calc(100vw - 28px));
@@ -784,7 +789,7 @@ def page(title, content, include_chat=False):
               flex-direction:column;
               overflow:hidden;
             }
-            .chat-panel.open {display:flex}
+            .chat-panel.open {display:flex !important;visibility:visible !important;opacity:1 !important}
             .chat-head {
               background:var(--blue);
               color:#fff;
@@ -1092,7 +1097,8 @@ def page(title, content, include_chat=False):
           </script>
           {% if include_chat %}
           <button class="chat-launcher" id="chatLauncher"
-                  type="button" aria-expanded="false">
+                  type="button" aria-expanded="false"
+                  onclick="var p=document.getElementById('chatPanel');if(p){p.classList.add('open');this.setAttribute('aria-expanded','true');}">
             💬 Chat con un esperto
           </button>
           <section class="chat-panel" id="chatPanel"
@@ -1105,7 +1111,8 @@ def page(title, content, include_chat=False):
                 </div>
               </div>
               <button id="chatClose" type="button"
-                      aria-label="Chiudi chat">×</button>
+                      aria-label="Chiudi chat"
+                      onclick="var p=document.getElementById('chatPanel');var b=document.getElementById('chatLauncher');if(p)p.classList.remove('open');if(b)b.setAttribute('aria-expanded','false');">×</button>
             </div>
             <div class="chat-messages" id="chatMessages"
                  aria-live="polite">
@@ -1235,19 +1242,25 @@ def page(title, content, include_chat=False):
               }
             }
 
+            let chatInitialized = false;
             launcher.addEventListener("click", async () => {
-              panel.classList.toggle("open");
-              launcher.setAttribute(
-                "aria-expanded", panel.classList.contains("open")
-              );
-              if (panel.classList.contains("open")) {
+              // L'apertura visiva è già eseguita dall'attributo onclick:
+              // qui si inizializza soltanto la conversazione, senza richiudere
+              // accidentalmente il pannello con un secondo toggle.
+              panel.classList.add("open");
+              launcher.setAttribute("aria-expanded", "true");
+              if (!chatInitialized) {
                 try {
                   await ensureChat();
+                  chatInitialized = true;
                   await refreshMessages();
                   input.focus();
-                } catch (_) {
-                  status.textContent = "Chat momentaneamente non disponibile";
+                } catch (err) {
+                  status.textContent = (err && err.message) || "Chat momentaneamente non disponibile";
                 }
+              } else {
+                await refreshMessages();
+                input.focus();
               }
             });
 
