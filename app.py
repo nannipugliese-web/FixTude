@@ -249,6 +249,34 @@ def send_email(subject, body, reply_to=None):
             server.send_message(msg)
 
 
+def send_chat_start_email_async(chat_id):
+    """Notifica una sola volta l'apertura di una nuova conversazione."""
+    def worker():
+        body = (
+            "È stata aperta una nuova chat su FixTude.\n\n"
+            f"Conversazione: {chat_id[:8]}\n"
+            f"Orario: {ora_italiana()}\n\n"
+            "Apri l'area staff per visualizzare e gestire la conversazione:\n"
+            "https://fixtude.it/chat-staff\n"
+        )
+        try:
+            # Invio diretto all'indirizzo EMAIL_DESTINATARIO quando SMTP è configurato.
+            send_email("FixTude - nuova chat aperta", body)
+            app.logger.info("Email apertura chat inviata a %s", EMAIL_DESTINATARIO)
+        except Exception as smtp_exc:
+            # Fallback al canale Web3Forms già presente nell'app; la chiave è
+            # associata alla casella FixTude configurata nell'account Web3Forms.
+            try:
+                send_web3forms_email("FixTude - nuova chat aperta", body)
+                app.logger.info("Notifica apertura chat inviata tramite Web3Forms")
+            except Exception as web_exc:
+                app.logger.error(
+                    "Notifica apertura chat non inviata. SMTP: %s; Web3Forms: %s",
+                    str(smtp_exc), str(web_exc)
+                )
+    threading.Thread(target=worker, daemon=True).start()
+
+
 def send_chat_email_async(chat_id, message):
     """Invia una notifica email per ogni nuovo messaggio del visitatore."""
     def worker():
@@ -3851,6 +3879,7 @@ def chat_start():
     if not re.fullmatch(r"[a-fA-F0-9-]{32,36}", chat_id):
         return jsonify(error="Sessione chat non valida."), 400
 
+    nuova_chat = False
     with chat_lock:
         if chat_id not in chats:
             if len(chats) >= MAX_ACTIVE_CHATS:
@@ -3861,8 +3890,12 @@ def chat_start():
                 "updated": time.time(),
                 "messages": []
             }
+            nuova_chat = True
 
         chats[chat_id]["updated"] = time.time()
+
+    if nuova_chat:
+        send_chat_start_email_async(chat_id)
 
     stato = chat_orario_stato()
     return jsonify(ok=True, **stato)
@@ -5563,6 +5596,13 @@ def clienti_db():
         "dimensione INTEGER NOT NULL, uploaded_at TEXT NOT NULL, "
         "FOREIGN KEY(cliente_id) REFERENCES clienti(id) ON DELETE CASCADE)")
     db.execute("CREATE INDEX IF NOT EXISTS idx_cliente_documenti_cliente ON cliente_documenti(cliente_id, uploaded_at DESC)")
+    db.execute("CREATE TABLE IF NOT EXISTS cliente_pratiche ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "cliente_id INTEGER NOT NULL UNIQUE, "
+        "stato TEXT NOT NULL DEFAULT 'in_attesa_documenti', "
+        "messaggio TEXT NOT NULL DEFAULT 'Carica i documenti necessari per avviare la pratica.', "
+        "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, "
+        "FOREIGN KEY(cliente_id) REFERENCES clienti(id) ON DELETE CASCADE)")
     db.commit()
     return db
 
@@ -5848,8 +5888,38 @@ def clienti_area_personale():
     db = clienti_db()
     try:
         docs = db.execute("SELECT id,nome_originale,estensione,dimensione,uploaded_at FROM cliente_documenti WHERE cliente_id=? ORDER BY uploaded_at DESC", (user["id"],)).fetchall()
+        if docs:
+            now = datetime.now(ROME_TZ).isoformat(timespec="seconds")
+            db.execute(
+                "INSERT OR IGNORE INTO cliente_pratiche(cliente_id,stato,messaggio,created_at,updated_at) VALUES(?,?,?,?,?)",
+                (user["id"], "ricevuta", "Abbiamo ricevuto i tuoi documenti. La pratica è stata registrata.", now, now)
+            )
+            db.commit()
+        pratica = db.execute(
+            "SELECT stato,messaggio,updated_at FROM cliente_pratiche WHERE cliente_id=?",
+            (user["id"],)
+        ).fetchone()
     finally:
         db.close()
+
+    # La percentuale dipende esclusivamente dallo stato salvato nel database.
+    progress_states = {
+        "in_attesa_documenti": (0, "Documenti non ancora caricati", "Carica i documenti necessari per avviare la pratica."),
+        "ricevuta": (0, "Pratica ricevuta", "Abbiamo ricevuto i tuoi documenti. La pratica è stata registrata."),
+        "verifica_documenti": (25, "Verifica documenti", "La documentazione è in fase di verifica."),
+        "analisi": (50, "Analisi della pratica", "Stiamo analizzando la documentazione ricevuta."),
+        "elaborazione_dossier": (75, "Elaborazione dossier", "Stiamo preparando il dossier della tua pratica."),
+        "completata": (100, "Dossier completato", "Il dossier è pronto e disponibile nella tua area personale.")
+    }
+    if pratica:
+        progress, progress_label, progress_message = progress_states.get(
+            pratica["stato"], progress_states["ricevuta"]
+        )
+        progress_message = pratica["messaggio"] or progress_message
+        progress_updated = escape((pratica["updated_at"] or "")[:16].replace("T", " "))
+    else:
+        progress, progress_label, progress_message = progress_states["in_attesa_documenti"]
+        progress_updated = "Non ancora avviata"
     def human_size(value):
         return f"{value / (1024*1024):.2f} MB" if value >= 1024*1024 else f"{max(1, value // 1024)} KB"
     rows = []
@@ -5862,11 +5932,34 @@ def clienti_area_personale():
     token = escape(cliente_csrf_token(), quote=True)
     doc_table = '<div class="table-wrap"><table class="ft-doc-table"><thead><tr><th>Documento</th><th>Formato</th><th>Dimensione</th><th>Caricato il</th><th>Azioni</th></tr></thead><tbody>' + ''.join(rows) + '</tbody></table></div>' if rows else '<p class="muted">Non hai ancora caricato documenti.</p>'
     body = f'''<section class="card ft-dashboard"><p class="ft-new-kicker">AREA RISERVATA</p><h1>Ciao {escape(user['nome'])}</h1><p>Questa è la tua dashboard personale FixTude.</p>{welcome}{status}{err_html}
+      <section class="card ft-progress-card" aria-label="Avanzamento della pratica">
+        <div class="ft-progress-heading"><div><p class="ft-new-kicker">STATO DELLA PRATICA</p><h2>{escape(progress_label)}</h2></div><strong class="ft-progress-percent">{progress}%</strong></div>
+        <div class="ft-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{progress}" aria-label="Avanzamento pratica">
+          <div class="ft-progress-fill" style="width:{progress}%"></div>
+        </div>
+        <div class="ft-progress-legend"><span>Ricevuta</span><span>Verifica</span><span>Analisi</span><span>Dossier</span><span>Completata</span></div>
+        <p class="ft-progress-message">{escape(progress_message)}</p>
+        <p class="muted ft-progress-updated">Ultimo aggiornamento: {progress_updated}</p>
+      </section>
       <div class="grid"><div class="card"><h2>Il tuo account</h2><p><strong>Email:</strong> {escape(user['email'])}</p><p><strong>Registrato il:</strong> {escape(user['created_at'][:10])}</p><p><span class="tag">Account attivo</span></p></div><div class="card"><h2>Carica i tuoi documenti</h2><p>Puoi caricare fino a 5 file per volta, in formato PDF, PNG, JPG, DOC o DOCX. Dimensione massima: 15 MB per file.</p><form method="post" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{token}"><label for="documenti">Seleziona i documenti</label><input id="documenti" name="documenti" type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" multiple required><p class="muted">Carica soltanto documenti pertinenti. Evita di includere dati non necessari. I file sono conservati nell'area riservata e non sono pubblici.</p><button class="btn" type="submit">Carica documenti</button></form></div></div>
       <section class="card"><h2>I tuoi documenti</h2>{doc_table}</section>
       <form method="post" action="/esci"><input type="hidden" name="csrf_token" value="{token}"><button class="btn secondary" type="submit">Esci dall’account</button></form></section>
-      <style>.ft-dashboard{{max-width:100%}}.ft-dashboard .grid{{align-items:start}}.ft-dashboard input[type=file]{{width:100%;padding:12px}}.table-wrap{{width:100%;overflow-x:auto}}.ft-doc-table{{width:100%;border-collapse:collapse;font-size:13px}}.ft-doc-table th,.ft-doc-table td{{padding:10px;text-align:left;border-bottom:1px solid #29476d;vertical-align:middle}}.ft-doc-table td:first-child{{overflow-wrap:anywhere}}.ft-doc-table .btn{{padding:7px 10px;font-size:12px;white-space:nowrap}}@media(max-width:650px){{.ft-doc-table{{min-width:700px}}}}</style>'''
-    return clienti_shell("Area personale", body)
+      <style>
+      .ft-dashboard{{max-width:100%}}.ft-dashboard .grid{{align-items:start}}.ft-dashboard input[type=file]{{width:100%;padding:12px}}
+      .ft-progress-card{{margin:22px 0;background:linear-gradient(135deg,rgba(14,35,57,.96),rgba(8,22,38,.98));border:1px solid #29476d}}
+      .ft-progress-heading{{display:flex;align-items:center;justify-content:space-between;gap:14px}}
+      .ft-progress-heading h2{{margin:4px 0 12px;font-size:clamp(19px,3vw,25px)}}
+      .ft-progress-percent{{font-size:25px;color:#8bd7ae;white-space:nowrap}}
+      .ft-progress-track{{height:17px;border-radius:20px;overflow:hidden;position:relative;background:linear-gradient(90deg,#d93636 0%,#d93636 20%,#f28c28 20%,#f28c28 40%,#b9d96b 40%,#b9d96b 60%,#249b59 60%,#249b59 80%,#075b35 80%,#075b35 100%);box-shadow:inset 0 1px 3px rgba(0,0,0,.35)}}
+      .ft-progress-fill{{height:100%;background:rgba(255,255,255,.78);border-right:3px solid #fff;box-shadow:0 0 8px rgba(255,255,255,.5);transition:width .6s ease}}
+      .ft-progress-legend{{display:flex;justify-content:space-between;gap:4px;margin-top:9px;font-size:10px;color:#aebfd0}}
+      .ft-progress-message{{margin:17px 0 5px;font-weight:600}}
+      .ft-progress-updated{{margin:0;font-size:12px}}
+      .table-wrap{{width:100%;overflow-x:auto}}.ft-doc-table{{width:100%;border-collapse:collapse;font-size:13px}}.ft-doc-table th,.ft-doc-table td{{padding:10px;text-align:left;border-bottom:1px solid #29476d;vertical-align:middle}}.ft-doc-table td:first-child{{overflow-wrap:anywhere}}.ft-doc-table .btn{{padding:7px 10px;font-size:12px;white-space:nowrap}}
+      @media(max-width:650px){{.ft-doc-table{{min-width:700px}}.ft-progress-legend{{font-size:9px}}}}
+      </style>'''
+    # La chat flottante viene mostrata anche nella dashboard del cliente.
+    return page("Area personale", body, include_chat=True)
 
 
 @app.route("/documenti/<int:document_id>/scarica", methods=["GET"])
