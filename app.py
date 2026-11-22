@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 from email.message import EmailMessage
 from html import escape
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 from flask import (
     Flask, request, render_template_string, jsonify, Response,
@@ -64,7 +65,7 @@ app.config["SESSION_COOKIE_SECURE"] = (
     os.environ.get("COOKIE_SECURE", "1" if os.environ.get("RENDER") else "0")
     == "1"
 )
-app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # limite upload: 20 MB per richiesta
 
 # Destinatario delle richieste inviate dal modulo di contatto.
 EMAIL_DESTINATARIO = "nannipugliese@gmail.com"
@@ -516,8 +517,17 @@ def page(title, content, include_chat=False):
               text-decoration:none;
             }
             /* FIXTUDE: le due parti del marchio devono risultare unite */
-            .brand {font-size:0!important;white-space:nowrap}
-            .brand span {font-size:25px!important;letter-spacing:-.8px!important}
+            .brand {font-size:0!important;white-space:nowrap;display:inline-flex;align-items:center;text-decoration:none}
+            .brand-lockup {display:flex;flex-direction:column;align-items:flex-start;line-height:1}
+            .brand-main {display:flex;align-items:center;white-space:nowrap}
+            .brand-main img {flex:0 0 auto}
+            .brand-main .brand-fix,.brand-main .brand-tude {font-size:25px!important;letter-spacing:-.8px!important;font-weight:800}
+            .brand-main .brand-fix {color:#fff!important}
+            .brand-main .brand-tude {color:#168cff!important}
+            .brand-tagline {display:block;margin:2px 0 0 51px;font-size:11px!important;font-weight:800;letter-spacing:2.1px;text-transform:uppercase;white-space:nowrap}
+            .brand-tagline span:first-child {color:#fff!important;font-size:11px!important;letter-spacing:2.1px!important}
+            .brand-tagline span:last-child {color:#168cff!important;font-size:11px!important;letter-spacing:2.1px!important}
+            @media(max-width:480px){.brand-main .brand-fix,.brand-main .brand-tude{font-size:22px!important}.brand-tagline{margin-left:47px;font-size:9px!important;letter-spacing:1.8px}.brand-tagline span{font-size:9px!important;letter-spacing:1.8px!important}}
             .menu-toggle{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font-size:25px;cursor:pointer;line-height:1}
             .nav-menu{display:none;position:absolute;right:max(18px,calc((100vw - 1080px)/2));top:68px;z-index:1000;min-width:245px;max-width:calc(100vw - 32px);padding:10px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 32px rgba(20,40,70,.18)}
             .nav-menu.open{display:flex;flex-direction:column;gap:0}
@@ -888,7 +898,7 @@ def page(title, content, include_chat=False):
         <body>
           <header>
             <div class="nav">
-              <a class="brand" href="/" aria-label="FixTude, homepage"><img src="/static/fixtude-512.png" alt="" width="42" height="42" style="width:42px;height:42px;object-fit:contain;vertical-align:middle;margin-right:9px"><span style="color:#fff">Fix</span><span style="color:#168cff">Tude</span></a>
+              <a class="brand" href="/" aria-label="FixTude Debt Solutions, homepage"><span class="brand-lockup"><span class="brand-main"><img src="/static/fixtude-512.png" alt="" width="42" height="42" style="width:42px;height:42px;object-fit:contain;vertical-align:middle;margin-right:9px"><span class="brand-fix">Fix</span><span class="brand-tude">Tude</span></span><span class="brand-tagline"><span>Debt</span> <span>Solutions</span></span></span></a>
               <button class="menu-toggle" id="siteMenuToggle" type="button" aria-label="Apri menu" aria-expanded="false" aria-controls="siteMenu">☰</button>
               <nav class="nav-menu" id="siteMenu" aria-label="Menu principale">
                 <a href="/assistenza">Calcolatore e verifica pignoramento</a>
@@ -1432,12 +1442,12 @@ def home():
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M4 16.5v2A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-2"/></svg>
               CARICA IL DOCUMENTO
             </a>
-            <span class="ft-new-cta-note">Crea gratuitamente il tuo account per accedere alla tua area personale. Il caricamento dei documenti sarà attivato in un passaggio successivo.</span>
+            <span class="ft-new-cta-note">Crea gratuitamente il tuo account per caricare e consultare i documenti nella tua area personale.</span>
           </div>
         </div>
       </section>
       <div class="ft-new-upload-note" id="caricamento-documento">
-        <div class="ft-new-upload-note-inner"><span class="ft-info">i</span><span><strong>Un passaggio alla volta.</strong> L'area personale è pronta per la registrazione e l'accesso. Il caricamento protetto dei documenti e gli aggiornamenti delle pratiche saranno attivati in un passaggio successivo. Per ora non inviare documenti contenenti dati personali o finanziari via email.</span></div>
+        <div class="ft-new-upload-note-inner"><span class="ft-info">i</span><span><strong>La tua area personale.</strong> Dopo la registrazione potrai caricare i documenti in modo riservato, ritrovarli nella dashboard e scaricarli quando necessario. I documenti non saranno pubblicati né accessibili agli altri utenti.</span></div>
       </div>
       <section class="ft-new-section">
         <div class="ft-new-inner">
@@ -5492,7 +5502,23 @@ def health():
 # =========================================================
 
 def clienti_registration_ready():
+    # Il database e i documenti devono risiedere su un disco persistente di Render.
     return bool(os.environ.get("FIXTUDE_DB_PATH", "").strip() and os.environ.get("SECRET_KEY", "").strip())
+
+
+CLIENTI_UPLOAD_DIR = os.environ.get("FIXTUDE_UPLOAD_DIR", "").strip() or os.path.join(os.path.dirname(PRO_DB_PATH), "fixtude_uploads")
+CLIENTI_ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "doc", "docx"}
+CLIENTI_MAX_FILE_BYTES = 15 * 1024 * 1024
+
+
+def cliente_file_allowed(filename):
+    return bool(filename and "." in filename and filename.rsplit(".", 1)[1].lower() in CLIENTI_ALLOWED_EXTENSIONS)
+
+
+def cliente_upload_folder(user_id):
+    folder = os.path.join(CLIENTI_UPLOAD_DIR, str(int(user_id)))
+    os.makedirs(folder, mode=0o700, exist_ok=True)
+    return folder
 
 
 def clienti_db():
@@ -5508,6 +5534,13 @@ def clienti_db():
         "email TEXT NOT NULL COLLATE NOCASE UNIQUE, "
         "nome TEXT NOT NULL, password_hash TEXT NOT NULL, "
         "created_at TEXT NOT NULL, updated_at TEXT NOT NULL)")
+    db.execute("CREATE TABLE IF NOT EXISTS cliente_documenti ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "cliente_id INTEGER NOT NULL, nome_originale TEXT NOT NULL, "
+        "nome_archivio TEXT NOT NULL UNIQUE, estensione TEXT NOT NULL, "
+        "dimensione INTEGER NOT NULL, uploaded_at TEXT NOT NULL, "
+        "FOREIGN KEY(cliente_id) REFERENCES clienti(id) ON DELETE CASCADE)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_cliente_documenti_cliente ON cliente_documenti(cliente_id, uploaded_at DESC)")
     db.commit()
     return db
 
@@ -5628,15 +5661,129 @@ def clienti_login():
     return clienti_shell("Accesso", body), (503 if request.method == "POST" and not ready else 200)
 
 
-@app.route("/area-personale", methods=["GET"])
+@app.route("/area-personale", methods=["GET", "POST"])
 def clienti_area_personale():
     user = cliente_current_user()
     if not user:
         return redirect("/accedi", code=303)
+    error = ""
+    success = ""
+    if request.method == "POST":
+        if not clienti_registration_ready():
+            error = "Archivio non configurato. I documenti non sono stati caricati."
+        elif not cliente_csrf_valid():
+            return clienti_shell("Richiesta non valida", '<section class="card"><h1>Richiesta non valida</h1><p>Ricarica la pagina e riprova.</p></section>'), 400
+        elif rate_limited("clienti_upload", 15, 3600):
+            error = "Hai raggiunto il limite temporaneo di caricamenti. Riprova più tardi."
+        else:
+            files = request.files.getlist("documenti")
+            files = [f for f in files if f and f.filename]
+            if not files:
+                error = "Seleziona almeno un documento da caricare."
+            elif len(files) > 5:
+                error = "Puoi caricare al massimo 5 documenti per volta."
+            else:
+                saved = []
+                try:
+                    folder = cliente_upload_folder(user["id"])
+                    for uploaded in files:
+                        original = secure_filename(uploaded.filename or "")
+                        if not original or not cliente_file_allowed(original):
+                            raise ValueError("Formato non ammesso. Sono consentiti PDF, PNG, JPG, DOC e DOCX.")
+                        data = uploaded.read(CLIENTI_MAX_FILE_BYTES + 1)
+                        if not data:
+                            raise ValueError("Uno dei file selezionati è vuoto.")
+                        if len(data) > CLIENTI_MAX_FILE_BYTES:
+                            raise ValueError("Ogni documento deve avere una dimensione massima di 15 MB.")
+                        ext = original.rsplit(".", 1)[1].lower()
+                        stored = secrets.token_hex(16) + "." + ext
+                        target = os.path.join(folder, stored)
+                        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                        fd = os.open(target, flags, 0o600)
+                        with os.fdopen(fd, "wb") as out:
+                            out.write(data)
+                        saved.append(target)
+                        db = clienti_db()
+                        try:
+                            db.execute("INSERT INTO cliente_documenti(cliente_id,nome_originale,nome_archivio,estensione,dimensione,uploaded_at) VALUES(?,?,?,?,?,?)",
+                                (user["id"], original, stored, ext, len(data), datetime.now(ROME_TZ).isoformat(timespec="seconds")))
+                            db.commit()
+                        finally:
+                            db.close()
+                    success = f"Caricamento completato: {len(files)} documento/i aggiunto/i alla tua area personale."
+                except ValueError as exc:
+                    for path in saved:
+                        try: os.remove(path)
+                        except OSError: pass
+                    error = str(exc)
+                except Exception:
+                    for path in saved:
+                        try: os.remove(path)
+                        except OSError: pass
+                    app.logger.exception("Caricamento documenti cliente non riuscito")
+                    error = "Non è stato possibile completare il caricamento. Controlla lo spazio disponibile e riprova."
+    db = clienti_db()
+    try:
+        docs = db.execute("SELECT id,nome_originale,estensione,dimensione,uploaded_at FROM cliente_documenti WHERE cliente_id=? ORDER BY uploaded_at DESC", (user["id"],)).fetchall()
+    finally:
+        db.close()
+    def human_size(value):
+        return f"{value / (1024*1024):.2f} MB" if value >= 1024*1024 else f"{max(1, value // 1024)} KB"
+    rows = []
+    for doc in docs:
+        date_label = escape(doc["uploaded_at"][:16].replace("T", " "))
+        rows.append(f'<tr><td>{escape(doc["nome_originale"])}</td><td>{escape(doc["estensione"].upper())}</td><td>{human_size(doc["dimensione"])}</td><td>{date_label}</td><td><a class="btn secondary" href="/documenti/{doc["id"]}/scarica">Scarica</a> <form method="post" action="/documenti/{doc["id"]}/elimina" style="display:inline" onsubmit="return confirm(&quot;Eliminare definitivamente questo documento?&quot;)"><input type="hidden" name="csrf_token" value="{escape(cliente_csrf_token(), quote=True)}"><button class="btn secondary" type="submit">Elimina</button></form></td></tr>')
     welcome = '<p class="notice">Account creato correttamente. Benvenuto in FixTude.</p>' if request.args.get("benvenuto") == "1" else ''
-    created = escape(user["created_at"][:10])
-    body = f'''<section class="card"><p class="ft-new-kicker">AREA RISERVATA</p><h1>Ciao {escape(user['nome'])}</h1><p>Questa è la tua area personale FixTude.</p>{welcome}<div class="grid"><div class="card"><h2>Il tuo account</h2><p><strong>Email:</strong> {escape(user['email'])}</p><p><strong>Registrato il:</strong> {created}</p><p><span class="tag">Account attivo</span></p></div><div class="card"><h2>La tua pratica</h2><p>La sezione per caricare documenti e consultare gli aggiornamenti sarà attivata nel passaggio successivo.</p><p class="muted">Per ora non inviare documenti personali o finanziari via email.</p></div></div><form method="post" action="/esci"><input type="hidden" name="csrf_token" value="{escape(cliente_csrf_token(), quote=True)}"><button class="btn secondary" type="submit">Esci dall’account</button></form></section>'''
+    status = f'<p class="notice">{escape(success)}</p>' if success else ''
+    err_html = f'<p class="notice">{escape(error)}</p>' if error else ''
+    token = escape(cliente_csrf_token(), quote=True)
+    doc_table = '<div class="table-wrap"><table class="ft-doc-table"><thead><tr><th>Documento</th><th>Formato</th><th>Dimensione</th><th>Caricato il</th><th>Azioni</th></tr></thead><tbody>' + ''.join(rows) + '</tbody></table></div>' if rows else '<p class="muted">Non hai ancora caricato documenti.</p>'
+    body = f'''<section class="card ft-dashboard"><p class="ft-new-kicker">AREA RISERVATA</p><h1>Ciao {escape(user['nome'])}</h1><p>Questa è la tua dashboard personale FixTude.</p>{welcome}{status}{err_html}
+      <div class="grid"><div class="card"><h2>Il tuo account</h2><p><strong>Email:</strong> {escape(user['email'])}</p><p><strong>Registrato il:</strong> {escape(user['created_at'][:10])}</p><p><span class="tag">Account attivo</span></p></div><div class="card"><h2>Carica i tuoi documenti</h2><p>Puoi caricare fino a 5 file per volta, in formato PDF, PNG, JPG, DOC o DOCX. Dimensione massima: 15 MB per file.</p><form method="post" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{token}"><label for="documenti">Seleziona i documenti</label><input id="documenti" name="documenti" type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" multiple required><p class="muted">Carica soltanto documenti pertinenti. Evita di includere dati non necessari. I file sono conservati nell'area riservata e non sono pubblici.</p><button class="btn" type="submit">Carica documenti</button></form></div></div>
+      <section class="card"><h2>I tuoi documenti</h2>{doc_table}</section>
+      <form method="post" action="/esci"><input type="hidden" name="csrf_token" value="{token}"><button class="btn secondary" type="submit">Esci dall’account</button></form></section>
+      <style>.ft-dashboard{{max-width:100%}}.ft-dashboard .grid{{align-items:start}}.ft-dashboard input[type=file]{{width:100%;padding:12px}}.table-wrap{{width:100%;overflow-x:auto}}.ft-doc-table{{width:100%;border-collapse:collapse;font-size:13px}}.ft-doc-table th,.ft-doc-table td{{padding:10px;text-align:left;border-bottom:1px solid #29476d;vertical-align:middle}}.ft-doc-table td:first-child{{overflow-wrap:anywhere}}.ft-doc-table .btn{{padding:7px 10px;font-size:12px;white-space:nowrap}}@media(max-width:650px){{.ft-doc-table{{min-width:700px}}}}</style>'''
     return clienti_shell("Area personale", body)
+
+
+@app.route("/documenti/<int:document_id>/scarica", methods=["GET"])
+def clienti_documento_scarica(document_id):
+    user = cliente_current_user()
+    if not user:
+        return redirect("/accedi", code=303)
+    db = clienti_db()
+    try:
+        doc = db.execute("SELECT nome_originale,nome_archivio FROM cliente_documenti WHERE id=? AND cliente_id=?", (document_id, user["id"])).fetchone()
+    finally:
+        db.close()
+    if not doc:
+        return clienti_shell("Documento non trovato", '<section class="card"><h1>Documento non trovato</h1><p>Il documento non è disponibile nella tua area personale.</p></section>'), 404
+    path = os.path.join(cliente_upload_folder(user["id"]), doc["nome_archivio"])
+    if not os.path.isfile(path):
+        return clienti_shell("Documento non disponibile", '<section class="card"><h1>Documento non disponibile</h1><p>Il file non è presente nell’archivio.</p></section>'), 404
+    return send_file(path, as_attachment=True, download_name=doc["nome_originale"], conditional=True)
+
+
+@app.route("/documenti/<int:document_id>/elimina", methods=["POST"])
+def clienti_documento_elimina(document_id):
+    user = cliente_current_user()
+    if not user:
+        return redirect("/accedi", code=303)
+    if not cliente_csrf_valid():
+        return clienti_shell("Richiesta non valida", '<section class="card"><h1>Richiesta non valida</h1><p>Ricarica la pagina e riprova.</p></section>'), 400
+    db = clienti_db()
+    try:
+        doc = db.execute("SELECT nome_archivio FROM cliente_documenti WHERE id=? AND cliente_id=?", (document_id, user["id"])).fetchone()
+        if doc:
+            db.execute("DELETE FROM cliente_documenti WHERE id=? AND cliente_id=?", (document_id, user["id"]))
+            db.commit()
+    finally:
+        db.close()
+    if doc:
+        path = os.path.join(cliente_upload_folder(user["id"]), doc["nome_archivio"])
+        try: os.remove(path)
+        except FileNotFoundError: pass
+    return redirect("/area-personale", code=303)
 
 
 @app.route("/esci", methods=["POST"])
