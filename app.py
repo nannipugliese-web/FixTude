@@ -1440,6 +1440,7 @@ def fixtude_v1_route_guard():
         or bool(re.fullmatch(r"/api/chat/[a-fA-F0-9-]{32,36}/messages", path))
     )
     staff_chat_api_path = path.startswith("/api/staff/")
+    staff_chat_page_path = path in {"/chat-staff", "/chat-staff/logout"}
     push_api_path = path.startswith("/api/push/")
 
     if (
@@ -1452,6 +1453,7 @@ def fixtude_v1_route_guard():
         or path.startswith("/static/")
         or chat_api_path
         or staff_chat_api_path
+        or staff_chat_page_path
         or push_api_path
     ):
         return None
@@ -6149,7 +6151,7 @@ def bo_pratica_codice(pratica_id, created_at):
     return f"FX-{year}-{int(pratica_id):06d}"
 
 
-def def bo_page(title, body, status=200):
+def bo_page(title, body, status=200):
     response = app.make_response(page(title, body, include_chat=False))
     response.status_code = status
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
