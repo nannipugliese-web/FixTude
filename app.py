@@ -1530,7 +1530,7 @@ def home():
       .ft-upload-modal-card h2{margin:0 0 10px;color:#fff;font-size:23px}
       .ft-upload-modal-card p{color:#c0cede;font-size:14px;line-height:1.6}
       .ft-upload-modal-close{display:block;margin:20px 0 0 auto;padding:10px 17px;border:1px solid #3d6b9d;border-radius:9px;background:#102746;color:#fff;font-weight:800;cursor:pointer}
-      .ft-home-calc-dock{position:fixed;z-index:9000;top:82px;right:clamp(10px,2vw,28px);width:clamp(310px,27vw,390px);height:min(820px,calc(100vh - 100px));min-width:280px;min-height:260px;max-width:calc(100vw - 20px);max-height:calc(100vh - 100px);display:flex;flex-direction:column;border:1px solid #49627e;border-radius:16px;background:#050a12;box-shadow:0 22px 65px #000b;overflow:hidden;resize:both}
+      .ft-home-calc-dock{position:fixed!important;z-index:2147483647!important;top:82px;right:clamp(10px,2vw,28px);width:clamp(310px,27vw,390px);height:min(820px,calc(100vh - 100px));min-width:280px;min-height:260px;max-width:calc(100vw - 20px);max-height:calc(100vh - 100px);display:flex;flex-direction:column;border:1px solid #49627e;border-radius:16px;background:#050a12;box-shadow:0 22px 65px #000b;overflow:hidden;resize:both}
       .ft-home-calc-dock-bar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;background:linear-gradient(135deg,#172b43,#07111e);border-bottom:1px solid #29476d;color:#fff;font-size:11px;font-weight:900;letter-spacing:.08em;cursor:grab;touch-action:none;user-select:none}.ft-home-calc-dock-bar:active{cursor:grabbing}
       .ft-home-calc-toggle{border:1px solid #4b7299;border-radius:8px;background:#123454;color:#fff;padding:6px 9px;font-size:10px;font-weight:900;cursor:pointer}
       .ft-home-calc-frame{display:block;flex:1 1 auto;width:100%;min-height:0;border:0;background:#05070c}
@@ -1569,6 +1569,21 @@ def home():
       }
       @media(max-width:700px){.ft-new-hero{padding:46px 18px 54px}.ft-new-title{font-size:clamp(30px,9vw,43px);letter-spacing:-1px}.ft-new-action-row{align-items:stretch;flex-direction:column}.ft-new-cta{width:100%;min-height:54px}.ft-new-cta-note{max-width:none;text-align:center}.ft-new-upload-note{padding:0 12px}.ft-new-upload-note-inner{padding:14px 15px}.ft-new-section{padding:42px 16px 48px}.ft-new-cards{grid-template-columns:1fr;gap:11px}.ft-new-card{padding:18px}}
       @media(prefers-reduced-motion:reduce){.ft-new-kicker,.ft-new-title,.ft-new-lead,.ft-new-action-row,.ft-new-upload-note-inner,.ft-new-card{opacity:1;animation:none!important;transform:none!important}.ft-new-card-icon,.ft-new-cta:after{animation:none!important}.ft-new-cta{transition:none}}
+      /* Calcolatrice mobile: sempre sopra la chat, sotto il logo all'apertura, trascinabile in entrambi gli stati. */
+      .ft-home-calc-dock{z-index:2147483647!important;isolation:isolate}
+      .chat-launcher,.chat-panel{z-index:2147483000!important}
+      .ft-home-calc-dock-bar{touch-action:none!important;cursor:grab!important}
+      .ft-home-calc-dock-bar:active{cursor:grabbing!important}
+      @media(max-width:700px){
+        .ft-home-calc-dock{position:fixed!important;left:12px!important;right:auto!important;top:92px!important;bottom:auto!important;transform:none!important;width:170px!important;height:48px!important;min-width:0!important;min-height:0!important;max-width:calc(100vw - 24px)!important;max-height:calc(100dvh - 104px)!important;resize:none!important;z-index:2147483647!important}
+        .ft-home-calc-dock.is-collapsed{left:12px!important;right:auto!important;top:92px!important;bottom:auto!important;transform:none!important;width:170px!important;height:48px!important;min-width:0!important;min-height:0!important;max-width:calc(100vw - 24px)!important;max-height:48px!important}
+        .ft-home-calc-dock:not(.is-collapsed){width:calc(100vw - 24px)!important;height:min(82dvh,700px)!important;max-height:calc(100dvh - 108px)!important}
+        .ft-home-calc-dock-bar{min-height:46px!important;padding:5px 8px!important;gap:6px!important}
+        .ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar{height:46px!important;min-height:46px!important;width:100%!important;justify-content:flex-end!important;padding:0 7px!important}
+        .ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar:before{content:'⋮⋮';display:flex;align-items:center;justify-content:center;flex:0 0 25px;height:42px;color:#8bd5ff;font-size:18px;letter-spacing:-3px;cursor:grab}
+        .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle{width:auto!important;flex:1 1 auto!important;height:42px!important;min-height:42px!important;padding:0 8px!important;font-size:12px!important}
+        .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle:before{display:none!important}
+      }
     </style>
     <div class="ft-new-home">
       <section class="ft-new-hero">
@@ -1615,7 +1630,7 @@ def home():
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
       <aside class="ft-home-calc-dock" id="ftHomeCalcDock" aria-label="Calcola la tua situazione">
         <div class="ft-home-calc-dock-bar"><span>CALCOLA LA TUA SITUAZIONE</span><button class="ft-home-calc-toggle" id="ftHomeCalcToggle" type="button" aria-expanded="true">RIDUCI</button></div>
-        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-backspace-mobile-center-toggle#ftPignoramento" loading="eager"></iframe>
+        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-mobile-top-left-draggable-chat-front#ftPignoramento" loading="eager"></iframe>
       </aside>
       <script>
       (()=>{
@@ -1623,96 +1638,94 @@ def home():
         const toggle=document.getElementById('ftHomeCalcToggle');
         const bar=dock&&dock.querySelector('.ft-home-calc-dock-bar');
         if(!dock||!toggle||!bar)return;
+        // Porta il dock direttamente sotto body: evita stacking context del contenuto e lo pone sopra la chat.
+        if(dock.parentElement!==document.body)document.body.appendChild(dock);
         const mobileQuery=window.matchMedia('(max-width:700px)');
         let savedSize=null,drag=null,dragMoved=false,suppressClick=false;
-        function setCollapsed(collapsed){
+        const clamp=(v,min,max)=>Math.min(Math.max(v,min),Math.max(min,max));
+        function mobileStartTop(){
+          const header=document.querySelector('header');
+          const bottom=header?header.getBoundingClientRect().bottom:76;
+          return Math.round(Math.max(82,bottom+8));
+        }
+        function clampDock(){
+          const r=dock.getBoundingClientRect();
+          const left=clamp(r.left,8,window.innerWidth-r.width-8);
+          const top=clamp(r.top,8,window.innerHeight-Math.min(r.height,window.innerHeight-16)-8);
+          dock.style.left=left+'px';dock.style.top=top+'px';dock.style.right='auto';dock.style.bottom='auto';dock.style.transform='none';
+        }
+        function setCollapsed(collapsed,initial=false){
           const wasCollapsed=dock.classList.contains('is-collapsed');
-          if(collapsed&&!wasCollapsed){
-            const r=dock.getBoundingClientRect();
-            savedSize={width:Math.round(r.width),height:Math.round(r.height)};
-          }
+          if(collapsed&&!wasCollapsed){const r=dock.getBoundingClientRect();savedSize={width:Math.round(r.width),height:Math.round(r.height)};}
           dock.classList.toggle('is-collapsed',collapsed);
+          dock.style.position='fixed';dock.style.right='auto';dock.style.bottom='auto';dock.style.transform='none';
           if(mobileQuery.matches){
-            dock.style.left='50%';dock.style.right='auto';
-            if(collapsed){dock.style.top='auto';dock.style.bottom='18px';dock.style.transform='translateX(-50%)';}
-            else{dock.style.top='50%';dock.style.bottom='auto';dock.style.transform='translate(-50%,-50%)';}
-          }
-          if(collapsed){
+            if(initial||!dock.style.left){dock.style.left='12px';dock.style.top=mobileStartTop()+'px';}
+            dock.style.width=collapsed?'170px':'calc(100vw - 24px)';
+            dock.style.height=collapsed?'48px':'min(82dvh, 700px)';
             dock.style.resize='none';
-            dock.style.width=mobileQuery.matches?'120px':'270px';
-            dock.style.height=mobileQuery.matches?'48px':'44px';
           }else{
-            dock.style.resize=mobileQuery.matches?'none':'both';
-            if(savedSize){
-              dock.style.width=Math.max(mobileQuery.matches?240:280,savedSize.width)+'px';
-              dock.style.height=Math.max(mobileQuery.matches?220:260,savedSize.height)+'px';
-            }else{
-              dock.style.width=mobileQuery.matches?'min(420px, calc(100vw - 24px))':'';
-              dock.style.height=mobileQuery.matches?'min(82dvh, 700px)':'';
-            }
+            if(collapsed){dock.style.width='270px';dock.style.height='44px';dock.style.resize='none';}
+            else{dock.style.resize='both';if(savedSize){dock.style.width=Math.max(280,savedSize.width)+'px';dock.style.height=Math.max(260,savedSize.height)+'px';}}
           }
           toggle.textContent=collapsed?(mobileQuery.matches?'APRI':'CALCOLA LA TUA SITUAZIONE · APRI'):'RIDUCI';
           toggle.setAttribute('aria-label',collapsed?'Apri calcolatore':'Riduci calcolatore');
           toggle.setAttribute('title',collapsed?'Apri calcolatore':'Riduci calcolatore');
           toggle.setAttribute('aria-expanded',String(!collapsed));
+          requestAnimationFrame(clampDock);
         }
-        if(mobileQuery.matches)setCollapsed(true);
+        // Su smartphone parte chiusa in alto a sinistra, immediatamente sotto il logo.
+        if(mobileQuery.matches)setCollapsed(true,true);
         toggle.addEventListener('click',e=>{
           e.preventDefault();e.stopPropagation();
           if(suppressClick){suppressClick=false;return;}
           setCollapsed(!dock.classList.contains('is-collapsed'));
         });
-        // La barra intera riapre il box quando è chiuso (oltre al pulsante).
         bar.addEventListener('click',e=>{
           if(!dock.classList.contains('is-collapsed')||e.target.closest('button'))return;
           if(suppressClick){suppressClick=false;return;}
           setCollapsed(false);
         });
-        mobileQuery.addEventListener?.('change',e=>{
-          if(e.matches){
-            setCollapsed(true);
-          }else if(dock.classList.contains('is-collapsed'))setCollapsed(false);
-        });
-        // Drag senza pointer-capture: il click sul pulsante APRI/RIDUCI resta sempre attivo.
+        // Trascinamento touch e mouse sia da chiusa (presa laterale) sia da aperta (barra superiore).
         bar.addEventListener('pointerdown',e=>{
-          if(mobileQuery.matches||e.target.closest('button'))return;
           const collapsed=dock.classList.contains('is-collapsed');
           if(e.pointerType==='mouse'&&e.button!==0)return;
+          if(e.target.closest('button')&&!collapsed)return;
+          if(e.target.closest('button')&&collapsed)return; // Il pulsante resta dedicato all'apertura.
+          e.preventDefault();
           const r=dock.getBoundingClientRect();
           drag={id:e.pointerId,dx:e.clientX-r.left,dy:e.clientY-r.top,startX:e.clientX,startY:e.clientY};
           dragMoved=false;suppressClick=false;
-          dock.style.left=r.left+'px';dock.style.top=r.top+'px';dock.style.right='auto';dock.style.bottom='auto';
+          try{bar.setPointerCapture(e.pointerId);}catch(_){ }
         });
-        window.addEventListener('pointermove',e=>{
+        bar.addEventListener('pointermove',e=>{
           if(!drag||drag.id!==e.pointerId)return;
-          if(Math.abs(e.clientX-drag.startX)>4||Math.abs(e.clientY-drag.startY)>4)dragMoved=true;
+          if(Math.abs(e.clientX-drag.startX)>3||Math.abs(e.clientY-drag.startY)>3)dragMoved=true;
           if(dragMoved){
             const maxX=Math.max(0,window.innerWidth-dock.offsetWidth);
             const maxY=Math.max(0,window.innerHeight-dock.offsetHeight);
-            dock.style.left=Math.min(maxX,Math.max(0,e.clientX-drag.dx))+'px';
-            dock.style.top=Math.min(maxY,Math.max(0,e.clientY-drag.dy))+'px';
+            dock.style.left=clamp(e.clientX-drag.dx,0,maxX)+'px';
+            dock.style.top=clamp(e.clientY-drag.dy,0,maxY)+'px';
+            dock.style.right='auto';dock.style.bottom='auto';dock.style.transform='none';
           }
-        },{passive:true});
+        });
         const stop=e=>{
           if(!drag||drag.id!==e.pointerId)return;
           if(dragMoved)suppressClick=true;
           drag=null;
         };
-        window.addEventListener('pointerup',stop);
-        window.addEventListener('pointercancel',stop);
+        bar.addEventListener('pointerup',stop);
+        bar.addEventListener('pointercancel',stop);
+        mobileQuery.addEventListener?.('change',e=>{
+          if(e.matches){dock.style.left='12px';dock.style.top=mobileStartTop()+'px';setCollapsed(true,true);}
+          else{dock.style.left='';dock.style.top='82px';dock.style.right='clamp(10px,2vw,28px)';setCollapsed(false,true);}
+        });
         window.addEventListener('resize',()=>{
-          if(mobileQuery.matches){
-            const collapsed=dock.classList.contains('is-collapsed');
-            dock.style.left='50%';dock.style.right='auto';dock.style.top=collapsed?'auto':'50%';dock.style.bottom=collapsed?'18px':'auto';
-            dock.style.transform=collapsed?'translateX(-50%)':'translate(-50%,-50%)';
-            dock.style.width=collapsed?'150px':'';
-            dock.style.height=collapsed?'48px':'';
-            return;
-          }
-          if(!dock.style.left)return;
-          const r=dock.getBoundingClientRect();
-          dock.style.left=Math.min(Math.max(0,r.left),Math.max(0,window.innerWidth-dock.offsetWidth))+'px';
-          dock.style.top=Math.min(Math.max(0,r.top),Math.max(0,window.innerHeight-bar.offsetHeight))+'px';
+          if(mobileQuery.matches&&dock.classList.contains('is-collapsed')&&!drag){
+            const r=dock.getBoundingClientRect();
+            dock.style.left=clamp(r.left,8,window.innerWidth-dock.offsetWidth-8)+'px';
+            dock.style.top=clamp(r.top,8,window.innerHeight-dock.offsetHeight-8)+'px';
+          }else clampDock();
         },{passive:true});
       })();
       </script>
