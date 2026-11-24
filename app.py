@@ -1531,7 +1531,7 @@ def home():
       .ft-upload-modal-card h2{margin:0 0 10px;color:#fff;font-size:23px}
       .ft-upload-modal-card p{color:#c0cede;font-size:14px;line-height:1.6}
       .ft-upload-modal-close{display:block;margin:20px 0 0 auto;padding:10px 17px;border:1px solid #3d6b9d;border-radius:9px;background:#102746;color:#fff;font-weight:800;cursor:pointer}
-      .ft-home-calc-dock{position:fixed;z-index:9000;top:82px;right:clamp(10px,2vw,28px);width:clamp(310px,27vw,390px);height:min(820px,calc(100vh - 100px));display:flex;flex-direction:column;border:1px solid #49627e;border-radius:16px;background:#050a12;box-shadow:0 22px 65px #000b;overflow:hidden}
+      .ft-home-calc-dock{position:fixed;z-index:9000;top:82px;right:clamp(10px,2vw,28px);width:clamp(310px,27vw,390px);height:min(820px,calc(100vh - 100px));min-width:280px;min-height:260px;max-width:calc(100vw - 20px);max-height:calc(100vh - 100px);display:flex;flex-direction:column;border:1px solid #49627e;border-radius:16px;background:#050a12;box-shadow:0 22px 65px #000b;overflow:hidden;resize:both}
       .ft-home-calc-dock-bar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;background:linear-gradient(135deg,#172b43,#07111e);border-bottom:1px solid #29476d;color:#fff;font-size:11px;font-weight:900;letter-spacing:.08em;cursor:grab;touch-action:none;user-select:none}.ft-home-calc-dock-bar:active{cursor:grabbing}
       .ft-home-calc-toggle{border:1px solid #4b7299;border-radius:8px;background:#123454;color:#fff;padding:6px 9px;font-size:10px;font-weight:900;cursor:pointer}
       .ft-home-calc-frame{display:block;flex:1 1 auto;width:100%;min-height:0;border:0;background:#05070c}
@@ -1539,7 +1539,7 @@ def home():
       .ft-home-calc-dock.is-collapsed .ft-home-calc-frame{display:none}
       .ft-new-hero .ft-new-inner{width:min(980px,calc(100% - 470px));margin-left:max(20px,calc((100% - 1300px)/2));margin-right:auto}
       @media(max-width:900px){.ft-new-hero .ft-new-inner{width:min(100%,calc(100% - 340px));margin-left:20px}.ft-home-calc-dock{right:10px;width:310px}}
-      @media(max-width:700px){.ft-home-calc-dock{top:auto;right:8px;bottom:8px;width:min(310px,calc(100vw - 16px));height:min(58vh,570px);min-height:350px}.ft-home-calc-dock.is-collapsed{height:auto}.ft-new-hero .ft-new-inner{width:100%;margin:0 auto}}
+      @media(max-width:700px){.ft-home-calc-dock{top:auto;left:auto;right:8px;bottom:8px;width:min(340px,calc(100vw - 16px));height:min(68dvh,520px);min-width:0;min-height:0;max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);resize:none}.ft-home-calc-dock.is-collapsed{height:auto!important;min-height:0!important;max-height:54px!important}.ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar{min-height:48px}.ft-new-hero .ft-new-inner{width:100%;margin:0 auto}}
       @media(max-width:700px){.ft-new-hero{padding:46px 18px 54px}.ft-new-title{font-size:clamp(30px,9vw,43px);letter-spacing:-1px}.ft-new-action-row{align-items:stretch;flex-direction:column}.ft-new-cta{width:100%;min-height:54px}.ft-new-cta-note{max-width:none;text-align:center}.ft-new-upload-note{padding:0 12px}.ft-new-upload-note-inner{padding:14px 15px}.ft-new-section{padding:42px 16px 48px}.ft-new-cards{grid-template-columns:1fr;gap:11px}.ft-new-card{padding:18px}}
       @media(prefers-reduced-motion:reduce){.ft-new-kicker,.ft-new-title,.ft-new-lead,.ft-new-action-row,.ft-new-upload-note-inner,.ft-new-card{opacity:1;animation:none!important;transform:none!important}.ft-new-card-icon,.ft-new-cta:after{animation:none!important}.ft-new-cta{transition:none}}
     </style>
@@ -1586,9 +1586,9 @@ def home():
         </div>
       </section>
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
-      <aside class="ft-home-calc-dock" id="ftHomeCalcDock" aria-label="Calcolatrice FixTude sempre disponibile">
-        <div class="ft-home-calc-dock-bar"><span>CALCOLATRICE FIXTUDE · SEMAFORO</span><button class="ft-home-calc-toggle" id="ftHomeCalcToggle" type="button" aria-expanded="true">RIDUCI</button></div>
-        <iframe class="ft-home-calc-frame" title="Calcolatrice 3D e semaforo di sostenibilità FixTude" src="/assistenza?widget=1#ftPignoramento" loading="eager"></iframe>
+      <aside class="ft-home-calc-dock" id="ftHomeCalcDock" aria-label="Calcola la tua situazione">
+        <div class="ft-home-calc-dock-bar"><span>CALCOLA LA TUA SITUAZIONE</span><button class="ft-home-calc-toggle" id="ftHomeCalcToggle" type="button" aria-expanded="true">RIDUCI</button></div>
+        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1#ftPignoramento" loading="eager"></iframe>
       </aside>
       <script>
       (()=>{
@@ -1596,11 +1596,17 @@ def home():
         const toggle=document.getElementById('ftHomeCalcToggle');
         const bar=dock&&dock.querySelector('.ft-home-calc-dock-bar');
         if(!dock||!toggle||!bar)return;
-        if(window.matchMedia('(max-width:700px)').matches){dock.classList.add('is-collapsed');toggle.textContent='APRI';toggle.setAttribute('aria-expanded','false');}
-        toggle.addEventListener('click',()=>{
-          const collapsed=dock.classList.toggle('is-collapsed');
+        const mobileQuery=window.matchMedia('(max-width:700px)');
+        function setCollapsed(collapsed){
+          dock.classList.toggle('is-collapsed',collapsed);
           toggle.textContent=collapsed?'APRI':'RIDUCI';
           toggle.setAttribute('aria-expanded',String(!collapsed));
+        }
+        if(mobileQuery.matches)setCollapsed(true);
+        toggle.addEventListener('click',()=>setCollapsed(!dock.classList.contains('is-collapsed')));
+        mobileQuery.addEventListener?.('change',e=>{
+          if(e.matches)setCollapsed(true);
+          else setCollapsed(false);
         });
         let drag=null;
         bar.addEventListener('pointerdown',e=>{
@@ -1623,6 +1629,11 @@ def home():
         const stop=e=>{if(drag&&drag.id===e.pointerId)drag=null};
         bar.addEventListener('pointerup',stop);bar.addEventListener('pointercancel',stop);
         window.addEventListener('resize',()=>{
+          if(mobileQuery.matches){
+            dock.style.left='';dock.style.top='';dock.style.right='8px';dock.style.bottom='8px';
+            if(dock.classList.contains('is-collapsed'))dock.style.height='';
+            return;
+          }
           if(!dock.style.left)return;
           const r=dock.getBoundingClientRect();
           dock.style.left=Math.min(Math.max(0,r.left),Math.max(0,window.innerWidth-dock.offsetWidth))+'px';
@@ -1831,7 +1842,7 @@ def assistenza_home():
           </div>
         </div>
         <div class="ft-traffic" id="ftTraffic" aria-live="polite">
-          <div class="ft-traffic-title">IL TUO SEMAFORO</div>
+          
           <div class="ft-lights" role="img" aria-label="Semaforo di sostenibilità">
             <span class="ft-light" id="ftRed"></span>
             <span class="ft-light" id="ftYellow"></span>
@@ -1954,7 +1965,7 @@ def assistenza_home():
         )
         widget_overrides = r"""
         <style>
-          html,body{margin:0!important;padding:0!important;min-height:100%;background:#05070c!important;color:#f4f6fa!important;overflow-x:hidden!important}
+          html,body{margin:0!important;padding:0!important;min-height:100%;background:#05070c!important;color:#f4f6fa!important;overflow-x:hidden!important;overflow-y:auto!important}
           .ft-v1{width:100%!important;max-width:none!important;margin:0!important;padding:8px 9px 18px!important;box-sizing:border-box!important}
           .ft-calc-shell{width:100%!important;max-width:none!important;box-sizing:border-box!important;padding:12px!important;border-radius:19px!important}
           .ft-display{height:48px!important;font-size:clamp(23px,7vw,34px)!important}
@@ -1981,9 +1992,21 @@ def assistenza_home():
           .ft-note{font-size:9px!important;margin-top:7px!important}
           .ft-home-widget-cta{font-size:12px!important;line-height:1.5!important;color:#b9e2f2!important;margin:9px auto 0!important;padding:9px 5px!important;border-top:1px solid #29476d}
           .ft-home-widget-cta a{color:#fff!important;font-weight:900!important;text-decoration:underline!important}
+          @media(max-width:700px){
+            .ft-v1{padding:6px 7px 12px!important}
+            .ft-calc-shell{padding:9px!important}
+            .ft-display{height:40px!important;font-size:clamp(21px,6vw,29px)!important}
+            .ft-step{font-size:8px!important;padding:6px 1px!important}
+            .ft-key{min-height:37px!important;font-size:17px!important}
+            .ft-traffic{margin:9px auto 4px!important}
+            .ft-light{width:34px!important;height:34px!important}
+            .ft-countdown{min-height:19px!important;font-size:16px!important;margin-top:4px!important}
+            .ft-status{font-size:10px!important;margin-top:3px!important;min-height:15px!important}
+            .ft-home-widget-cta{font-size:11px!important;margin:5px auto 0!important;padding:6px 3px!important}
+          }
         </style>
         """
-        standalone = '<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Calcolatrice FixTude</title></head><body>' + content + widget_overrides + '</body></html>'
+        standalone = '<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Calcola la tua situazione</title></head><body>' + content + widget_overrides + '</body></html>'
         return Response(standalone, mimetype="text/html")
     return page("Calcolatore gratuito e verifica rischio pignoramento | FixTude", content)
 
