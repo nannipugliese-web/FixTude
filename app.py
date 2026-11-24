@@ -1575,14 +1575,15 @@ def home():
       .ft-home-calc-dock-bar{touch-action:none!important;cursor:grab!important}
       .ft-home-calc-dock-bar:active{cursor:grabbing!important}
       @media(max-width:700px){
-        .ft-home-calc-dock{position:fixed!important;left:12px!important;right:auto!important;top:92px!important;bottom:auto!important;transform:none!important;width:170px!important;height:48px!important;min-width:0!important;min-height:0!important;max-width:calc(100vw - 24px)!important;max-height:calc(100dvh - 104px)!important;resize:none!important;z-index:2147483647!important}
-        .ft-home-calc-dock.is-collapsed{left:12px!important;right:auto!important;top:92px!important;bottom:auto!important;transform:none!important;width:170px!important;height:48px!important;min-width:0!important;min-height:0!important;max-width:calc(100vw - 24px)!important;max-height:48px!important}
-        .ft-home-calc-dock:not(.is-collapsed){width:calc(100vw - 24px)!important;height:min(82dvh,700px)!important;max-height:calc(100dvh - 108px)!important}
-        .ft-home-calc-dock-bar{min-height:46px!important;padding:5px 8px!important;gap:6px!important}
-        .ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar{height:46px!important;min-height:46px!important;width:100%!important;justify-content:flex-end!important;padding:0 7px!important}
-        .ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar:before{content:'⋮⋮';display:flex;align-items:center;justify-content:center;flex:0 0 25px;height:42px;color:#8bd5ff;font-size:18px;letter-spacing:-3px;cursor:grab}
-        .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle{width:auto!important;flex:1 1 auto!important;height:42px!important;min-height:42px!important;padding:0 8px!important;font-size:12px!important}
-        .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle:before{display:none!important}
+        /* Mobile: dock compatto sotto il menu, allineato a destra; le coordinate sono gestite dal drag JS. */
+        .ft-home-calc-dock{position:fixed;left:auto;right:12px;top:92px;bottom:auto;transform:none;width:132px;height:42px;min-width:0;min-height:0;max-width:calc(100vw - 24px);max-height:calc(100dvh - 108px);resize:none;z-index:2147483647}
+        .ft-home-calc-dock.is-collapsed{left:auto;right:12px;top:92px;bottom:auto;transform:none;width:132px;height:42px;min-width:0;min-height:0;max-width:calc(100vw - 24px);max-height:42px}
+        .ft-home-calc-dock:not(.is-collapsed){width:min(300px,calc(100vw - 24px));height:min(58dvh,540px);max-height:calc(100dvh - 112px)}
+        .ft-home-calc-dock-bar{min-height:40px;padding:4px 7px;gap:5px;font-size:9px}
+        .ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar{height:40px;min-height:40px;width:100%;justify-content:flex-end;padding:0 5px}
+        .ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar:before{content:'⋮⋮';display:flex;align-items:center;justify-content:center;flex:0 0 22px;height:38px;color:#8bd5ff;font-size:16px;letter-spacing:-3px;cursor:grab}
+        .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle{width:auto;flex:1 1 auto;height:38px;min-height:38px;padding:0 6px;font-size:10px}
+        .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle:before{display:none}
       }
     </style>
     <div class="ft-new-home">
@@ -1630,7 +1631,7 @@ def home():
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
       <aside class="ft-home-calc-dock" id="ftHomeCalcDock" aria-label="Calcola la tua situazione">
         <div class="ft-home-calc-dock-bar"><span>CALCOLA LA TUA SITUAZIONE</span><button class="ft-home-calc-toggle" id="ftHomeCalcToggle" type="button" aria-expanded="true">RIDUCI</button></div>
-        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-mobile-top-left-draggable-chat-front#ftPignoramento" loading="eager"></iframe>
+        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-mobile-right-compact-menu-drag#ftPignoramento" loading="eager"></iframe>
       </aside>
       <script>
       (()=>{
@@ -1656,13 +1657,18 @@ def home():
         }
         function setCollapsed(collapsed,initial=false){
           const wasCollapsed=dock.classList.contains('is-collapsed');
-          if(collapsed&&!wasCollapsed){const r=dock.getBoundingClientRect();savedSize={width:Math.round(r.width),height:Math.round(r.height)};}
+          const before=dock.getBoundingClientRect();
+          if(collapsed&&!wasCollapsed){savedSize={width:Math.round(before.width),height:Math.round(before.height)};}
           dock.classList.toggle('is-collapsed',collapsed);
           dock.style.position='fixed';dock.style.right='auto';dock.style.bottom='auto';dock.style.transform='none';
           if(mobileQuery.matches){
-            if(initial||!dock.style.left){dock.style.left='12px';dock.style.top=mobileStartTop()+'px';}
-            dock.style.width=collapsed?'170px':'calc(100vw - 24px)';
-            dock.style.height=collapsed?'48px':'min(82dvh, 700px)';
+            const targetWidth=collapsed?Math.min(132,window.innerWidth-24):Math.min(300,window.innerWidth-24);
+            const targetHeight=collapsed?42:Math.min(Math.round(window.innerHeight*.58),540);
+            if(initial){dock.style.left=Math.max(8,window.innerWidth-targetWidth-12)+'px';dock.style.top=mobileStartTop()+'px';}
+            else if(wasCollapsed!==collapsed){dock.style.left=clamp(before.right-targetWidth,8,window.innerWidth-targetWidth-8)+'px';}
+            else if(!dock.style.left){dock.style.left=Math.max(8,window.innerWidth-targetWidth-12)+'px';dock.style.top=mobileStartTop()+'px';}
+            dock.style.width=targetWidth+'px';
+            dock.style.height=targetHeight+'px';
             dock.style.resize='none';
           }else{
             if(collapsed){dock.style.width='270px';dock.style.height='44px';dock.style.resize='none';}
@@ -6530,6 +6536,7 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5000")),
         debug=False
     )
+
 
 
 
