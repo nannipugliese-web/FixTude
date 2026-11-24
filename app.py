@@ -1607,7 +1607,7 @@ def home():
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
       <aside class="ft-home-calc-dock" id="ftHomeCalcDock" aria-label="Calcola la tua situazione">
         <div class="ft-home-calc-dock-bar"><span>CALCOLA LA TUA SITUAZIONE</span><button class="ft-home-calc-toggle" id="ftHomeCalcToggle" type="button" aria-expanded="true">RIDUCI</button></div>
-        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124c#ftPignoramento" loading="eager"></iframe>
+        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124e#ftPignoramento" loading="eager"></iframe>
       </aside>
       <script>
       (()=>{
@@ -1619,13 +1619,24 @@ def home():
         let savedSize=null,drag=null,dragMoved=false,suppressClick=false;
         function setCollapsed(collapsed){
           const wasCollapsed=dock.classList.contains('is-collapsed');
-          if(collapsed&&!wasCollapsed){const r=dock.getBoundingClientRect();savedSize={width:Math.round(r.width),height:Math.round(r.height)};}
+          if(collapsed&&!wasCollapsed){
+            const r=dock.getBoundingClientRect();
+            savedSize={width:Math.round(r.width),height:Math.round(r.height)};
+          }
           dock.classList.toggle('is-collapsed',collapsed);
-          if(collapsed){dock.style.resize='none';dock.style.width=mobileQuery.matches?'120px':'270px';dock.style.height=mobileQuery.matches?'48px':'44px';}
-          else{
+          if(collapsed){
+            dock.style.resize='none';
+            dock.style.width=mobileQuery.matches?'120px':'270px';
+            dock.style.height=mobileQuery.matches?'48px':'44px';
+          }else{
             dock.style.resize=mobileQuery.matches?'none':'both';
-            if(savedSize){dock.style.width=Math.max(mobileQuery.matches?240:280,savedSize.width)+'px';dock.style.height=Math.max(mobileQuery.matches?220:260,savedSize.height)+'px';}
-            else{dock.style.width='';dock.style.height='';}
+            if(savedSize){
+              dock.style.width=Math.max(mobileQuery.matches?240:280,savedSize.width)+'px';
+              dock.style.height=Math.max(mobileQuery.matches?220:260,savedSize.height)+'px';
+            }else{
+              dock.style.width=mobileQuery.matches?'min(340px, calc(100vw - 16px))':'';
+              dock.style.height=mobileQuery.matches?'min(68dvh, 520px)':'';
+            }
           }
           toggle.textContent=collapsed?(mobileQuery.matches?'APRI':'CALCOLA LA TUA SITUAZIONE · APRI'):'RIDUCI';
           toggle.setAttribute('aria-label',collapsed?'Apri calcolatore':'Riduci calcolatore');
@@ -1638,21 +1649,29 @@ def home():
           if(suppressClick){suppressClick=false;return;}
           setCollapsed(!dock.classList.contains('is-collapsed'));
         });
-        mobileQuery.addEventListener?.('change',e=>{
-          if(e.matches){dock.style.top='82px';dock.style.bottom='auto';dock.style.right='8px';dock.style.left='auto';setCollapsed(true);}
-          else if(dock.classList.contains('is-collapsed'))setCollapsed(false);
+        // La barra intera riapre il box quando è chiuso (oltre al pulsante).
+        bar.addEventListener('click',e=>{
+          if(!dock.classList.contains('is-collapsed')||e.target.closest('button'))return;
+          if(suppressClick){suppressClick=false;return;}
+          setCollapsed(false);
         });
+        mobileQuery.addEventListener?.('change',e=>{
+          if(e.matches){
+            dock.style.top='82px';dock.style.bottom='auto';dock.style.right='8px';dock.style.left='auto';
+            setCollapsed(true);
+          }else if(dock.classList.contains('is-collapsed'))setCollapsed(false);
+        });
+        // Drag senza pointer-capture: il click sul pulsante APRI/RIDUCI resta sempre attivo.
         bar.addEventListener('pointerdown',e=>{
           const collapsed=dock.classList.contains('is-collapsed');
-          // When closed, the entire visible bar (including its button) is a drag handle.
           if(e.target.closest('button')&&!collapsed)return;
+          if(e.pointerType==='mouse'&&e.button!==0)return;
           const r=dock.getBoundingClientRect();
           drag={id:e.pointerId,dx:e.clientX-r.left,dy:e.clientY-r.top,startX:e.clientX,startY:e.clientY};
           dragMoved=false;suppressClick=false;
           dock.style.left=r.left+'px';dock.style.top=r.top+'px';dock.style.right='auto';dock.style.bottom='auto';
-          try{bar.setPointerCapture(e.pointerId)}catch(_){ }
         });
-        bar.addEventListener('pointermove',e=>{
+        window.addEventListener('pointermove',e=>{
           if(!drag||drag.id!==e.pointerId)return;
           if(Math.abs(e.clientX-drag.startX)>4||Math.abs(e.clientY-drag.startY)>4)dragMoved=true;
           if(dragMoved){
@@ -1661,13 +1680,14 @@ def home():
             dock.style.left=Math.min(maxX,Math.max(0,e.clientX-drag.dx))+'px';
             dock.style.top=Math.min(maxY,Math.max(0,e.clientY-drag.dy))+'px';
           }
-        });
+        },{passive:true});
         const stop=e=>{
           if(!drag||drag.id!==e.pointerId)return;
           if(dragMoved)suppressClick=true;
           drag=null;
         };
-        bar.addEventListener('pointerup',stop);bar.addEventListener('pointercancel',stop);
+        window.addEventListener('pointerup',stop);
+        window.addEventListener('pointercancel',stop);
         window.addEventListener('resize',()=>{
           if(mobileQuery.matches){
             if(!dock.style.left){dock.style.top='82px';dock.style.right='8px';dock.style.bottom='auto';}
@@ -2047,6 +2067,10 @@ def assistenza_home():
           .ft-home-widget-cta a{color:#fff!important;font-weight:900!important;text-decoration:underline!important}
           /* Nel widget è visibile esclusivamente il collegamento alla registrazione. */
           #ftPignoramento a:not([href="/registrazione"]){display:none!important;pointer-events:none!important}
+          #ftPignoramento .ft-pign-toggle,#ftPignoramento .ft-pign-hint,
+          #ftPignoramento .ft-flip-back,#ftPignoramento .ft-tablet-shell,
+          #ftPignoramento .ft-tablet-question-form,#ftPignoramento .ft-tablet-question-submit,
+          #ftPignoramento .ft-tablet-back{display:none!important;visibility:hidden!important}
           @media(max-width:700px){
             .ft-v1{padding:6px 7px 12px!important}
             .ft-calc-shell{padding:9px!important}
@@ -2060,6 +2084,22 @@ def assistenza_home():
             .ft-home-widget-cta{font-size:11px!important;margin:5px auto 0!important;padding:6px 3px!important}
           }
         </style>
+        <script>
+        (()=>{
+          const root=document.getElementById('ftPignoramento');
+          if(!root)return;
+          // Whitelist rigorosa: l'unico collegamento ammesso nel widget è Registrati.
+          root.querySelectorAll('a').forEach(a=>{
+            let path='';try{path=new URL(a.getAttribute('href')||'',location.href).pathname;}catch(_){ }
+            if(path!=='/registrazione')a.remove();
+          });
+          // Rimuove dal DOM, non soltanto nasconde, ogni residuo del vecchio questionario.
+          root.querySelectorAll('.ft-pign-toggle,.ft-pign-hint,.ft-flip-back,.ft-tablet-shell,.ft-tablet-question-form,.ft-tablet-question-submit,.ft-tablet-back').forEach(el=>el.remove());
+          root.querySelectorAll('button').forEach(b=>{
+            if(!b.matches('.ft-step,.ft-key'))b.remove();
+          });
+        })();
+        </script>
         """
         standalone = '<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Calcola la tua situazione</title></head><body>' + content + widget_overrides + '</body></html>'
         response = Response(standalone, mimetype="text/html")
@@ -6442,6 +6482,7 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5000")),
         debug=False
     )
+
 
 
 
