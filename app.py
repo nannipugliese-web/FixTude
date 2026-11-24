@@ -1544,12 +1544,12 @@ def home():
       }
       .ft-home-calc-dock.is-collapsed .ft-home-calc-frame{display:none!important}
       .ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar{
-        width:100%;height:100%;min-height:44px;padding:0 10px!important;border:0!important;
+        cursor:grab;touch-action:none;width:100%;height:100%;min-height:44px;padding:0 10px!important;border:0!important;
         border-radius:11px;background:transparent!important;justify-content:center;
       }
       .ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar>span{display:none!important}
       .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle{
-        display:block;position:relative;width:100%;height:42px;min-height:42px;padding:0 10px;
+        display:block;touch-action:none;position:relative;width:100%;height:42px;min-height:42px;padding:0 10px;
         border:0;border-radius:10px;background:transparent;color:#fff;
         font-size:12px;font-weight:950;letter-spacing:.055em;cursor:pointer;z-index:2;
       }
@@ -1558,7 +1558,7 @@ def home():
       .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle:focus-visible{outline:2px solid #fff;outline-offset:3px}
       .ft-new-hero .ft-new-inner{width:min(980px,calc(100% - 470px));margin-left:max(20px,calc((100% - 1300px)/2));margin-right:auto}
       @media(max-width:900px){.ft-new-hero .ft-new-inner{width:min(100%,calc(100% - 340px));margin-left:20px}.ft-home-calc-dock{right:10px;width:310px}}
-      @media(max-width:700px){.ft-home-calc-dock{top:auto;left:auto;right:8px;bottom:8px;width:min(340px,calc(100vw - 16px));height:min(68dvh,520px);min-width:0;min-height:0;max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);resize:none}.ft-home-calc-dock.is-collapsed{width:120px!important;height:48px!important;min-width:120px!important;min-height:48px!important;max-height:48px!important;max-width:120px!important;border-radius:12px!important}.ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar{width:120px;height:48px;min-height:48px}.ft-home-calc-dock.is-collapsed .ft-home-calc-toggle{width:120px;height:48px;min-height:48px;font-size:12px;padding:0 6px}.ft-home-calc-dock.is-collapsed .ft-home-calc-toggle::before{display:none}.ft-new-hero .ft-new-inner{width:100%;margin:0 auto}}
+      @media(max-width:700px){.ft-home-calc-dock{top:82px;left:auto;right:8px;bottom:auto;width:min(340px,calc(100vw - 16px));height:min(68dvh,520px);min-width:0;min-height:0;max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);resize:none}.ft-home-calc-dock.is-collapsed{width:120px!important;height:48px!important;min-width:120px!important;min-height:48px!important;max-height:48px!important;max-width:120px!important;border-radius:12px!important}.ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar{width:120px;height:48px;min-height:48px}.ft-home-calc-dock.is-collapsed .ft-home-calc-toggle{width:120px;height:48px;min-height:48px;font-size:12px;padding:0 6px}.ft-home-calc-dock.is-collapsed .ft-home-calc-toggle::before{display:none}.ft-new-hero .ft-new-inner{width:100%;margin:0 auto}}
       @media(max-width:700px){.ft-new-hero{padding:46px 18px 54px}.ft-new-title{font-size:clamp(30px,9vw,43px);letter-spacing:-1px}.ft-new-action-row{align-items:stretch;flex-direction:column}.ft-new-cta{width:100%;min-height:54px}.ft-new-cta-note{max-width:none;text-align:center}.ft-new-upload-note{padding:0 12px}.ft-new-upload-note-inner{padding:14px 15px}.ft-new-section{padding:42px 16px 48px}.ft-new-cards{grid-template-columns:1fr;gap:11px}.ft-new-card{padding:18px}}
       @media(prefers-reduced-motion:reduce){.ft-new-kicker,.ft-new-title,.ft-new-lead,.ft-new-action-row,.ft-new-upload-note-inner,.ft-new-card{opacity:1;animation:none!important;transform:none!important}.ft-new-card-icon,.ft-new-cta:after{animation:none!important}.ft-new-cta{transition:none}}
     </style>
@@ -1607,7 +1607,7 @@ def home():
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
       <aside class="ft-home-calc-dock" id="ftHomeCalcDock" aria-label="Calcola la tua situazione">
         <div class="ft-home-calc-dock-bar"><span>CALCOLA LA TUA SITUAZIONE</span><button class="ft-home-calc-toggle" id="ftHomeCalcToggle" type="button" aria-expanded="true">RIDUCI</button></div>
-        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1#ftPignoramento" loading="eager"></iframe>
+        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124c#ftPignoramento" loading="eager"></iframe>
       </aside>
       <script>
       (()=>{
@@ -1616,21 +1616,15 @@ def home():
         const bar=dock&&dock.querySelector('.ft-home-calc-dock-bar');
         if(!dock||!toggle||!bar)return;
         const mobileQuery=window.matchMedia('(max-width:700px)');
-        let savedSize=null;
+        let savedSize=null,drag=null,dragMoved=false,suppressClick=false;
         function setCollapsed(collapsed){
           const wasCollapsed=dock.classList.contains('is-collapsed');
-          if(collapsed && !wasCollapsed){
-            const rect=dock.getBoundingClientRect();
-            savedSize={width:Math.round(rect.width),height:Math.round(rect.height)};
-          }
+          if(collapsed&&!wasCollapsed){const r=dock.getBoundingClientRect();savedSize={width:Math.round(r.width),height:Math.round(r.height)};}
           dock.classList.toggle('is-collapsed',collapsed);
-          if(collapsed){
-            dock.style.resize='none';
-            if(mobileQuery.matches){dock.style.width='120px';dock.style.height='48px';}
-            else{dock.style.width='270px';dock.style.height='44px';}
-          }else{
+          if(collapsed){dock.style.resize='none';dock.style.width=mobileQuery.matches?'120px':'270px';dock.style.height=mobileQuery.matches?'48px':'44px';}
+          else{
             dock.style.resize=mobileQuery.matches?'none':'both';
-            if(savedSize){dock.style.width=Math.max(280,savedSize.width)+'px';dock.style.height=Math.max(260,savedSize.height)+'px';}
+            if(savedSize){dock.style.width=Math.max(mobileQuery.matches?240:280,savedSize.width)+'px';dock.style.height=Math.max(mobileQuery.matches?220:260,savedSize.height)+'px';}
             else{dock.style.width='';dock.style.height='';}
           }
           toggle.textContent=collapsed?(mobileQuery.matches?'APRI':'CALCOLA LA TUA SITUAZIONE · APRI'):'RIDUCI';
@@ -1639,35 +1633,46 @@ def home():
           toggle.setAttribute('aria-expanded',String(!collapsed));
         }
         if(mobileQuery.matches)setCollapsed(true);
-        toggle.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setCollapsed(!dock.classList.contains('is-collapsed'));});
+        toggle.addEventListener('click',e=>{
+          e.preventDefault();e.stopPropagation();
+          if(suppressClick){suppressClick=false;return;}
+          setCollapsed(!dock.classList.contains('is-collapsed'));
+        });
         mobileQuery.addEventListener?.('change',e=>{
-          if(e.matches){setCollapsed(true);}
+          if(e.matches){dock.style.top='82px';dock.style.bottom='auto';dock.style.right='8px';dock.style.left='auto';setCollapsed(true);}
           else if(dock.classList.contains('is-collapsed'))setCollapsed(false);
         });
-        let drag=null;
         bar.addEventListener('pointerdown',e=>{
-          if(e.target.closest('button'))return;
+          const collapsed=dock.classList.contains('is-collapsed');
+          // When closed, the entire visible bar (including its button) is a drag handle.
+          if(e.target.closest('button')&&!collapsed)return;
           const r=dock.getBoundingClientRect();
-          drag={id:e.pointerId,dx:e.clientX-r.left,dy:e.clientY-r.top};
-          dock.style.left=r.left+'px';dock.style.top=r.top+'px';
-          dock.style.right='auto';dock.style.bottom='auto';
-          try{bar.setPointerCapture(e.pointerId)}catch(_){}
-          e.preventDefault();
+          drag={id:e.pointerId,dx:e.clientX-r.left,dy:e.clientY-r.top,startX:e.clientX,startY:e.clientY};
+          dragMoved=false;suppressClick=false;
+          dock.style.left=r.left+'px';dock.style.top=r.top+'px';dock.style.right='auto';dock.style.bottom='auto';
+          try{bar.setPointerCapture(e.pointerId)}catch(_){ }
         });
         bar.addEventListener('pointermove',e=>{
           if(!drag||drag.id!==e.pointerId)return;
-          const maxX=Math.max(0,window.innerWidth-dock.offsetWidth);
-          const maxY=Math.max(0,window.innerHeight-Math.min(dock.offsetHeight,bar.offsetHeight));
-          const x=Math.min(maxX,Math.max(0,e.clientX-drag.dx));
-          const y=Math.min(maxY,Math.max(0,e.clientY-drag.dy));
-          dock.style.left=x+'px';dock.style.top=y+'px';
+          if(Math.abs(e.clientX-drag.startX)>4||Math.abs(e.clientY-drag.startY)>4)dragMoved=true;
+          if(dragMoved){
+            const maxX=Math.max(0,window.innerWidth-dock.offsetWidth);
+            const maxY=Math.max(0,window.innerHeight-dock.offsetHeight);
+            dock.style.left=Math.min(maxX,Math.max(0,e.clientX-drag.dx))+'px';
+            dock.style.top=Math.min(maxY,Math.max(0,e.clientY-drag.dy))+'px';
+          }
         });
-        const stop=e=>{if(drag&&drag.id===e.pointerId)drag=null};
+        const stop=e=>{
+          if(!drag||drag.id!==e.pointerId)return;
+          if(dragMoved)suppressClick=true;
+          drag=null;
+        };
         bar.addEventListener('pointerup',stop);bar.addEventListener('pointercancel',stop);
         window.addEventListener('resize',()=>{
           if(mobileQuery.matches){
-            dock.style.left='';dock.style.top='';dock.style.right='8px';dock.style.bottom='8px';
-            dock.style.width='';dock.style.height='';
+            if(!dock.style.left){dock.style.top='82px';dock.style.right='8px';dock.style.bottom='auto';}
+            dock.style.width=dock.classList.contains('is-collapsed')?'120px':'';
+            dock.style.height=dock.classList.contains('is-collapsed')?'48px':'';
             return;
           }
           if(!dock.style.left)return;
@@ -1887,7 +1892,7 @@ def assistenza_home():
           <div class="ft-countdown" id="ftCountdown" aria-live="assertive"></div>
           <div class="ft-status" id="ftStatus"></div>
         </div>
-      <p class="ft-note ft-home-widget-cta"><a href="/registrazione" target="_top">Registrati</a> o contattaci per esaminare la tua situazione debitoria.</p>
+      <p class="ft-note ft-home-widget-cta"><a href="/registrazione" target="_top">Registrati</a></p>
       <p class="ft-note">Il risultato è orientativo.</p>
     </section>
     <script>
@@ -1998,8 +2003,11 @@ def assistenza_home():
             href = re.search(r'href=["\']([^"\']+)["\']', tag, flags=re.I)
             return tag if href and href.group(1).rstrip('/') == '/registrazione' else ''
         content = re.sub(r'<a\b[^>]*>.*?</a>', _keep_registration_link, content, flags=re.I | re.S)
-        # I contenitori del vecchio questionario sono esclusi dal widget tramite CSS;
-        # soprattutto, tutti i relativi link sono già stati rimossi dal filtro sopra.
+        # Nel widget resta un solo collegamento: /registrazione. Elimina inoltre ogni
+        # eventuale residuo testuale/CTA del vecchio questionario prima di inviare l'HTML.
+        content = re.sub(r'<a\b(?![^>]*href=["\']/?registrazione(?:["\']|/))[\s\S]*?</a>', '', content, flags=re.I)
+        content = content.replace(' o contattaci per esaminare la tua situazione debitoria.', '')
+        content = content.replace('Torna alle domande', '').replace('Torna a FixTude', '')
         content = content.replace('>Registrati</a> o contattaci per esaminare la tua situazione debitoria.', '>Registrati</a>')
         # Nel widget, il risultato del calcolo deve aprirsi nella pagina principale,
         # non rimanere confinato nell'iframe laterale.
@@ -2037,6 +2045,8 @@ def assistenza_home():
           .ft-note{font-size:9px!important;margin-top:7px!important}
           .ft-home-widget-cta{font-size:12px!important;line-height:1.5!important;color:#b9e2f2!important;margin:9px auto 0!important;padding:9px 5px!important;border-top:1px solid #29476d}
           .ft-home-widget-cta a{color:#fff!important;font-weight:900!important;text-decoration:underline!important}
+          /* Nel widget è visibile esclusivamente il collegamento alla registrazione. */
+          #ftPignoramento a:not([href="/registrazione"]){display:none!important;pointer-events:none!important}
           @media(max-width:700px){
             .ft-v1{padding:6px 7px 12px!important}
             .ft-calc-shell{padding:9px!important}
@@ -2052,7 +2062,11 @@ def assistenza_home():
         </style>
         """
         standalone = '<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Calcola la tua situazione</title></head><body>' + content + widget_overrides + '</body></html>'
-        return Response(standalone, mimetype="text/html")
+        response = Response(standalone, mimetype="text/html")
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
     return page("Calcolatore gratuito e verifica rischio pignoramento | FixTude", content)
 
 
