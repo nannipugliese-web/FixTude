@@ -1561,7 +1561,7 @@ def home():
       @media(max-width:700px){
         .ft-home-calc-dock{position:fixed!important;top:auto;left:50%;right:auto;bottom:18px;transform:translateX(-50%);width:min(420px,calc(100vw - 24px));height:min(82dvh,700px);min-width:0;min-height:0;max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);resize:none}
         .ft-home-calc-dock:not(.is-collapsed){top:50%;bottom:auto;transform:translate(-50%,-50%);width:min(420px,calc(100vw - 24px));height:min(82dvh,700px)}
-        .ft-home-calc-dock.is-collapsed{width:150px!important;height:48px!important;min-width:150px!important;min-height:48px!important;max-height:48px!important;max-width:150px!important;border-radius:12px!important;top:auto!important;left:50%!important;right:auto!important;bottom:18px!important;transform:translateX(-50%)!important}
+        .ft-home-calc-dock.is-collapsed{width:150px!important;height:48px!important;min-width:150px!important;min-height:48px!important;max-height:48px!important;max-width:150px!important;border-radius:12px!important;top:92px;left:auto;right:12px;bottom:auto;transform:none}
         .ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar{width:150px;height:48px;min-height:48px}
         .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle{width:150px;height:48px;min-height:48px;font-size:12px;padding:0 6px}
         .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle::before{display:none}
@@ -1569,8 +1569,8 @@ def home():
       }
       @media(max-width:700px){.ft-new-hero{padding:46px 18px 54px}.ft-new-title{font-size:clamp(30px,9vw,43px);letter-spacing:-1px}.ft-new-action-row{align-items:stretch;flex-direction:column}.ft-new-cta{width:100%;min-height:54px}.ft-new-cta-note{max-width:none;text-align:center}.ft-new-upload-note{padding:0 12px}.ft-new-upload-note-inner{padding:14px 15px}.ft-new-section{padding:42px 16px 48px}.ft-new-cards{grid-template-columns:1fr;gap:11px}.ft-new-card{padding:18px}}
       @media(prefers-reduced-motion:reduce){.ft-new-kicker,.ft-new-title,.ft-new-lead,.ft-new-action-row,.ft-new-upload-note-inner,.ft-new-card{opacity:1;animation:none!important;transform:none!important}.ft-new-card-icon,.ft-new-cta:after{animation:none!important}.ft-new-cta{transition:none}}
-      /* Calcolatrice mobile: sempre sopra la chat, sotto il logo all'apertura, trascinabile in entrambi gli stati. */
-      .ft-home-calc-dock{z-index:2147483647!important;isolation:isolate}
+      /* Calcolatrice: sopra il contenuto, ma sotto launcher e finestra chat. */
+      .ft-home-calc-dock{z-index:2147482000!important;isolation:isolate}
       .chat-launcher,.chat-panel{z-index:2147483000!important}
       .ft-home-calc-dock-bar{touch-action:none!important;cursor:grab!important}
       .ft-home-calc-dock-bar:active{cursor:grabbing!important}
@@ -1631,7 +1631,7 @@ def home():
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
       <aside class="ft-home-calc-dock" id="ftHomeCalcDock" aria-label="Calcola la tua situazione">
         <div class="ft-home-calc-dock-bar"><span>CALCOLA LA TUA SITUAZIONE</span><button class="ft-home-calc-toggle" id="ftHomeCalcToggle" type="button" aria-expanded="true">RIDUCI</button></div>
-        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-mobile-right-compact-menu-drag#ftPignoramento" loading="eager"></iframe>
+        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-under-menu-draggable-v2#ftPignoramento" loading="eager"></iframe>
       </aside>
       <script>
       (()=>{
@@ -1647,7 +1647,13 @@ def home():
         function mobileStartTop(){
           const header=document.querySelector('header');
           const bottom=header?header.getBoundingClientRect().bottom:76;
-          return Math.round(Math.max(82,bottom+8));
+          return Math.round(bottom+6);
+        }
+        function mobileStartLeft(width){
+          const menuButton=document.getElementById('siteMenuToggle');
+          const anchor=menuButton||document.querySelector('header');
+          const right=anchor?anchor.getBoundingClientRect().right:window.innerWidth-12;
+          return Math.round(clamp(right-width,8,window.innerWidth-width-8));
         }
         function clampDock(){
           const r=dock.getBoundingClientRect();
@@ -1664,9 +1670,9 @@ def home():
           if(mobileQuery.matches){
             const targetWidth=collapsed?Math.min(132,window.innerWidth-24):Math.min(300,window.innerWidth-24);
             const targetHeight=collapsed?42:Math.min(Math.round(window.innerHeight*.58),540);
-            if(initial){dock.style.left=Math.max(8,window.innerWidth-targetWidth-12)+'px';dock.style.top=mobileStartTop()+'px';}
+            if(initial){dock.style.left=mobileStartLeft(targetWidth)+'px';dock.style.top=mobileStartTop()+'px';}
             else if(wasCollapsed!==collapsed){dock.style.left=clamp(before.right-targetWidth,8,window.innerWidth-targetWidth-8)+'px';}
-            else if(!dock.style.left){dock.style.left=Math.max(8,window.innerWidth-targetWidth-12)+'px';dock.style.top=mobileStartTop()+'px';}
+            else if(!dock.style.left){dock.style.left=mobileStartLeft(targetWidth)+'px';dock.style.top=mobileStartTop()+'px';}
             dock.style.width=targetWidth+'px';
             dock.style.height=targetHeight+'px';
             dock.style.resize='none';
@@ -1680,7 +1686,7 @@ def home():
           toggle.setAttribute('aria-expanded',String(!collapsed));
           requestAnimationFrame(clampDock);
         }
-        // Su smartphone parte chiusa in alto a sinistra, immediatamente sotto il logo.
+        // Su smartphone parte chiusa subito sotto il pulsante menu, allineata al suo bordo destro.
         if(mobileQuery.matches)setCollapsed(true,true);
         toggle.addEventListener('click',e=>{
           e.preventDefault();e.stopPropagation();
@@ -1723,7 +1729,7 @@ def home():
         bar.addEventListener('pointerup',stop);
         bar.addEventListener('pointercancel',stop);
         mobileQuery.addEventListener?.('change',e=>{
-          if(e.matches){dock.style.left='12px';dock.style.top=mobileStartTop()+'px';setCollapsed(true,true);}
+          if(e.matches){dock.style.left='';dock.style.top='';setCollapsed(true,true);}
           else{dock.style.left='';dock.style.top='82px';dock.style.right='clamp(10px,2vw,28px)';setCollapsed(false,true);}
         });
         window.addEventListener('resize',()=>{
@@ -6536,7 +6542,6 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5000")),
         debug=False
     )
-
 
 
 
