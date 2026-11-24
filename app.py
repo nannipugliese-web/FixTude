@@ -1607,7 +1607,7 @@ def home():
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
       <aside class="ft-home-calc-dock" id="ftHomeCalcDock" aria-label="Calcola la tua situazione">
         <div class="ft-home-calc-dock-bar"><span>CALCOLA LA TUA SITUAZIONE</span><button class="ft-home-calc-toggle" id="ftHomeCalcToggle" type="button" aria-expanded="true">RIDUCI</button></div>
-        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-reset-calcolatore#ftPignoramento" loading="eager"></iframe>
+        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-reset-ciclo-completo#ftPignoramento" loading="eager"></iframe>
       </aside>
       <script>
       (()=>{
@@ -1930,7 +1930,7 @@ def assistenza_home():
       const status=document.getElementById('ftStatus'),countdown=document.getElementById('ftCountdown');
       const next=document.getElementById('ftNext'),equals=document.getElementById('ftEquals'),traffic=document.getElementById('ftTraffic');
       const resetResult=document.getElementById('ftResetResult');
-      let current=0,buffer='',busy=false,audioCtx=null;
+      let current=0,buffer='',busy=false,completed=false,calculationRun=0,audioCtx=null;
       const fmt=n=>new Intl.NumberFormat('it-IT',{maximumFractionDigits:2}).format(n);
       const parsed=s=>s===''?null:Number(s.replace(',','.'));
       function update(){
@@ -1982,7 +1982,12 @@ def assistenza_home():
         update();
       }
       keys.forEach(button=>button.addEventListener('click',()=>{
-        if(button.hidden||busy)return;press(button);const key=button.dataset.key;
+        if(button.hidden)return;
+        const key=button.dataset.key;
+        // Dopo il risultato, il tasto C azzera l'intero ciclo, non soltanto il campo corrente.
+        if(completed&&key==='clear'){press(button);resetCalculation();return;}
+        if(busy)return;
+        press(button);
         if(key==='next'){if(fields[current].value===''){displayHint.textContent='Inserisci un importo prima di proseguire';return;}setCurrent(current+1);}
         else if(key==='equals'){if(fields.every(f=>f.value!=='')&&Number(fields[0].value)>0)runCalculation();}
         else add(key);
@@ -1997,33 +2002,45 @@ def assistenza_home():
         return 'rosso';
       }
       function resetCalculation(){
-        // Ripristino completo dopo un risultato: nessun reload e nessuna navigazione.
-        busy=false;current=0;buffer='';
-        fields.forEach(f=>{f.value='';});
-        keys.forEach(k=>{k.disabled=false;});
-        steps.forEach(step=>{step.disabled=false;});
-        Object.values(lights).forEach(light=>{light.className='ft-light';});
-        countdown.textContent='';status.textContent='';
+        // Reset atomico dell'intera interfaccia: invalida anche eventuali attese del calcolo precedente.
+        calculationRun++;
+        busy=false;completed=false;current=0;buffer='';
+        fields.forEach(f=>{f.value='';f.defaultValue='';});
+        keys.forEach(k=>{k.disabled=false;k.classList.remove('pressed');});
+        steps.forEach(step=>{step.disabled=false;step.classList.remove('done','active');});
+        Object.values(lights).forEach(light=>{light.className='ft-light';light.removeAttribute('style');});
+        countdown.replaceChildren();status.replaceChildren();
         resetResult.hidden=true;
+        display.textContent='0';displayHint.textContent='Dato 1 di 3';
         update();
         document.getElementById('ftCalculatorPanel')?.scrollIntoView({behavior:'smooth',block:'center'});
       }
-      resetResult.addEventListener('click',resetCalculation);
+      resetResult.addEventListener('click',e=>{e.preventDefault();resetCalculation();});
       async function runCalculation(){
         if(busy)return;
         const v=fields.map(f=>Number(f.value));
         if(!v.every(Number.isFinite)||v[0]<=0||v[1]<0||v[2]<0)return;
-        busy=true;keys.forEach(k=>k.disabled=true);steps.forEach(s=>s.disabled=true);
+        const thisRun=++calculationRun;
+        busy=true;completed=false;keys.forEach(k=>k.disabled=true);steps.forEach(s=>s.disabled=true);
         Object.values(lights).forEach(x=>x.className='ft-light');status.textContent='';countdown.textContent='';
+        resetResult.hidden=true;
         traffic.scrollIntoView({behavior:'smooth',block:'center'});
         await new Promise(r=>setTimeout(r,450));
+        if(thisRun!==calculationRun)return;
         const color=evaluateColor(v[0],v[1],v[2]),cls={rosso:'red',giallo:'yellow',verde:'green'};
         countdown.textContent='PRONTI…';
-        for(let n=3;n>=1;n--){countdown.textContent=String(n);sound();await new Promise(r=>setTimeout(r,650));}
+        for(let n=3;n>=1;n--){
+          if(thisRun!==calculationRun)return;
+          countdown.textContent=String(n);sound();await new Promise(r=>setTimeout(r,650));
+        }
+        if(thisRun!==calculationRun)return;
         countdown.textContent='RISULTATO';lights[color].className='ft-light on '+cls[color];
         status.textContent=({rosso:'ROSSO · situazione critica',giallo:'GIALLO · attenzione',verde:'VERDE · margine più favorevole'}[color]);
         await new Promise(r=>setTimeout(r,550));
-        // Il risultato resta visibile e bloccato finché l'utente non sceglie un nuovo calcolo.
+        if(thisRun!==calculationRun)return;
+        // Il risultato resta visibile. Il tasto C e NUOVO CALCOLO lo azzerano integralmente.
+        completed=true;busy=false;
+        keys.forEach(k=>{k.disabled=k.dataset.key!=='clear';});
         resetResult.hidden=false;
         // Il risultato del semaforo è il punto finale: nessun invio e nessun redirect.
       }
