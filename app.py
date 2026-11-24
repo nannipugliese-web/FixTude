@@ -1532,7 +1532,7 @@ def home():
       .ft-upload-modal-card p{color:#c0cede;font-size:14px;line-height:1.6}
       .ft-upload-modal-close{display:block;margin:20px 0 0 auto;padding:10px 17px;border:1px solid #3d6b9d;border-radius:9px;background:#102746;color:#fff;font-weight:800;cursor:pointer}
       .ft-home-calc-dock{position:fixed;z-index:9000;top:82px;right:clamp(10px,2vw,28px);width:clamp(310px,27vw,390px);height:min(820px,calc(100vh - 100px));display:flex;flex-direction:column;border:1px solid #49627e;border-radius:16px;background:#050a12;box-shadow:0 22px 65px #000b;overflow:hidden}
-      .ft-home-calc-dock-bar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;background:linear-gradient(135deg,#172b43,#07111e);border-bottom:1px solid #29476d;color:#fff;font-size:11px;font-weight:900;letter-spacing:.08em}
+      .ft-home-calc-dock-bar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;background:linear-gradient(135deg,#172b43,#07111e);border-bottom:1px solid #29476d;color:#fff;font-size:11px;font-weight:900;letter-spacing:.08em;cursor:grab;touch-action:none;user-select:none}.ft-home-calc-dock-bar:active{cursor:grabbing}
       .ft-home-calc-toggle{border:1px solid #4b7299;border-radius:8px;background:#123454;color:#fff;padding:6px 9px;font-size:10px;font-weight:900;cursor:pointer}
       .ft-home-calc-frame{display:block;flex:1 1 auto;width:100%;min-height:0;border:0;background:#05070c}
       .ft-home-calc-dock.is-collapsed{height:auto}
@@ -1594,13 +1594,40 @@ def home():
       (()=>{
         const dock=document.getElementById('ftHomeCalcDock');
         const toggle=document.getElementById('ftHomeCalcToggle');
-        if(!dock||!toggle)return;
+        const bar=dock&&dock.querySelector('.ft-home-calc-dock-bar');
+        if(!dock||!toggle||!bar)return;
         if(window.matchMedia('(max-width:700px)').matches){dock.classList.add('is-collapsed');toggle.textContent='APRI';toggle.setAttribute('aria-expanded','false');}
         toggle.addEventListener('click',()=>{
           const collapsed=dock.classList.toggle('is-collapsed');
           toggle.textContent=collapsed?'APRI':'RIDUCI';
           toggle.setAttribute('aria-expanded',String(!collapsed));
         });
+        let drag=null;
+        bar.addEventListener('pointerdown',e=>{
+          if(e.target.closest('button'))return;
+          const r=dock.getBoundingClientRect();
+          drag={id:e.pointerId,dx:e.clientX-r.left,dy:e.clientY-r.top};
+          dock.style.left=r.left+'px';dock.style.top=r.top+'px';
+          dock.style.right='auto';dock.style.bottom='auto';
+          try{bar.setPointerCapture(e.pointerId)}catch(_){}
+          e.preventDefault();
+        });
+        bar.addEventListener('pointermove',e=>{
+          if(!drag||drag.id!==e.pointerId)return;
+          const maxX=Math.max(0,window.innerWidth-dock.offsetWidth);
+          const maxY=Math.max(0,window.innerHeight-Math.min(dock.offsetHeight,bar.offsetHeight));
+          const x=Math.min(maxX,Math.max(0,e.clientX-drag.dx));
+          const y=Math.min(maxY,Math.max(0,e.clientY-drag.dy));
+          dock.style.left=x+'px';dock.style.top=y+'px';
+        });
+        const stop=e=>{if(drag&&drag.id===e.pointerId)drag=null};
+        bar.addEventListener('pointerup',stop);bar.addEventListener('pointercancel',stop);
+        window.addEventListener('resize',()=>{
+          if(!dock.style.left)return;
+          const r=dock.getBoundingClientRect();
+          dock.style.left=Math.min(Math.max(0,r.left),Math.max(0,window.innerWidth-dock.offsetWidth))+'px';
+          dock.style.top=Math.min(Math.max(0,r.top),Math.max(0,window.innerHeight-bar.offsetHeight))+'px';
+        },{passive:true});
       })();
       </script>
       <script>
@@ -1756,8 +1783,6 @@ def assistenza_home():
       #ftFlipStage .ft-tablet-screen::-webkit-scrollbar-thumb{background:#7892a5;border:2px solid #d5e1e9;border-radius:8px;}
     </style>
     <section class="ft-v1" id="ftPignoramento">
-      <h1 class="ft-tagline">Non farti cercare<span>dal recupero crediti, cerca tu stesso la soluzione.</span></h1>
-      <p class="ft-explain">Inserisci i tre importi con la calcolatrice FixTude<br>e scopri il colore del tuo semaforo di sostenibilità.</p>
       <form class="ft-fields" method="post" action="/analisi" id="ftCalculator" novalidate>
         <input type="hidden" id="entrate" name="entrate">
         <input type="hidden" id="uscite" name="uscite">
@@ -1802,30 +1827,6 @@ def assistenza_home():
           </div>
           <p class="ft-calc-foot">Premi AVANTI per passare al dato successivo. Puoi tornare sui passaggi precedenti e correggere gli importi.</p>
               </div>
-              <button class="ft-pign-toggle" type="button" id="ftFlipToggle"><span class="ft-pign-toggle-main">VERIFICA IL RISCHIO DI PIGNORAMENTO</span><span class="ft-pign-toggle-sub">(stipendio, conto, pensione, busta paga)</span></button>
-              <p class="ft-pign-hint">5 domande gratuite · paghi soltanto se vuoi conoscere il risultato.</p>
-            </div>
-            <div class="ft-flip-face ft-flip-back">
-              <div class="ft-tablet-shell">
-                <div class="ft-tablet-screen">
-                  <div class="ft-tablet-kicker">VERIFICA GRATUITA · 5 DOMANDE</div>
-                  <h2 class="ft-tablet-title">Sei a rischio di pignoramento?</h2>
-                  <p class="ft-tablet-copy">Indica quale entrata o rapporto vuoi valutare e rispondi alle domande sugli atti ricevuti. La verifica distingue i primi segnali dalle fasi esecutive più avanzate. Le risposte sono gratuite: paghi € 4,90 soltanto se vuoi sbloccare la valutazione.</p>
-                  <form class="ft-tablet-question-form" method="post" action="/verifica-pignoramento/prepara" id="ftPignoramentoQuestionsForm">
-                    <input type="hidden" name="csrf_token" value="{{PIGNORAMENTO_CSRF}}">
-                    <fieldset class="ft-tablet-question"><legend>Quale situazione vuoi valutare?</legend><div class="ft-pign-select-wrap"><select name="target" class="ft-pign-select" required><option value="">Seleziona una voce</option><option value="stipendio">Stipendio / busta paga</option><option value="pensione">Pensione</option><option value="conto">Conto corrente</option><option value="tutti">Tutte queste situazioni</option></select></div></fieldset>
-                    <fieldset class="ft-tablet-question"><legend>Da chi proviene principalmente il debito?</legend><div class="ft-pign-select-wrap"><select name="creditor" class="ft-pign-select" required><option value="">Seleziona il creditore</option><option value="banca_finanziaria">Banca o finanziaria</option><option value="privato">Privato o azienda</option><option value="riscossione">Agenzia Entrate-Riscossione o altro ente pubblico</option><option value="altro">Altro / non so</option></select></div></fieldset>
-                    <fieldset class="ft-tablet-question"><legend>1. Hai attualmente debiti scaduti che non sei riuscito a pagare?</legend><div class="ft-tablet-options"><label><input type="radio" name="q1" value="si" required> SÌ</label><label><input type="radio" name="q1" value="no" required> NO</label></div></fieldset>
-                    <fieldset class="ft-tablet-question"><legend>2. Hai ricevuto una diffida, una messa in mora o una richiesta formale di pagamento rimasta senza soluzione?</legend><div class="ft-tablet-options"><label><input type="radio" name="q2" value="si" required> SÌ</label><label><input type="radio" name="q2" value="no" required> NO</label></div></fieldset>
-                    <fieldset class="ft-tablet-question"><legend>3. Hai ricevuto una cartella esattoriale, un'ingiunzione o un'intimazione di pagamento che non hai saldato?</legend><div class="ft-tablet-options"><label><input type="radio" name="q3" value="si" required> SÌ</label><label><input type="radio" name="q3" value="no" required> NO</label></div></fieldset>
-                    <fieldset class="ft-tablet-question"><legend>4. Hai ricevuto un atto di precetto?</legend><div class="ft-tablet-options"><label><input type="radio" name="q4" value="si" required> SÌ</label><label><input type="radio" name="q4" value="no" required> NO</label></div></fieldset>
-                    <fieldset class="ft-tablet-question"><legend>5. Hai ricevuto un atto di pignoramento o una comunicazione di esecuzione su conto corrente, stipendio o pensione?</legend><div class="ft-tablet-options"><label><input type="radio" name="q5" value="si" required> SÌ</label><label><input type="radio" name="q5" value="no" required> NO</label></div></fieldset>
-                    <button class="ft-tablet-question-submit" type="submit">HO COMPLETATO LE RISPOSTE</button>
-                  </form>
-                  <p class="ft-tablet-copy" style="font-size:10px;margin-top:12px;margin-bottom:0">La verifica descrive una fotografia delle informazioni dichiarate oggi. Non consulta banche dati e non prevede con certezza eventi futuri.</p>
-                  <button class="ft-tablet-back" type="button" id="ftFlipBack">TORNA ALLA CALCOLATRICE</button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -1839,47 +1840,12 @@ def assistenza_home():
           <div class="ft-countdown" id="ftCountdown" aria-live="assertive"></div>
           <div class="ft-status" id="ftStatus"></div>
         </div>
-      <p class="ft-note">Nessuna registrazione. Gli importi sono elaborati per il calcolo e non vengono archiviati in un profilo personale. Il risultato è orientativo.</p>
+      <p class="ft-note ft-home-widget-cta"><a href="/registrazione" target="_top">Registrati</a> o contattaci per esaminare la tua situazione debitoria.</p>
+      <p class="ft-note">Il risultato è orientativo.</p>
     </section>
     <script>
     (()=>{
       const form=document.getElementById('ftCalculator');
-      const flipStage=document.getElementById('ftFlipStage');
-      const flipToggle=document.getElementById('ftFlipToggle');
-      const flipBack=document.getElementById('ftFlipBack');
-      // L'altezza del box pignoramento viene copiata dal box calcolatrice.
-      // Questa parte è isolata: un eventuale errore di misurazione non deve
-      // interrompere gli script della calcolatrice, del semaforo o dell'audio.
-      const calculatorPanel=document.getElementById('ftCalculatorPanel');
-      const pignoramentoBox=flipStage?flipStage.querySelector('.ft-flip-back'):null;
-      function syncPignoramentoBoxHeight(){
-        try{
-          if(!flipStage||!calculatorPanel||!pignoramentoBox)return;
-          const h=Math.round(calculatorPanel.getBoundingClientRect().height);
-          if(h>0){
-            flipStage.style.setProperty('--ft-calculator-height',h+'px');
-            pignoramentoBox.style.height=h+'px';
-            pignoramentoBox.style.maxHeight=h+'px';
-          }
-        }catch(error){/* Non bloccare gli altri script della pagina. */}
-      }
-      try{
-        syncPignoramentoBoxHeight();
-        if(window.ResizeObserver){
-          const pignoramentoSizeObserver=new window.ResizeObserver(syncPignoramentoBoxHeight);
-          if(calculatorPanel)pignoramentoSizeObserver.observe(calculatorPanel);
-        }else{
-          window.addEventListener('resize',syncPignoramentoBoxHeight,{passive:true});
-        }
-        window.addEventListener('load',syncPignoramentoBoxHeight,{once:true});
-      }catch(error){
-        window.addEventListener('load',syncPignoramentoBoxHeight,{once:true});
-        window.addEventListener('resize',syncPignoramentoBoxHeight,{passive:true});
-      }
-      function flipToTablet(){windWhoosh();flipStage.classList.add('is-flipped');flipToggle.setAttribute('aria-pressed','true');flipStage.scrollIntoView({behavior:'smooth',block:'center'});}
-      function flipToCalculator(){windWhoosh();flipStage.classList.remove('is-flipped');flipToggle.setAttribute('aria-pressed','false');}
-      flipToggle.addEventListener('click',()=>flipStage.classList.contains('is-flipped')?flipToCalculator():flipToTablet());
-      flipBack.addEventListener('click',flipToCalculator);
       const fields=['entrate','uscite','debiti'].map(id=>document.getElementById(id));
       const labels=['ENTRATE MENSILI NETTE (€)','USCITE MENSILI (€)','SITUAZIONE DEBITORIA COMPLESSIVA (€)'];
       const names=['ENTRATE','USCITE','DEBITO'];
@@ -1986,17 +1952,10 @@ def assistenza_home():
             '<form class="ft-fields" method="post" action="/analisi" id="ftCalculator" novalidate target="_top">',
             1,
         )
-        content = content.replace(
-            '</div>\n      <p class="ft-note">Nessuna registrazione.',
-            '</div>\n      <p class="ft-note ft-home-widget-cta"><strong>Registrati o contattaci</strong> per esaminare la tua situazione debitoria.</p>\n      <p class="ft-note">Nessuna registrazione.',
-            1,
-        )
         widget_overrides = r"""
         <style>
           html,body{margin:0!important;padding:0!important;min-height:100%;background:#05070c!important;color:#f4f6fa!important;overflow-x:hidden!important}
           .ft-v1{width:100%!important;max-width:none!important;margin:0!important;padding:8px 9px 18px!important;box-sizing:border-box!important}
-          .ft-tagline{font-size:clamp(18px,5vw,25px)!important;margin:2px auto 10px!important}
-          .ft-explain{font-size:12px!important;margin:0 auto 12px!important}
           .ft-calc-shell{width:100%!important;max-width:none!important;box-sizing:border-box!important;padding:12px!important;border-radius:19px!important}
           .ft-display{height:48px!important;font-size:clamp(23px,7vw,34px)!important}
           .ft-steps{gap:5px!important;margin-bottom:9px!important}
@@ -2020,8 +1979,8 @@ def assistenza_home():
           .ft-countdown{min-height:24px!important;font-size:19px!important;margin-top:7px!important}
           .ft-status{font-size:11px!important;margin-top:6px!important;min-height:18px!important}
           .ft-note{font-size:9px!important;margin-top:7px!important}
-          .ft-home-widget-cta{font-size:11px!important;line-height:1.45!important;color:#8fc4ff!important;margin-top:10px!important;padding:8px 5px!important;border-top:1px solid #29476d}
-          .ft-home-widget-cta strong{color:#fff!important}
+          .ft-home-widget-cta{font-size:12px!important;line-height:1.5!important;color:#b9e2f2!important;margin:9px auto 0!important;padding:9px 5px!important;border-top:1px solid #29476d}
+          .ft-home-widget-cta a{color:#fff!important;font-weight:900!important;text-decoration:underline!important}
         </style>
         """
         standalone = '<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Calcolatrice FixTude</title></head><body>' + content + widget_overrides + '</body></html>'
