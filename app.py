@@ -1607,7 +1607,7 @@ def home():
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
       <aside class="ft-home-calc-dock" id="ftHomeCalcDock" aria-label="Calcola la tua situazione">
         <div class="ft-home-calc-dock-bar"><span>CALCOLA LA TUA SITUAZIONE</span><button class="ft-home-calc-toggle" id="ftHomeCalcToggle" type="button" aria-expanded="true">RIDUCI</button></div>
-        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-stopafterlight#ftPignoramento" loading="eager"></iframe>
+        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-reset-calcolatore#ftPignoramento" loading="eager"></iframe>
       </aside>
       <script>
       (()=>{
@@ -1783,6 +1783,9 @@ def assistenza_home():
       .ft-key{min-height:61px;border:1px solid #727d8b;border-radius:14px;background:linear-gradient(145deg,#f1f3f5 0%,#bfc5cc 52%,#858e99 100%);color:#101820;font-size:24px;font-weight:900;cursor:pointer;user-select:none;touch-action:manipulation;box-shadow:0 5px 0 #080b10,0 8px 12px #0008,inset 0 1px 1px #fff;transition:transform .07s,box-shadow .07s;text-shadow:0 1px #fff}
       .ft-key:active,.ft-key.pressed{transform:translateY(4px);box-shadow:0 1px 0 #aab8c8,0 2px 4px #243b5622,inset 0 2px 5px #64748b22}
       .ft-key.fn{font-size:15px;background:linear-gradient(145deg,#626d79,#303943);color:#f3f5f7;border-color:#89939f;text-shadow:0 1px #000}
+      .ft-reset-result{display:block;width:min(100%,320px);margin:14px auto 0;padding:13px 18px;border:1px solid #e5bd68;border-radius:12px;background:linear-gradient(145deg,#f5ca70,#dda63a);color:#17364a;font-size:13px;font-weight:950;letter-spacing:.04em;box-shadow:0 4px 0 #9e711e,0 8px 16px #0005;cursor:pointer}
+      .ft-reset-result[hidden]{display:none!important}
+      .ft-reset-result:active{transform:translateY(3px);box-shadow:0 1px 0 #9e711e,0 3px 8px #0005}
       .ft-key.clear{background:linear-gradient(145deg,#d96b70,#8e252d);color:#fff;border-color:#f08a90;box-shadow:0 5px 0 #471016,0 8px 12px #0008;text-shadow:0 1px #0005}
       .ft-key.next{grid-column:span 2;background:linear-gradient(145deg,#267ac8,#145091);color:#fff;border-color:#12457b;box-shadow:0 5px 0 #0b3768,0 8px 12px #174b9133;text-shadow:0 1px #0004}
       .ft-key.equals{grid-column:span 2;background:linear-gradient(145deg,#26a56d,#087447);color:#fff;border-color:#086b42;box-shadow:0 5px 0 #075b38,0 8px 12px #08744733;text-shadow:0 1px #0004}
@@ -1911,6 +1914,7 @@ def assistenza_home():
           </div>
           <div class="ft-countdown" id="ftCountdown" aria-live="assertive"></div>
           <div class="ft-status" id="ftStatus"></div>
+          <button type="button" class="ft-reset-result" id="ftResetResult" hidden>NUOVO CALCOLO</button>
         </div>
     </section>
     <script>
@@ -1925,6 +1929,7 @@ def assistenza_home():
       const lights={rosso:document.getElementById('ftRed'),giallo:document.getElementById('ftYellow'),verde:document.getElementById('ftGreen')};
       const status=document.getElementById('ftStatus'),countdown=document.getElementById('ftCountdown');
       const next=document.getElementById('ftNext'),equals=document.getElementById('ftEquals'),traffic=document.getElementById('ftTraffic');
+      const resetResult=document.getElementById('ftResetResult');
       let current=0,buffer='',busy=false,audioCtx=null;
       const fmt=n=>new Intl.NumberFormat('it-IT',{maximumFractionDigits:2}).format(n);
       const parsed=s=>s===''?null:Number(s.replace(',','.'));
@@ -1991,6 +1996,19 @@ def assistenza_home():
         if(balance>0&&yellowQuota>0&&debt/yellowQuota<=12)return 'giallo';
         return 'rosso';
       }
+      function resetCalculation(){
+        // Ripristino completo dopo un risultato: nessun reload e nessuna navigazione.
+        busy=false;current=0;buffer='';
+        fields.forEach(f=>{f.value='';});
+        keys.forEach(k=>{k.disabled=false;});
+        steps.forEach(step=>{step.disabled=false;});
+        Object.values(lights).forEach(light=>{light.className='ft-light';});
+        countdown.textContent='';status.textContent='';
+        resetResult.hidden=true;
+        update();
+        document.getElementById('ftCalculatorPanel')?.scrollIntoView({behavior:'smooth',block:'center'});
+      }
+      resetResult.addEventListener('click',resetCalculation);
       async function runCalculation(){
         if(busy)return;
         const v=fields.map(f=>Number(f.value));
@@ -2005,6 +2023,8 @@ def assistenza_home():
         countdown.textContent='RISULTATO';lights[color].className='ft-light on '+cls[color];
         status.textContent=({rosso:'ROSSO · situazione critica',giallo:'GIALLO · attenzione',verde:'VERDE · margine più favorevole'}[color]);
         await new Promise(r=>setTimeout(r,550));
+        // Il risultato resta visibile e bloccato finché l'utente non sceglie un nuovo calcolo.
+        resetResult.hidden=false;
         // Il risultato del semaforo è il punto finale: nessun invio e nessun redirect.
       }
       form.addEventListener('submit',e=>{e.preventDefault();});
@@ -2072,7 +2092,7 @@ def assistenza_home():
           // Rimuove dal DOM, non soltanto nasconde, ogni residuo del vecchio questionario.
           root.querySelectorAll('.ft-pign-toggle,.ft-pign-hint,.ft-flip-back,.ft-tablet-shell,.ft-tablet-question-form,.ft-tablet-question-submit,.ft-tablet-back').forEach(el=>el.remove());
           root.querySelectorAll('button').forEach(b=>{
-            if(!b.matches('.ft-step,.ft-key'))b.remove();
+            if(!b.matches('.ft-step,.ft-key,#ftResetResult'))b.remove();
           });
         })();
         </script>
