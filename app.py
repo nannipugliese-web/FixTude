@@ -1409,7 +1409,7 @@ def page(title, content, include_chat=False):
 def fixtude_v1_route_guard():
     path = request.path or "/"
     allowed = {
-        "/", "/analisi", "/percorso", "/percorso/risultato", "/checkout", "/checkout/crea", "/checkout/conferma", "/checkout/consulenza", "/checkout/download",
+        "/", "/assistenza", "/analisi", "/percorso", "/percorso/risultato", "/checkout", "/checkout/crea", "/checkout/conferma", "/checkout/consulenza", "/checkout/download",
         "/verifica-pignoramento/prepara", "/verifica-pignoramento/acquista", "/verifica-pignoramento/conferma", "/verifica-pignoramento/risultato", "/verifica-pignoramento/anteprima", "/verifica-pignoramento/annullato",
         "/chi-siamo", "/educazione-finanziaria",
         "/educazione-finanziaria/come-gestire-lo-stipendio-regola-un-terzo",
