@@ -945,7 +945,6 @@ def page(title, content, include_chat=False):
               <a class="brand" href="/" aria-label="FixTude Debt Solutions, homepage"><span class="brand-lockup"><span class="brand-main"><img src="/static/fixtude-512.png" alt="" width="42" height="42" style="width:42px;height:42px;object-fit:contain;vertical-align:middle;margin-right:9px"><span class="brand-fix">Fix</span><span class="brand-tude">Tude</span></span><span class="brand-tagline"><span>Debt</span> <span>Solutions</span></span></span></a>
               <button class="menu-toggle" id="siteMenuToggle" type="button" aria-label="Apri menu" aria-expanded="false" aria-controls="siteMenu">☰</button>
               <nav class="nav-menu" id="siteMenu" aria-label="Menu principale">
-                <a href="/assistenza">Calcolatore e verifica pignoramento</a>
                 <a href="/educazione-finanziaria">Educazione finanziaria</a>
                 <a href="/chi-siamo">Chi siamo</a>
                 {% if session.get('cliente_id') %}
@@ -1535,11 +1534,32 @@ def home():
       .ft-home-calc-dock-bar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;background:linear-gradient(135deg,#172b43,#07111e);border-bottom:1px solid #29476d;color:#fff;font-size:11px;font-weight:900;letter-spacing:.08em;cursor:grab;touch-action:none;user-select:none}.ft-home-calc-dock-bar:active{cursor:grabbing}
       .ft-home-calc-toggle{border:1px solid #4b7299;border-radius:8px;background:#123454;color:#fff;padding:6px 9px;font-size:10px;font-weight:900;cursor:pointer}
       .ft-home-calc-frame{display:block;flex:1 1 auto;width:100%;min-height:0;border:0;background:#05070c}
-      .ft-home-calc-dock.is-collapsed{height:auto}
-      .ft-home-calc-dock.is-collapsed .ft-home-calc-frame{display:none}
+      .ft-home-calc-dock.is-collapsed{
+        width:112px!important;height:16px!important;min-width:0!important;min-height:0!important;
+        max-width:112px!important;max-height:16px!important;resize:none!important;
+        border:0!important;border-radius:999px!important;background:transparent!important;
+        box-shadow:none!important;overflow:visible!important;
+      }
+      .ft-home-calc-dock.is-collapsed .ft-home-calc-frame{display:none!important}
+      .ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar{
+        width:112px;height:16px;min-height:16px;padding:0!important;border:0!important;
+        border-radius:999px;background:transparent!important;justify-content:center;
+      }
+      .ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar>span{display:none!important}
+      .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle{
+        position:relative;width:112px;height:16px;min-height:16px;padding:0;border-radius:999px;font-size:0;
+        background:transparent;border:0;box-shadow:none;cursor:pointer;z-index:2;
+      }
+      .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle::before{
+        content:'';display:block;width:86px;height:4px;border-radius:99px;
+        background:linear-gradient(90deg,#168cff,#8bd5ff);position:absolute;
+        left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;
+      }
+      .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle{position:relative;color:transparent}
+      .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle:focus-visible{outline:2px solid #fff;outline-offset:3px}
       .ft-new-hero .ft-new-inner{width:min(980px,calc(100% - 470px));margin-left:max(20px,calc((100% - 1300px)/2));margin-right:auto}
       @media(max-width:900px){.ft-new-hero .ft-new-inner{width:min(100%,calc(100% - 340px));margin-left:20px}.ft-home-calc-dock{right:10px;width:310px}}
-      @media(max-width:700px){.ft-home-calc-dock{top:auto;left:auto;right:8px;bottom:8px;width:min(340px,calc(100vw - 16px));height:min(68dvh,520px);min-width:0;min-height:0;max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);resize:none}.ft-home-calc-dock.is-collapsed{height:auto!important;min-height:0!important;max-height:54px!important}.ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar{min-height:48px}.ft-new-hero .ft-new-inner{width:100%;margin:0 auto}}
+      @media(max-width:700px){.ft-home-calc-dock{top:auto;left:auto;right:8px;bottom:8px;width:min(340px,calc(100vw - 16px));height:min(68dvh,520px);min-width:0;min-height:0;max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);resize:none}.ft-home-calc-dock.is-collapsed{width:120px!important;height:48px!important;min-height:0!important;max-height:48px!important;max-width:120px!important}.ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar{width:120px;height:48px;min-height:48px}.ft-home-calc-dock.is-collapsed .ft-home-calc-toggle{width:120px;height:48px;min-height:48px}.ft-new-hero .ft-new-inner{width:100%;margin:0 auto}}
       @media(max-width:700px){.ft-new-hero{padding:46px 18px 54px}.ft-new-title{font-size:clamp(30px,9vw,43px);letter-spacing:-1px}.ft-new-action-row{align-items:stretch;flex-direction:column}.ft-new-cta{width:100%;min-height:54px}.ft-new-cta-note{max-width:none;text-align:center}.ft-new-upload-note{padding:0 12px}.ft-new-upload-note-inner{padding:14px 15px}.ft-new-section{padding:42px 16px 48px}.ft-new-cards{grid-template-columns:1fr;gap:11px}.ft-new-card{padding:18px}}
       @media(prefers-reduced-motion:reduce){.ft-new-kicker,.ft-new-title,.ft-new-lead,.ft-new-action-row,.ft-new-upload-note-inner,.ft-new-card{opacity:1;animation:none!important;transform:none!important}.ft-new-card-icon,.ft-new-cta:after{animation:none!important}.ft-new-cta{transition:none}}
     </style>
@@ -1597,16 +1617,33 @@ def home():
         const bar=dock&&dock.querySelector('.ft-home-calc-dock-bar');
         if(!dock||!toggle||!bar)return;
         const mobileQuery=window.matchMedia('(max-width:700px)');
+        let savedSize=null;
         function setCollapsed(collapsed){
+          const wasCollapsed=dock.classList.contains('is-collapsed');
+          if(collapsed && !wasCollapsed){
+            const rect=dock.getBoundingClientRect();
+            savedSize={width:Math.round(rect.width),height:Math.round(rect.height)};
+          }
           dock.classList.toggle('is-collapsed',collapsed);
+          if(collapsed){
+            dock.style.resize='none';
+            if(mobileQuery.matches){dock.style.width='120px';dock.style.height='48px';}
+            else{dock.style.width='112px';dock.style.height='16px';}
+          }else{
+            dock.style.resize=mobileQuery.matches?'none':'both';
+            if(savedSize){dock.style.width=Math.max(280,savedSize.width)+'px';dock.style.height=Math.max(260,savedSize.height)+'px';}
+            else{dock.style.width='';dock.style.height='';}
+          }
           toggle.textContent=collapsed?'APRI':'RIDUCI';
+          toggle.setAttribute('aria-label',collapsed?'Apri calcolatore':'Riduci calcolatore');
+          toggle.setAttribute('title',collapsed?'Apri calcolatore':'Riduci calcolatore');
           toggle.setAttribute('aria-expanded',String(!collapsed));
         }
         if(mobileQuery.matches)setCollapsed(true);
-        toggle.addEventListener('click',()=>setCollapsed(!dock.classList.contains('is-collapsed')));
+        toggle.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setCollapsed(!dock.classList.contains('is-collapsed'));});
         mobileQuery.addEventListener?.('change',e=>{
-          if(e.matches)setCollapsed(true);
-          else setCollapsed(false);
+          if(e.matches){if(!dock.classList.contains('is-collapsed'))setCollapsed(true);}
+          else if(dock.classList.contains('is-collapsed'))setCollapsed(false);
         });
         let drag=null;
         bar.addEventListener('pointerdown',e=>{
@@ -1631,7 +1668,7 @@ def home():
         window.addEventListener('resize',()=>{
           if(mobileQuery.matches){
             dock.style.left='';dock.style.top='';dock.style.right='8px';dock.style.bottom='8px';
-            if(dock.classList.contains('is-collapsed'))dock.style.height='';
+            dock.style.width='';dock.style.height='';
             return;
           }
           if(!dock.style.left)return;
@@ -1956,6 +1993,8 @@ def assistenza_home():
     pignoramento_csrf = session.setdefault("ft_pignoramento_csrf", secrets.token_urlsafe(24))
     content = content.replace("{{PIGNORAMENTO_CSRF}}", escape(pignoramento_csrf, quote=True))
     if request.args.get("widget") == "1":
+        # Il widget della homepage non deve più esporre collegamenti al vecchio questionario.
+        content = re.sub(r'<a\b(?=[^>]*href=["\'](?:/verifica-pignoramento|/assistenza(?:#ftPignoramento)?)[^"\']*["\'])[^>]*>.*?</a>', '', content, flags=re.I | re.S)
         # Nel widget, il risultato del calcolo deve aprirsi nella pagina principale,
         # non rimanere confinato nell'iframe laterale.
         content = content.replace(
