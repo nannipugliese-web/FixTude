@@ -1607,7 +1607,7 @@ def home():
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
       <aside class="ft-home-calc-dock" id="ftHomeCalcDock" aria-label="Calcola la tua situazione">
         <div class="ft-home-calc-dock-bar"><span>CALCOLA LA TUA SITUAZIONE</span><button class="ft-home-calc-toggle" id="ftHomeCalcToggle" type="button" aria-expanded="true">RIDUCI</button></div>
-        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124e#ftPignoramento" loading="eager"></iframe>
+        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-stopafterlight#ftPignoramento" loading="eager"></iframe>
       </aside>
       <script>
       (()=>{
@@ -1855,7 +1855,7 @@ def assistenza_home():
       #ftFlipStage .ft-tablet-screen::-webkit-scrollbar-thumb{background:#7892a5;border:2px solid #d5e1e9;border-radius:8px;}
     </style>
     <section class="ft-v1" id="ftPignoramento">
-      <form class="ft-fields" method="post" action="/analisi" id="ftCalculator" novalidate>
+      <form class="ft-fields" id="ftCalculator" novalidate>
         <input type="hidden" id="entrate" name="entrate">
         <input type="hidden" id="uscite" name="uscite">
         <input type="hidden" id="debiti" name="debiti">
@@ -1912,8 +1912,6 @@ def assistenza_home():
           <div class="ft-countdown" id="ftCountdown" aria-live="assertive"></div>
           <div class="ft-status" id="ftStatus"></div>
         </div>
-      <p class="ft-note ft-home-widget-cta"><a href="/registrazione" target="_top">Registrati</a></p>
-      <p class="ft-note">Il risultato è orientativo.</p>
     </section>
     <script>
     (()=>{
@@ -2007,9 +2005,9 @@ def assistenza_home():
         countdown.textContent='RISULTATO';lights[color].className='ft-light on '+cls[color];
         status.textContent=({rosso:'ROSSO · situazione critica',giallo:'GIALLO · attenzione',verde:'VERDE · margine più favorevole'}[color]);
         await new Promise(r=>setTimeout(r,550));
-        form.submit();
+        // Il risultato del semaforo è il punto finale: nessun invio e nessun redirect.
       }
-      form.addEventListener('submit',e=>{if(!busy){e.preventDefault();if(fields.every(f=>f.value!=='')&&Number(fields[0].value)>0)runCalculation();}});
+      form.addEventListener('submit',e=>{e.preventDefault();});
       update();
     })();
     </script>
@@ -2017,25 +2015,10 @@ def assistenza_home():
     pignoramento_csrf = session.setdefault("ft_pignoramento_csrf", secrets.token_urlsafe(24))
     content = content.replace("{{PIGNORAMENTO_CSRF}}", escape(pignoramento_csrf, quote=True))
     if request.args.get("widget") == "1":
-        # Nel widget si conserva esclusivamente il link di registrazione.
-        def _keep_registration_link(match):
-            tag = match.group(0)
-            href = re.search(r'href=["\']([^"\']+)["\']', tag, flags=re.I)
-            return tag if href and href.group(1).rstrip('/') == '/registrazione' else ''
-        content = re.sub(r'<a\b[^>]*>.*?</a>', _keep_registration_link, content, flags=re.I | re.S)
-        # Nel widget resta un solo collegamento: /registrazione. Elimina inoltre ogni
-        # eventuale residuo testuale/CTA del vecchio questionario prima di inviare l'HTML.
-        content = re.sub(r'<a\b(?![^>]*href=["\']/?registrazione(?:["\']|/))[\s\S]*?</a>', '', content, flags=re.I)
-        content = content.replace(' o contattaci per esaminare la tua situazione debitoria.', '')
-        content = content.replace('Torna alle domande', '').replace('Torna a FixTude', '')
-        content = content.replace('>Registrati</a> o contattaci per esaminare la tua situazione debitoria.', '>Registrati</a>')
-        # Nel widget, il risultato del calcolo deve aprirsi nella pagina principale,
-        # non rimanere confinato nell'iframe laterale.
-        content = content.replace(
-            '<form class="ft-fields" method="post" action="/analisi" id="ftCalculator" novalidate>',
-            '<form class="ft-fields" method="post" action="/analisi" id="ftCalculator" novalidate target="_top">',
-            1,
-        )
+        # Il widget termina con l'accensione del semaforo: nessun link o CTA è ammesso.
+        content = re.sub(r'<a\b[^>]*>.*?</a>', '', content, flags=re.I | re.S)
+        content = content.replace('Registrati', '').replace('Il risultato è orientativo.', '')
+        # Nessun invio del form e nessuna navigazione fuori dal widget.
         widget_overrides = r"""
         <style>
           html,body{margin:0!important;padding:0!important;min-height:100%;background:#05070c!important;color:#f4f6fa!important;overflow-x:hidden!important;overflow-y:auto!important}
@@ -2063,10 +2046,6 @@ def assistenza_home():
           .ft-countdown{min-height:24px!important;font-size:19px!important;margin-top:7px!important}
           .ft-status{font-size:11px!important;margin-top:6px!important;min-height:18px!important}
           .ft-note{font-size:9px!important;margin-top:7px!important}
-          .ft-home-widget-cta{font-size:12px!important;line-height:1.5!important;color:#b9e2f2!important;margin:9px auto 0!important;padding:9px 5px!important;border-top:1px solid #29476d}
-          .ft-home-widget-cta a{color:#fff!important;font-weight:900!important;text-decoration:underline!important}
-          /* Nel widget è visibile esclusivamente il collegamento alla registrazione. */
-          #ftPignoramento a:not([href="/registrazione"]){display:none!important;pointer-events:none!important}
           #ftPignoramento .ft-pign-toggle,#ftPignoramento .ft-pign-hint,
           #ftPignoramento .ft-flip-back,#ftPignoramento .ft-tablet-shell,
           #ftPignoramento .ft-tablet-question-form,#ftPignoramento .ft-tablet-question-submit,
@@ -2081,18 +2060,15 @@ def assistenza_home():
             .ft-light{width:34px!important;height:34px!important}
             .ft-countdown{min-height:19px!important;font-size:16px!important;margin-top:4px!important}
             .ft-status{font-size:10px!important;margin-top:3px!important;min-height:15px!important}
-            .ft-home-widget-cta{font-size:11px!important;margin:5px auto 0!important;padding:6px 3px!important}
           }
         </style>
         <script>
         (()=>{
           const root=document.getElementById('ftPignoramento');
           if(!root)return;
-          // Whitelist rigorosa: l'unico collegamento ammesso nel widget è Registrati.
-          root.querySelectorAll('a').forEach(a=>{
-            let path='';try{path=new URL(a.getAttribute('href')||'',location.href).pathname;}catch(_){ }
-            if(path!=='/registrazione')a.remove();
-          });
+          // Blocco totale dei collegamenti: dopo il semaforo non si naviga altrove.
+          root.querySelectorAll('a,area').forEach(el=>el.remove());
+          root.querySelectorAll('form').forEach(f=>f.addEventListener('submit',e=>e.preventDefault()));
           // Rimuove dal DOM, non soltanto nasconde, ogni residuo del vecchio questionario.
           root.querySelectorAll('.ft-pign-toggle,.ft-pign-hint,.ft-flip-back,.ft-tablet-shell,.ft-tablet-question-form,.ft-tablet-question-submit,.ft-tablet-back').forEach(el=>el.remove());
           root.querySelectorAll('button').forEach(b=>{
@@ -6482,7 +6458,6 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", "5000")),
         debug=False
     )
-
 
 
 
