@@ -1558,7 +1558,15 @@ def home():
       .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle:focus-visible{outline:2px solid #fff;outline-offset:3px}
       .ft-new-hero .ft-new-inner{width:min(980px,calc(100% - 470px));margin-left:max(20px,calc((100% - 1300px)/2));margin-right:auto}
       @media(max-width:900px){.ft-new-hero .ft-new-inner{width:min(100%,calc(100% - 340px));margin-left:20px}.ft-home-calc-dock{right:10px;width:310px}}
-      @media(max-width:700px){.ft-home-calc-dock{top:82px;left:auto;right:8px;bottom:auto;width:min(340px,calc(100vw - 16px));height:min(68dvh,520px);min-width:0;min-height:0;max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);resize:none}.ft-home-calc-dock.is-collapsed{width:120px!important;height:48px!important;min-width:120px!important;min-height:48px!important;max-height:48px!important;max-width:120px!important;border-radius:12px!important}.ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar{width:120px;height:48px;min-height:48px}.ft-home-calc-dock.is-collapsed .ft-home-calc-toggle{width:120px;height:48px;min-height:48px;font-size:12px;padding:0 6px}.ft-home-calc-dock.is-collapsed .ft-home-calc-toggle::before{display:none}.ft-new-hero .ft-new-inner{width:100%;margin:0 auto}}
+      @media(max-width:700px){
+        .ft-home-calc-dock{position:fixed!important;top:auto;left:50%;right:auto;bottom:18px;transform:translateX(-50%);width:min(420px,calc(100vw - 24px));height:min(82dvh,700px);min-width:0;min-height:0;max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);resize:none}
+        .ft-home-calc-dock:not(.is-collapsed){top:50%;bottom:auto;transform:translate(-50%,-50%);width:min(420px,calc(100vw - 24px));height:min(82dvh,700px)}
+        .ft-home-calc-dock.is-collapsed{width:150px!important;height:48px!important;min-width:150px!important;min-height:48px!important;max-height:48px!important;max-width:150px!important;border-radius:12px!important;top:auto!important;left:50%!important;right:auto!important;bottom:18px!important;transform:translateX(-50%)!important}
+        .ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar{width:150px;height:48px;min-height:48px}
+        .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle{width:150px;height:48px;min-height:48px;font-size:12px;padding:0 6px}
+        .ft-home-calc-dock.is-collapsed .ft-home-calc-toggle::before{display:none}
+        .ft-new-hero .ft-new-inner{width:100%;margin:0 auto}
+      }
       @media(max-width:700px){.ft-new-hero{padding:46px 18px 54px}.ft-new-title{font-size:clamp(30px,9vw,43px);letter-spacing:-1px}.ft-new-action-row{align-items:stretch;flex-direction:column}.ft-new-cta{width:100%;min-height:54px}.ft-new-cta-note{max-width:none;text-align:center}.ft-new-upload-note{padding:0 12px}.ft-new-upload-note-inner{padding:14px 15px}.ft-new-section{padding:42px 16px 48px}.ft-new-cards{grid-template-columns:1fr;gap:11px}.ft-new-card{padding:18px}}
       @media(prefers-reduced-motion:reduce){.ft-new-kicker,.ft-new-title,.ft-new-lead,.ft-new-action-row,.ft-new-upload-note-inner,.ft-new-card{opacity:1;animation:none!important;transform:none!important}.ft-new-card-icon,.ft-new-cta:after{animation:none!important}.ft-new-cta{transition:none}}
     </style>
@@ -1607,7 +1615,7 @@ def home():
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
       <aside class="ft-home-calc-dock" id="ftHomeCalcDock" aria-label="Calcola la tua situazione">
         <div class="ft-home-calc-dock-bar"><span>CALCOLA LA TUA SITUAZIONE</span><button class="ft-home-calc-toggle" id="ftHomeCalcToggle" type="button" aria-expanded="true">RIDUCI</button></div>
-        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-reset-ciclo-completo#ftPignoramento" loading="eager"></iframe>
+        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-backspace-mobile-center-toggle#ftPignoramento" loading="eager"></iframe>
       </aside>
       <script>
       (()=>{
@@ -1624,6 +1632,11 @@ def home():
             savedSize={width:Math.round(r.width),height:Math.round(r.height)};
           }
           dock.classList.toggle('is-collapsed',collapsed);
+          if(mobileQuery.matches){
+            dock.style.left='50%';dock.style.right='auto';
+            if(collapsed){dock.style.top='auto';dock.style.bottom='18px';dock.style.transform='translateX(-50%)';}
+            else{dock.style.top='50%';dock.style.bottom='auto';dock.style.transform='translate(-50%,-50%)';}
+          }
           if(collapsed){
             dock.style.resize='none';
             dock.style.width=mobileQuery.matches?'120px':'270px';
@@ -1634,8 +1647,8 @@ def home():
               dock.style.width=Math.max(mobileQuery.matches?240:280,savedSize.width)+'px';
               dock.style.height=Math.max(mobileQuery.matches?220:260,savedSize.height)+'px';
             }else{
-              dock.style.width=mobileQuery.matches?'min(340px, calc(100vw - 16px))':'';
-              dock.style.height=mobileQuery.matches?'min(68dvh, 520px)':'';
+              dock.style.width=mobileQuery.matches?'min(420px, calc(100vw - 24px))':'';
+              dock.style.height=mobileQuery.matches?'min(82dvh, 700px)':'';
             }
           }
           toggle.textContent=collapsed?(mobileQuery.matches?'APRI':'CALCOLA LA TUA SITUAZIONE · APRI'):'RIDUCI';
@@ -1657,14 +1670,13 @@ def home():
         });
         mobileQuery.addEventListener?.('change',e=>{
           if(e.matches){
-            dock.style.top='82px';dock.style.bottom='auto';dock.style.right='8px';dock.style.left='auto';
             setCollapsed(true);
           }else if(dock.classList.contains('is-collapsed'))setCollapsed(false);
         });
         // Drag senza pointer-capture: il click sul pulsante APRI/RIDUCI resta sempre attivo.
         bar.addEventListener('pointerdown',e=>{
+          if(mobileQuery.matches||e.target.closest('button'))return;
           const collapsed=dock.classList.contains('is-collapsed');
-          if(e.target.closest('button')&&!collapsed)return;
           if(e.pointerType==='mouse'&&e.button!==0)return;
           const r=dock.getBoundingClientRect();
           drag={id:e.pointerId,dx:e.clientX-r.left,dy:e.clientY-r.top,startX:e.clientX,startY:e.clientY};
@@ -1690,9 +1702,11 @@ def home():
         window.addEventListener('pointercancel',stop);
         window.addEventListener('resize',()=>{
           if(mobileQuery.matches){
-            if(!dock.style.left){dock.style.top='82px';dock.style.right='8px';dock.style.bottom='auto';}
-            dock.style.width=dock.classList.contains('is-collapsed')?'120px':'';
-            dock.style.height=dock.classList.contains('is-collapsed')?'48px':'';
+            const collapsed=dock.classList.contains('is-collapsed');
+            dock.style.left='50%';dock.style.right='auto';dock.style.top=collapsed?'auto':'50%';dock.style.bottom=collapsed?'18px':'auto';
+            dock.style.transform=collapsed?'translateX(-50%)':'translate(-50%,-50%)';
+            dock.style.width=collapsed?'150px':'';
+            dock.style.height=collapsed?'48px':'';
             return;
           }
           if(!dock.style.left)return;
@@ -1984,8 +1998,16 @@ def assistenza_home():
       keys.forEach(button=>button.addEventListener('click',()=>{
         if(button.hidden)return;
         const key=button.dataset.key;
-        // Dopo il risultato, il tasto C azzera l'intero ciclo, non soltanto il campo corrente.
+        // Dopo il risultato C azzera tutto; la freccia riapre la modifica del dato corrente.
         if(completed&&key==='clear'){press(button);resetCalculation();return;}
+        if(completed&&key==='back'){
+          completed=false;
+          status.replaceChildren();countdown.replaceChildren();
+          Object.values(lights).forEach(light=>{light.className='ft-light';light.removeAttribute('style');});
+          resetResult.hidden=true;
+          keys.forEach(k=>{k.disabled=false;});
+          steps.forEach(step=>{step.disabled=false;});
+        }
         if(busy)return;
         press(button);
         if(key==='next'){if(fields[current].value===''){displayHint.textContent='Inserisci un importo prima di proseguire';return;}setCurrent(current+1);}
@@ -2040,7 +2062,7 @@ def assistenza_home():
         if(thisRun!==calculationRun)return;
         // Il risultato resta visibile. Il tasto C e NUOVO CALCOLO lo azzerano integralmente.
         completed=true;busy=false;
-        keys.forEach(k=>{k.disabled=k.dataset.key!=='clear';});
+        keys.forEach(k=>{k.disabled=!['clear','back'].includes(k.dataset.key);});
         resetResult.hidden=false;
         // Il risultato del semaforo è il punto finale: nessun invio e nessun redirect.
       }
