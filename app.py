@@ -1440,7 +1440,6 @@ def fixtude_v1_route_guard():
         or bool(re.fullmatch(r"/api/chat/[a-fA-F0-9-]{32,36}/messages", path))
     )
     staff_chat_api_path = path.startswith("/api/staff/")
-    staff_chat_page_path = path in {"/chat-staff", "/chat-staff/logout"}
     push_api_path = path.startswith("/api/push/")
 
     if (
@@ -1453,7 +1452,6 @@ def fixtude_v1_route_guard():
         or path.startswith("/static/")
         or chat_api_path
         or staff_chat_api_path
-        or staff_chat_page_path
         or push_api_path
     ):
         return None
@@ -1505,7 +1503,7 @@ def home():
       .ft-new-kicker:before{content:"";width:25px;height:2px;background:#168cff;box-shadow:0 0 12px #168cff}
       .ft-new-title{max-width:850px;margin:0 0 20px;color:#fff;font-size:clamp(32px,5.4vw,58px);font-weight:900;line-height:1.08;letter-spacing:-1.7px}
       .ft-new-title .blue{color:#168cff;text-shadow:0 0 24px #168cff35}
-      .ft-new-title:after{content:"";display:inline-block;width:2px;height:.88em;margin-left:5px;vertical-align:-.08em;background:#168cff;box-shadow:0 0 12px #168cff;animation:ftCursorBlink .75s steps(2,start) infinite}
+      .ft-new-title:after{content:"";display:inline-block;width:2px;height:.88em;margin-left:5px;vertical-align:-.08em;background:#fff;box-shadow:0 0 12px #fff;animation:ftCursorBlink .75s steps(2,start) infinite}
       .ft-new-lead{max-width:720px;margin:0;color:#c6d2e1;font-size:clamp(16px,2vw,19px);line-height:1.65}
       .ft-new-action-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
       .ft-new-cta{display:inline-flex;align-items:center;justify-content:center;gap:11px;min-height:56px;padding:0 25px;border:1px solid #58b2ff;border-radius:12px;background:linear-gradient(135deg,#168cff,#0759bd);color:#fff;text-decoration:none;font-size:14px;font-weight:950;letter-spacing:.045em;box-shadow:0 10px 28px #0879e855,inset 0 1px #ffffff55;transition:transform .18s,box-shadow .18s}
@@ -1533,6 +1531,15 @@ def home():
       .ft-upload-modal-card h2{margin:0 0 10px;color:#fff;font-size:23px}
       .ft-upload-modal-card p{color:#c0cede;font-size:14px;line-height:1.6}
       .ft-upload-modal-close{display:block;margin:20px 0 0 auto;padding:10px 17px;border:1px solid #3d6b9d;border-radius:9px;background:#102746;color:#fff;font-weight:800;cursor:pointer}
+      .ft-home-calc-dock{position:fixed;z-index:9000;top:82px;right:clamp(10px,2vw,28px);width:clamp(310px,27vw,390px);height:min(820px,calc(100vh - 100px));display:flex;flex-direction:column;border:1px solid #49627e;border-radius:16px;background:#050a12;box-shadow:0 22px 65px #000b;overflow:hidden}
+      .ft-home-calc-dock-bar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;background:linear-gradient(135deg,#172b43,#07111e);border-bottom:1px solid #29476d;color:#fff;font-size:11px;font-weight:900;letter-spacing:.08em}
+      .ft-home-calc-toggle{border:1px solid #4b7299;border-radius:8px;background:#123454;color:#fff;padding:6px 9px;font-size:10px;font-weight:900;cursor:pointer}
+      .ft-home-calc-frame{display:block;flex:1 1 auto;width:100%;min-height:0;border:0;background:#05070c}
+      .ft-home-calc-dock.is-collapsed{height:auto}
+      .ft-home-calc-dock.is-collapsed .ft-home-calc-frame{display:none}
+      .ft-new-hero .ft-new-inner{width:min(980px,calc(100% - 470px));margin-left:max(20px,calc((100% - 1300px)/2));margin-right:auto}
+      @media(max-width:900px){.ft-new-hero .ft-new-inner{width:min(100%,calc(100% - 340px));margin-left:20px}.ft-home-calc-dock{right:10px;width:310px}}
+      @media(max-width:700px){.ft-home-calc-dock{top:auto;right:8px;bottom:8px;width:min(310px,calc(100vw - 16px));height:min(58vh,570px);min-height:350px}.ft-home-calc-dock.is-collapsed{height:auto}.ft-new-hero .ft-new-inner{width:100%;margin:0 auto}}
       @media(max-width:700px){.ft-new-hero{padding:46px 18px 54px}.ft-new-title{font-size:clamp(30px,9vw,43px);letter-spacing:-1px}.ft-new-action-row{align-items:stretch;flex-direction:column}.ft-new-cta{width:100%;min-height:54px}.ft-new-cta-note{max-width:none;text-align:center}.ft-new-upload-note{padding:0 12px}.ft-new-upload-note-inner{padding:14px 15px}.ft-new-section{padding:42px 16px 48px}.ft-new-cards{grid-template-columns:1fr;gap:11px}.ft-new-card{padding:18px}}
       @media(prefers-reduced-motion:reduce){.ft-new-kicker,.ft-new-title,.ft-new-lead,.ft-new-action-row,.ft-new-upload-note-inner,.ft-new-card{opacity:1;animation:none!important;transform:none!important}.ft-new-card-icon,.ft-new-cta:after{animation:none!important}.ft-new-cta{transition:none}}
     </style>
@@ -1555,6 +1562,18 @@ def home():
       <div class="ft-new-upload-note" id="caricamento-documento">
         <div class="ft-new-upload-note-inner"><span class="ft-info">i</span><span><strong>La tua area personale.</strong> Dopo la registrazione potrai caricare i documenti in modo riservato, ritrovarli nella dashboard e scaricarli quando necessario. I documenti non saranno pubblicati né accessibili agli altri utenti.</span></div>
       </div>
+      <section class="ft-new-section ft-dashboard-explainer">
+        <div class="ft-new-inner">
+          <h2>La tua situazione, sempre sotto controllo.</h2>
+          <p class="ft-new-section-intro">FixTude ti accompagna nella raccolta e nell’esame delle informazioni relative alla tua situazione debitoria. Dopo la registrazione avrai una dashboard personale, riservata e consultabile in qualsiasi momento.</p>
+          <div class="ft-new-cards">
+            <article class="ft-new-card"><div class="ft-new-card-icon">01</div><h3>Un’area personale riservata</h3><p>Accedi quando vuoi al tuo account, ritrova i documenti caricati e consulta gli aggiornamenti senza dover ricominciare ogni volta.</p></article>
+            <article class="ft-new-card"><div class="ft-new-card-icon">02</div><h3>Avanzamento della pratica</h3><p>Nella dashboard trovi una barra di avanzamento con lo stato della pratica, le fasi raggiunte e l’ultimo aggiornamento disponibile.</p></article>
+            <article class="ft-new-card"><div class="ft-new-card-icon">03</div><h3>Aggiornamenti consultabili</h3><p>Puoi tornare nella tua dashboard in qualsiasi momento per verificare a che punto è l’esame della documentazione e leggere le comunicazioni relative alla pratica.</p></article>
+          </div>
+          <p class="ft-new-section-intro" style="margin-top:22px;margin-bottom:0">La dashboard non è una semplice pagina di registrazione: è il tuo punto di riferimento per seguire nel tempo l’avanzamento della pratica.</p>
+        </div>
+      </section>
       <section class="ft-new-section">
         <div class="ft-new-inner">
           <h2>Capire cosa hai ricevuto è il primo passo.</h2>
@@ -1567,6 +1586,23 @@ def home():
         </div>
       </section>
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
+      <aside class="ft-home-calc-dock" id="ftHomeCalcDock" aria-label="Calcolatrice FixTude sempre disponibile">
+        <div class="ft-home-calc-dock-bar"><span>CALCOLATRICE FIXTUDE · SEMAFORO</span><button class="ft-home-calc-toggle" id="ftHomeCalcToggle" type="button" aria-expanded="true">RIDUCI</button></div>
+        <iframe class="ft-home-calc-frame" title="Calcolatrice 3D e semaforo di sostenibilità FixTude" src="/assistenza?widget=1#ftPignoramento" loading="eager"></iframe>
+      </aside>
+      <script>
+      (()=>{
+        const dock=document.getElementById('ftHomeCalcDock');
+        const toggle=document.getElementById('ftHomeCalcToggle');
+        if(!dock||!toggle)return;
+        if(window.matchMedia('(max-width:700px)').matches){dock.classList.add('is-collapsed');toggle.textContent='APRI';toggle.setAttribute('aria-expanded','false');}
+        toggle.addEventListener('click',()=>{
+          const collapsed=dock.classList.toggle('is-collapsed');
+          toggle.textContent=collapsed?'APRI':'RIDUCI';
+          toggle.setAttribute('aria-expanded',String(!collapsed));
+        });
+      })();
+      </script>
       <script>
       (()=>{
         const canvas=document.getElementById('ftNeuralNetwork');
@@ -1942,6 +1978,54 @@ def assistenza_home():
     """
     pignoramento_csrf = session.setdefault("ft_pignoramento_csrf", secrets.token_urlsafe(24))
     content = content.replace("{{PIGNORAMENTO_CSRF}}", escape(pignoramento_csrf, quote=True))
+    if request.args.get("widget") == "1":
+        # Nel widget, il risultato del calcolo deve aprirsi nella pagina principale,
+        # non rimanere confinato nell'iframe laterale.
+        content = content.replace(
+            '<form class="ft-fields" method="post" action="/analisi" id="ftCalculator" novalidate>',
+            '<form class="ft-fields" method="post" action="/analisi" id="ftCalculator" novalidate target="_top">',
+            1,
+        )
+        content = content.replace(
+            '</div>\n      <p class="ft-note">Nessuna registrazione.',
+            '</div>\n      <p class="ft-note ft-home-widget-cta"><strong>Registrati o contattaci</strong> per esaminare la tua situazione debitoria.</p>\n      <p class="ft-note">Nessuna registrazione.',
+            1,
+        )
+        widget_overrides = r"""
+        <style>
+          html,body{margin:0!important;padding:0!important;min-height:100%;background:#05070c!important;color:#f4f6fa!important;overflow-x:hidden!important}
+          .ft-v1{width:100%!important;max-width:none!important;margin:0!important;padding:8px 9px 18px!important;box-sizing:border-box!important}
+          .ft-tagline{font-size:clamp(18px,5vw,25px)!important;margin:2px auto 10px!important}
+          .ft-explain{font-size:12px!important;margin:0 auto 12px!important}
+          .ft-calc-shell{width:100%!important;max-width:none!important;box-sizing:border-box!important;padding:12px!important;border-radius:19px!important}
+          .ft-display{height:48px!important;font-size:clamp(23px,7vw,34px)!important}
+          .ft-steps{gap:5px!important;margin-bottom:9px!important}
+          .ft-step{font-size:9px!important;padding:7px 2px!important}
+          .ft-keypad{gap:6px!important}
+          .ft-key{min-height:43px!important;border-radius:10px!important;font-size:19px!important}
+          .ft-key.fn{font-size:12px!important}
+          .ft-values{gap:5px!important;margin-top:9px!important}
+          .ft-value{padding:6px 3px!important}
+          .ft-value small{font-size:8px!important}
+          .ft-value strong{font-size:11px!important}
+          .ft-calc-foot{font-size:9px!important;margin-top:8px!important}
+          .ft-flip-stage{width:100%!important;max-width:none!important;margin:0!important;perspective:none!important}
+          .ft-flip-inner{display:block!important;transform:none!important;transition:none!important}
+          .ft-flip-front{display:block!important}
+          .ft-flip-back,.ft-pign-toggle,.ft-pign-hint{display:none!important}
+          .ft-traffic{margin:14px auto 7px!important}
+          .ft-traffic-title{font-size:12px!important;margin-bottom:8px!important}
+          .ft-lights{gap:7px!important;padding:8px 10px!important;border-width:3px!important;border-radius:18px!important}
+          .ft-light{width:43px!important;height:43px!important}
+          .ft-countdown{min-height:24px!important;font-size:19px!important;margin-top:7px!important}
+          .ft-status{font-size:11px!important;margin-top:6px!important;min-height:18px!important}
+          .ft-note{font-size:9px!important;margin-top:7px!important}
+          .ft-home-widget-cta{font-size:11px!important;line-height:1.45!important;color:#8fc4ff!important;margin-top:10px!important;padding:8px 5px!important;border-top:1px solid #29476d}
+          .ft-home-widget-cta strong{color:#fff!important}
+        </style>
+        """
+        standalone = '<!doctype html><html lang="it-IT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Calcolatrice FixTude</title></head><body>' + content + widget_overrides + '</body></html>'
+        return Response(standalone, mimetype="text/html")
     return page("Calcolatore gratuito e verifica rischio pignoramento | FixTude", content)
 
 
