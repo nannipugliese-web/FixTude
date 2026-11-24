@@ -1578,7 +1578,7 @@ def home():
         /* Mobile: dock compatto sotto il menu, allineato a destra; le coordinate sono gestite dal drag JS. */
         .ft-home-calc-dock{position:fixed;left:auto;right:12px;top:92px;bottom:auto;transform:none;width:132px;height:42px;min-width:0;min-height:0;max-width:calc(100vw - 24px);max-height:calc(100dvh - 108px);resize:none;z-index:2147483647}
         .ft-home-calc-dock.is-collapsed{left:auto;right:12px;top:92px;bottom:auto;transform:none;width:132px;height:42px;min-width:0;min-height:0;max-width:calc(100vw - 24px);max-height:42px}
-        .ft-home-calc-dock:not(.is-collapsed){width:min(300px,calc(100vw - 24px));height:min(58dvh,540px);max-height:calc(100dvh - 112px)}
+        .ft-home-calc-dock:not(.is-collapsed){width:min(230px,calc(100vw - 24px));height:min(38dvh,320px);max-height:calc(100dvh - 112px)}
         .ft-home-calc-dock-bar{min-height:40px;padding:4px 7px;gap:5px;font-size:9px}
         .ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar{height:40px;min-height:40px;width:100%;justify-content:flex-end;padding:0 5px}
         .ft-home-calc-dock.is-collapsed .ft-home-calc-dock-bar:before{content:'⋮⋮';display:flex;align-items:center;justify-content:center;flex:0 0 22px;height:38px;color:#8bd5ff;font-size:16px;letter-spacing:-3px;cursor:grab}
@@ -1631,7 +1631,7 @@ def home():
       <section class="ft-new-bottom"><div class="ft-new-inner"><p><strong>FixTude non giudica la tua situazione.</strong> Offre strumenti di orientamento e informazioni per aiutarti a comprendere i documenti ricevuti. I contenuti non sostituiscono la consulenza di un avvocato o di un professionista abilitato.</p></div></section>
       <aside class="ft-home-calc-dock" id="ftHomeCalcDock" aria-label="Calcola la tua situazione">
         <div class="ft-home-calc-dock-bar"><span>CALCOLA LA TUA SITUAZIONE</span><button class="ft-home-calc-toggle" id="ftHomeCalcToggle" type="button" aria-expanded="true">RIDUCI</button></div>
-        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-under-menu-draggable-v2#ftPignoramento" loading="eager"></iframe>
+        <iframe class="ft-home-calc-frame" title="Calcola la tua situazione" src="/assistenza?widget=1&v=20261124-mobile-compact-230x320-v3#ftPignoramento" loading="eager"></iframe>
       </aside>
       <script>
       (()=>{
@@ -1668,8 +1668,8 @@ def home():
           dock.classList.toggle('is-collapsed',collapsed);
           dock.style.position='fixed';dock.style.right='auto';dock.style.bottom='auto';dock.style.transform='none';
           if(mobileQuery.matches){
-            const targetWidth=collapsed?Math.min(132,window.innerWidth-24):Math.min(300,window.innerWidth-24);
-            const targetHeight=collapsed?42:Math.min(Math.round(window.innerHeight*.58),540);
+            const targetWidth=collapsed?Math.min(132,window.innerWidth-24):Math.min(230,window.innerWidth-24);
+            const targetHeight=collapsed?42:Math.min(Math.round(window.innerHeight*.38),320);
             if(initial){dock.style.left=mobileStartLeft(targetWidth)+'px';dock.style.top=mobileStartTop()+'px';}
             else if(wasCollapsed!==collapsed){dock.style.left=clamp(before.right-targetWidth,8,window.innerWidth-targetWidth-8)+'px';}
             else if(!dock.style.left){dock.style.left=mobileStartLeft(targetWidth)+'px';dock.style.top=mobileStartTop()+'px';}
